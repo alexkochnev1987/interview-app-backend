@@ -8,6 +8,7 @@ on:
       - 'Dockerfile'
       - 'package.json'
       - 'package-lock.json'
+      - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
 
