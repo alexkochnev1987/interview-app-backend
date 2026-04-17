@@ -14,6 +14,7 @@ module "vpc" {
   source       = "../../modules/vpc"
   project_name = var.project_name
   environment  = var.environment
+  vpc_cidr     = "10.1.0.0/16"
 }
 
 module "iam_oidc" {
