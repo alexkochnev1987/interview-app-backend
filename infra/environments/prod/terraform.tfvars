@@ -1,0 +1,5 @@
+aws_region   = "us-east-1"
+project_name = "interview-app"
+environment  = "prod"
+github_org   = "alexkochnev1987"
+# db_password — pass via: export TF_VAR_db_password="your-secure-password"

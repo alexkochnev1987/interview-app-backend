@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+*.js.map
+coverage/
+.nyc_output/
+
+# Terraform
+infra/**/.terraform/
+infra/**/*.tfstate
+infra/**/*.tfstate.backup
+infra/**/*.tfplan
+infra/**/placeholder.zip
+*.tfvars
+!infra/environments/*/terraform.tfvars
