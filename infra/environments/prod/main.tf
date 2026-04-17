@@ -53,9 +53,9 @@ module "ecs" {
   s3_bucket_name    = module.s3.bucket_name
   subnet_ids        = module.vpc.public_subnet_ids
   security_group_id = module.vpc.ecs_security_group_id
-  cpu               = 512
-  memory            = 1024
-  desired_count     = 2
+  cpu               = 256
+  memory            = 512
+  desired_count     = 0  # Stopped for MVP. Set to 1 when needed.
 }
 
 module "amplify" {

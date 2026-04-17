@@ -73,6 +73,29 @@ resource "aws_iam_role_policy" "github_backend" {
             "iam:PassedToService" = "ecs-tasks.amazonaws.com"
           }
         }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListTasks",
+          "ecs:DescribeTasks"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "amplify:UpdateApp",
+          "amplify:StartJob"
+        ]
+        Resource = "*"
       }
     ]
   })
