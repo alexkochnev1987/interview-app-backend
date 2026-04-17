@@ -1,6 +1,11 @@
+data "aws_secretsmanager_secret_version" "github_token" {
+  secret_id = var.github_token_secret_name
+}
+
 resource "aws_amplify_app" "frontend" {
-  name       = "${var.project_name}-${var.environment}"
-  repository = var.github_repository_url
+  name         = "${var.project_name}-${var.environment}"
+  repository   = var.github_repository_url
+  access_token = data.aws_secretsmanager_secret_version.github_token.secret_string
 
   build_spec = <<-EOT
     version: 1

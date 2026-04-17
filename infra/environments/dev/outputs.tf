@@ -27,6 +27,14 @@ output "state_machine_arn" {
   value = module.stepfunctions.state_machine_arn
 }
 
+output "amplify_app_id" {
+  value = module.amplify.app_id
+}
+
+output "amplify_default_domain" {
+  value = module.amplify.default_domain
+}
+
 output "github_backend_role_arn" {
   value = module.iam_oidc.github_backend_role_arn
 }

@@ -58,6 +58,14 @@ module "ecs" {
   desired_count     = 2
 }
 
+module "amplify" {
+  source                = "../../modules/amplify"
+  project_name          = var.project_name
+  environment           = var.environment
+  github_repository_url = "https://github.com/alexkochnev1987/interview-app-frontend"
+  api_url               = "http://${module.ecs.service_name}.prod.internal:3000"
+}
+
 module "stepfunctions" {
   source         = "../../modules/stepfunctions"
   project_name   = var.project_name
