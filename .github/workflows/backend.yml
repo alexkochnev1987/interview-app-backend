@@ -87,39 +87,5 @@ jobs:
           cluster: ${{ env.PROJECT_NAME }}-${{ env.ENV }}
           wait-for-service-stability: true
 
-      - name: Update Amplify with new backend IP
-        env:
-          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
-        run: |
-          # Get new task's public IP
-          TASK_ARN=$(aws ecs list-tasks \
-            --cluster $PROJECT_NAME-$ENV \
-            --service-name $PROJECT_NAME-$ENV-backend \
-            --query "taskArns[0]" --output text)
-
-          ENI=$(aws ecs describe-tasks \
-            --cluster $PROJECT_NAME-$ENV \
-            --tasks "$TASK_ARN" \
-            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
-            --output text)
-
-          NEW_IP=$(aws ec2 describe-network-interfaces \
-            --network-interface-ids "$ENI" \
-            --query "NetworkInterfaces[0].Association.PublicIp" \
-            --output text)
-
-          echo "New backend IP: $NEW_IP"
-
-          # Update Amplify env var
-          aws amplify update-app \
-            --app-id $AMPLIFY_APP_ID \
-            --environment-variables BACKEND_URL=http://$NEW_IP:3000,NEXT_PUBLIC_ENV=$ENV
-
-          # Trigger Amplify rebuild
-          BRANCH=${{ github.ref == 'refs/heads/main' && 'main' || 'develop' }}
-          aws amplify start-job \
-            --app-id $AMPLIFY_APP_ID \
-            --branch-name $BRANCH \
-            --job-type RELEASE
-
-          echo "Amplify rebuild triggered with BACKEND_URL=http://$NEW_IP:3000"
+      # No need to update Amplify — API Gateway + VPC Link provides a permanent URL.
+      # Cloud Map auto-registers new ECS tasks.

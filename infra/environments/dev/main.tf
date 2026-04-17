@@ -44,17 +44,28 @@ module "rds" {
   db_password       = var.db_password
 }
 
-module "ecs" {
-  source            = "../../modules/ecs"
+module "api_gateway" {
+  source            = "../../modules/api-gateway"
   project_name      = var.project_name
   environment       = var.environment
-  ecr_repo_url      = module.ecr.repository_url
-  s3_bucket_name    = module.s3.bucket_name
+  vpc_id            = module.vpc.vpc_id
   subnet_ids        = module.vpc.public_subnet_ids
   security_group_id = module.vpc.ecs_security_group_id
-  cpu               = 256
-  memory            = 512
-  desired_count     = 1
+}
+
+module "ecs" {
+  source                = "../../modules/ecs"
+  project_name          = var.project_name
+  environment           = var.environment
+  ecr_repo_url          = module.ecr.repository_url
+  s3_bucket_name        = module.s3.bucket_name
+  subnet_ids            = module.vpc.public_subnet_ids
+  security_group_id     = module.vpc.ecs_security_group_id
+  cpu                   = 256
+  memory                = 512
+  desired_count         = 1
+  assign_public_ip      = true
+  service_discovery_arn = module.api_gateway.service_discovery_service_arn
 }
 
 module "amplify" {
@@ -62,7 +73,7 @@ module "amplify" {
   project_name          = var.project_name
   environment           = var.environment
   github_repository_url = "https://github.com/alexkochnev1987/interview-app-frontend"
-  api_url               = "http://${module.ecs.service_name}.dev.internal:3000"
+  api_url               = module.api_gateway.api_url
 }
 
 module "stepfunctions" {

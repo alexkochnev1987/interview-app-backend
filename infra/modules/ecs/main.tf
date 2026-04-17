@@ -127,7 +127,17 @@ resource "aws_ecs_service" "backend" {
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = [var.security_group_id]
-    assign_public_ip = true  # Required when using public subnets without NAT
+    assign_public_ip = var.assign_public_ip
+  }
+
+  # Register with Cloud Map for service discovery
+  dynamic "service_registries" {
+    for_each = var.service_discovery_arn != "" ? [1] : []
+    content {
+      registry_arn   = var.service_discovery_arn
+      container_name = "backend"
+      container_port = var.app_port
+    }
   }
 
   # Allow external changes to desired_count without Terraform reverting them

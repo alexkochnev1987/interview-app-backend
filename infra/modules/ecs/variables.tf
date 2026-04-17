@@ -47,3 +47,14 @@ variable "app_port" {
   type    = number
   default = 3000
 }
+
+variable "assign_public_ip" {
+  type    = bool
+  default = false
+}
+
+variable "service_discovery_arn" {
+  description = "Cloud Map service ARN for auto-registration"
+  type        = string
+  default     = ""
+}
