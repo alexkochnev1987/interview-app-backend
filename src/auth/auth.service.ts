@@ -42,6 +42,32 @@ export class AuthService {
     return this.jwtService.sign(payload, { expiresIn: '24h' });
   }
 
+  async findOrCreateGoogleUser(
+    email: string,
+    name: string,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const existing = this.userService.findByEmail(email);
+    if (existing) {
+      return {
+        id: existing.id,
+        email: existing.email,
+        name: existing.name,
+        role: existing.role,
+        organizationId: existing.organizationId,
+        createdAt: existing.createdAt,
+      };
+    }
+
+    // New Google user — create as HR by default
+    // Admin can promote later
+    return this.userService.create({
+      email,
+      name,
+      password: crypto.randomUUID(), // random password, login only via Google
+      role: 'hr',
+    });
+  }
+
   generateCandidateToken(interviewId: string): string {
     const payload = { interviewId, role: 'candidate' };
     return this.jwtService.sign(payload, { expiresIn: '7d' });

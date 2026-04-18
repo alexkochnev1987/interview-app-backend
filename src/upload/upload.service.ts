@@ -21,9 +21,22 @@ export class UploadService {
   constructor() {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
-    this.s3Client = new S3Client({
+
+    const s3Config: ConstructorParameters<typeof S3Client>[0] = {
       region: process.env.AWS_REGION ?? 'us-east-1',
-    });
+    };
+
+    // MinIO / LocalStack support
+    if (process.env.S3_ENDPOINT) {
+      s3Config.endpoint = process.env.S3_ENDPOINT;
+      s3Config.forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
+      s3Config.credentials = {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'minioadmin',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'minioadmin',
+      };
+    }
+
+    this.s3Client = new S3Client(s3Config);
   }
 
   async generatePresignedUrl(
@@ -31,7 +44,7 @@ export class UploadService {
     questionIndex: number,
     contentType: string,
   ): Promise<PresignedUrlResponse> {
-    const mediaKey = `${this.prefix}/${interviewId}/${questionIndex}/${Date.now()}`;
+    const mediaKey = `${this.prefix}interviews/${interviewId}/answers/q${questionIndex}-${Date.now()}.webm`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -51,11 +64,8 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
   ): ConfirmUploadResponse {
-    // In a real implementation this would update the interview record
-    // via InterviewService. For MVP, just acknowledge the confirmation.
     void interviewId;
     void questionIndex;
-
     return { mediaKey, confirmed: true };
   }
 }

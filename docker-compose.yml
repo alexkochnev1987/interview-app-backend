@@ -1,18 +1,4 @@
 services:
-  backend:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgresql://interview_app:localpass@db:5432/interview_app_dev
-      - AWS_S3_BUCKET=local-bucket
-      - S3_PREFIX=dev/
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: postgres:16-alpine
     environment:
@@ -29,5 +15,31 @@ services:
       timeout: 5s
       retries: 5
 
+  s3:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web UI (удобно смотреть файлы)
+    volumes:
+      - s3data:/data
+
+  # Создаёт bucket при старте
+  s3-init:
+    image: minio/mc
+    depends_on:
+      - s3
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://s3:9000 minioadmin minioadmin;
+      mc mb local/interview-app-local --ignore-existing;
+      exit 0;
+      "
+
 volumes:
   pgdata:
+  s3data:
