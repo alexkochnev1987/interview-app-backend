@@ -11,10 +11,12 @@ class LoginDto {
   password: string;
 }
 
+const isLocal = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const, // 'lax' needed for OAuth redirect
+  secure: !isLocal,
+  sameSite: 'lax' as const,
   path: '/',
   maxAge: 24 * 60 * 60 * 1000, // 24h
 };
