@@ -1,8 +1,16 @@
+import { QuestionCore } from '../../question/interfaces/question.interface';
+
+export type InterviewQuestion = QuestionCore;
+
+export interface CandidateQuestionView {
+  text: string;
+}
+
 export interface Interview {
   id: string;
   candidateName: string;
   position: string;
-  questions: string[];
+  questions: InterviewQuestion[];
   answers: Answer[];
   status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
   result?: InterviewResult;

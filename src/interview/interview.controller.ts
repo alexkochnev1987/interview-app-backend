@@ -25,8 +25,10 @@ export class InterviewController {
   ) {}
 
   @Post()
-  create(@Body() dto: CreateInterviewDto): Interview & { candidateLink: string } {
-    const interview = this.interviewService.create(dto);
+  async create(
+    @Body() dto: CreateInterviewDto,
+  ): Promise<Interview & { candidateLink: string }> {
+    const interview = await this.interviewService.create(dto);
     const token = this.authService.generateCandidateToken(interview.id);
     return {
       ...interview,
@@ -35,23 +37,23 @@ export class InterviewController {
   }
 
   @Get()
-  findAll(): Interview[] {
+  findAll(): Promise<Interview[]> {
     return this.interviewService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Interview {
+  findOne(@Param('id') id: string): Promise<Interview> {
     return this.interviewService.findOne(id);
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') id: string): Interview {
+  complete(@Param('id') id: string): Promise<Interview> {
     return this.interviewService.complete(id);
   }
 
   @Get(':id/results')
   @Roles('super_admin', 'admin')
-  getResults(@Param('id') id: string): InterviewResult {
+  getResults(@Param('id') id: string): Promise<InterviewResult> {
     return this.interviewService.getResults(id);
   }
 }

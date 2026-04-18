@@ -1,6 +1,10 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { QuestionDraft } from '../question/interfaces/question.interface';
 
 class ChatDto {
   question: string;
@@ -14,6 +18,11 @@ class GreetDto {
   candidateName: string;
   position: string;
   totalQuestions: number;
+}
+
+class DraftQuestionDto {
+  text: string;
+  position: string;
 }
 
 @Controller('ai')
@@ -42,5 +51,12 @@ export class AiController {
       dto.totalQuestions,
     );
     return { response };
+  }
+
+  @Post('question-draft')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('super_admin', 'admin', 'hr')
+  draftQuestion(@Body() dto: DraftQuestionDto): Promise<QuestionDraft> {
+    return this.aiService.draftQuestion(dto.text, dto.position);
   }
 }

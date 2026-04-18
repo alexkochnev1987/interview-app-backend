@@ -7,12 +7,16 @@ import { UploadModule } from './upload/upload.module';
 import { HealthModule } from './health/health.module';
 import { TakeModule } from './take/take.module';
 import { AiModule } from './ai/ai.module';
+import { DatabaseModule } from './database/database.module';
+import { QuestionModule } from './question/question.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    DatabaseModule,
     AuthModule,
     UserModule,
+    QuestionModule,
     InterviewModule,
     UploadModule,
     HealthModule,
