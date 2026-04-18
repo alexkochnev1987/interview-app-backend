@@ -30,6 +30,8 @@ resource "aws_amplify_app" "frontend" {
   environment_variables = {
     NEXT_PUBLIC_API_URL = var.api_url
     NEXT_PUBLIC_ENV     = var.environment
+    # next.config.js rewrites /api/* at build time; must point to real API
+    BACKEND_URL = var.api_url
   }
 
   platform = "WEB_COMPUTE"  # Required for SSR (Next.js)
