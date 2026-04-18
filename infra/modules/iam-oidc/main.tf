@@ -85,6 +85,20 @@ resource "aws_iam_role_policy" "github_backend" {
       {
         Effect = "Allow"
         Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/terraform-secrets*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:DescribeNetworkInterfaces"
         ]
         Resource = "*"

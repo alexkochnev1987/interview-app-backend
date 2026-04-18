@@ -73,6 +73,7 @@ jobs:
 
       - name: Resolve database connection
         run: |
+          # Keep the ECS task definition aligned with the current RDS endpoint and secret.
           SECRETS=$(aws secretsmanager get-secret-value \
             --secret-id interview-app/terraform-secrets \
             --region $AWS_REGION \
