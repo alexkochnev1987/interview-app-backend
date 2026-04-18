@@ -58,3 +58,30 @@ variable "service_discovery_arn" {
   type        = string
   default     = ""
 }
+
+variable "jwt_secret" {
+  type      = string
+  default   = "change-me-in-production"
+  sensitive = true
+}
+
+variable "google_client_id" {
+  type    = string
+  default = ""
+}
+
+variable "google_client_secret" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "google_callback_url" {
+  type    = string
+  default = ""
+}
+
+variable "frontend_url" {
+  type    = string
+  default = ""
+}

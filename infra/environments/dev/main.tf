@@ -66,6 +66,11 @@ module "ecs" {
   desired_count         = 1
   assign_public_ip      = true
   service_discovery_arn = module.api_gateway.service_discovery_service_arn
+  jwt_secret            = var.jwt_secret
+  google_client_id      = var.google_client_id
+  google_client_secret  = var.google_client_secret
+  google_callback_url   = "${module.api_gateway.api_url}/auth/google/callback"
+  frontend_url          = "https://develop.${module.amplify.default_domain}"
 }
 
 module "amplify" {
