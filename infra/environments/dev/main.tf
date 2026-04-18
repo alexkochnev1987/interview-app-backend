@@ -69,7 +69,7 @@ module "ecs" {
   jwt_secret            = var.jwt_secret
   google_client_id      = var.google_client_id
   google_client_secret  = var.google_client_secret
-  google_callback_url   = "${module.api_gateway.api_url}/auth/google/callback"
+  google_callback_url   = "https://develop.${module.amplify.default_domain}/api/auth/google/callback"
   frontend_url          = "https://develop.${module.amplify.default_domain}"
 }
 
