@@ -1,13 +1,20 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
 import { User } from '../user/interfaces/user.interface';
+import { UserRole } from '../user/interfaces/user.interface';
 
 interface CandidatePayload {
   interviewId: string;
   role: 'candidate';
   exp: number;
 }
+
+const DEFAULT_SUPER_ADMIN_EMAILS = [
+  'admin@interview-app.com',
+  'alexkochnev1987@gmail.com',
+];
 
 @Injectable()
 export class AuthService {
@@ -17,7 +24,7 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'>> {
-    const user = this.userService.findByEmail(email);
+    const user = await this.userService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -27,14 +34,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      organizationId: user.organizationId,
-      createdAt: user.createdAt,
-    };
+    return this.userService.toPublicUser(
+      await this.syncRoleWithEmailPolicy(user),
+    );
   }
 
   login(user: Omit<User, 'passwordHash'>): string {
@@ -46,25 +48,19 @@ export class AuthService {
     email: string,
     name: string,
   ): Promise<Omit<User, 'passwordHash'>> {
-    const existing = this.userService.findByEmail(email);
+    const existing = await this.userService.findByEmail(email);
     if (existing) {
-      return {
-        id: existing.id,
-        email: existing.email,
-        name: existing.name,
-        role: existing.role,
-        organizationId: existing.organizationId,
-        createdAt: existing.createdAt,
-      };
+      return this.userService.toPublicUser(
+        await this.syncRoleWithEmailPolicy(existing),
+      );
     }
 
-    // New Google user — create as HR by default
-    // Admin can promote later
+    const role = this.getRoleForEmail(email);
     return this.userService.create({
       email,
       name,
-      password: crypto.randomUUID(), // random password, login only via Google
-      role: 'hr',
+      password: randomUUID(), // random password, login only via Google
+      role,
     });
   }
 
@@ -81,5 +77,30 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  private async syncRoleWithEmailPolicy(user: User): Promise<User> {
+    if (!this.isSuperAdminEmail(user.email) || user.role === 'super_admin') {
+      return user;
+    }
+
+    return (await this.userService.updateRole(user.id, 'super_admin')) ?? user;
+  }
+
+  private getRoleForEmail(email: string): UserRole {
+    return this.isSuperAdminEmail(email) ? 'super_admin' : 'hr';
+  }
+
+  private isSuperAdminEmail(email: string): boolean {
+    const configured = process.env.SUPER_ADMIN_EMAILS
+      ?.split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+
+    const superAdminEmails = configured?.length
+      ? configured
+      : DEFAULT_SUPER_ADMIN_EMAILS;
+
+    return superAdminEmails.includes(email.trim().toLowerCase());
   }
 }

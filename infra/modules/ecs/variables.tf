@@ -85,3 +85,9 @@ variable "frontend_url" {
   type    = string
   default = ""
 }
+
+variable "database_url" {
+  type      = string
+  default   = ""
+  sensitive = true
+}

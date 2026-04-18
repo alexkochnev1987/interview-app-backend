@@ -102,6 +102,7 @@ resource "aws_ecs_task_definition" "backend" {
     environment = [
       { name = "NODE_ENV", value = var.environment == "prod" ? "production" : "development" },
       { name = "PORT", value = tostring(var.app_port) },
+      { name = "DATABASE_URL", value = var.database_url },
       { name = "S3_PREFIX", value = "${var.environment}/" },
       { name = "AWS_S3_BUCKET", value = var.s3_bucket_name },
       { name = "JWT_SECRET", value = var.jwt_secret },

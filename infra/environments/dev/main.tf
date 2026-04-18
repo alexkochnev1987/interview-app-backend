@@ -66,6 +66,13 @@ module "ecs" {
   desired_count         = 1
   assign_public_ip      = true
   service_discovery_arn = module.api_gateway.service_discovery_service_arn
+  database_url          = format(
+    "postgresql://interview_app:%s@%s:%s/%s",
+    urlencode(var.db_password),
+    module.rds.address,
+    module.rds.port,
+    module.rds.db_name,
+  )
   jwt_secret            = var.jwt_secret
   google_client_id      = var.google_client_id
   google_client_secret  = var.google_client_secret

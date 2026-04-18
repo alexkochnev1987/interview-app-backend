@@ -56,6 +56,13 @@ module "ecs" {
   cpu               = 256
   memory            = 512
   desired_count     = 0  # Stopped for MVP. Set to 1 when needed.
+  database_url      = format(
+    "postgresql://interview_app:%s@%s:%s/%s",
+    urlencode(var.db_password),
+    module.rds.address,
+    module.rds.port,
+    module.rds.db_name,
+  )
 }
 
 module "amplify" {

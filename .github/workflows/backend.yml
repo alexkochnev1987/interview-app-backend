@@ -71,6 +71,62 @@ jobs:
             --query taskDefinition \
             > task-definition.json
 
+      - name: Resolve database connection
+        run: |
+          SECRETS=$(aws secretsmanager get-secret-value \
+            --secret-id interview-app/terraform-secrets \
+            --region $AWS_REGION \
+            --query SecretString \
+            --output text)
+
+          DB_PASSWORD=$(echo "$SECRETS" | python3 -c "import sys,json,urllib.parse; print(urllib.parse.quote(json.load(sys.stdin)['db_password'], safe=''))")
+          DB_HOST=$(aws rds describe-db-instances \
+            --db-instance-identifier $PROJECT_NAME-$ENV \
+            --region $AWS_REGION \
+            --query 'DBInstances[0].Endpoint.Address' \
+            --output text)
+          DB_PORT=$(aws rds describe-db-instances \
+            --db-instance-identifier $PROJECT_NAME-$ENV \
+            --region $AWS_REGION \
+            --query 'DBInstances[0].Endpoint.Port' \
+            --output text)
+          DB_NAME=$(aws rds describe-db-instances \
+            --db-instance-identifier $PROJECT_NAME-$ENV \
+            --region $AWS_REGION \
+            --query 'DBInstances[0].DBName' \
+            --output text)
+
+          echo "DATABASE_URL=postgresql://interview_app:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" >> $GITHUB_ENV
+
+      - name: Inject database connection into task definition
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("task-definition.json")
+          task_definition = json.loads(path.read_text())
+
+          for container in task_definition.get("containerDefinitions", []):
+            if container.get("name") != "backend":
+              continue
+
+            environment = [
+              entry
+              for entry in container.get("environment", [])
+              if entry.get("name") != "DATABASE_URL"
+            ]
+            environment.append({
+              "name": "DATABASE_URL",
+              "value": os.environ["DATABASE_URL"],
+            })
+            container["environment"] = environment
+            break
+
+          path.write_text(json.dumps(task_definition))
+          PY
+
       - name: Update task definition with new image
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
