@@ -1,3 +1,5 @@
+import '../database/load-env';
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { DatabaseService } from '../database/database.service';

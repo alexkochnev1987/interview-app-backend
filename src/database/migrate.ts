@@ -1,3 +1,5 @@
+import './load-env';
+
 import { DatabaseService } from './database.service';
 import { runMigrations } from './migration-runner';
 

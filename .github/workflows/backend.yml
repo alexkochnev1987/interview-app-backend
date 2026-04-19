@@ -100,7 +100,13 @@ jobs:
 
           echo "DATABASE_URL=postgresql://interview_app:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" >> $GITHUB_ENV
 
-      - name: Inject database connection into task definition
+      # DATABASE_URL from RDS (step above). AI_* / OPENAI_* from repo/environment Variables + Secrets (dev/prod).
+      - name: Inject database and AI env into task definition
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
         run: |
           python3 - <<'PY'
           import json
@@ -110,20 +116,39 @@ jobs:
           path = Path("task-definition.json")
           task_definition = json.loads(path.read_text())
 
+          managed_keys = (
+              "DATABASE_URL",
+              "AI_PROVIDER",
+              "OPENAI_API_KEY",
+              "OPENAI_MODEL",
+              "OPENAI_BASE_URL",
+          )
+
           for container in task_definition.get("containerDefinitions", []):
             if container.get("name") != "backend":
               continue
 
-            environment = [
-              entry
-              for entry in container.get("environment", [])
-              if entry.get("name") != "DATABASE_URL"
+            merged = {}
+            for entry in container.get("environment", []):
+              name = entry.get("name")
+              if name and name not in managed_keys:
+                merged[name] = entry["value"]
+
+            merged["DATABASE_URL"] = os.environ["DATABASE_URL"]
+
+            if os.environ.get("AI_PROVIDER", "").strip():
+              merged["AI_PROVIDER"] = os.environ["AI_PROVIDER"].strip()
+            if os.environ.get("OPENAI_API_KEY", "").strip():
+              merged["OPENAI_API_KEY"] = os.environ["OPENAI_API_KEY"].strip()
+            if os.environ.get("OPENAI_MODEL", "").strip():
+              merged["OPENAI_MODEL"] = os.environ["OPENAI_MODEL"].strip()
+            if os.environ.get("OPENAI_BASE_URL", "").strip():
+              merged["OPENAI_BASE_URL"] = os.environ["OPENAI_BASE_URL"].strip()
+
+            container["environment"] = [
+              {"name": k, "value": v}
+              for k, v in sorted(merged.items())
             ]
-            environment.append({
-              "name": "DATABASE_URL",
-              "value": os.environ["DATABASE_URL"],
-            })
-            container["environment"] = environment
             break
 
           path.write_text(json.dumps(task_definition))

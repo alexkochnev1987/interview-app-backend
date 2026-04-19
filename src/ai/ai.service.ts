@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import {
   QuestionDifficulty,
@@ -6,18 +6,32 @@ import {
   QuestionExpectedConcept,
   QuestionRedFlag,
 } from '../question/interfaces/question.interface';
+import { resolveNativeProvider } from './llm/ai-env';
+import {
+  runInterviewChat,
+  runInterviewGreet,
+  runInterviewRephrase,
+} from './llm/interview-chat-llm';
+import { generateQuestionDraftWithNativeLlm } from './llm/question-draft-llm';
 
 interface ChatMessage {
   role: 'system' | 'assistant' | 'candidate';
   content: string;
 }
 
+function isAiDebugEnabled(): boolean {
+  const v = process.env.AI_DEBUG?.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
   // Mock implementation — replace with real LLM endpoint later.
 
   async rephrase(question: string): Promise<string> {
-    const aiUrl = process.env.AI_API_URL;
+    const aiUrl = process.env.AI_API_URL?.trim();
 
     if (aiUrl) {
       const res = await fetch(`${aiUrl}/interview`, {
@@ -29,7 +43,27 @@ export class AiService {
         }),
       });
       const data = await res.json();
+      if (isAiDebugEnabled()) {
+        this.logger.log(`rephrase: legacy proxy ${aiUrl}`);
+      }
       return data.rephrased;
+    }
+
+    const native = resolveNativeProvider();
+    if (native) {
+      try {
+        const text = await runInterviewRephrase(native, question);
+        if (isAiDebugEnabled()) {
+          this.logger.log(`rephrase: model ${native.kind} (${native.model})`);
+        }
+        return text;
+      } catch (err) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `rephrase: model failed, using template — ${this.formatAiError(err)}`,
+          );
+        }
+      }
     }
 
     return `Let me put it differently: ${question} — In other words, could you share your experience or thoughts on this topic?`;
@@ -42,7 +76,7 @@ export class AiService {
     history: ChatMessage[],
     candidateMessage: string,
   ): Promise<string> {
-    const aiUrl = process.env.AI_API_URL;
+    const aiUrl = process.env.AI_API_URL?.trim();
 
     if (aiUrl) {
       const res = await fetch(`${aiUrl}/interview`, {
@@ -58,7 +92,34 @@ export class AiService {
         }),
       });
       const data = await res.json();
+      if (isAiDebugEnabled()) {
+        this.logger.log(`chat: legacy proxy ${aiUrl}`);
+      }
       return data.response;
+    }
+
+    const native = resolveNativeProvider();
+    if (native) {
+      try {
+        const text = await runInterviewChat(
+          native,
+          question,
+          position,
+          candidateName,
+          history,
+          candidateMessage,
+        );
+        if (isAiDebugEnabled()) {
+          this.logger.log(`chat: model ${native.kind} (${native.model})`);
+        }
+        return text;
+      } catch (err) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `chat: model failed, using rules — ${this.formatAiError(err)}`,
+          );
+        }
+      }
     }
 
     const msg = candidateMessage.toLowerCase();
@@ -95,7 +156,7 @@ export class AiService {
     position: string,
     totalQuestions: number,
   ): Promise<string> {
-    const aiUrl = process.env.AI_API_URL;
+    const aiUrl = process.env.AI_API_URL?.trim();
 
     if (aiUrl) {
       const res = await fetch(`${aiUrl}/interview`, {
@@ -109,7 +170,32 @@ export class AiService {
         }),
       });
       const data = await res.json();
+      if (isAiDebugEnabled()) {
+        this.logger.log(`greet: legacy proxy ${aiUrl}`);
+      }
       return data.response;
+    }
+
+    const native = resolveNativeProvider();
+    if (native) {
+      try {
+        const text = await runInterviewGreet(
+          native,
+          candidateName,
+          position,
+          totalQuestions,
+        );
+        if (isAiDebugEnabled()) {
+          this.logger.log(`greet: model ${native.kind} (${native.model})`);
+        }
+        return text;
+      } catch (err) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `greet: model failed, using template — ${this.formatAiError(err)}`,
+          );
+        }
+      }
     }
 
     return `Hello, ${candidateName}! I'm your AI interviewer for the ${position} position. The interview has ${totalQuestions} questions, up to 4 minutes each. You can ask me to rephrase any question. Ready to begin?`;
@@ -118,7 +204,7 @@ export class AiService {
   async draftQuestion(
     input: Partial<CreateQuestionDto>,
   ): Promise<QuestionDraft> {
-    const aiUrl = process.env.AI_API_URL;
+    const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input);
 
     if (aiUrl) {
@@ -133,11 +219,57 @@ export class AiService {
       const data = await res.json();
       const normalized = this.normalizeRemoteDraft(data, base);
       if (normalized) {
+        if (isAiDebugEnabled()) {
+          this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
+        }
         return normalized;
+      }
+      if (isAiDebugEnabled()) {
+        this.logger.warn(
+          'question-draft: proxy returned unusable JSON, trying native or heuristic',
+        );
       }
     }
 
+    const native = resolveNativeProvider();
+    if (native) {
+      try {
+        const parsed = await generateQuestionDraftWithNativeLlm(native, base);
+        const normalized = this.normalizeRemoteDraft(parsed, base);
+        if (normalized) {
+          if (isAiDebugEnabled()) {
+            this.logger.log(
+              `question-draft: model ${native.kind} (${native.model})`,
+            );
+          }
+          return normalized;
+        }
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            'question-draft: model response did not normalize, using heuristic',
+          );
+        }
+      } catch (err) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `question-draft: model failed, using heuristic — ${this.formatAiError(err)}`,
+          );
+        }
+      }
+    } else if (isAiDebugEnabled()) {
+      this.logger.log(
+        'question-draft: no AI_API_URL and no native provider (check AI_PROVIDER + API key)',
+      );
+    }
+
+    if (isAiDebugEnabled()) {
+      this.logger.log('question-draft: heuristic stub (no LLM)');
+    }
     return this.buildQuestionDraft(base);
+  }
+
+  private formatAiError(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
   }
 
   private normalizeDraftRequest(input: Partial<CreateQuestionDto>): QuestionDraft {
