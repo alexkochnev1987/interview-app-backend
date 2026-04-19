@@ -54,6 +54,7 @@ resource "aws_iam_role_policy" "github_backend" {
       {
         Effect = "Allow"
         Action = [
+          "ecs:RunTask",
           "ecs:UpdateService",
           "ecs:DescribeServices",
           "ecs:DescribeTaskDefinition",
