@@ -136,13 +136,81 @@ jobs:
           container-name: backend
           image: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.ENV }}-${{ github.sha }}
 
+      - name: Register task definition revision
+        id: register-task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://${{ steps.task-def.outputs.task-definition }} \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Run database migrations
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.register-task-def.outputs.task_definition_arn }}
+        run: |
+          SERVICE_JSON=$(aws ecs describe-services \
+            --cluster $PROJECT_NAME-$ENV \
+            --services $PROJECT_NAME-$ENV-backend \
+            --query 'services[0]' \
+            --output json)
+          export SERVICE_JSON
+
+          NETWORK_CONFIG=$(python3 - <<'PY'
+          import json
+          import os
+
+          service = json.loads(os.environ["SERVICE_JSON"])
+          awsvpc = service["networkConfiguration"]["awsvpcConfiguration"]
+          subnets = ",".join(awsvpc["subnets"])
+          security_groups = ",".join(awsvpc["securityGroups"])
+          assign_public_ip = awsvpc.get("assignPublicIp", "DISABLED")
+          print(
+              f"awsvpcConfiguration={{subnets=[{subnets}],securityGroups=[{security_groups}],assignPublicIp={assign_public_ip}}}"
+          )
+          PY
+          )
+
+          MIGRATION_TASK_ARN=$(aws ecs run-task \
+            --cluster $PROJECT_NAME-$ENV \
+            --launch-type FARGATE \
+            --task-definition "$TASK_DEFINITION_ARN" \
+            --network-configuration "$NETWORK_CONFIG" \
+            --overrides '{"containerOverrides":[{"name":"backend","command":["node","dist/database/migrate.js"]}]}' \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          aws ecs wait tasks-stopped \
+            --cluster $PROJECT_NAME-$ENV \
+            --tasks "$MIGRATION_TASK_ARN"
+
+          MIGRATION_EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster $PROJECT_NAME-$ENV \
+            --tasks "$MIGRATION_TASK_ARN" \
+            --query 'tasks[0].containers[?name==`backend`].exitCode | [0]' \
+            --output text)
+
+          if [ "$MIGRATION_EXIT_CODE" != "0" ]; then
+            aws ecs describe-tasks \
+              --cluster $PROJECT_NAME-$ENV \
+              --tasks "$MIGRATION_TASK_ARN" \
+              --query 'tasks[0].containers[?name==`backend`].[name,lastStatus,exitCode,reason]' \
+              --output table
+            exit 1
+          fi
+
       - name: Deploy to Amazon ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.PROJECT_NAME }}-${{ env.ENV }}-backend
-          cluster: ${{ env.PROJECT_NAME }}-${{ env.ENV }}
-          wait-for-service-stability: true
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.register-task-def.outputs.task_definition_arn }}
+        run: |
+          aws ecs update-service \
+            --cluster $PROJECT_NAME-$ENV \
+            --service $PROJECT_NAME-$ENV-backend \
+            --task-definition "$TASK_DEFINITION_ARN"
+
+          aws ecs wait services-stable \
+            --cluster $PROJECT_NAME-$ENV \
+            --services $PROJECT_NAME-$ENV-backend
 
       # No need to update Amplify — API Gateway + VPC Link provides a permanent URL.
       # Cloud Map auto-registers new ECS tasks.

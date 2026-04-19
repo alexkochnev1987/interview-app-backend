@@ -1,12 +1,37 @@
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard';
+export type QuestionRedFlagSeverity = 'low' | 'medium' | 'high';
+
+export interface QuestionExpectedConcept {
+  id: string;
+  label: string;
+  weight: number;
+  description: string;
+}
+
+export interface QuestionRedFlag {
+  id: string;
+  label: string;
+  severity: QuestionRedFlagSeverity;
+}
 
 export interface QuestionCore {
   id: string;
-  text: string;
-  expectedConcepts: string[];
-  redFlags: string[];
+  externalId?: string;
+  role?: string;
+  focus?: string;
+  outputLanguage: string;
+  category?: string;
+  subcategory?: string;
+  questionText: string;
+  followUpQuestions: string[];
+  expectedConcepts: QuestionExpectedConcept[];
+  redFlags: QuestionRedFlag[];
   difficulty: QuestionDifficulty;
   weight: number;
+  sampleGoodAnswer?: string;
+  minimumPassScore: number;
+  tags: string[];
+  metadata: Record<string, unknown>;
 }
 
 export interface Question extends QuestionCore {
@@ -14,9 +39,4 @@ export interface Question extends QuestionCore {
   updatedAt: Date;
 }
 
-export interface QuestionDraft {
-  expectedConcepts: string[];
-  redFlags: string[];
-  difficulty: QuestionDifficulty;
-  weight: number;
-}
+export type QuestionDraft = Omit<QuestionCore, 'id'>;

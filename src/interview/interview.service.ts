@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
@@ -28,27 +27,11 @@ interface InterviewRow {
 }
 
 @Injectable()
-export class InterviewService implements OnModuleInit {
+export class InterviewService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
   ) {}
-
-  async onModuleInit(): Promise<void> {
-    await this.databaseService.query(`
-      CREATE TABLE IF NOT EXISTS interviews (
-        id UUID PRIMARY KEY,
-        candidate_name TEXT NOT NULL,
-        position TEXT NOT NULL,
-        questions_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-        answers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-        status TEXT NOT NULL CHECK (status IN ('pending', 'in_progress', 'processing', 'completed', 'failed')),
-        result_json JSONB NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-  }
 
   async create(dto: CreateInterviewDto): Promise<Interview> {
     const candidateName = dto.candidateName.trim();
@@ -272,7 +255,9 @@ export class InterviewService implements OnModuleInit {
       id: row.id,
       candidateName: row.candidate_name,
       position: row.position,
-      questions: row.questions_json ?? [],
+      questions: (row.questions_json ?? []).map((question) =>
+        this.questionService.hydrateStoredQuestionCore(question),
+      ),
       answers: (row.answers_json ?? []).map((answer) => ({
         ...answer,
         uploadedAt: new Date(answer.uploadedAt),

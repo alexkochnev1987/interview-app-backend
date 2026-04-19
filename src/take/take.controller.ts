@@ -37,7 +37,7 @@ export class TakeController {
     }
 
     const currentQuestion: CandidateQuestionView = {
-      text: interview.questions[answeredCount].text,
+      text: interview.questions[answeredCount].questionText,
     };
 
     return {

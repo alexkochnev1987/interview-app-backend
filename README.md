@@ -383,6 +383,63 @@ POST   /upload/complete                     # подтвердить загру�
 
 ---
 
+## Database migrations
+
+Schema changes are now versioned and should be applied through the migration runner instead of relying on service startup side effects.
+
+### Local
+```bash
+cd interview-app-backend
+npm run db:migrate
+```
+
+`npm run start` and `npm run start:dev` now run `db:migrate` first.
+
+### Import questions from JSON
+```bash
+cd interview-app-backend
+npm run questions:import -- ../questions.json
+```
+
+The import script performs upsert:
+- by `externalId` when present
+- otherwise by exact question text
+
+### Prod / dev in ECS
+
+CI/CD now registers the new ECS task definition revision, runs:
+
+```bash
+node dist/database/migrate.js
+```
+
+as a one-off Fargate task inside the same VPC as RDS, and only then updates the backend service.
+
+If you need to run it manually:
+
+```bash
+aws ecs describe-services \
+  --cluster interview-app-prod \
+  --services interview-app-prod-backend \
+  --region us-east-1
+
+aws ecs run-task \
+  --cluster interview-app-prod \
+  --launch-type FARGATE \
+  --task-definition interview-app-prod-backend \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-aaa,subnet-bbb],securityGroups=[sg-ccc],assignPublicIp=DISABLED}" \
+  --overrides '{"containerOverrides":[{"name":"backend","command":["node","dist/database/migrate.js"]}]}' \
+  --region us-east-1
+```
+
+Before running a destructive schema change on prod:
+- create an RDS snapshot
+- validate the migration on local and `dev`
+- run the migration task first
+- deploy the ECS service only after the migration exits with code `0`
+
+---
+
 ## Управление окружениями (вкл/выкл)
 
 Prod сейчас остановлен для экономии. Dev работает.

@@ -21,19 +21,6 @@ export class UserService implements OnModuleInit {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async onModuleInit(): Promise<void> {
-    await this.databaseService.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY,
-        email TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin', 'hr')),
-        organization_id TEXT NULL,
-        password_hash TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-
     const existing = await this.findByEmail('admin@interview-app.com');
     if (!existing) {
       await this.create({

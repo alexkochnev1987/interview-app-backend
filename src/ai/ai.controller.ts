@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { QuestionDraft } from '../question/interfaces/question.interface';
+import { CreateQuestionDto } from '../question/dto/create-question.dto';
 
 class ChatDto {
   question: string;
@@ -21,8 +22,7 @@ class GreetDto {
 }
 
 class DraftQuestionDto {
-  text: string;
-  position: string;
+  question?: Partial<CreateQuestionDto>;
 }
 
 @Controller('ai')
@@ -57,6 +57,6 @@ export class AiController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('super_admin', 'admin', 'hr')
   draftQuestion(@Body() dto: DraftQuestionDto): Promise<QuestionDraft> {
-    return this.aiService.draftQuestion(dto.text, dto.position);
+    return this.aiService.draftQuestion(dto.question ?? {});
   }
 }
