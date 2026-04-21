@@ -1,4 +1,29 @@
-export function getRequestClientIp(req: Record<string, any>): string {
+export interface RequestTrackerHeaders {
+  readonly 'x-forwarded-for'?: string | readonly string[];
+}
+
+export interface RequestTrackerUser {
+  readonly id?: string;
+}
+
+export interface RequestTrackerCandidatePayload {
+  readonly interviewId?: string;
+}
+
+export interface RequestTrackerSocket {
+  readonly remoteAddress?: string;
+}
+
+export interface RequestTrackerRequest {
+  readonly headers?: RequestTrackerHeaders;
+  readonly ips?: readonly string[];
+  readonly ip?: string;
+  readonly socket?: RequestTrackerSocket;
+  readonly user?: RequestTrackerUser;
+  readonly candidatePayload?: RequestTrackerCandidatePayload;
+}
+
+export function getRequestClientIp(req: RequestTrackerRequest): string {
   const forwardedFor = req.headers?.['x-forwarded-for'];
 
   if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
