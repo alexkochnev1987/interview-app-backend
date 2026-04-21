@@ -1,10 +1,21 @@
-import { Controller, Post, Get, Body, Res, Req, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
+import { LoginThrottlerGuard } from './guards/login-throttler.guard';
 
 class LoginDto {
   email: string;
@@ -30,6 +41,14 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(LoginThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 5,
+      ttl: minutes(1),
+      blockDuration: minutes(15),
+    },
+  })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,

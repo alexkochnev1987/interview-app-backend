@@ -9,10 +9,12 @@ import { TakeModule } from './take/take.module';
 import { AiModule } from './ai/ai.module';
 import { DatabaseModule } from './database/database.module';
 import { QuestionModule } from './question/question.module';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    RateLimitModule,
     DatabaseModule,
     AuthModule,
     UserModule,

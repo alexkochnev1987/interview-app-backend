@@ -1,27 +1,191 @@
-import { Controller, Get, Post, Param, Body, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsDate,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Response } from 'express';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
+import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
 import { CandidateQuestionView } from '../interview/interfaces/interview.interface';
+import { AuthService } from '../auth/auth.service';
+import {
+  CANDIDATE_SESSION_COOKIE,
+  getCandidateSessionCookieOptions,
+} from '../auth/candidate-session';
+
+interface CandidateRequest {
+  candidatePayload: { interviewId: string };
+  candidateTokenSource?: 'query' | 'cookie';
+}
+
+class BehaviorSignalsDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  tabHiddenCount = 0;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  windowBlurCount = 0;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  pasteCount = 0;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  keydownCount = 0;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  resizeCount = 0;
+}
+
+class BehaviorEventDto {
+  @IsIn(['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'])
+  @IsString()
+  @IsNotEmpty()
+  eventType!: 'tab_hidden' | 'window_blur' | 'paste' | 'keydown' | 'resize';
+
+  @Type(() => Date)
+  @IsDate()
+  occurredAt!: Date;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber!: number;
+}
+
+class SubmitAnswerDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber!: number;
+
+  @IsBoolean()
+  submitAnswer!: boolean;
+
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  screenMediaKey?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  durationSeconds!: number;
+
+  @Type(() => Date)
+  @IsDate()
+  startedAt!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  submittedAt!: Date;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  cameraFileSizeBytes?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  screenFileSizeBytes?: number;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => BehaviorSignalsDto)
+  behaviorSignals!: BehaviorSignalsDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BehaviorEventDto)
+  behaviorEvents?: BehaviorEventDto[];
+}
 
 @Controller('take')
-@UseGuards(CandidateAuthGuard)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+  }),
+)
 export class TakeController {
-  constructor(private readonly interviewService: InterviewService) {}
+  constructor(
+    private readonly interviewService: InterviewService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get(':id')
+  @UseGuards(CandidateAuthGuard)
   async getInterview(
     @Param('id') id: string,
-    @Req() req: { candidatePayload: { interviewId: string } },
+    @Req() req: CandidateRequest,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (req.candidatePayload.interviewId !== id) {
       throw new BadRequestException('Token does not match interview');
     }
 
+    if (req.candidateTokenSource === 'query') {
+      res.cookie(
+        CANDIDATE_SESSION_COOKIE,
+        this.authService.generateCandidateSessionToken(id),
+        getCandidateSessionCookieOptions(),
+      );
+    }
+
     const interview = await this.interviewService.findOne(id);
 
     // Return only what candidate needs — one question at a time
-    const answeredCount = interview.answers.length;
+    const answeredCount = interview.answers.filter(
+      (answer) => answer.status === 'submitted',
+    ).length;
     const totalQuestions = interview.questions.length;
+    const currentAnswer = interview.answers.find(
+      (answer) => answer.questionIndex === answeredCount,
+    );
 
     if (answeredCount >= totalQuestions) {
       return {
@@ -32,6 +196,7 @@ export class TakeController {
         totalQuestions,
         currentQuestion: null,
         currentQuestionIndex: answeredCount,
+        currentAnswerMeta: null,
         completed: true,
       };
     }
@@ -48,31 +213,37 @@ export class TakeController {
       totalQuestions,
       currentQuestion,
       currentQuestionIndex: answeredCount,
+      currentAnswerMeta: currentAnswer
+        ? {
+            status: currentAnswer.status,
+            versionCount: currentAnswer.versions?.length ?? 0,
+            selectedVersionNumber: currentAnswer.selectedVersionNumber ?? 1,
+          }
+        : null,
       completed: false,
     };
   }
 
   @Post(':id/answer')
+  @UseGuards(CandidateSessionGuard)
   async submitAnswer(
     @Param('id') id: string,
-    @Body() body: { questionIndex: number; mediaKey: string; screenMediaKey?: string },
-    @Req() req: { candidatePayload: { interviewId: string } },
+    @Body() body: SubmitAnswerDto,
+    @Req() req: CandidateRequest,
   ) {
     if (req.candidatePayload.interviewId !== id) {
       throw new BadRequestException('Token does not match interview');
     }
 
-    const interview = await this.interviewService.addAnswer(
-      id,
-      body.questionIndex,
-      body.mediaKey,
-      body.screenMediaKey,
-    );
+    const interview = await this.interviewService.addAnswer(id, body);
 
-    const isLast = interview.answers.length >= interview.questions.length;
+    const submittedCount = interview.answers.filter(
+      (answer) => answer.status === 'submitted',
+    ).length;
+    const isLast = submittedCount >= interview.questions.length;
     return {
       ok: true,
-      answeredCount: interview.answers.length,
+      answeredCount: submittedCount,
       totalQuestions: interview.questions.length,
       completed: isLast,
     };

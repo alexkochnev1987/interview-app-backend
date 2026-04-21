@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { InterviewService } from '../interview/interview.service';
+import {
+  buildInterviewMediaKey,
+  matchesInterviewMediaKey,
+} from './upload-key';
 
 export interface PresignedUrlResponse {
   uploadUrl: string;
@@ -18,7 +23,7 @@ export class UploadService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor() {
+  constructor(private readonly interviewService: InterviewService) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
 
@@ -45,8 +50,29 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
   ): Promise<PresignedUrlResponse> {
+    const interview = await this.interviewService.findOne(interviewId);
+    const currentQuestionIndex = interview.answers.filter(
+      (answer) => answer.status === 'submitted',
+    ).length;
+    if (questionIndex !== currentQuestionIndex) {
+      throw new BadRequestException(
+        'Uploads are only allowed for the current question',
+      );
+    }
+    if (questionIndex >= interview.questions.length) {
+      throw new BadRequestException('Question index is out of range');
+    }
+    if (contentType !== 'video/webm') {
+      throw new BadRequestException('Unsupported content type');
+    }
+
     const normalizedMediaType = mediaType === 'screen' ? 'screen' : 'camera';
-    const mediaKey = `${this.prefix}interviews/${interviewId}/answers/q${questionIndex}-${normalizedMediaType}-${Date.now()}.webm`;
+    const mediaKey = buildInterviewMediaKey({
+      prefix: this.prefix,
+      interviewId,
+      questionIndex,
+      mediaType: normalizedMediaType,
+    });
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -66,8 +92,16 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
   ): ConfirmUploadResponse {
-    void interviewId;
-    void questionIndex;
+    if (
+      !matchesInterviewMediaKey({
+        mediaKey,
+        interviewId,
+        questionIndex,
+      })
+    ) {
+      throw new BadRequestException('Media key does not match the interview');
+    }
+
     return { mediaKey, confirmed: true };
   }
 }

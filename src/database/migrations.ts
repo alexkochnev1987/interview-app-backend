@@ -136,4 +136,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0004',
+    name: 'add_interview_workflow_json',
+    statements: [
+      `
+        ALTER TABLE interviews
+        ADD COLUMN IF NOT EXISTS workflow_json JSONB NULL;
+      `,
+    ],
+  },
 ];

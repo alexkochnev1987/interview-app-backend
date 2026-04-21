@@ -1,6 +1,22 @@
 import { QuestionCore } from '../../question/interfaces/question.interface';
 
 export type InterviewQuestion = QuestionCore;
+export type InterviewBehaviorRisk = 'low' | 'medium' | 'high';
+export type InterviewDecision = 'proceed' | 'review' | 'reject';
+export type AnswerDecisionHint = 'pass' | 'review' | 'fail';
+export type AnswerStatus = 'recording' | 'submitted';
+export type InterviewWorkflowStatus =
+  | 'idle'
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+export type InterviewWorkflowStage =
+  | 'validate_answers'
+  | 'transcribe_audio'
+  | 'analyze_answers'
+  | 'aggregate_result'
+  | 'store_result';
 
 export interface CandidateQuestionView {
   text: string;
@@ -14,20 +30,124 @@ export interface Interview {
   answers: Answer[];
   status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
   result?: InterviewResult;
+  workflow?: InterviewWorkflow;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface Answer {
-  questionIndex: number;
+export interface MediaArtifact {
+  mediaKey: string;
+  contentType: string;
+  fileSizeBytes?: number;
+  uploadedAt: Date;
+}
+
+export interface AnswerBehaviorSignals {
+  tabHiddenCount: number;
+  windowBlurCount: number;
+  pasteCount: number;
+  keydownCount: number;
+  resizeCount: number;
+}
+
+export interface AnswerBehaviorEvent {
+  eventType:
+    | 'tab_hidden'
+    | 'window_blur'
+    | 'paste'
+    | 'keydown'
+    | 'resize';
+  occurredAt: Date;
+  versionNumber: number;
+}
+
+export interface AnswerTranscript {
+  text?: string;
+  language?: string;
+  provider?: string;
+  generatedAt?: Date;
+}
+
+export interface AnswerEvaluation {
+  overallScore?: number;
+  categoryScores?: Record<string, number>;
+  coveredConceptIds?: string[];
+  missedConceptIds?: string[];
+  redFlagIds?: string[];
+  behaviorRisk?: InterviewBehaviorRisk;
+  summary?: string;
+  decisionHint?: AnswerDecisionHint;
+  evaluatedAt?: Date;
+}
+
+export interface AnswerVersion {
+  versionNumber: number;
   mediaKey: string;
   screenMediaKey?: string;
   uploadedAt: Date;
+  durationSeconds?: number;
+  startedAt?: Date;
+  submittedAt?: Date;
+  camera?: MediaArtifact;
+  screen?: MediaArtifact;
+  behaviorSignals?: AnswerBehaviorSignals;
+  behaviorEvents?: AnswerBehaviorEvent[];
+}
+
+export interface Answer {
+  questionIndex: number;
+  questionId: string;
+  status: AnswerStatus;
+  mediaKey: string;
+  screenMediaKey?: string;
+  uploadedAt: Date;
+  durationSeconds?: number;
+  retakeCount?: number;
+  startedAt?: Date;
+  submittedAt?: Date;
+  camera?: MediaArtifact;
+  screen?: MediaArtifact;
+  behaviorSignals?: AnswerBehaviorSignals;
+  selectedVersionNumber?: number;
+  versions?: AnswerVersion[];
+  behaviorEvents?: AnswerBehaviorEvent[];
+  transcript?: AnswerTranscript;
+  evaluation?: AnswerEvaluation;
+}
+
+export interface InterviewQuestionResult {
+  questionIndex: number;
+  questionId: string;
+  score?: number;
+  categoryScores?: Record<string, number>;
+  summary?: string;
+  decisionHint?: AnswerDecisionHint;
+}
+
+export interface InterviewBehaviorSummary {
+  riskLevel?: InterviewBehaviorRisk;
+  notes: string[];
 }
 
 export interface InterviewResult {
   overallScore: number;
   summary: string;
   categoryScores: Record<string, number>;
+  rubricVersion?: string;
+  decision?: InterviewDecision;
+  trustScore?: number;
+  trustFlags?: string[];
+  behaviorSummary?: InterviewBehaviorSummary;
+  questionResults?: InterviewQuestionResult[];
   completedAt: Date;
+}
+
+export interface InterviewWorkflow {
+  status: InterviewWorkflowStatus;
+  currentStage?: InterviewWorkflowStage;
+  executionId?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+  lastUpdatedAt: Date;
+  errorMessage?: string;
 }

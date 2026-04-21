@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
 import { User } from '../user/interfaces/user.interface';
 import { UserRole } from '../user/interfaces/user.interface';
+import { CANDIDATE_SESSION_TTL_MS } from './candidate-session';
 
 interface CandidatePayload {
   interviewId: string;
@@ -67,6 +68,13 @@ export class AuthService {
   generateCandidateToken(interviewId: string): string {
     const payload = { interviewId, role: 'candidate' };
     return this.jwtService.sign(payload, { expiresIn: '7d' });
+  }
+
+  generateCandidateSessionToken(interviewId: string): string {
+    const payload = { interviewId, role: 'candidate' };
+    return this.jwtService.sign(payload, {
+      expiresIn: Math.floor(CANDIDATE_SESSION_TTL_MS / 1000),
+    });
   }
 
   validateCandidateToken(token: string): CandidatePayload | null {
