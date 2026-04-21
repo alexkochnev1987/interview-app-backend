@@ -21,6 +21,7 @@ export interface Interview {
 export interface Answer {
   questionIndex: number;
   mediaKey: string;
+  screenMediaKey?: string;
   uploadedAt: Date;
 }
 

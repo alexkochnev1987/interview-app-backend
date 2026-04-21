@@ -55,7 +55,7 @@ export class TakeController {
   @Post(':id/answer')
   async submitAnswer(
     @Param('id') id: string,
-    @Body() body: { questionIndex: number; mediaKey: string },
+    @Body() body: { questionIndex: number; mediaKey: string; screenMediaKey?: string },
     @Req() req: { candidatePayload: { interviewId: string } },
   ) {
     if (req.candidatePayload.interviewId !== id) {
@@ -66,6 +66,7 @@ export class TakeController {
       id,
       body.questionIndex,
       body.mediaKey,
+      body.screenMediaKey,
     );
 
     const isLast = interview.answers.length >= interview.questions.length;

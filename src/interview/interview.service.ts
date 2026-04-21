@@ -158,6 +158,7 @@ export class InterviewService {
     id: string,
     questionIndex: number,
     mediaKey: string,
+    screenMediaKey?: string,
   ): Promise<Interview> {
     const interview = await this.findOne(id);
     if (questionIndex !== interview.answers.length) {
@@ -171,6 +172,7 @@ export class InterviewService {
       {
         questionIndex,
         mediaKey,
+        screenMediaKey,
         uploadedAt: new Date(),
       },
     ];

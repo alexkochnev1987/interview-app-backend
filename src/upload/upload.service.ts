@@ -43,8 +43,10 @@ export class UploadService {
     interviewId: string,
     questionIndex: number,
     contentType: string,
+    mediaType: 'camera' | 'screen' = 'camera',
   ): Promise<PresignedUrlResponse> {
-    const mediaKey = `${this.prefix}interviews/${interviewId}/answers/q${questionIndex}-${Date.now()}.webm`;
+    const normalizedMediaType = mediaType === 'screen' ? 'screen' : 'camera';
+    const mediaKey = `${this.prefix}interviews/${interviewId}/answers/q${questionIndex}-${normalizedMediaType}-${Date.now()}.webm`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucket,

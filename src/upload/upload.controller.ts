@@ -9,6 +9,7 @@ class PresignRequestDto {
   interviewId: string;
   questionIndex: number;
   contentType: string;
+  mediaType?: 'camera' | 'screen';
 }
 
 class ConfirmUploadDto {
@@ -27,6 +28,7 @@ export class UploadController {
       dto.interviewId,
       dto.questionIndex,
       dto.contentType,
+      dto.mediaType,
     );
   }
 

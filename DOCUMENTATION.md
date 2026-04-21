@@ -236,6 +236,8 @@ npm run dev          # http://localhost:3001
 git add -A && git commit -m "feat: описание" && git push
 
 # Деплой на prod
+# Важно: перед push в main для prod backend должен существовать RDS-инстанс
+# `interview-app-prod`, иначе prod CI/CD не сможет собрать DATABASE_URL и деплой упадет.
 git checkout main && git merge develop && git push origin main
 ```
 
@@ -252,6 +254,8 @@ npm run start:dev    # http://localhost:3000
 git add -A && git commit -m "feat: описание" && git push
 
 # Деплой на prod
+# Важно: перед push в main для prod backend должен существовать RDS-инстанс
+# `interview-app-prod`, иначе prod CI/CD не сможет собрать DATABASE_URL и деплой упадет.
 git checkout main && git merge develop && git push origin main
 ```
 
@@ -306,6 +310,8 @@ terraform output
 
 # Prod — то же, из environments/prod/
 cd ../prod
+# Если prod RDS был удален для экономии, перед деплоем main его нужно создать:
+# terraform apply поднимет `interview-app-prod`, после чего prod CI/CD сможет подключить БД.
 TF_VAR_db_password="TempProdPass456!" terraform apply
 ```
 
@@ -409,6 +415,10 @@ Prod: ~$0/мес  (остановлен)
 
 ### Запустить prod
 ```bash
+# 0. Если prod RDS удаляли для экономии — сначала пересоздать его через Terraform
+cd interview-app-backend/infra/environments/prod
+TF_VAR_db_password="TempProdPass456!" terraform apply
+
 # 1. Поднять backend
 aws ecs update-service --cluster interview-app-prod --service interview-app-prod-backend --desired-count 1 --region us-east-1
 
