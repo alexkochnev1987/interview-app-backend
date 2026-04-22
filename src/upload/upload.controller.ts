@@ -21,6 +21,10 @@ import {
   UploadService,
   PresignedUrlResponse,
   ConfirmUploadResponse,
+  MultipartUploadSessionResponse,
+  MultipartUploadPartResponse,
+  MultipartUploadCompleteResponse,
+  MultipartUploadAbortResponse,
 } from './upload.service';
 
 class PresignRequestDto {
@@ -46,6 +50,70 @@ class ConfirmUploadDto {
   @IsString()
   @IsNotEmpty()
   mediaKey!: string;
+}
+
+class StartMultipartUploadDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @IsIn(['video/webm'])
+  contentType!: string;
+
+  @IsOptional()
+  @IsIn(['camera', 'screen'])
+  mediaType?: 'camera' | 'screen';
+}
+
+class PresignMultipartPartDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  uploadId!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  partNumber!: number;
+}
+
+class CompleteMultipartUploadDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  uploadId!: string;
+}
+
+class AbortMultipartUploadDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  uploadId!: string;
 }
 
 interface CandidateRequest {
@@ -85,6 +153,59 @@ export class UploadController {
       req.candidatePayload.interviewId,
       dto.questionIndex,
       dto.mediaKey,
+    );
+  }
+
+  @Post('multipart/start')
+  async startMultipartUpload(
+    @Body() dto: StartMultipartUploadDto,
+    @Req() req: CandidateRequest,
+  ): Promise<MultipartUploadSessionResponse> {
+    return this.uploadService.startMultipartUpload(
+      req.candidatePayload.interviewId,
+      dto.questionIndex,
+      dto.contentType,
+      dto.mediaType,
+    );
+  }
+
+  @Post('multipart/part')
+  async presignMultipartPart(
+    @Body() dto: PresignMultipartPartDto,
+    @Req() req: CandidateRequest,
+  ): Promise<MultipartUploadPartResponse> {
+    return this.uploadService.presignMultipartPart(
+      req.candidatePayload.interviewId,
+      dto.questionIndex,
+      dto.mediaKey,
+      dto.uploadId,
+      dto.partNumber,
+    );
+  }
+
+  @Post('multipart/complete')
+  async completeMultipartUpload(
+    @Body() dto: CompleteMultipartUploadDto,
+    @Req() req: CandidateRequest,
+  ): Promise<MultipartUploadCompleteResponse> {
+    return this.uploadService.completeMultipartUpload(
+      req.candidatePayload.interviewId,
+      dto.questionIndex,
+      dto.mediaKey,
+      dto.uploadId,
+    );
+  }
+
+  @Post('multipart/abort')
+  async abortMultipartUpload(
+    @Body() dto: AbortMultipartUploadDto,
+    @Req() req: CandidateRequest,
+  ): Promise<MultipartUploadAbortResponse> {
+    return this.uploadService.abortMultipartUpload(
+      req.candidatePayload.interviewId,
+      dto.questionIndex,
+      dto.mediaKey,
+      dto.uploadId,
     );
   }
 }

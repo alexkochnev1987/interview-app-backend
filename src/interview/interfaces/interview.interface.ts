@@ -5,6 +5,12 @@ export type InterviewBehaviorRisk = 'low' | 'medium' | 'high';
 export type InterviewDecision = 'proceed' | 'review' | 'reject';
 export type AnswerDecisionHint = 'pass' | 'review' | 'fail';
 export type AnswerStatus = 'recording' | 'submitted';
+export type AnswerValidationStatus =
+  | 'idle'
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'failed';
 export type InterviewWorkflowStatus =
   | 'idle'
   | 'queued'
@@ -80,6 +86,16 @@ export interface AnswerEvaluation {
   evaluatedAt?: Date;
 }
 
+export interface AnswerValidation {
+  status: AnswerValidationStatus;
+  executionArn?: string;
+  sourceVersionNumber?: number;
+  requestedAt?: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  errorMessage?: string;
+}
+
 export interface AnswerVersion {
   versionNumber: number;
   mediaKey: string;
@@ -113,6 +129,7 @@ export interface Answer {
   behaviorEvents?: AnswerBehaviorEvent[];
   transcript?: AnswerTranscript;
   evaluation?: AnswerEvaluation;
+  validation?: AnswerValidation;
 }
 
 export interface InterviewQuestionResult {

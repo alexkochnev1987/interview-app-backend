@@ -14,6 +14,7 @@ import {
   AnswerBehaviorSignals,
   AnswerEvaluation,
   AnswerTranscript,
+  AnswerValidation,
   AnswerVersion,
   Interview,
   InterviewQuestion,
@@ -49,6 +50,44 @@ interface AddAnswerInput {
   screenFileSizeBytes?: number;
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
+}
+
+interface SaveAnswerProgressInput {
+  questionIndex: number;
+  versionNumber: number;
+  mediaKey: string;
+  screenMediaKey?: string;
+  durationSeconds?: number;
+  startedAt?: Date;
+  submittedAt?: Date;
+  cameraFileSizeBytes?: number;
+  screenFileSizeBytes?: number;
+  behaviorSignals?: AnswerBehaviorSignals;
+  behaviorEvents?: AnswerBehaviorEvent[];
+}
+
+interface QueueAnswerValidationInput {
+  questionIndex: number;
+  sourceVersionNumber: number;
+  executionArn?: string;
+  requestedAt: Date;
+}
+
+interface CompleteAnswerValidationInput {
+  questionIndex: number;
+  sourceVersionNumber: number;
+  executionArn?: string;
+  transcript?: AnswerTranscript;
+  evaluation?: AnswerEvaluation;
+  completedAt: Date;
+}
+
+interface FailAnswerValidationInput {
+  questionIndex: number;
+  sourceVersionNumber?: number;
+  executionArn?: string;
+  errorMessage?: string;
+  completedAt: Date;
 }
 
 @Injectable()
@@ -198,6 +237,120 @@ export class InterviewService {
     id: string,
     input: AddAnswerInput,
   ): Promise<Interview> {
+    return this.persistAnswerVersion(id, input, {
+      mergeBehaviorEvents: false,
+      preserveLatestSelectedVersion: false,
+      submittedAtFallback: 'now',
+    });
+  }
+
+  async saveAnswerProgress(
+    id: string,
+    input: SaveAnswerProgressInput,
+  ): Promise<Interview> {
+    return this.persistAnswerVersion(
+      id,
+      {
+        ...input,
+        submitAnswer: false,
+      },
+      {
+        mergeBehaviorEvents: true,
+        preserveLatestSelectedVersion: true,
+        submittedAtFallback: 'keep',
+      },
+    );
+  }
+
+  async queueAnswerValidation(
+    id: string,
+    input: QueueAnswerValidationInput,
+  ): Promise<Interview> {
+    const interview = await this.findOne(id);
+    const answer = this.requireAnswer(interview, input.questionIndex);
+    const now = new Date(input.requestedAt);
+
+    const nextAnswer: Answer = {
+      ...answer,
+      validation: {
+        status: 'queued',
+        executionArn: input.executionArn,
+        sourceVersionNumber: input.sourceVersionNumber,
+        requestedAt: now,
+        startedAt: now,
+        errorMessage: undefined,
+      },
+    };
+
+    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+  }
+
+  async completeAnswerValidation(
+    id: string,
+    input: CompleteAnswerValidationInput,
+  ): Promise<Interview> {
+    const interview = await this.findOne(id);
+    const answer = this.requireAnswer(interview, input.questionIndex);
+
+    const nextAnswer: Answer = {
+      ...answer,
+      transcript: input.transcript ?? answer.transcript,
+      evaluation: input.evaluation ?? answer.evaluation,
+      validation: {
+        status: 'completed',
+        executionArn:
+          input.executionArn ?? answer.validation?.executionArn,
+        sourceVersionNumber: input.sourceVersionNumber,
+        requestedAt:
+          answer.validation?.requestedAt ?? input.completedAt,
+        startedAt:
+          answer.validation?.startedAt ?? input.completedAt,
+        completedAt: input.completedAt,
+      },
+    };
+
+    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+  }
+
+  async failAnswerValidation(
+    id: string,
+    input: FailAnswerValidationInput,
+  ): Promise<Interview> {
+    const interview = await this.findOne(id);
+    const answer = this.requireAnswer(interview, input.questionIndex);
+
+    const nextAnswer: Answer = {
+      ...answer,
+      validation: {
+        status: 'failed',
+        executionArn:
+          input.executionArn ?? answer.validation?.executionArn,
+        sourceVersionNumber:
+          input.sourceVersionNumber ?? answer.validation?.sourceVersionNumber,
+        requestedAt:
+          answer.validation?.requestedAt ?? input.completedAt,
+        startedAt:
+          answer.validation?.startedAt ?? answer.validation?.requestedAt,
+        completedAt: input.completedAt,
+        errorMessage:
+          input.errorMessage ??
+          answer.validation?.errorMessage ??
+          'Answer validation failed',
+      },
+    };
+
+    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+  }
+
+  private async persistAnswerVersion(
+    id: string,
+    input: AddAnswerInput,
+    options: {
+      mergeBehaviorEvents: boolean;
+      preserveLatestSelectedVersion: boolean;
+      submittedAtFallback: 'now' | 'keep';
+    },
+  ): Promise<Interview> {
     const interview = await this.findOne(id);
     const {
       questionIndex,
@@ -246,20 +399,12 @@ export class InterviewService {
     }
 
     const question = interview.questions[questionIndex];
-    const uploadedAt = new Date();
-    const normalizedSubmittedAt =
-      submittedAt && !Number.isNaN(submittedAt.getTime())
-        ? submittedAt
-        : uploadedAt;
-    const normalizedStartedAt =
-      startedAt && !Number.isNaN(startedAt.getTime()) ? startedAt : undefined;
-
-    if (
-      normalizedStartedAt &&
-      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
-    ) {
+    const existingAnswer =
+      interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
+      undefined;
+    if (existingAnswer?.status === 'submitted' && !submitAnswer) {
       throw new BadRequestException(
-        'submittedAt must be after startedAt for the answer',
+        'Cannot update recording progress for a submitted answer',
       );
     }
 
@@ -267,10 +412,45 @@ export class InterviewService {
       typeof versionNumber === 'number' && versionNumber > 0
         ? versionNumber
         : 1;
-    const normalizedBehaviorSignals =
-      this.normalizeBehaviorSignals(behaviorSignals);
-    const normalizedBehaviorEvents =
-      this.normalizeBehaviorEvents(behaviorEvents, normalizedVersionNumber);
+    const existingVersions = this.getAnswerVersions(existingAnswer);
+    const existingVersion = existingVersions.find(
+      (version) => version.versionNumber === normalizedVersionNumber,
+    );
+
+    const uploadedAt = existingVersion?.uploadedAt ?? new Date();
+    const normalizedStartedAt =
+      startedAt && !Number.isNaN(startedAt.getTime())
+        ? startedAt
+        : existingVersion?.startedAt;
+    const normalizedSubmittedAt = this.resolveSubmittedAt({
+      submittedAt,
+      uploadedAt,
+      existingVersion,
+      fallback: options.submittedAtFallback,
+    });
+
+    if (
+      normalizedStartedAt &&
+      normalizedSubmittedAt &&
+      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+    ) {
+      throw new BadRequestException(
+        'submittedAt must be after startedAt for the answer',
+      );
+    }
+
+    const normalizedBehaviorSignals = this.mergeBehaviorSignals(
+      existingVersion?.behaviorSignals ??
+        existingAnswer?.behaviorSignals,
+      behaviorSignals,
+    );
+    const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
+      existingVersion?.behaviorEvents ??
+        existingAnswer?.behaviorEvents,
+      behaviorEvents,
+      normalizedVersionNumber,
+      options.mergeBehaviorEvents,
+    );
     const currentVersion: AnswerVersion = {
       versionNumber: normalizedVersionNumber,
       mediaKey,
@@ -279,29 +459,31 @@ export class InterviewService {
       durationSeconds:
         typeof durationSeconds === 'number' && durationSeconds > 0
           ? durationSeconds
-          : undefined,
+          : existingVersion?.durationSeconds,
       startedAt: normalizedStartedAt,
       submittedAt: normalizedSubmittedAt,
       camera: this.buildMediaArtifact({
         mediaKey,
         uploadedAt,
-        fileSizeBytes: cameraFileSizeBytes,
+        fileSizeBytes:
+          this.normalizePositiveNumber(cameraFileSizeBytes) ??
+          existingVersion?.camera?.fileSizeBytes ??
+          existingAnswer?.camera?.fileSizeBytes,
       }),
       screen: screenMediaKey
         ? this.buildMediaArtifact({
             mediaKey: screenMediaKey,
             uploadedAt,
-            fileSizeBytes: screenFileSizeBytes,
+            fileSizeBytes:
+              this.normalizePositiveNumber(screenFileSizeBytes) ??
+              existingVersion?.screen?.fileSizeBytes ??
+              existingAnswer?.screen?.fileSizeBytes,
           })
         : undefined,
       behaviorSignals: normalizedBehaviorSignals,
       behaviorEvents: normalizedBehaviorEvents,
     };
 
-    const existingAnswer =
-      interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
-      undefined;
-    const existingVersions = this.getAnswerVersions(existingAnswer);
     const nextVersions = [
       ...existingVersions.filter(
         (version) => version.versionNumber !== normalizedVersionNumber,
@@ -309,25 +491,37 @@ export class InterviewService {
       currentVersion,
     ].sort((left, right) => left.versionNumber - right.versionNumber);
 
+    const selectedVersionNumber = options.preserveLatestSelectedVersion
+      ? Math.max(
+          existingAnswer?.selectedVersionNumber ?? 0,
+          normalizedVersionNumber,
+        )
+      : normalizedVersionNumber;
+    const selectedVersion =
+      nextVersions.find(
+        (version) => version.versionNumber === selectedVersionNumber,
+      ) ?? currentVersion;
+
     const nextAnswer: Answer = {
       questionIndex,
       questionId: question.id,
       status: submitAnswer ? 'submitted' : 'recording',
-      mediaKey,
-      screenMediaKey,
-      uploadedAt,
-      durationSeconds: currentVersion.durationSeconds,
+      mediaKey: selectedVersion.mediaKey,
+      screenMediaKey: selectedVersion.screenMediaKey,
+      uploadedAt: selectedVersion.uploadedAt,
+      durationSeconds: selectedVersion.durationSeconds,
       retakeCount: Math.max(nextVersions.length - 1, 0),
-      startedAt: normalizedStartedAt,
-      submittedAt: normalizedSubmittedAt,
-      camera: currentVersion.camera,
-      screen: currentVersion.screen,
-      behaviorSignals: normalizedBehaviorSignals,
-      selectedVersionNumber: normalizedVersionNumber,
+      startedAt: selectedVersion.startedAt,
+      submittedAt: selectedVersion.submittedAt,
+      camera: selectedVersion.camera,
+      screen: selectedVersion.screen,
+      behaviorSignals: selectedVersion.behaviorSignals,
+      selectedVersionNumber,
       versions: nextVersions,
-      behaviorEvents: normalizedBehaviorEvents,
+      behaviorEvents: selectedVersion.behaviorEvents,
       transcript: existingAnswer?.transcript,
       evaluation: existingAnswer?.evaluation,
+      validation: existingAnswer?.validation,
     };
 
     const nextAnswers = existingAnswer
@@ -346,6 +540,35 @@ export class InterviewService {
       workflow: this.buildWorkflow('idle', now, {
         startedAt: interview.workflow?.startedAt,
       }),
+      updatedAt: now,
+    });
+  }
+
+  private requireAnswer(interview: Interview, questionIndex: number): Answer {
+    const answer = interview.answers.find(
+      (item) => item.questionIndex === questionIndex,
+    );
+
+    if (!answer) {
+      throw new BadRequestException(
+        `Answer for question ${questionIndex} is not available`,
+      );
+    }
+
+    return answer;
+  }
+
+  private saveInterviewWithUpdatedAnswer(
+    interview: Interview,
+    nextAnswer: Answer,
+  ): Promise<Interview> {
+    const now = new Date();
+
+    return this.saveInterview({
+      ...interview,
+      answers: interview.answers.map((answer) =>
+        answer.questionIndex === nextAnswer.questionIndex ? nextAnswer : answer,
+      ),
       updatedAt: now,
     });
   }
@@ -540,6 +763,7 @@ export class InterviewService {
         ),
       transcript: this.normalizeTranscript(rawAnswer.transcript),
       evaluation: this.normalizeEvaluation(rawAnswer.evaluation),
+      validation: this.normalizeAnswerValidation(rawAnswer.validation),
     };
   }
 
@@ -699,6 +923,75 @@ export class InterviewService {
       .filter((event): event is AnswerBehaviorEvent => Boolean(event));
   }
 
+  private mergeBehaviorSignals(
+    existingSignals: AnswerBehaviorSignals | undefined,
+    nextSignals: AnswerBehaviorSignals | undefined,
+  ): AnswerBehaviorSignals {
+    if (!nextSignals) {
+      return existingSignals
+        ? this.normalizeBehaviorSignals(existingSignals)
+        : this.normalizeBehaviorSignals(undefined);
+    }
+
+    return this.normalizeBehaviorSignals(nextSignals);
+  }
+
+  private buildBehaviorEventsSnapshot(
+    existingEvents: AnswerBehaviorEvent[] | undefined,
+    nextEvents: AnswerBehaviorEvent[] | undefined,
+    fallbackVersionNumber: number,
+    mergeEvents: boolean,
+  ): AnswerBehaviorEvent[] {
+    const normalizedNextEvents = this.normalizeBehaviorEvents(
+      nextEvents,
+      fallbackVersionNumber,
+    );
+
+    if (!mergeEvents) {
+      return normalizedNextEvents;
+    }
+
+    return this.mergeBehaviorEvents(existingEvents ?? [], normalizedNextEvents);
+  }
+
+  private mergeBehaviorEvents(
+    existingEvents: AnswerBehaviorEvent[],
+    nextEvents: AnswerBehaviorEvent[],
+  ): AnswerBehaviorEvent[] {
+    const byKey = new Map<string, AnswerBehaviorEvent>();
+
+    [...existingEvents, ...nextEvents].forEach((event) => {
+      const key = `${event.versionNumber}:${event.eventType}:${event.occurredAt.toISOString()}`;
+      byKey.set(key, event);
+    });
+
+    return [...byKey.values()].sort(
+      (left, right) => left.occurredAt.getTime() - right.occurredAt.getTime(),
+    );
+  }
+
+  private resolveSubmittedAt({
+    submittedAt,
+    uploadedAt,
+    existingVersion,
+    fallback,
+  }: {
+    submittedAt?: Date;
+    uploadedAt: Date;
+    existingVersion?: AnswerVersion;
+    fallback: 'now' | 'keep';
+  }): Date | undefined {
+    if (submittedAt && !Number.isNaN(submittedAt.getTime())) {
+      return submittedAt;
+    }
+
+    if (existingVersion?.submittedAt) {
+      return existingVersion.submittedAt;
+    }
+
+    return fallback === 'now' ? uploadedAt : undefined;
+  }
+
   private normalizeTranscript(value: unknown): AnswerTranscript | undefined {
     const rawTranscript = this.asRecord(value);
     if (!rawTranscript) {
@@ -766,6 +1059,49 @@ export class InterviewService {
       summary,
       decisionHint,
       evaluatedAt,
+    };
+  }
+
+  private normalizeAnswerValidation(
+    value: unknown,
+  ): AnswerValidation | undefined {
+    const rawValidation = this.asRecord(value);
+    if (!rawValidation) {
+      return undefined;
+    }
+
+    const status = this.asString(rawValidation.status) as
+      | AnswerValidation['status']
+      | undefined;
+    const executionArn = this.asString(rawValidation.executionArn);
+    const sourceVersionNumber = this.asNumber(
+      rawValidation.sourceVersionNumber,
+    );
+    const requestedAt = this.asDate(rawValidation.requestedAt);
+    const startedAt = this.asDate(rawValidation.startedAt);
+    const completedAt = this.asDate(rawValidation.completedAt);
+    const errorMessage = this.asString(rawValidation.errorMessage);
+
+    if (
+      !status &&
+      !executionArn &&
+      sourceVersionNumber === undefined &&
+      !requestedAt &&
+      !startedAt &&
+      !completedAt &&
+      !errorMessage
+    ) {
+      return undefined;
+    }
+
+    return {
+      status: status ?? 'idle',
+      executionArn,
+      sourceVersionNumber,
+      requestedAt,
+      startedAt,
+      completedAt,
+      errorMessage,
     };
   }
 
@@ -950,6 +1286,13 @@ export class InterviewService {
   private asNumber(value: unknown): number | undefined {
     return typeof value === 'number' && Number.isFinite(value)
       ? value
+      : undefined;
+  }
+
+  private normalizePositiveNumber(value: unknown): number | undefined {
+    const numericValue = this.asNumber(value);
+    return numericValue !== undefined && numericValue > 0
+      ? numericValue
       : undefined;
   }
 

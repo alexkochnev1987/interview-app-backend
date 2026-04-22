@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  ParseIntPipe,
   Param,
   Post,
   Req,
@@ -31,6 +32,7 @@ import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
 import { CandidateQuestionView } from '../interview/interfaces/interview.interface';
 import { AuthService } from '../auth/auth.service';
+import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
   CANDIDATE_SESSION_COOKIE,
   getCandidateSessionCookieOptions,
@@ -144,6 +146,66 @@ class SubmitAnswerDto {
   behaviorEvents?: BehaviorEventDto[];
 }
 
+class SaveAnswerProgressDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  screenMediaKey?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  durationSeconds?: number;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startedAt?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  submittedAt?: Date;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  cameraFileSizeBytes?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  screenFileSizeBytes?: number;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => BehaviorSignalsDto)
+  behaviorSignals!: BehaviorSignalsDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BehaviorEventDto)
+  behaviorEvents?: BehaviorEventDto[];
+}
+
 @Controller('take')
 @UsePipes(
   new ValidationPipe({
@@ -155,6 +217,7 @@ export class TakeController {
   constructor(
     private readonly interviewService: InterviewService,
     private readonly authService: AuthService,
+    private readonly answerValidationWorkflowService: AnswerValidationWorkflowService,
   ) {}
 
   @Get(':id')
@@ -246,6 +309,52 @@ export class TakeController {
       answeredCount: submittedCount,
       totalQuestions: interview.questions.length,
       completed: isLast,
+    };
+  }
+
+  @Post(':id/answer/progress')
+  @UseGuards(CandidateSessionGuard)
+  async saveAnswerProgress(
+    @Param('id') id: string,
+    @Body() body: SaveAnswerProgressDto,
+    @Req() req: CandidateRequest,
+  ) {
+    if (req.candidatePayload.interviewId !== id) {
+      throw new BadRequestException('Token does not match interview');
+    }
+
+    const interview = await this.interviewService.saveAnswerProgress(id, body);
+    const currentAnswer = interview.answers.find(
+      (answer) => answer.questionIndex === body.questionIndex,
+    );
+
+    return {
+      ok: true,
+      status: currentAnswer?.status ?? 'recording',
+      versionCount: currentAnswer?.versions?.length ?? 0,
+      selectedVersionNumber: currentAnswer?.selectedVersionNumber ?? body.versionNumber,
+    };
+  }
+
+  @Post(':id/questions/:questionIndex/validate')
+  @UseGuards(CandidateSessionGuard)
+  async startAnswerValidation(
+    @Param('id') id: string,
+    @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @Req() req: CandidateRequest,
+  ) {
+    if (req.candidatePayload.interviewId !== id) {
+      throw new BadRequestException('Token does not match interview');
+    }
+
+    const validation = await this.answerValidationWorkflowService.startValidation(
+      id,
+      questionIndex,
+    );
+
+    return {
+      ok: true,
+      ...validation,
     };
   }
 }
