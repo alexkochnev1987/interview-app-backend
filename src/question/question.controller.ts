@@ -12,8 +12,18 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { Question } from './interfaces/question.interface';
+import {
+  Question,
+  QuestionCore,
+  SimilarQuestionMatch,
+} from './interfaces/question.interface';
 import { QuestionService } from './question.service';
+
+class FindSimilarDto {
+  draft: Partial<QuestionCore>;
+  limit?: number;
+  excludeQuestionId?: string;
+}
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,6 +45,19 @@ export class QuestionController {
   @Roles('super_admin', 'admin')
   create(@Body() dto: CreateQuestionDto): Promise<Question> {
     return this.questionService.create(dto);
+  }
+
+  @Post('similar')
+  async findSimilar(
+    @Body() dto: FindSimilarDto,
+  ): Promise<{ matches: SimilarQuestionMatch[] }> {
+    const limit = Math.min(Math.max(dto.limit ?? 5, 1), 20);
+    const matches = await this.questionService.findSimilar(
+      dto.draft ?? {},
+      limit,
+      dto.excludeQuestionId,
+    );
+    return { matches };
   }
 
   @Patch(':id')
