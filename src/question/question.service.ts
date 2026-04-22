@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -71,7 +73,25 @@ const QUESTION_SELECT = `
 
 @Injectable()
 export class QuestionService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  private readonly logger = new Logger(QuestionService.name);
+
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly embeddingsService: EmbeddingsService,
+  ) {}
+
+  private async storeEmbedding(
+    questionId: string,
+    text: string,
+  ): Promise<void> {
+    try {
+      await this.embeddingsService.generateAndStore(questionId, text);
+    } catch (err) {
+      this.logger.warn(
+        `failed to store embedding for question ${questionId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 
   async create(dto: CreateQuestionDto): Promise<Question> {
     const payload = this.normalizeQuestionInput(dto);
@@ -151,7 +171,9 @@ export class QuestionService {
       ],
     );
 
-    return this.mapRow(result.rows[0]);
+    const question = this.mapRow(result.rows[0]);
+    await this.storeEmbedding(question.id, question.questionText);
+    return question;
   }
 
   async upsertImportedQuestion(dto: CreateQuestionDto): Promise<Question> {
@@ -322,7 +344,9 @@ export class QuestionService {
       ],
     );
 
-    return this.mapRow(result.rows[0]);
+    const question = this.mapRow(result.rows[0]);
+    await this.storeEmbedding(question.id, question.questionText);
+    return question;
   }
 
   hydrateStoredQuestionCore(value: unknown): QuestionCore {
