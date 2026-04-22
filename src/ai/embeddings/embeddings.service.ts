@@ -13,6 +13,15 @@ export class EmbeddingsService {
     private readonly provider: EmbeddingProvider,
   ) {}
 
+  get model(): string {
+    return this.provider.model;
+  }
+
+  async generate(text: string): Promise<number[]> {
+    const result = await this.provider.generate(text);
+    return result.vector;
+  }
+
   async generateAndStore(questionId: string, text: string): Promise<void> {
     const hash = hashText(text);
     const existing = await this.db.query<{ text_hash: string }>(
