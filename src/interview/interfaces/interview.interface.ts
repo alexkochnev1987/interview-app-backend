@@ -72,6 +72,7 @@ export interface AnswerTranscript {
   language?: string;
   provider?: string;
   generatedAt?: Date;
+  isFinal?: boolean;
 }
 
 export interface AnswerEvaluation {

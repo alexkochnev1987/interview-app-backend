@@ -50,6 +50,7 @@ interface AddAnswerInput {
   screenFileSizeBytes?: number;
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
+  clientTranscript?: AnswerTranscript;
 }
 
 interface SaveAnswerProgressInput {
@@ -365,6 +366,7 @@ export class InterviewService {
       screenFileSizeBytes,
       behaviorSignals,
       behaviorEvents,
+      clientTranscript,
     } = input;
 
     const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
@@ -519,7 +521,7 @@ export class InterviewService {
       selectedVersionNumber,
       versions: nextVersions,
       behaviorEvents: selectedVersion.behaviorEvents,
-      transcript: existingAnswer?.transcript,
+      transcript: clientTranscript ?? existingAnswer?.transcript,
       evaluation: existingAnswer?.evaluation,
       validation: existingAnswer?.validation,
     };
