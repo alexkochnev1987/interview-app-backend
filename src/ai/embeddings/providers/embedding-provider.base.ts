@@ -1,4 +1,4 @@
-export type EmbeddingProviderName = 'openai' | 'bedrock';
+export type EmbeddingProviderName = 'openai' | 'bedrock' | 'none';
 
 export interface EmbeddingResult {
   readonly vector: number[];
