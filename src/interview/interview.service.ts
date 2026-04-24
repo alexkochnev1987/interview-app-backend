@@ -1004,8 +1004,12 @@ export class InterviewService {
     const language = this.asString(rawTranscript.language);
     const provider = this.asString(rawTranscript.provider);
     const generatedAt = this.asDate(rawTranscript.generatedAt);
+    const isFinal =
+      typeof rawTranscript.isFinal === 'boolean'
+        ? rawTranscript.isFinal
+        : undefined;
 
-    if (!text && !language && !provider && !generatedAt) {
+    if (!text && !language && !provider && !generatedAt && isFinal === undefined) {
       return undefined;
     }
 
@@ -1014,6 +1018,7 @@ export class InterviewService {
       language,
       provider,
       generatedAt,
+      isFinal,
     };
   }
 
