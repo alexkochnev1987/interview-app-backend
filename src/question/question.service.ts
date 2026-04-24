@@ -271,9 +271,10 @@ export class QuestionService {
 
     return result.rows.map((row) => {
       const question = this.mapRow(row);
+      const score = Math.max(0, 1 - Number(row.distance));
       return {
         question,
-        score: 1 - Number(row.distance),
+        score,
         reasons: this.buildSimilarReasons(draft, question),
       };
     });
