@@ -6,24 +6,20 @@ import {
   Patch,
   Post,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateQuestionDto } from './dto/create-question.dto';
+import { FindSimilarDto } from './dto/find-similar.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
-  QuestionCore,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
 import { QuestionService } from './question.service';
-
-class FindSimilarDto {
-  draft: Partial<QuestionCore>;
-  limit?: number;
-  excludeQuestionId?: string;
-}
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,13 +44,13 @@ export class QuestionController {
   }
 
   @Post('similar')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async findSimilar(
     @Body() dto: FindSimilarDto,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
-    const limit = Math.min(Math.max(dto.limit ?? 5, 1), 20);
     const matches = await this.questionService.findSimilar(
       dto.draft ?? {},
-      limit,
+      dto.limit ?? 5,
       dto.excludeQuestionId,
     );
     return { matches };
