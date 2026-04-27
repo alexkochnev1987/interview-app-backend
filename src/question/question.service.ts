@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -43,7 +44,14 @@ interface QuestionRow {
   metadata: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
+  deleted: boolean;
 }
+
+const ACTIVE_INTERVIEW_STATUSES = [
+  'pending',
+  'in_progress',
+  'processing',
+] as const;
 
 const QUESTION_SELECT = `
   SELECT
@@ -68,7 +76,8 @@ const QUESTION_SELECT = `
     tags,
     metadata,
     created_at,
-    updated_at
+    updated_at,
+    deleted
   FROM questions
 `;
 
@@ -146,7 +155,8 @@ export class QuestionService {
           tags,
           metadata,
           created_at,
-          updated_at
+          updated_at,
+          deleted
       `,
       [
         crypto.randomUUID(),
@@ -192,22 +202,26 @@ export class QuestionService {
     return this.update(existing.id, normalized);
   }
 
-  async findAll(): Promise<Question[]> {
+  async findAll(options: { includeDeleted?: boolean } = {}): Promise<Question[]> {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        ORDER BY updated_at DESC, created_at DESC
+        ${options.includeDeleted ? '' : 'WHERE deleted = FALSE'}
+        ORDER BY deleted ASC, updated_at DESC, created_at DESC
       `,
     );
 
     return result.rows.map((row) => this.mapRow(row));
   }
 
-  async findOne(id: string): Promise<Question> {
+  async findOne(
+    id: string,
+    options: { includeDeleted?: boolean } = {},
+  ): Promise<Question> {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1
+        WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
         LIMIT 1
       `,
       [id],
@@ -216,6 +230,127 @@ export class QuestionService {
     if (!result.rows[0]) {
       throw new NotFoundException(`Question with id "${id}" not found`);
     }
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  async softDelete(id: string): Promise<{ id: string; deleted: true }> {
+    const existing = await this.findOne(id);
+    await this.assertNoActiveInterview(existing);
+    await this.markDeleted(id);
+    return { id, deleted: true };
+  }
+
+  async softDeleteMany(
+    ids: string[],
+  ): Promise<{
+    deleted: string[];
+    blocked: Array<{ id: string; questionText: string; reason: string }>;
+  }> {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+    const deleted: string[] = [];
+    const blocked: Array<{ id: string; questionText: string; reason: string }> = [];
+
+    for (const id of uniqueIds) {
+      let existing: Question;
+      try {
+        existing = await this.findOne(id);
+      } catch (err) {
+        if (err instanceof NotFoundException) continue;
+        throw err;
+      }
+
+      try {
+        await this.assertNoActiveInterview(existing);
+      } catch (err) {
+        if (err instanceof ConflictException) {
+          blocked.push({
+            id,
+            questionText: existing.questionText,
+            reason: err.message,
+          });
+          continue;
+        }
+        throw err;
+      }
+
+      await this.markDeleted(id);
+      deleted.push(id);
+    }
+
+    return { deleted, blocked };
+  }
+
+  private async assertNoActiveInterview(question: Question): Promise<void> {
+    const result = await this.databaseService.query<{
+      id: string;
+      candidate_name: string;
+    }>(
+      `
+        SELECT id, candidate_name
+        FROM interviews
+        WHERE status = ANY($1::text[])
+          AND questions_json @> $2::jsonb
+        LIMIT 1
+      `,
+      [
+        [...ACTIVE_INTERVIEW_STATUSES],
+        JSON.stringify([{ id: question.id }]),
+      ],
+    );
+
+    if (result.rows[0]) {
+      throw new ConflictException(
+        `Question is used by an active interview (candidate: ${result.rows[0].candidate_name}). Wait for it to finish before deleting.`,
+      );
+    }
+  }
+
+  private async markDeleted(id: string): Promise<void> {
+    await this.databaseService.query(
+      `UPDATE questions SET deleted = TRUE, updated_at = NOW() WHERE id = $1`,
+      [id],
+    );
+  }
+
+  async restore(id: string): Promise<Question> {
+    const existing = await this.findOne(id, { includeDeleted: true });
+    if (!existing.deleted) {
+      throw new BadRequestException('Question is not deleted');
+    }
+
+    const result = await this.databaseService.query<QuestionRow>(
+      `
+        UPDATE questions
+        SET deleted = FALSE, updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          external_id,
+          role,
+          focus,
+          output_language,
+          category,
+          subcategory,
+          text,
+          question_text,
+          follow_up_questions,
+          expected_concepts,
+          expected_concepts_json,
+          red_flags,
+          red_flags_json,
+          difficulty,
+          weight,
+          sample_good_answer,
+          minimum_pass_score,
+          tags,
+          metadata,
+          created_at,
+          updated_at,
+          deleted
+      `,
+      [id],
+    );
 
     return this.mapRow(result.rows[0]);
   }
@@ -258,11 +393,13 @@ export class QuestionService {
           q.metadata,
           q.created_at,
           q.updated_at,
+          q.deleted,
           (e.embedding <=> $1::vector) AS distance
         FROM question_embeddings e
         INNER JOIN questions q ON q.id = e.question_id
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
+          AND q.deleted = FALSE
         ORDER BY distance ASC
         LIMIT $4
       `,
@@ -309,7 +446,7 @@ export class QuestionService {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[])
+        WHERE id = ANY($1::uuid[]) AND deleted = FALSE
       `,
       [uniqueIds],
     );
@@ -399,7 +536,8 @@ export class QuestionService {
           tags,
           metadata,
           created_at,
-          updated_at
+          updated_at,
+          deleted
       `,
       [
         id,
@@ -486,7 +624,7 @@ export class QuestionService {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE external_id = $1
+        WHERE external_id = $1 AND deleted = FALSE
         LIMIT 1
       `,
       [externalId],
@@ -499,7 +637,7 @@ export class QuestionService {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE lower(coalesce(question_text, text)) = lower($1)
+        WHERE lower(coalesce(question_text, text)) = lower($1) AND deleted = FALSE
         LIMIT 1
       `,
       [questionText],
@@ -788,6 +926,7 @@ export class QuestionService {
       metadata: this.normalizeMetadata(row.metadata ?? {}),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      deleted: Boolean(row.deleted),
     };
   }
 

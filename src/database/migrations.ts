@@ -168,4 +168,22 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0006',
+    name: 'add_questions_soft_delete_flag',
+    statements: [
+      `ALTER TABLE questions ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;`,
+      `DROP INDEX IF EXISTS questions_external_id_unique_idx;`,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS questions_external_id_unique_idx
+        ON questions (external_id)
+        WHERE external_id IS NOT NULL AND deleted = FALSE;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_active_idx
+        ON questions (updated_at DESC)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];

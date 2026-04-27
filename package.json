@@ -13,7 +13,8 @@
     "test": "jest --passWithNoTests",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "questions:import": "ts-node src/question/import-questions.ts",
-    "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts"
+    "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts",
+    "users:seed-test": "ts-node src/user/create-test-users.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1034.0",
