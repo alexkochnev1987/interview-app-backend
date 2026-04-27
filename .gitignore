@@ -4,6 +4,7 @@ dist/
 *.js.map
 coverage/
 .nyc_output/
+cookies.txt
 
 # Terraform
 infra/**/.terraform/

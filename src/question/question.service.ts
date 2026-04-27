@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -15,6 +17,7 @@ import {
   QuestionExpectedConcept,
   QuestionRedFlag,
   QuestionRedFlagSeverity,
+  SimilarQuestionMatch,
 } from './interfaces/question.interface';
 
 interface QuestionRow {
@@ -71,7 +74,25 @@ const QUESTION_SELECT = `
 
 @Injectable()
 export class QuestionService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  private readonly logger = new Logger(QuestionService.name);
+
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly embeddingsService: EmbeddingsService,
+  ) {}
+
+  private async storeEmbedding(
+    questionId: string,
+    text: string,
+  ): Promise<void> {
+    try {
+      await this.embeddingsService.generateAndStore(questionId, text);
+    } catch (err) {
+      this.logger.warn(
+        `failed to store embedding for question ${questionId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 
   async create(dto: CreateQuestionDto): Promise<Question> {
     const payload = this.normalizeQuestionInput(dto);
@@ -151,7 +172,9 @@ export class QuestionService {
       ],
     );
 
-    return this.mapRow(result.rows[0]);
+    const question = this.mapRow(result.rows[0]);
+    await this.storeEmbedding(question.id, question.questionText);
+    return question;
   }
 
   async upsertImportedQuestion(dto: CreateQuestionDto): Promise<Question> {
@@ -195,6 +218,86 @@ export class QuestionService {
     }
 
     return this.mapRow(result.rows[0]);
+  }
+
+  async findSimilar(
+    draft: Partial<Pick<QuestionCore, 'questionText' | 'category' | 'subcategory' | 'role' | 'difficulty'>>,
+    limit: number,
+    excludeQuestionId: string | undefined,
+  ): Promise<SimilarQuestionMatch[]> {
+    const text = draft.questionText?.trim();
+    if (!text) {
+      throw new BadRequestException('draft.questionText is required');
+    }
+
+    const vector = await this.embeddingsService.generate(text);
+    const literal = `[${vector.join(',')}]`;
+
+    const result = await this.databaseService.query<QuestionRow & { distance: number }>(
+      `
+        SELECT
+          q.id,
+          q.external_id,
+          q.role,
+          q.focus,
+          q.output_language,
+          q.category,
+          q.subcategory,
+          q.text,
+          q.question_text,
+          q.follow_up_questions,
+          q.expected_concepts,
+          q.expected_concepts_json,
+          q.red_flags,
+          q.red_flags_json,
+          q.difficulty,
+          q.weight,
+          q.sample_good_answer,
+          q.minimum_pass_score,
+          q.tags,
+          q.metadata,
+          q.created_at,
+          q.updated_at,
+          (e.embedding <=> $1::vector) AS distance
+        FROM question_embeddings e
+        INNER JOIN questions q ON q.id = e.question_id
+        WHERE e.model = $2
+          AND q.id IS DISTINCT FROM $3::uuid
+        ORDER BY distance ASC
+        LIMIT $4
+      `,
+      [literal, this.embeddingsService.model, excludeQuestionId ?? null, limit],
+    );
+
+    return result.rows.map((row) => {
+      const question = this.mapRow(row);
+      const score = Math.max(0, 1 - Number(row.distance));
+      return {
+        question,
+        score,
+        reasons: this.buildSimilarReasons(draft, question),
+      };
+    });
+  }
+
+  private buildSimilarReasons(
+    draft: Partial<Pick<QuestionCore, 'category' | 'subcategory' | 'role' | 'difficulty'>>,
+    match: Question,
+  ): string[] {
+    const reasons: string[] = [];
+    if (draft.category && draft.category === match.category) {
+      reasons.push(`Same category: ${match.category}`);
+    }
+    if (draft.subcategory && draft.subcategory === match.subcategory) {
+      reasons.push(`Same subcategory: ${match.subcategory}`);
+    }
+    if (draft.role && draft.role === match.role) {
+      reasons.push(`Same role: ${match.role}`);
+    }
+    if (draft.difficulty && draft.difficulty === match.difficulty) {
+      reasons.push(`Same difficulty: ${match.difficulty}`);
+    }
+    return reasons;
   }
 
   async findManyByIds(ids: string[]): Promise<QuestionCore[]> {
@@ -322,7 +425,9 @@ export class QuestionService {
       ],
     );
 
-    return this.mapRow(result.rows[0]);
+    const question = this.mapRow(result.rows[0]);
+    await this.storeEmbedding(question.id, question.questionText);
+    return question;
   }
 
   hydrateStoredQuestionCore(value: unknown): QuestionCore {

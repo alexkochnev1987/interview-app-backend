@@ -146,4 +146,26 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0005',
+    name: 'add_question_embeddings',
+    statements: [
+      `CREATE EXTENSION IF NOT EXISTS vector;`,
+      `
+        CREATE TABLE IF NOT EXISTS question_embeddings (
+          question_id UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+          model TEXT NOT NULL,
+          embedding VECTOR(1536) NOT NULL,
+          text_hash TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (question_id, model)
+        );
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS question_embeddings_hnsw_cosine_idx
+        ON question_embeddings
+        USING hnsw (embedding vector_cosine_ops);
+      `,
+    ],
+  },
 ];
