@@ -86,6 +86,27 @@ class BehaviorEventDto {
   versionNumber!: number;
 }
 
+class ClientTranscriptDto {
+  @IsString()
+  @IsNotEmpty()
+  text!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  language!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  provider!: string;
+
+  @Type(() => Date)
+  @IsDate()
+  generatedAt!: Date;
+
+  @IsBoolean()
+  isFinal!: boolean;
+}
+
 class SubmitAnswerDto {
   @Type(() => Number)
   @IsInt()
@@ -144,6 +165,11 @@ class SubmitAnswerDto {
   @ValidateNested({ each: true })
   @Type(() => BehaviorEventDto)
   behaviorEvents?: BehaviorEventDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClientTranscriptDto)
+  clientTranscript?: ClientTranscriptDto;
 }
 
 class SaveAnswerProgressDto {
@@ -204,6 +230,11 @@ class SaveAnswerProgressDto {
   @ValidateNested({ each: true })
   @Type(() => BehaviorEventDto)
   behaviorEvents?: BehaviorEventDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClientTranscriptDto)
+  clientTranscript?: ClientTranscriptDto;
 }
 
 @Controller('take')
