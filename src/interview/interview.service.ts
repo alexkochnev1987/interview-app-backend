@@ -65,6 +65,7 @@ interface SaveAnswerProgressInput {
   screenFileSizeBytes?: number;
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
+  clientTranscript?: AnswerTranscript;
 }
 
 interface QueueAnswerValidationInput {
@@ -295,7 +296,7 @@ export class InterviewService {
 
     const nextAnswer: Answer = {
       ...answer,
-      transcript: input.transcript ?? answer.transcript,
+      transcript: this.mergeTranscript(answer.transcript, input.transcript),
       evaluation: input.evaluation ?? answer.evaluation,
       validation: {
         status: 'completed',
@@ -503,6 +504,8 @@ export class InterviewService {
       nextVersions.find(
         (version) => version.versionNumber === selectedVersionNumber,
       ) ?? currentVersion;
+    const shouldCarryTranscriptFromPreviousVersion =
+      existingAnswer?.selectedVersionNumber === selectedVersionNumber;
 
     const nextAnswer: Answer = {
       questionIndex,
@@ -521,7 +524,11 @@ export class InterviewService {
       selectedVersionNumber,
       versions: nextVersions,
       behaviorEvents: selectedVersion.behaviorEvents,
-      transcript: clientTranscript ?? existingAnswer?.transcript,
+      transcript: clientTranscript
+        ? this.normalizeTranscript(clientTranscript)
+        : shouldCarryTranscriptFromPreviousVersion
+          ? existingAnswer?.transcript
+          : undefined,
       evaluation: existingAnswer?.evaluation,
       validation: existingAnswer?.validation,
     };
@@ -992,6 +999,20 @@ export class InterviewService {
     }
 
     return fallback === 'now' ? uploadedAt : undefined;
+  }
+
+  private mergeTranscript(
+    existingTranscript: AnswerTranscript | undefined,
+    incomingTranscript: AnswerTranscript | undefined,
+  ): AnswerTranscript | undefined {
+    if (!incomingTranscript) {
+      return existingTranscript;
+    }
+
+    return this.normalizeTranscript({
+      ...(existingTranscript ?? {}),
+      ...incomingTranscript,
+    });
   }
 
   private normalizeTranscript(value: unknown): AnswerTranscript | undefined {

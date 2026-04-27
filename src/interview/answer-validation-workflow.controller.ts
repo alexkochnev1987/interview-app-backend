@@ -11,6 +11,7 @@ import {
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
   IsInt,
@@ -41,6 +42,10 @@ class AnswerTranscriptDto {
   @Type(() => Date)
   @IsDate()
   generatedAt?: Date;
+
+  @IsOptional()
+  @IsBoolean()
+  isFinal?: boolean;
 }
 
 class AnswerEvaluationDto {

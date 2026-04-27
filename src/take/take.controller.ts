@@ -230,6 +230,11 @@ class SaveAnswerProgressDto {
   @ValidateNested({ each: true })
   @Type(() => BehaviorEventDto)
   behaviorEvents?: BehaviorEventDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClientTranscriptDto)
+  clientTranscript?: ClientTranscriptDto;
 }
 
 @Controller('take')
