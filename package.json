@@ -12,9 +12,11 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest --passWithNoTests",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "questions:import": "ts-node src/question/import-questions.ts"
+    "questions:import": "ts-node src/question/import-questions.ts",
+    "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1034.0",
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/client-sfn": "^3.1034.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",

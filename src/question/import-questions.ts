@@ -2,6 +2,7 @@ import '../database/load-env';
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { runMigrations } from '../database/migration-runner';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -135,7 +136,13 @@ async function main() {
   const items = pickArrayPayload(JSON.parse(raw)).map(toCreateQuestionDto);
 
   const databaseService = new DatabaseService();
-  const questionService = new QuestionService(databaseService);
+  // Import skips embeddings — run `npm run questions:backfill-embeddings` afterward.
+  const embeddingsStub = {
+    async generateAndStore() {
+      return;
+    },
+  } as unknown as EmbeddingsService;
+  const questionService = new QuestionService(databaseService, embeddingsStub);
 
   try {
     await runMigrations(databaseService);

@@ -40,3 +40,9 @@ export interface Question extends QuestionCore {
 }
 
 export type QuestionDraft = Omit<QuestionCore, 'id'>;
+
+export interface SimilarQuestionMatch {
+  question: Question;
+  score: number;
+  reasons: string[];
+}
