@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { PoolClient } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -238,10 +239,12 @@ export class QuestionService {
   }
 
   async softDelete(id: string): Promise<{ id: string; deleted: true }> {
-    const existing = await this.findOne(id);
-    await this.assertNoActiveInterview(existing);
-    await this.markDeleted(id);
-    return { id, deleted: true };
+    return this.databaseService.withTransaction(async (client) => {
+      const existing = await this.lockQuestionForDelete(client, id);
+      await this.assertNoActiveInterview(client, existing);
+      await this.markDeleted(client, id);
+      return { id, deleted: true };
+    });
   }
 
   async softDeleteMany(
@@ -255,37 +258,93 @@ export class QuestionService {
     const blocked: Array<{ id: string; questionText: string; reason: string }> = [];
 
     for (const id of uniqueIds) {
-      let existing: Question;
       try {
-        existing = await this.findOne(id);
+        await this.databaseService.withTransaction(async (client) => {
+          const existing = await this.lockQuestionForDelete(client, id);
+          await this.assertNoActiveInterview(client, existing);
+          await this.markDeleted(client, id);
+          deleted.push(id);
+        });
       } catch (err) {
-        if (err instanceof NotFoundException) continue;
-        throw err;
-      }
-
-      try {
-        await this.assertNoActiveInterview(existing);
-      } catch (err) {
+        if (err instanceof NotFoundException) {
+          continue;
+        }
         if (err instanceof ConflictException) {
+          const existing = await this.findOne(id).catch(() => undefined);
           blocked.push({
             id,
-            questionText: existing.questionText,
+            questionText: existing?.questionText ?? '',
             reason: err.message,
           });
           continue;
         }
         throw err;
       }
-
-      await this.markDeleted(id);
-      deleted.push(id);
     }
 
     return { deleted, blocked };
   }
 
-  private async assertNoActiveInterview(question: Question): Promise<void> {
-    const result = await this.databaseService.query<{
+  async findManyByIdsForUpdate(
+    client: PoolClient,
+    ids: string[],
+  ): Promise<QuestionCore[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
+    const result = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = ANY($1::uuid[]) AND deleted = FALSE
+        FOR UPDATE
+      `,
+      [uniqueIds],
+    );
+
+    const byId = new Map(
+      result.rows.map((row) => {
+        const question = this.mapRow(row);
+        return [question.id, this.toQuestionCore(question)] as const;
+      }),
+    );
+
+    const missingIds = uniqueIds.filter((id) => !byId.has(id));
+    if (missingIds.length > 0) {
+      throw new NotFoundException(
+        `Questions not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    return uniqueIds.map((id) => byId.get(id)!);
+  }
+
+  private async lockQuestionForDelete(
+    client: PoolClient,
+    id: string,
+  ): Promise<Question> {
+    const result = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = $1 AND deleted = FALSE
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async assertNoActiveInterview(
+    client: PoolClient,
+    question: Question,
+  ): Promise<void> {
+    const result = await client.query<{
       id: string;
       candidate_name: string;
     }>(
@@ -309,53 +368,137 @@ export class QuestionService {
     }
   }
 
-  private async markDeleted(id: string): Promise<void> {
-    await this.databaseService.query(
+  private async markDeleted(client: PoolClient, id: string): Promise<void> {
+    await client.query(
       `UPDATE questions SET deleted = TRUE, updated_at = NOW() WHERE id = $1`,
       [id],
     );
   }
 
   async restore(id: string): Promise<Question> {
-    const existing = await this.findOne(id, { includeDeleted: true });
-    if (!existing.deleted) {
-      throw new BadRequestException('Question is not deleted');
-    }
+    return this.databaseService.withTransaction(async (client) => {
+      const existing = await this.lockQuestionForRestore(client, id);
+      if (!existing.deleted) {
+        throw new BadRequestException('Question is not deleted');
+      }
 
-    const result = await this.databaseService.query<QuestionRow>(
+      await this.assertNoActiveDuplicate(client, existing);
+
+      try {
+        const result = await client.query<QuestionRow>(
+          `
+            UPDATE questions
+            SET deleted = FALSE, updated_at = NOW()
+            WHERE id = $1
+            RETURNING
+              id,
+              external_id,
+              role,
+              focus,
+              output_language,
+              category,
+              subcategory,
+              text,
+              question_text,
+              follow_up_questions,
+              expected_concepts,
+              expected_concepts_json,
+              red_flags,
+              red_flags_json,
+              difficulty,
+              weight,
+              sample_good_answer,
+              minimum_pass_score,
+              tags,
+              metadata,
+              created_at,
+              updated_at,
+              deleted
+          `,
+          [id],
+        );
+
+        return this.mapRow(result.rows[0]);
+      } catch (err) {
+        if (this.isUniqueViolation(err)) {
+          throw new ConflictException(
+            'Cannot restore: another active question now conflicts with this one. Please refresh and try again.',
+          );
+        }
+        throw err;
+      }
+    });
+  }
+
+  private isUniqueViolation(err: unknown): boolean {
+    return (
+      typeof err === 'object' &&
+      err !== null &&
+      (err as { code?: string }).code === '23505'
+    );
+  }
+
+  private async lockQuestionForRestore(
+    client: PoolClient,
+    id: string,
+  ): Promise<Question> {
+    const result = await client.query<QuestionRow>(
       `
-        UPDATE questions
-        SET deleted = FALSE, updated_at = NOW()
+        ${QUESTION_SELECT}
         WHERE id = $1
-        RETURNING
-          id,
-          external_id,
-          role,
-          focus,
-          output_language,
-          category,
-          subcategory,
-          text,
-          question_text,
-          follow_up_questions,
-          expected_concepts,
-          expected_concepts_json,
-          red_flags,
-          red_flags_json,
-          difficulty,
-          weight,
-          sample_good_answer,
-          minimum_pass_score,
-          tags,
-          metadata,
-          created_at,
-          updated_at,
-          deleted
+        FOR UPDATE
       `,
       [id],
     );
 
+    if (!result.rows[0]) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
     return this.mapRow(result.rows[0]);
+  }
+
+  private async assertNoActiveDuplicate(
+    client: PoolClient,
+    question: Question,
+  ): Promise<void> {
+    if (question.externalId) {
+      const externalIdMatch = await client.query<{ id: string }>(
+        `
+          SELECT id
+          FROM questions
+          WHERE external_id = $1
+            AND deleted = FALSE
+            AND id <> $2
+          LIMIT 1
+        `,
+        [question.externalId, question.id],
+      );
+
+      if (externalIdMatch.rows[0]) {
+        throw new ConflictException(
+          `Cannot restore: an active question with external_id "${question.externalId}" already exists (id: ${externalIdMatch.rows[0].id}).`,
+        );
+      }
+    }
+
+    const textMatch = await client.query<{ id: string }>(
+      `
+        SELECT id
+        FROM questions
+        WHERE lower(coalesce(question_text, text)) = lower($1)
+          AND deleted = FALSE
+          AND id <> $2
+        LIMIT 1
+      `,
+      [question.questionText, question.id],
+    );
+
+    if (textMatch.rows[0]) {
+      throw new ConflictException(
+        `Cannot restore: an active question with the same text already exists (id: ${textMatch.rows[0].id}).`,
+      );
+    }
   }
 
   async findSimilar(
@@ -445,37 +588,6 @@ export class QuestionService {
       reasons.push(`Same difficulty: ${match.difficulty}`);
     }
     return reasons;
-  }
-
-  async findManyByIds(ids: string[]): Promise<QuestionCore[]> {
-    if (ids.length === 0) {
-      return [];
-    }
-
-    const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[]) AND deleted = FALSE
-      `,
-      [uniqueIds],
-    );
-
-    const byId = new Map(
-      result.rows.map((row) => {
-        const question = this.mapRow(row);
-        return [question.id, this.toQuestionCore(question)] as const;
-      }),
-    );
-
-    const missingIds = uniqueIds.filter((id) => !byId.has(id));
-    if (missingIds.length > 0) {
-      throw new NotFoundException(
-        `Questions not found: ${missingIds.join(', ')}`,
-      );
-    }
-
-    return uniqueIds.map((id) => byId.get(id)!);
   }
 
   async update(id: string, dto: UpdateQuestionDto | QuestionDraft): Promise<Question> {

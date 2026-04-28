@@ -114,43 +114,49 @@ export class InterviewService {
       throw new BadRequestException('At least one question must be selected');
     }
 
-    const questions = await this.questionService.findManyByIds(questionIds);
-    const result = await this.databaseService.query<InterviewRow>(
-      `
-        INSERT INTO interviews (
-          id,
-          candidate_name,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          workflow_json
-        )
-        VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::jsonb)
-        RETURNING
-          id,
-          candidate_name,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_at,
-          updated_at
-      `,
-      [
-        randomUUID(),
-        candidateName,
-        position,
-        JSON.stringify(questions),
-        JSON.stringify([]),
-        'pending',
-        JSON.stringify(this.buildWorkflow('idle', new Date())),
-      ],
-    );
+    return this.databaseService.withTransaction(async (client) => {
+      const questions = await this.questionService.findManyByIdsForUpdate(
+        client,
+        questionIds,
+      );
 
-    return this.mapRow(result.rows[0]);
+      const result = await client.query<InterviewRow>(
+        `
+          INSERT INTO interviews (
+            id,
+            candidate_name,
+            position,
+            questions_json,
+            answers_json,
+            status,
+            workflow_json
+          )
+          VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::jsonb)
+          RETURNING
+            id,
+            candidate_name,
+            position,
+            questions_json,
+            answers_json,
+            status,
+            result_json,
+            workflow_json,
+            created_at,
+            updated_at
+        `,
+        [
+          randomUUID(),
+          candidateName,
+          position,
+          JSON.stringify(questions),
+          JSON.stringify([]),
+          'pending',
+          JSON.stringify(this.buildWorkflow('idle', new Date())),
+        ],
+      );
+
+      return this.mapRow(result.rows[0]);
+    });
   }
 
   async findAll(): Promise<Interview[]> {
