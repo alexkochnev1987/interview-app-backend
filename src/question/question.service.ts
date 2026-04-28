@@ -53,6 +53,9 @@ const ACTIVE_INTERVIEW_STATUSES = [
   'processing',
 ] as const;
 
+const SIMILARITY_SCORE_THRESHOLD = 0.6;
+const SIMILARITY_DISTANCE_THRESHOLD = 1 - SIMILARITY_SCORE_THRESHOLD;
+
 const QUESTION_SELECT = `
   SELECT
     id,
@@ -400,10 +403,17 @@ export class QuestionService {
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
           AND q.deleted = FALSE
+          AND (e.embedding <=> $1::vector) <= $4::float
         ORDER BY distance ASC
-        LIMIT $4
+        LIMIT $5
       `,
-      [literal, this.embeddingsService.model, excludeQuestionId ?? null, limit],
+      [
+        literal,
+        this.embeddingsService.model,
+        excludeQuestionId ?? null,
+        SIMILARITY_DISTANCE_THRESHOLD,
+        limit,
+      ],
     );
 
     return result.rows.map((row) => {
