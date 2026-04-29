@@ -193,4 +193,30 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `DELETE FROM users WHERE email IN ('admin@test.com', 'hr@test.com');`,
     ],
   },
+  {
+    version: '0008',
+    name: 'enforce_active_question_text_unique',
+    statements: [
+      `
+        WITH ranked AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY lower(question_text)
+              ORDER BY updated_at DESC, created_at DESC, id
+            ) AS rn
+          FROM questions
+          WHERE deleted = FALSE
+        )
+        UPDATE questions
+        SET deleted = TRUE, updated_at = NOW()
+        WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS questions_active_text_unique_idx
+        ON questions (lower(question_text))
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];
