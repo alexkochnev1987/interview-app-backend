@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -43,34 +45,53 @@ interface QuestionRow {
   metadata: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
+  deleted: boolean;
 }
 
-const QUESTION_SELECT = `
-  SELECT
-    id,
-    external_id,
-    role,
-    focus,
-    output_language,
-    category,
-    subcategory,
-    text,
-    question_text,
-    follow_up_questions,
-    expected_concepts,
-    expected_concepts_json,
-    red_flags,
-    red_flags_json,
-    difficulty,
-    weight,
-    sample_good_answer,
-    minimum_pass_score,
-    tags,
-    metadata,
-    created_at,
-    updated_at
-  FROM questions
+const ACTIVE_INTERVIEW_STATUSES = [
+  'pending',
+  'in_progress',
+  'processing',
+] as const;
+
+const SIMILARITY_SCORE_THRESHOLD = 0.6;
+const SIMILARITY_DISTANCE_THRESHOLD = 1 - SIMILARITY_SCORE_THRESHOLD;
+
+const QUESTION_COLUMNS = `
+  id,
+  external_id,
+  role,
+  focus,
+  output_language,
+  category,
+  subcategory,
+  text,
+  question_text,
+  follow_up_questions,
+  expected_concepts,
+  expected_concepts_json,
+  red_flags,
+  red_flags_json,
+  difficulty,
+  weight,
+  sample_good_answer,
+  minimum_pass_score,
+  tags,
+  metadata,
+  created_at,
+  updated_at,
+  deleted
 `;
+
+const QUESTION_SELECT = `SELECT ${QUESTION_COLUMNS} FROM questions`;
+const QUESTION_RETURNING = `RETURNING ${QUESTION_COLUMNS}`;
+
+type QueryExecutor = {
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: unknown[],
+  ): Promise<QueryResult<T>>;
+};
 
 @Injectable()
 export class QuestionService {
@@ -96,118 +117,220 @@ export class QuestionService {
 
   async create(dto: CreateQuestionDto): Promise<Question> {
     const payload = this.normalizeQuestionInput(dto);
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        INSERT INTO questions (
-          id,
-          external_id,
-          role,
-          focus,
-          output_language,
-          category,
-          subcategory,
-          text,
-          question_text,
-          follow_up_questions,
-          expected_concepts,
-          expected_concepts_json,
-          red_flags,
-          red_flags_json,
-          difficulty,
-          weight,
-          sample_good_answer,
-          minimum_pass_score,
-          tags,
-          metadata
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12::jsonb, $13, $14::jsonb, $15, $16, $17, $18, $19, $20::jsonb
-        )
-        RETURNING
-          id,
-          external_id,
-          role,
-          focus,
-          output_language,
-          category,
-          subcategory,
-          text,
-          question_text,
-          follow_up_questions,
-          expected_concepts,
-          expected_concepts_json,
-          red_flags,
-          red_flags_json,
-          difficulty,
-          weight,
-          sample_good_answer,
-          minimum_pass_score,
-          tags,
-          metadata,
-          created_at,
-          updated_at
-      `,
-      [
-        crypto.randomUUID(),
-        payload.externalId ?? null,
-        payload.role ?? null,
-        payload.focus ?? null,
-        payload.outputLanguage,
-        payload.category ?? null,
-        payload.subcategory ?? null,
-        payload.questionText,
-        payload.questionText,
-        payload.followUpQuestions,
-        payload.expectedConcepts.map((item) => item.label),
-        JSON.stringify(payload.expectedConcepts),
-        payload.redFlags.map((item) => item.label),
-        JSON.stringify(payload.redFlags),
-        payload.difficulty,
-        payload.weight,
-        payload.sampleGoodAnswer ?? null,
-        payload.minimumPassScore,
-        payload.tags,
-        JSON.stringify(payload.metadata),
-      ],
+    const question = await this.insertQuestionRow(
+      this.databaseService,
+      payload,
     );
-
-    const question = this.mapRow(result.rows[0]);
     await this.storeEmbedding(question.id, question.questionText);
     return question;
   }
 
   async upsertImportedQuestion(dto: CreateQuestionDto): Promise<Question> {
     const normalized = this.normalizeQuestionInput(dto);
-    const existing =
-      (normalized.externalId
-        ? await this.findByExternalId(normalized.externalId)
-        : undefined) ??
-      (await this.findByQuestionText(normalized.questionText));
 
-    if (!existing) {
-      return this.create(normalized);
-    }
+    const question = await this.databaseService.withTransaction(
+      async (client) => {
+        const existing = await this.findExistingForUpsert(client, normalized);
 
-    return this.update(existing.id, normalized);
+        if (!existing) {
+          return this.insertQuestionRow(client, normalized);
+        }
+
+        if (existing.deleted) {
+          await this.runWithDuplicateGuard(normalized, () =>
+            client.query(
+              `UPDATE questions SET deleted = FALSE WHERE id = $1`,
+              [existing.id],
+            ),
+          );
+        }
+
+        return this.updateQuestionRow(client, existing.id, normalized);
+      },
+    );
+
+    await this.storeEmbedding(question.id, question.questionText);
+    return question;
   }
 
-  async findAll(): Promise<Question[]> {
+  private async insertQuestionRow(
+    executor: QueryExecutor,
+    payload: QuestionDraft,
+  ): Promise<Question> {
+    const result = await this.runWithDuplicateGuard(payload, () =>
+      executor.query<QuestionRow>(
+        `
+          INSERT INTO questions (
+            id,
+            external_id,
+            role,
+            focus,
+            output_language,
+            category,
+            subcategory,
+            text,
+            question_text,
+            follow_up_questions,
+            expected_concepts,
+            expected_concepts_json,
+            red_flags,
+            red_flags_json,
+            difficulty,
+            weight,
+            sample_good_answer,
+            minimum_pass_score,
+            tags,
+            metadata
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12::jsonb, $13, $14::jsonb, $15, $16, $17, $18, $19, $20::jsonb
+          )
+          ${QUESTION_RETURNING}
+        `,
+        [
+          crypto.randomUUID(),
+          payload.externalId ?? null,
+          payload.role ?? null,
+          payload.focus ?? null,
+          payload.outputLanguage,
+          payload.category ?? null,
+          payload.subcategory ?? null,
+          payload.questionText,
+          payload.questionText,
+          payload.followUpQuestions,
+          payload.expectedConcepts.map((item) => item.label),
+          JSON.stringify(payload.expectedConcepts),
+          payload.redFlags.map((item) => item.label),
+          JSON.stringify(payload.redFlags),
+          payload.difficulty,
+          payload.weight,
+          payload.sampleGoodAnswer ?? null,
+          payload.minimumPassScore,
+          payload.tags,
+          JSON.stringify(payload.metadata),
+        ],
+      ),
+    );
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async updateQuestionRow(
+    executor: QueryExecutor,
+    id: string,
+    payload: QuestionDraft,
+  ): Promise<Question> {
+    const result = await this.runWithDuplicateGuard(payload, () =>
+      executor.query<QuestionRow>(
+        `
+          UPDATE questions
+          SET
+            external_id = $2,
+            role = $3,
+            focus = $4,
+            output_language = $5,
+            category = $6,
+            subcategory = $7,
+            text = $8,
+            question_text = $9,
+            follow_up_questions = $10,
+            expected_concepts = $11,
+            expected_concepts_json = $12::jsonb,
+            red_flags = $13,
+            red_flags_json = $14::jsonb,
+            difficulty = $15,
+            weight = $16,
+            sample_good_answer = $17,
+            minimum_pass_score = $18,
+            tags = $19,
+            metadata = $20::jsonb,
+            updated_at = NOW()
+          WHERE id = $1
+          ${QUESTION_RETURNING}
+        `,
+        [
+          id,
+          payload.externalId ?? null,
+          payload.role ?? null,
+          payload.focus ?? null,
+          payload.outputLanguage,
+          payload.category ?? null,
+          payload.subcategory ?? null,
+          payload.questionText,
+          payload.questionText,
+          payload.followUpQuestions,
+          payload.expectedConcepts.map((item) => item.label),
+          JSON.stringify(payload.expectedConcepts),
+          payload.redFlags.map((item) => item.label),
+          JSON.stringify(payload.redFlags),
+          payload.difficulty,
+          payload.weight,
+          payload.sampleGoodAnswer ?? null,
+          payload.minimumPassScore,
+          payload.tags,
+          JSON.stringify(payload.metadata),
+        ],
+      ),
+    );
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async findExistingForUpsert(
+    client: PoolClient,
+    payload: QuestionDraft,
+  ): Promise<Question | undefined> {
+    if (payload.externalId) {
+      const byExternal = await client.query<QuestionRow>(
+        `
+          ${QUESTION_SELECT}
+          WHERE external_id = $1
+          ORDER BY deleted ASC
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [payload.externalId],
+      );
+      if (byExternal.rows[0]) {
+        return this.mapRow(byExternal.rows[0]);
+      }
+    }
+
+    const byText = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE lower(question_text) = lower($1)
+        ORDER BY deleted ASC
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [payload.questionText],
+    );
+
+    return byText.rows[0] ? this.mapRow(byText.rows[0]) : undefined;
+  }
+
+  async findAll(options: { includeDeleted?: boolean } = {}): Promise<Question[]> {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        ORDER BY updated_at DESC, created_at DESC
+        ${options.includeDeleted ? '' : 'WHERE deleted = FALSE'}
+        ORDER BY deleted ASC, updated_at DESC, created_at DESC
       `,
     );
 
     return result.rows.map((row) => this.mapRow(row));
   }
 
-  async findOne(id: string): Promise<Question> {
+  async findOne(
+    id: string,
+    options: { includeDeleted?: boolean } = {},
+  ): Promise<Question> {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1
+        WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
         LIMIT 1
       `,
       [id],
@@ -218,6 +341,273 @@ export class QuestionService {
     }
 
     return this.mapRow(result.rows[0]);
+  }
+
+  async softDelete(id: string): Promise<{ id: string; deleted: true }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const existing = await this.lockQuestionForDelete(client, id);
+      await this.assertNoActiveInterview(client, existing);
+      await this.markDeleted(client, id);
+      return { id, deleted: true };
+    });
+  }
+
+  async softDeleteMany(
+    ids: string[],
+  ): Promise<{
+    deleted: string[];
+    blocked: Array<{ id: string; questionText: string; reason: string }>;
+  }> {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+    const deleted: string[] = [];
+    const blocked: Array<{ id: string; questionText: string; reason: string }> = [];
+
+    for (const id of uniqueIds) {
+      try {
+        await this.databaseService.withTransaction(async (client) => {
+          const existing = await this.lockQuestionForDelete(client, id);
+          await this.assertNoActiveInterview(client, existing);
+          await this.markDeleted(client, id);
+          deleted.push(id);
+        });
+      } catch (err) {
+        if (err instanceof NotFoundException) {
+          continue;
+        }
+        if (err instanceof ConflictException) {
+          const existing = await this.findOne(id).catch(() => undefined);
+          blocked.push({
+            id,
+            questionText: existing?.questionText ?? '',
+            reason: err.message,
+          });
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return { deleted, blocked };
+  }
+
+  async findManyByIdsForUpdate(
+    client: PoolClient,
+    ids: string[],
+  ): Promise<QuestionCore[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
+    const result = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = ANY($1::uuid[]) AND deleted = FALSE
+        FOR UPDATE
+      `,
+      [uniqueIds],
+    );
+
+    const byId = new Map(
+      result.rows.map((row) => {
+        const question = this.mapRow(row);
+        return [question.id, this.toQuestionCore(question)] as const;
+      }),
+    );
+
+    const missingIds = uniqueIds.filter((id) => !byId.has(id));
+    if (missingIds.length > 0) {
+      throw new NotFoundException(
+        `Questions not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    return uniqueIds.map((id) => byId.get(id)!);
+  }
+
+  private async lockQuestionForDelete(
+    client: PoolClient,
+    id: string,
+  ): Promise<Question> {
+    const result = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = $1 AND deleted = FALSE
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async assertNoActiveInterview(
+    client: PoolClient,
+    question: Question,
+  ): Promise<void> {
+    const result = await client.query<{
+      id: string;
+      candidate_name: string;
+    }>(
+      `
+        SELECT id, candidate_name
+        FROM interviews
+        WHERE status = ANY($1::text[])
+          AND questions_json @> $2::jsonb
+        LIMIT 1
+      `,
+      [
+        [...ACTIVE_INTERVIEW_STATUSES],
+        JSON.stringify([{ id: question.id }]),
+      ],
+    );
+
+    if (result.rows[0]) {
+      throw new ConflictException(
+        `Question is used by an active interview (candidate: ${result.rows[0].candidate_name}). Wait for it to finish before deleting.`,
+      );
+    }
+  }
+
+  private async markDeleted(client: PoolClient, id: string): Promise<void> {
+    await client.query(
+      `UPDATE questions SET deleted = TRUE, updated_at = NOW() WHERE id = $1`,
+      [id],
+    );
+  }
+
+  async restore(id: string): Promise<Question> {
+    return this.databaseService.withTransaction(async (client) => {
+      const existing = await this.lockQuestionForRestore(client, id);
+      if (!existing.deleted) {
+        throw new BadRequestException('Question is not deleted');
+      }
+
+      await this.assertNoActiveDuplicate(client, existing);
+
+      const result = await this.runWithDuplicateGuard(existing, () =>
+        client.query<QuestionRow>(
+          `
+            UPDATE questions
+            SET deleted = FALSE, updated_at = NOW()
+            WHERE id = $1
+            ${QUESTION_RETURNING}
+          `,
+          [id],
+        ),
+      );
+
+      return this.mapRow(result.rows[0]);
+    });
+  }
+
+  private getUniqueViolationConstraint(err: unknown): string | undefined {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      (err as { code?: string }).code === '23505'
+    ) {
+      return (err as { constraint?: string }).constraint;
+    }
+    return undefined;
+  }
+
+  private async runWithDuplicateGuard<T>(
+    payload: { externalId?: string; questionText: string },
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (err) {
+      const constraint = this.getUniqueViolationConstraint(err);
+      if (constraint === 'questions_external_id_unique_idx') {
+        throw new ConflictException(
+          `An active question with external_id "${payload.externalId}" already exists.`,
+        );
+      }
+      if (constraint === 'questions_active_text_unique_idx') {
+        throw new ConflictException(
+          'An active question with the same text already exists.',
+        );
+      }
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        (err as { code?: string }).code === '54000'
+      ) {
+        throw new BadRequestException(
+          'Question text is too long to enforce uniqueness — please shorten it.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async lockQuestionForRestore(
+    client: PoolClient,
+    id: string,
+  ): Promise<Question> {
+    const result = await client.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async assertNoActiveDuplicate(
+    client: PoolClient,
+    question: Question,
+  ): Promise<void> {
+    if (question.externalId) {
+      const externalIdMatch = await client.query<{ id: string }>(
+        `
+          SELECT id
+          FROM questions
+          WHERE external_id = $1
+            AND deleted = FALSE
+            AND id <> $2
+          LIMIT 1
+        `,
+        [question.externalId, question.id],
+      );
+
+      if (externalIdMatch.rows[0]) {
+        throw new ConflictException(
+          `Cannot restore: an active question with external_id "${question.externalId}" already exists (id: ${externalIdMatch.rows[0].id}).`,
+        );
+      }
+    }
+
+    const textMatch = await client.query<{ id: string }>(
+      `
+        SELECT id
+        FROM questions
+        WHERE lower(question_text) = lower($1)
+          AND deleted = FALSE
+          AND id <> $2
+        LIMIT 1
+      `,
+      [question.questionText, question.id],
+    );
+
+    if (textMatch.rows[0]) {
+      throw new ConflictException(
+        `Cannot restore: an active question with the same text already exists (id: ${textMatch.rows[0].id}).`,
+      );
+    }
   }
 
   async findSimilar(
@@ -258,15 +648,24 @@ export class QuestionService {
           q.metadata,
           q.created_at,
           q.updated_at,
+          q.deleted,
           (e.embedding <=> $1::vector) AS distance
         FROM question_embeddings e
         INNER JOIN questions q ON q.id = e.question_id
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
+          AND q.deleted = FALSE
+          AND (e.embedding <=> $1::vector) <= $4::float
         ORDER BY distance ASC
-        LIMIT $4
+        LIMIT $5
       `,
-      [literal, this.embeddingsService.model, excludeQuestionId ?? null, limit],
+      [
+        literal,
+        this.embeddingsService.model,
+        excludeQuestionId ?? null,
+        SIMILARITY_DISTANCE_THRESHOLD,
+        limit,
+      ],
     );
 
     return result.rows.map((row) => {
@@ -300,37 +699,6 @@ export class QuestionService {
     return reasons;
   }
 
-  async findManyByIds(ids: string[]): Promise<QuestionCore[]> {
-    if (ids.length === 0) {
-      return [];
-    }
-
-    const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[])
-      `,
-      [uniqueIds],
-    );
-
-    const byId = new Map(
-      result.rows.map((row) => {
-        const question = this.mapRow(row);
-        return [question.id, this.toQuestionCore(question)] as const;
-      }),
-    );
-
-    const missingIds = uniqueIds.filter((id) => !byId.has(id));
-    if (missingIds.length > 0) {
-      throw new NotFoundException(
-        `Questions not found: ${missingIds.join(', ')}`,
-      );
-    }
-
-    return uniqueIds.map((id) => byId.get(id)!);
-  }
-
   async update(id: string, dto: UpdateQuestionDto | QuestionDraft): Promise<Question> {
     const existing = await this.findOne(id);
     const payload = this.normalizeQuestionInput({
@@ -352,80 +720,11 @@ export class QuestionService {
       metadata: dto.metadata ?? existing.metadata,
     });
 
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        UPDATE questions
-        SET
-          external_id = $2,
-          role = $3,
-          focus = $4,
-          output_language = $5,
-          category = $6,
-          subcategory = $7,
-          text = $8,
-          question_text = $9,
-          follow_up_questions = $10,
-          expected_concepts = $11,
-          expected_concepts_json = $12::jsonb,
-          red_flags = $13,
-          red_flags_json = $14::jsonb,
-          difficulty = $15,
-          weight = $16,
-          sample_good_answer = $17,
-          minimum_pass_score = $18,
-          tags = $19,
-          metadata = $20::jsonb,
-          updated_at = NOW()
-        WHERE id = $1
-        RETURNING
-          id,
-          external_id,
-          role,
-          focus,
-          output_language,
-          category,
-          subcategory,
-          text,
-          question_text,
-          follow_up_questions,
-          expected_concepts,
-          expected_concepts_json,
-          red_flags,
-          red_flags_json,
-          difficulty,
-          weight,
-          sample_good_answer,
-          minimum_pass_score,
-          tags,
-          metadata,
-          created_at,
-          updated_at
-      `,
-      [
-        id,
-        payload.externalId ?? null,
-        payload.role ?? null,
-        payload.focus ?? null,
-        payload.outputLanguage,
-        payload.category ?? null,
-        payload.subcategory ?? null,
-        payload.questionText,
-        payload.questionText,
-        payload.followUpQuestions,
-        payload.expectedConcepts.map((item) => item.label),
-        JSON.stringify(payload.expectedConcepts),
-        payload.redFlags.map((item) => item.label),
-        JSON.stringify(payload.redFlags),
-        payload.difficulty,
-        payload.weight,
-        payload.sampleGoodAnswer ?? null,
-        payload.minimumPassScore,
-        payload.tags,
-        JSON.stringify(payload.metadata),
-      ],
+    const question = await this.updateQuestionRow(
+      this.databaseService,
+      id,
+      payload,
     );
-
-    const question = this.mapRow(result.rows[0]);
     await this.storeEmbedding(question.id, question.questionText);
     return question;
   }
@@ -480,32 +779,6 @@ export class QuestionService {
         (record.metadata as Record<string, unknown>) ?? {},
       ),
     };
-  }
-
-  private async findByExternalId(externalId: string): Promise<Question | undefined> {
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        ${QUESTION_SELECT}
-        WHERE external_id = $1
-        LIMIT 1
-      `,
-      [externalId],
-    );
-
-    return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
-  }
-
-  private async findByQuestionText(questionText: string): Promise<Question | undefined> {
-    const result = await this.databaseService.query<QuestionRow>(
-      `
-        ${QUESTION_SELECT}
-        WHERE lower(coalesce(question_text, text)) = lower($1)
-        LIMIT 1
-      `,
-      [questionText],
-    );
-
-    return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
   }
 
   private normalizeQuestionInput(dto: {
@@ -788,6 +1061,7 @@ export class QuestionService {
       metadata: this.normalizeMetadata(row.metadata ?? {}),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      deleted: Boolean(row.deleted),
     };
   }
 

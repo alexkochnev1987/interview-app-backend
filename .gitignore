@@ -5,6 +5,7 @@ dist/
 coverage/
 .nyc_output/
 cookies.txt
+local-seeds/
 
 # Terraform
 infra/**/.terraform/

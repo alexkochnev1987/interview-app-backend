@@ -37,6 +37,7 @@ export interface QuestionCore {
 export interface Question extends QuestionCore {
   createdAt: Date;
   updatedAt: Date;
+  deleted: boolean;
 }
 
 export type QuestionDraft = Omit<QuestionCore, 'id'>;
