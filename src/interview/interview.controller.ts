@@ -46,6 +46,17 @@ export class InterviewController {
     return this.interviewService.findOne(id);
   }
 
+  @Post(':id/candidate-link')
+  async generateCandidateLink(
+    @Param('id') id: string,
+  ): Promise<{ candidateLink: string }> {
+    await this.interviewService.findOne(id);
+    const token = this.authService.generateCandidateToken(id);
+    return {
+      candidateLink: `/take/${id}?token=${token}`,
+    };
+  }
+
   @Patch(':id/complete')
   complete(@Param('id') id: string): Promise<Interview> {
     return this.interviewService.complete(id);
