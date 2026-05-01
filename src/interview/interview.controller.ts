@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   UseGuards,
@@ -14,6 +15,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthService } from '../auth/auth.service';
+import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,6 +24,7 @@ export class InterviewController {
   constructor(
     private readonly interviewService: InterviewService,
     private readonly authService: AuthService,
+    private readonly answerValidationWorkflowService: AnswerValidationWorkflowService,
   ) {}
 
   @Post()
@@ -60,6 +63,24 @@ export class InterviewController {
   @Patch(':id/complete')
   complete(@Param('id') id: string): Promise<Interview> {
     return this.interviewService.complete(id);
+  }
+
+  @Post(':id/validate')
+  async validateAllAnswers(@Param('id') id: string) {
+    return this.answerValidationWorkflowService.startValidationForAllSubmitted(
+      id,
+    );
+  }
+
+  @Post(':id/questions/:questionIndex/validate')
+  async validateAnswer(
+    @Param('id') id: string,
+    @Param('questionIndex', ParseIntPipe) questionIndex: number,
+  ) {
+    return this.answerValidationWorkflowService.startValidation(
+      id,
+      questionIndex,
+    );
   }
 
   @Get(':id/results')

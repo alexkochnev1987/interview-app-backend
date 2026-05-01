@@ -282,7 +282,21 @@ export class InterviewService {
       },
     };
 
-    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+    const now = new Date(input.requestedAt);
+
+    return this.saveInterview({
+      ...interview,
+      answers: interview.answers.map((item) =>
+        item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
+      ),
+      status: 'processing',
+      workflow: this.buildWorkflow('processing', now, {
+        currentStage: 'validate_answers',
+        startedAt: interview.workflow?.startedAt ?? now,
+        errorMessage: undefined,
+      }),
+      updatedAt: now,
+    });
   }
 
   async completeAnswerValidation(
@@ -339,7 +353,22 @@ export class InterviewService {
       },
     };
 
-    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+    const now = new Date(input.completedAt);
+
+    return this.saveInterview({
+      ...interview,
+      answers: interview.answers.map((item) =>
+        item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
+      ),
+      status: 'failed',
+      workflow: this.buildWorkflow('failed', now, {
+        currentStage: 'analyze_answers',
+        startedAt: answer.validation?.startedAt ?? answer.validation?.requestedAt ?? now,
+        completedAt: now,
+        errorMessage: nextAnswer.validation?.errorMessage,
+      }),
+      updatedAt: now,
+    });
   }
 
   private async persistAnswerVersion(

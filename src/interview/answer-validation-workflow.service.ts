@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   OnApplicationBootstrap,
@@ -27,6 +28,16 @@ export interface StartAnswerValidationResult {
   questionIndex: number;
   sourceVersionNumber: number;
   reused: boolean;
+}
+
+export interface StartAllAnswerValidationsResult {
+  ok: true;
+  interviewId: string;
+  requestedCount: number;
+  queuedCount: number;
+  reusedCount: number;
+  skippedCount: number;
+  answers: StartAnswerValidationResult[];
 }
 
 @Injectable()
@@ -78,6 +89,46 @@ export class AnswerValidationWorkflowService
     return this.dispatchValidation(interviewId, questionIndex, false);
   }
 
+  async startValidationForAllSubmitted(
+    interviewId: string,
+  ): Promise<StartAllAnswerValidationsResult> {
+    const interview = await this.interviewService.findOne(interviewId);
+    const submittedAnswers = interview.answers
+      .filter((answer) => answer.status === 'submitted')
+      .sort((left, right) => left.questionIndex - right.questionIndex);
+
+    const hasActiveValidation = submittedAnswers.some(
+      (answer) =>
+        answer.validation?.status === 'queued' ||
+        answer.validation?.status === 'processing',
+    );
+    if (hasActiveValidation) {
+      throw new ConflictException(
+        'Answer validation is already running for this interview.',
+      );
+    }
+
+    const answers: StartAnswerValidationResult[] = [];
+    for (const answer of submittedAnswers) {
+      answers.push(
+        await this.startValidation(interviewId, answer.questionIndex),
+      );
+    }
+
+    const queuedCount = answers.filter((item) => !item.reused).length;
+    const reusedCount = answers.filter((item) => item.reused).length;
+
+    return {
+      ok: true,
+      interviewId,
+      requestedCount: submittedAnswers.length,
+      queuedCount,
+      reusedCount,
+      skippedCount: Math.max(interview.questions.length - submittedAnswers.length, 0),
+      answers,
+    };
+  }
+
   private async dispatchValidation(
     interviewId: string,
     questionIndex: number,
@@ -111,9 +162,19 @@ export class AnswerValidationWorkflowService
     const existingValidation = answer.validation;
     if (
       !force &&
+      existingValidation?.sourceVersionNumber === sourceVersionNumber &&
+      (existingValidation.status === 'queued' ||
+        existingValidation.status === 'processing')
+    ) {
+      throw new ConflictException(
+        `Answer validation is already running for question ${questionIndex}.`,
+      );
+    }
+    if (
+      !force &&
       existingValidation &&
       existingValidation.sourceVersionNumber === sourceVersionNumber &&
-      ['queued', 'processing', 'completed'].includes(existingValidation.status)
+      existingValidation.status === 'completed'
     ) {
       return {
         status: existingValidation.status,
