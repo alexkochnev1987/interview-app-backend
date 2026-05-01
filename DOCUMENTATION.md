@@ -236,8 +236,8 @@ npm run dev          # http://localhost:3001
 git add -A && git commit -m "feat: описание" && git push
 
 # Деплой на prod
-# Важно: перед push в main для prod backend должен существовать RDS-инстанс
-# `interview-app-prod`, иначе prod CI/CD не сможет собрать DATABASE_URL и деплой упадет.
+# Terraform для prod не поднимает RDS (`create_db_instance = false`), но backend CI/CD
+# всё ещё ожидает существующий инстанс `interview-app-prod`, чтобы собрать DATABASE_URL.
 git checkout main && git merge develop && git push origin main
 ```
 
@@ -254,8 +254,8 @@ npm run start:dev    # http://localhost:3000
 git add -A && git commit -m "feat: описание" && git push
 
 # Деплой на prod
-# Важно: перед push в main для prod backend должен существовать RDS-инстанс
-# `interview-app-prod`, иначе prod CI/CD не сможет собрать DATABASE_URL и деплой упадет.
+# Terraform для prod не поднимает RDS (`create_db_instance = false`), но backend CI/CD
+# всё ещё ожидает существующий инстанс `interview-app-prod`, чтобы собрать DATABASE_URL.
 git checkout main && git merge develop && git push origin main
 ```
 
@@ -310,8 +310,9 @@ terraform output
 
 # Prod — то же, из environments/prod/
 cd ../prod
-# Если prod RDS был удален для экономии, перед деплоем main его нужно создать:
-# terraform apply поднимет `interview-app-prod`, после чего prod CI/CD сможет подключить БД.
+# В текущем Terraform prod RDS отключен (`create_db_instance = false`).
+# Если нужен prod backend deploy, RDS придётся либо вернуть в Terraform, либо
+# изменить CI/CD, который сейчас ожидает `interview-app-prod`.
 TF_VAR_db_password="TempProdPass456!" terraform apply
 ```
 
@@ -329,7 +330,7 @@ TF_VAR_db_password="TempProdPass456!" terraform apply
 | **ECS Cluster** | interview-app-dev | interview-app-prod |
 | **ECS Service** | interview-app-dev-backend | interview-app-prod-backend |
 | **ECR** | interview-app-backend (shared) | |
-| **RDS** | interview-app-dev (db.t4g.micro) | interview-app-prod (db.t4g.small) |
+| **RDS** | interview-app-dev (db.t4g.micro) | не создаётся текущим Terraform |
 | **S3** | interview-app-storage-289427882196 (shared) | |
 | **Amplify** | d1z0clbcev0y8a | d2k50usvcss92k |
 | **Step Functions** | interview-app-dev-interview-pipeline | interview-app-prod-interview-pipeline |

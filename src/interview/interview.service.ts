@@ -282,8 +282,6 @@ export class InterviewService {
       },
     };
 
-    const now = new Date(input.requestedAt);
-
     return this.saveInterview({
       ...interview,
       answers: interview.answers.map((item) =>
