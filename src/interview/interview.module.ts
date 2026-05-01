@@ -5,11 +5,10 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { QuestionModule } from '../question/question.module';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
-import { AnswerValidationWorkflowController } from './answer-validation-workflow.controller';
 
 @Module({
   imports: [AuthModule, DatabaseModule, QuestionModule],
-  controllers: [InterviewController, AnswerValidationWorkflowController],
+  controllers: [InterviewController],
   providers: [InterviewService, AnswerValidationWorkflowService],
   exports: [InterviewService, AnswerValidationWorkflowService],
 })

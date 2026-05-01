@@ -1,74 +1,88 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
+  OnApplicationBootstrap,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
-  SFNClient,
-  StartExecutionCommand,
-} from '@aws-sdk/client-sfn';
-import {
   Answer,
-  AnswerVersion,
+  AnswerEvaluation,
+  AnswerTranscript,
   AnswerValidationStatus,
+  AnswerVersion,
   InterviewQuestion,
 } from './interfaces/interview.interface';
 import { InterviewService } from './interview.service';
-
-interface AnswerValidationExecutionAnswer {
-  questionIndex: number;
-  questionId: string;
-  sourceVersionNumber: number;
-  mediaKey: string;
-  screenMediaKey?: string;
-  uploadedAt: Date;
-  durationSeconds?: number;
-  startedAt?: Date;
-  submittedAt?: Date;
-  camera?: Answer['camera'];
-  screen?: Answer['screen'];
-  behaviorSignals?: Answer['behaviorSignals'];
-  behaviorEvents?: Answer['behaviorEvents'];
-}
-
-interface AnswerValidationExecutionInput {
-  interviewId: string;
-  candidateName: string;
-  position: string;
-  questionIndex: number;
-  question: InterviewQuestion;
-  answer: AnswerValidationExecutionAnswer;
-}
+import { resolveNativeProvider } from '../ai/llm/ai-env';
+import { transcribeInterviewMedia } from '../ai/llm/whisper-transcribe';
+import {
+  evaluateAnswerWithNativeLlm,
+  RawAnswerEvaluation,
+} from '../ai/llm/answer-evaluation-llm';
+import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 
 export interface StartAnswerValidationResult {
   status: AnswerValidationStatus;
   questionIndex: number;
   sourceVersionNumber: number;
-  executionArn?: string;
   reused: boolean;
 }
 
 @Injectable()
-export class AnswerValidationWorkflowService {
-  private readonly sfnClient = new SFNClient({
-    region: process.env.AWS_REGION ?? 'us-east-1',
-  });
+export class AnswerValidationWorkflowService
+  implements OnApplicationBootstrap
+{
+  private readonly logger = new Logger(AnswerValidationWorkflowService.name);
 
   constructor(private readonly interviewService: InterviewService) {}
 
-  async startValidation(
+  async onApplicationBootstrap(): Promise<void> {
+    if (!resolveNativeProvider()) {
+      this.logger.warn(
+        'AI provider not configured — skipping stuck validation recovery.',
+      );
+      return;
+    }
+
+    const interviews = await this.interviewService.findAll();
+    for (const interview of interviews) {
+      for (const answer of interview.answers) {
+        const status = answer.validation?.status;
+        if (status !== 'queued' && status !== 'processing') {
+          continue;
+        }
+
+        try {
+          await this.dispatchValidation(
+            interview.id,
+            answer.questionIndex,
+            true,
+          );
+          this.logger.log(
+            `Recovered stuck validation interview=${interview.id} question=${answer.questionIndex}`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to recover validation interview=${interview.id} question=${answer.questionIndex}: ${this.formatError(error)}`,
+          );
+        }
+      }
+    }
+  }
+
+  startValidation(
     interviewId: string,
     questionIndex: number,
   ): Promise<StartAnswerValidationResult> {
-    const stateMachineArn =
-      process.env.ANSWER_VALIDATION_STATE_MACHINE_ARN?.trim();
+    return this.dispatchValidation(interviewId, questionIndex, false);
+  }
 
-    if (!stateMachineArn) {
-      throw new ServiceUnavailableException(
-        'Answer validation workflow is not configured',
-      );
-    }
-
+  private async dispatchValidation(
+    interviewId: string,
+    questionIndex: number,
+    force: boolean,
+  ): Promise<StartAnswerValidationResult> {
     const interview = await this.interviewService.findOne(interviewId);
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
@@ -96,6 +110,7 @@ export class AnswerValidationWorkflowService {
     const sourceVersionNumber = selectedVersion.versionNumber;
     const existingValidation = answer.validation;
     if (
+      !force &&
       existingValidation &&
       existingValidation.sourceVersionNumber === sourceVersionNumber &&
       ['queued', 'processing', 'completed'].includes(existingValidation.status)
@@ -104,7 +119,6 @@ export class AnswerValidationWorkflowService {
         status: existingValidation.status,
         questionIndex,
         sourceVersionNumber,
-        executionArn: existingValidation.executionArn,
         reused: true,
       };
     }
@@ -116,63 +130,131 @@ export class AnswerValidationWorkflowService {
       );
     }
 
-    const executionInput: AnswerValidationExecutionInput = {
-      interviewId: interview.id,
-      candidateName: interview.candidateName,
-      position: interview.position,
-      questionIndex,
-      question,
-      answer: {
-        questionIndex,
-        questionId: answer.questionId,
-        sourceVersionNumber,
-        mediaKey: selectedVersion.mediaKey,
-        screenMediaKey: selectedVersion.screenMediaKey,
-        uploadedAt: selectedVersion.uploadedAt,
-        durationSeconds: selectedVersion.durationSeconds,
-        startedAt: selectedVersion.startedAt,
-        submittedAt: selectedVersion.submittedAt ?? answer.submittedAt,
-        camera: selectedVersion.camera,
-        screen: selectedVersion.screen,
-        behaviorSignals: selectedVersion.behaviorSignals,
-        behaviorEvents: selectedVersion.behaviorEvents,
-      },
-    };
+    if (!resolveNativeProvider()) {
+      throw new ServiceUnavailableException(
+        'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
+      );
+    }
 
     const requestedAt = new Date();
-    const execution = await this.sfnClient.send(
-      new StartExecutionCommand({
-        stateMachineArn,
-        name: this.buildExecutionName(
-          interview.id,
-          questionIndex,
-          sourceVersionNumber,
-          requestedAt,
-        ),
-        input: JSON.stringify(executionInput),
-      }),
-    );
-
-    const updatedInterview = await this.interviewService.queueAnswerValidation(
-      interview.id,
-      {
-        questionIndex,
-        sourceVersionNumber,
-        executionArn: execution.executionArn,
-        requestedAt,
-      },
-    );
-    const updatedAnswer = updatedInterview.answers.find(
-      (item) => item.questionIndex === questionIndex,
-    );
-
-    return {
-      status: updatedAnswer?.validation?.status ?? 'queued',
+    await this.interviewService.queueAnswerValidation(interview.id, {
       questionIndex,
       sourceVersionNumber,
-      executionArn: execution.executionArn,
+      requestedAt,
+    });
+
+    void this.runInProcess({
+      interviewId: interview.id,
+      questionIndex,
+      sourceVersionNumber,
+      question,
+      selectedVersion,
+    });
+
+    return {
+      status: 'queued',
+      questionIndex,
+      sourceVersionNumber,
       reused: false,
     };
+  }
+
+  private async runInProcess(params: {
+    interviewId: string;
+    questionIndex: number;
+    sourceVersionNumber: number;
+    question: InterviewQuestion;
+    selectedVersion: AnswerVersion;
+  }): Promise<void> {
+    const {
+      interviewId,
+      questionIndex,
+      sourceVersionNumber,
+      question,
+      selectedVersion,
+    } = params;
+
+    try {
+      const provider = resolveNativeProvider();
+      if (!provider) {
+        throw new Error(
+          'AI provider became unavailable while validation was running.',
+        );
+      }
+
+      const whisperResult = await transcribeInterviewMedia(
+        selectedVersion.mediaKey,
+      );
+
+      const transcript: AnswerTranscript = {
+        text: whisperResult.text,
+        language: whisperResult.language,
+        provider: 'openai-whisper',
+        generatedAt: new Date(),
+        isFinal: true,
+      };
+
+      const rawEvaluation = await evaluateAnswerWithNativeLlm(
+        provider,
+        question,
+        whisperResult.text,
+      );
+
+      const behaviorRisk = computeAnswerBehaviorRisk(
+        selectedVersion.behaviorSignals,
+        selectedVersion.durationSeconds,
+      );
+
+      const evaluation: AnswerEvaluation = {
+        overallScore: this.clampScore(rawEvaluation.overallScore),
+        categoryScores: this.normalizeCategoryScores(
+          rawEvaluation.categoryScores,
+        ),
+        coveredConceptIds: this.filterConceptIds(
+          rawEvaluation.coveredConceptIds,
+          question.expectedConcepts.map((concept) => concept.id),
+        ),
+        missedConceptIds: this.filterConceptIds(
+          rawEvaluation.missedConceptIds,
+          question.expectedConcepts.map((concept) => concept.id),
+        ),
+        redFlagIds: this.filterConceptIds(
+          rawEvaluation.redFlagIds,
+          question.redFlags.map((flag) => flag.id),
+        ),
+        behaviorRisk,
+        summary: rawEvaluation.summary?.trim() || undefined,
+        decisionHint: this.normalizeDecisionHint(rawEvaluation.decisionHint),
+        evaluatedAt: new Date(),
+      };
+
+      await this.interviewService.completeAnswerValidation(interviewId, {
+        questionIndex,
+        sourceVersionNumber,
+        transcript,
+        evaluation,
+        completedAt: new Date(),
+      });
+
+      await this.interviewService.recomputeResult(interviewId);
+    } catch (error) {
+      this.logger.error(
+        `Answer validation failed for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
+      );
+
+      try {
+        await this.interviewService.failAnswerValidation(interviewId, {
+          questionIndex,
+          sourceVersionNumber,
+          errorMessage: this.formatError(error),
+          completedAt: new Date(),
+        });
+      } catch (saveError) {
+        this.logger.error(
+          `Failed to record validation failure for interview=${interviewId} question=${questionIndex}: ${this.formatError(saveError)}`,
+        );
+      }
+    }
   }
 
   private resolveSelectedVersion(answer: Answer): AnswerVersion | undefined {
@@ -204,19 +286,60 @@ export class AnswerValidationWorkflowService {
     };
   }
 
-  private buildExecutionName(
-    interviewId: string,
-    questionIndex: number,
-    sourceVersionNumber: number,
-    requestedAt: Date,
-  ): string {
-    const normalizedInterviewId = interviewId.replace(/[^A-Za-z0-9_-]/g, '');
-    return [
-      'answer',
-      normalizedInterviewId.slice(0, 32),
-      `q${questionIndex}`,
-      `v${sourceVersionNumber}`,
-      requestedAt.getTime().toString(),
-    ].join('-');
+  private clampScore(value: unknown): number | undefined {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return undefined;
+    }
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private normalizeCategoryScores(
+    value: RawAnswerEvaluation['categoryScores'],
+  ): Record<string, number> | undefined {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const result: Record<string, number> = {};
+    for (const [key, raw] of Object.entries(value)) {
+      const score = this.clampScore(raw);
+      if (typeof score === 'number') {
+        result[key] = score;
+      }
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+
+  private filterConceptIds(
+    value: unknown,
+    allowedIds: string[],
+  ): string[] | undefined {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+
+    const allowed = new Set(allowedIds);
+    const filtered = value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item && allowed.has(item));
+
+    return filtered.length > 0 ? filtered : undefined;
+  }
+
+  private normalizeDecisionHint(
+    value: unknown,
+  ): 'pass' | 'review' | 'fail' | undefined {
+    if (value === 'pass' || value === 'review' || value === 'fail') {
+      return value;
+    }
+    return undefined;
+  }
+
+  private formatError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return typeof error === 'string' ? error : 'Unknown error';
   }
 }

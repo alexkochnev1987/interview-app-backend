@@ -17,12 +17,15 @@ import {
   AnswerValidation,
   AnswerVersion,
   Interview,
+  InterviewBehaviorRisk,
+  InterviewDecision,
   InterviewQuestion,
   InterviewResult,
   InterviewQuestionResult,
   InterviewWorkflow,
   MediaArtifact,
 } from './interfaces/interview.interface';
+import { compareBehaviorRisk } from './answer-behavior-risk';
 
 interface InterviewRow {
   id: string;
@@ -216,19 +219,8 @@ export class InterviewService {
         'Interview can only be completed after all answers are submitted',
       );
     }
-    const now = new Date();
-    const updated = await this.saveInterview({
-      ...interview,
-      status: 'processing',
-      workflow: this.buildWorkflow('processing', now, {
-        currentStage: 'validate_answers',
-        startedAt: interview.workflow?.startedAt ?? now,
-      }),
-      updatedAt: now,
-    });
 
-    this.simulateProcessing(updated.id);
-    return updated;
+    return this.recomputeResult(id);
   }
 
   async getResults(id: string): Promise<InterviewResult> {
@@ -638,61 +630,167 @@ export class InterviewService {
     return this.mapRow(result.rows[0]);
   }
 
-  /**
-   * Placeholder for Step Functions invocation.
-   * Simulates async processing by completing after a short delay.
-   */
-  private simulateProcessing(interviewId: string): void {
-    setTimeout(async () => {
-      try {
-        const interview = await this.findOne(interviewId);
-        const completedAt = new Date();
-        await this.saveInterview({
-          ...interview,
-          result: {
-            overallScore: 75,
-            summary: 'Simulated evaluation result',
-            categoryScores: {
-              technical: 80,
-              communication: 70,
-              problemSolving: 75,
-            },
-            rubricVersion: 'placeholder-v1',
-            decision: 'review',
-            trustScore: 100,
-            trustFlags: [],
-            behaviorSummary: {
-              riskLevel: 'low',
-              notes: ['Behavior analysis is still using placeholder data.'],
-            },
-            questionResults: interview.answers
-              .filter((answer) => answer.status === 'submitted')
-              .map((answer) => ({
-              questionIndex: answer.questionIndex,
-              questionId: answer.questionId,
-              score: 75,
-              categoryScores: {
-                relevance: 75,
-                depth: 75,
-                communication: 75,
-              },
-              summary: 'Placeholder per-question evaluation.',
-              decisionHint: 'review',
-              })),
-            completedAt,
-          },
-          status: 'completed',
-          workflow: this.buildWorkflow('completed', completedAt, {
+  async recomputeResult(id: string): Promise<Interview> {
+    const interview = await this.findOne(id);
+    const submittedAnswers = interview.answers.filter(
+      (answer) => answer.status === 'submitted',
+    );
+    const evaluatedAnswers = submittedAnswers.filter(
+      (answer) => answer.evaluation && typeof answer.evaluation.overallScore === 'number',
+    );
+
+    if (evaluatedAnswers.length === 0) {
+      return interview;
+    }
+
+    const questionsByIndex = new Map(
+      interview.questions.map((question, index) => [index, question]),
+    );
+
+    let totalWeight = 0;
+    let weightedScore = 0;
+    const categorySums: Record<string, { weight: number; total: number }> = {};
+    let maxRisk: InterviewBehaviorRisk = 'low';
+    const questionResults: InterviewQuestionResult[] = [];
+
+    for (const answer of evaluatedAnswers) {
+      const evaluation = answer.evaluation;
+      if (!evaluation || typeof evaluation.overallScore !== 'number') {
+        continue;
+      }
+
+      const question = questionsByIndex.get(answer.questionIndex);
+      const weight =
+        typeof question?.weight === 'number' && question.weight > 0
+          ? question.weight
+          : 1;
+
+      totalWeight += weight;
+      weightedScore += evaluation.overallScore * weight;
+
+      if (evaluation.categoryScores) {
+        for (const [key, value] of Object.entries(evaluation.categoryScores)) {
+          if (typeof value !== 'number' || !Number.isFinite(value)) {
+            continue;
+          }
+          const bucket =
+            categorySums[key] ?? { weight: 0, total: 0 };
+          bucket.weight += weight;
+          bucket.total += value * weight;
+          categorySums[key] = bucket;
+        }
+      }
+
+      if (
+        evaluation.behaviorRisk &&
+        compareBehaviorRisk(evaluation.behaviorRisk, maxRisk) > 0
+      ) {
+        maxRisk = evaluation.behaviorRisk;
+      }
+
+      questionResults.push({
+        questionIndex: answer.questionIndex,
+        questionId: answer.questionId,
+        score: evaluation.overallScore,
+        categoryScores: evaluation.categoryScores,
+        summary: evaluation.summary,
+        decisionHint: evaluation.decisionHint,
+      });
+    }
+
+    const overallScore =
+      totalWeight > 0 ? Math.round(weightedScore / totalWeight) : 0;
+
+    const categoryScores: Record<string, number> = {};
+    for (const [key, { weight, total }] of Object.entries(categorySums)) {
+      if (weight > 0) {
+        categoryScores[key] = Math.round(total / weight);
+      }
+    }
+
+    const decision = this.computeInterviewDecision(overallScore, maxRisk);
+    const summary = this.buildInterviewSummary(questionResults);
+    const trustScore = this.riskToTrustScore(maxRisk);
+
+    const allAnswered = submittedAnswers.length >= interview.questions.length;
+    const allEvaluated = evaluatedAnswers.length === submittedAnswers.length;
+    const isFinal = allAnswered && allEvaluated;
+    const completedAt = new Date();
+
+    const result: InterviewResult = {
+      overallScore,
+      summary,
+      categoryScores,
+      rubricVersion: 'mvp-v1',
+      decision,
+      trustScore,
+      trustFlags: [],
+      behaviorSummary: {
+        riskLevel: maxRisk,
+        notes: [],
+      },
+      questionResults: questionResults.sort(
+        (left, right) => left.questionIndex - right.questionIndex,
+      ),
+      completedAt,
+    };
+
+    return this.saveInterview({
+      ...interview,
+      result,
+      status: isFinal ? 'completed' : interview.status,
+      workflow: isFinal
+        ? this.buildWorkflow('completed', completedAt, {
             currentStage: 'store_result',
             startedAt: interview.workflow?.startedAt,
             completedAt,
+          })
+        : this.buildWorkflow('processing', completedAt, {
+            currentStage: 'analyze_answers',
+            startedAt: interview.workflow?.startedAt ?? completedAt,
           }),
-          updatedAt: completedAt,
-        });
-      } catch (error) {
-        console.error('Failed to simulate interview processing', error);
-      }
-    }, 2000);
+      updatedAt: completedAt,
+    });
+  }
+
+  private computeInterviewDecision(
+    overallScore: number,
+    riskLevel: InterviewBehaviorRisk,
+  ): InterviewDecision {
+    if (riskLevel === 'high' || overallScore < 50) {
+      return 'reject';
+    }
+    if (riskLevel === 'medium' || overallScore < 70) {
+      return 'review';
+    }
+    return 'proceed';
+  }
+
+  private riskToTrustScore(riskLevel: InterviewBehaviorRisk): number {
+    if (riskLevel === 'high') {
+      return 40;
+    }
+    if (riskLevel === 'medium') {
+      return 70;
+    }
+    return 100;
+  }
+
+  private buildInterviewSummary(
+    questionResults: InterviewQuestionResult[],
+  ): string {
+    const lines = questionResults
+      .map((item) =>
+        item.summary
+          ? `Q${item.questionIndex + 1}: ${item.summary}`
+          : undefined,
+      )
+      .filter((line): line is string => Boolean(line));
+
+    if (lines.length === 0) {
+      return 'No per-question summaries were produced.';
+    }
+    return lines.join('\n');
   }
 
   private mapRow(row: InterviewRow): Interview {
