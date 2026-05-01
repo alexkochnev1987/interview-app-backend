@@ -3,6 +3,7 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  GetObjectCommand,
   ListPartsCommand,
   PutObjectCommand,
   S3Client,
@@ -48,6 +49,11 @@ export interface MultipartUploadAbortResponse {
   mediaKey: string;
   uploadId: string;
   aborted: boolean;
+}
+
+export interface PresignedDownloadUrlResponse {
+  downloadUrl: string;
+  mediaKey: string;
 }
 
 @Injectable()
@@ -265,6 +271,25 @@ export class UploadService {
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     return { mediaKey, confirmed: true };
+  }
+
+  async generateDownloadUrl(
+    interviewId: string,
+    questionIndex: number,
+    mediaKey: string,
+  ): Promise<PresignedDownloadUrlResponse> {
+    this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: mediaKey,
+    });
+
+    const downloadUrl = await getSignedUrl(this.s3Client, command, {
+      expiresIn: 3600,
+    });
+
+    return { downloadUrl, mediaKey };
   }
 
   private async assertCurrentQuestionUploadAllowed(

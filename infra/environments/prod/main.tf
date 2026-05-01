@@ -32,7 +32,9 @@ module "ecr" {
 module "s3" {
   source               = "../../modules/s3"
   project_name         = var.project_name
-  cors_allowed_origins = ["https://your-domain.com"]
+  cors_allowed_origins = [
+    "https://main.${module.amplify.default_domain}",
+  ]
 }
 
 module "rds" {
