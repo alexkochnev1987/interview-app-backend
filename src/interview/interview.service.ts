@@ -431,12 +431,21 @@ export class InterviewService {
       startedAt && !Number.isNaN(startedAt.getTime())
         ? startedAt
         : existingVersion?.startedAt;
-    const normalizedSubmittedAt = this.resolveSubmittedAt({
+    let normalizedSubmittedAt = this.resolveSubmittedAt({
       submittedAt,
       uploadedAt,
       existingVersion,
       fallback: options.submittedAtFallback,
     });
+
+    if (
+      !submitAnswer &&
+      normalizedStartedAt &&
+      normalizedSubmittedAt &&
+      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+    ) {
+      normalizedSubmittedAt = undefined;
+    }
 
     if (
       normalizedStartedAt &&
