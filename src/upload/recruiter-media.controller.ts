@@ -7,14 +7,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../user/interfaces/user.interface';
 import { InterviewService } from '../interview/interview.service';
 import { UploadService } from './upload.service';
 
 @Controller('interviews')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecruiterMediaController {
   constructor(
     private readonly interviewService: InterviewService,
@@ -22,11 +23,13 @@ export class RecruiterMediaController {
   ) {}
 
   @Get(':id/questions/:questionIndex/media')
+  @RequirePermissions('interviews:read_own')
   async getAnswerMedia(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
-    const interview = await this.interviewService.findOne(id);
+    const interview = await this.interviewService.findOneForActor(id, user);
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );

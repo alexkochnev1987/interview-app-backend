@@ -7,13 +7,11 @@ import {
   Patch,
   Post,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -26,12 +24,12 @@ import {
 import { QuestionService } from './question.service';
 
 @Controller('questions')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
   @Get()
+  @RequirePermissions('questions:read')
   findAll(@CurrentUser() user: Omit<User, 'passwordHash'>): Promise<Question[]> {
     return this.questionService.findAll({
       includeDeleted: user.role === 'super_admin',
@@ -39,6 +37,7 @@ export class QuestionController {
   }
 
   @Get(':id')
+  @RequirePermissions('questions:read')
   findOne(
     @Param('id') id: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
@@ -49,13 +48,13 @@ export class QuestionController {
   }
 
   @Post()
-  @Roles('super_admin', 'admin')
+  @RequirePermissions('questions:create')
   create(@Body() dto: CreateQuestionDto): Promise<Question> {
     return this.questionService.create(dto);
   }
 
   @Post('similar')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @RequirePermissions('questions:read')
   async findSimilar(
     @Body() dto: FindSimilarDto,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
@@ -68,7 +67,7 @@ export class QuestionController {
   }
 
   @Patch(':id')
-  @Roles('super_admin', 'admin')
+  @RequirePermissions('questions:update')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateQuestionDto,
@@ -77,7 +76,7 @@ export class QuestionController {
   }
 
   @Delete(':id')
-  @Roles('super_admin')
+  @RequirePermissions('questions:delete')
   remove(
     @Param('id') id: string,
   ): Promise<{ id: string; deleted: true }> {
@@ -85,8 +84,7 @@ export class QuestionController {
   }
 
   @Post('bulk-delete')
-  @Roles('super_admin')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @RequirePermissions('questions:delete')
   bulkRemove(@Body() dto: BulkDeleteQuestionsDto): Promise<{
     deleted: string[];
     blocked: Array<{ id: string; questionText: string; reason: string }>;
@@ -95,7 +93,7 @@ export class QuestionController {
   }
 
   @Patch(':id/restore')
-  @Roles('super_admin')
+  @RequirePermissions('questions:delete')
   restore(@Param('id') id: string): Promise<Question> {
     return this.questionService.restore(id);
   }

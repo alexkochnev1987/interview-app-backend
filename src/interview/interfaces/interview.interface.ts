@@ -31,12 +31,14 @@ export interface CandidateQuestionView {
 export interface Interview {
   id: string;
   candidateName: string;
+  candidateEmail?: string;
   position: string;
   questions: InterviewQuestion[];
   answers: Answer[];
   status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
   result?: InterviewResult;
   workflow?: InterviewWorkflow;
+  createdById?: string;
   createdAt: Date;
   updatedAt: Date;
 }

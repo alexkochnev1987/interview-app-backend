@@ -12,14 +12,17 @@ import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { Interview, InterviewResult } from './interfaces/interview.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../user/interfaces/user.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 
+type ActingUser = Omit<User, 'passwordHash'>;
+
 @Controller('interviews')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InterviewController {
   constructor(
     private readonly interviewService: InterviewService,
@@ -28,10 +31,14 @@ export class InterviewController {
   ) {}
 
   @Post()
+  @RequirePermissions('interviews:create')
   async create(
     @Body() dto: CreateInterviewDto,
+    @CurrentUser() user: ActingUser,
   ): Promise<Interview & { candidateLink: string }> {
-    const interview = await this.interviewService.create(dto);
+    const interview = await this.interviewService.create(dto, {
+      createdById: user.id,
+    });
     const token = this.authService.generateCandidateToken(interview.id);
     return {
       ...interview,
@@ -40,20 +47,27 @@ export class InterviewController {
   }
 
   @Get()
-  findAll(): Promise<Interview[]> {
-    return this.interviewService.findAll();
+  @RequirePermissions('interviews:read_own')
+  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
+    return this.interviewService.findAllForActor(user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Interview> {
-    return this.interviewService.findOne(id);
+  @RequirePermissions('interviews:read_own')
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    return this.interviewService.findOneForActor(id, user);
   }
 
   @Post(':id/candidate-link')
+  @RequirePermissions('interviews:assign')
   async generateCandidateLink(
     @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
   ): Promise<{ candidateLink: string }> {
-    await this.interviewService.findOne(id);
+    await this.interviewService.findOneForActor(id, user);
     const token = this.authService.generateCandidateToken(id);
     return {
       candidateLink: `/take/${id}?token=${token}`,
@@ -61,22 +75,35 @@ export class InterviewController {
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') id: string): Promise<Interview> {
+  @RequirePermissions('interviews:update_own')
+  async complete(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
     return this.interviewService.complete(id);
   }
 
   @Post(':id/validate')
-  async validateAllAnswers(@Param('id') id: string) {
+  @RequirePermissions('interviews:update_own')
+  async validateAllAnswers(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ) {
+    await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidationForAllSubmitted(
       id,
     );
   }
 
   @Post(':id/questions/:questionIndex/validate')
+  @RequirePermissions('interviews:update_own')
   async validateAnswer(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @CurrentUser() user: ActingUser,
   ) {
+    await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidation(
       id,
       questionIndex,
@@ -84,8 +111,12 @@ export class InterviewController {
   }
 
   @Get(':id/results')
-  @Roles('super_admin', 'admin')
-  getResults(@Param('id') id: string): Promise<InterviewResult> {
+  @RequirePermissions('interviews:read_own')
+  async getResults(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewResult> {
+    await this.interviewService.findOneForActor(id, user);
     return this.interviewService.getResults(id);
   }
 }
