@@ -16,11 +16,11 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
-
-class LoginDto {
-  email: string;
-  password: string;
-}
+import { RegisterThrottlerGuard } from './guards/register-throttler.guard';
+import { getPermissions } from './permissions';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { MeResponse } from './interfaces/me.interface';
 
 const isLocal = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
 
@@ -59,6 +59,26 @@ export class AuthController {
     return user;
   }
 
+  @Post('register')
+  @HttpCode(201)
+  @UseGuards(RegisterThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 3,
+      ttl: minutes(1),
+      blockDuration: minutes(60),
+    },
+  })
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = await this.authService.register(dto);
+    const token = this.authService.login(user);
+    res.cookie('session', token, COOKIE_OPTIONS);
+    return user;
+  }
+
   // Step 1: Redirect to Google
   @Get('google')
   @UseGuards(GoogleAuthGuard)
@@ -92,7 +112,10 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: Omit<User, 'passwordHash'>) {
-    return user;
+  me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
+    return {
+      ...user,
+      permissions: getPermissions(user.role),
+    };
   }
 }

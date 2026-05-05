@@ -10,6 +10,7 @@ import { AiModule } from './ai/ai.module';
 import { DatabaseModule } from './database/database.module';
 import { QuestionModule } from './question/question.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
     HealthModule,
     TakeModule,
     AiModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}

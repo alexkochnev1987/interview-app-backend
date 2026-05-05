@@ -9,8 +9,6 @@ import {
   Req,
   Res,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
@@ -238,12 +236,6 @@ class SaveAnswerProgressDto {
 }
 
 @Controller('take')
-@UsePipes(
-  new ValidationPipe({
-    whitelist: true,
-    transform: true,
-  }),
-)
 export class TakeController {
   constructor(
     private readonly interviewService: InterviewService,
