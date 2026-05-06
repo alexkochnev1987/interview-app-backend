@@ -12,20 +12,16 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { Type } from 'class-transformer';
 import {
-  IsArray,
-  IsBoolean,
-  IsDate,
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsObject,
-  IsOptional,
-  IsString,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
@@ -37,206 +33,22 @@ import {
   CANDIDATE_SESSION_COOKIE,
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
+import {
+  SaveAnswerProgressDto,
+  SaveTakeAnswerProgressResponseDto,
+  StartTakeAnswerValidationResponseDto,
+  SubmitAnswerDto,
+  SubmitTakeAnswerResponseDto,
+  TakeInterviewResponseDto,
+} from './dto/take.responses.dto';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
   candidateTokenSource?: 'query' | 'cookie';
 }
 
-class BehaviorSignalsDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  tabHiddenCount = 0;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  windowBlurCount = 0;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  pasteCount = 0;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  keydownCount = 0;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  resizeCount = 0;
-}
-
-class BehaviorEventDto {
-  @IsIn(['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'])
-  @IsString()
-  @IsNotEmpty()
-  eventType!: 'tab_hidden' | 'window_blur' | 'paste' | 'keydown' | 'resize';
-
-  @Type(() => Date)
-  @IsDate()
-  occurredAt!: Date;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  versionNumber!: number;
-}
-
-class ClientTranscriptDto {
-  @IsString()
-  @IsNotEmpty()
-  text!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  language!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  provider!: string;
-
-  @Type(() => Date)
-  @IsDate()
-  generatedAt!: Date;
-
-  @IsBoolean()
-  isFinal!: boolean;
-}
-
-class SubmitAnswerDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  versionNumber!: number;
-
-  @IsBoolean()
-  submitAnswer!: boolean;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  screenMediaKey?: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  durationSeconds!: number;
-
-  @Type(() => Date)
-  @IsDate()
-  startedAt!: Date;
-
-  @Type(() => Date)
-  @IsDate()
-  submittedAt!: Date;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  cameraFileSizeBytes?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  screenFileSizeBytes?: number;
-
-  @IsObject()
-  @ValidateNested()
-  @Type(() => BehaviorSignalsDto)
-  behaviorSignals!: BehaviorSignalsDto;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BehaviorEventDto)
-  behaviorEvents?: BehaviorEventDto[];
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ClientTranscriptDto)
-  clientTranscript?: ClientTranscriptDto;
-}
-
-class SaveAnswerProgressDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  versionNumber!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  screenMediaKey?: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  durationSeconds?: number;
-
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  startedAt?: Date;
-
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  submittedAt?: Date;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  cameraFileSizeBytes?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  screenFileSizeBytes?: number;
-
-  @IsObject()
-  @ValidateNested()
-  @Type(() => BehaviorSignalsDto)
-  behaviorSignals!: BehaviorSignalsDto;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BehaviorEventDto)
-  behaviorEvents?: BehaviorEventDto[];
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ClientTranscriptDto)
-  clientTranscript?: ClientTranscriptDto;
-}
-
+@ApiTags('take')
 @Controller('take')
 @UsePipes(
   new ValidationPipe({
@@ -253,6 +65,12 @@ export class TakeController {
 
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
+  @ApiOperation({ summary: 'Get candidate interview state' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: TakeInterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async getInterview(
     @Param('id') id: string,
     @Req() req: CandidateRequest,
@@ -320,6 +138,13 @@ export class TakeController {
 
   @Post(':id/answer')
   @UseGuards(CandidateSessionGuard)
+  @ApiOperation({ summary: 'Submit candidate answer' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: SubmitAnswerDto })
+  @ApiOkResponse({ type: SubmitTakeAnswerResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async submitAnswer(
     @Param('id') id: string,
     @Body() body: SubmitAnswerDto,
@@ -345,6 +170,13 @@ export class TakeController {
 
   @Post(':id/answer/progress')
   @UseGuards(CandidateSessionGuard)
+  @ApiOperation({ summary: 'Save candidate answer progress' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: SaveAnswerProgressDto })
+  @ApiOkResponse({ type: SaveTakeAnswerProgressResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async saveAnswerProgress(
     @Param('id') id: string,
     @Body() body: SaveAnswerProgressDto,
@@ -369,6 +201,13 @@ export class TakeController {
 
   @Post(':id/questions/:questionIndex/validate')
   @UseGuards(CandidateSessionGuard)
+  @ApiOperation({ summary: 'Start candidate answer validation' })
+  @ApiParam({ name: 'id' })
+  @ApiParam({ name: 'questionIndex' })
+  @ApiOkResponse({ type: StartTakeAnswerValidationResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async startAnswerValidation(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,

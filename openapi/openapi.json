@@ -1,0 +1,3824 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "summary": "Sign in with email and password",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "429": {
+            "description": "Too many login attempts"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "operationId": "AuthController_googleLogin",
+        "summary": "Start Google OAuth sign-in flow",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirects to Google OAuth consent screen"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "operationId": "AuthController_googleCallback",
+        "summary": "Google OAuth callback endpoint",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Sets session cookie and redirects to frontend"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "summary": "Sign out current user",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "summary": "Get current authenticated user",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session cookie"
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/questions": {
+      "get": {
+        "operationId": "QuestionController_findAll",
+        "summary": "List questions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuestionResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      },
+      "post": {
+        "operationId": "QuestionController_create",
+        "summary": "Create question",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/questions/{id}": {
+      "get": {
+        "operationId": "QuestionController_findOne",
+        "summary": "Get question by id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      },
+      "patch": {
+        "operationId": "QuestionController_update",
+        "summary": "Update question",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      },
+      "delete": {
+        "operationId": "QuestionController_remove",
+        "summary": "Soft delete question",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteQuestionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/questions/similar": {
+      "post": {
+        "operationId": "QuestionController_findSimilar",
+        "summary": "Find similar questions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindSimilarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindSimilarResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/questions/bulk-delete": {
+      "post": {
+        "operationId": "QuestionController_bulkRemove",
+        "summary": "Soft delete questions in bulk",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteQuestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteQuestionsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/questions/{id}/restore": {
+      "patch": {
+        "operationId": "QuestionController_restore",
+        "summary": "Restore soft deleted question",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/interviews": {
+      "post": {
+        "operationId": "InterviewController_create",
+        "summary": "Create interview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInterviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewWithCandidateLinkResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      },
+      "get": {
+        "operationId": "InterviewController_findAll",
+        "summary": "List interviews",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}": {
+      "get": {
+        "operationId": "InterviewController_findOne",
+        "summary": "Get interview by id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/candidate-link": {
+      "post": {
+        "operationId": "InterviewController_generateCandidateLink",
+        "summary": "Generate candidate interview link",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateLinkResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/complete": {
+      "patch": {
+        "operationId": "InterviewController_complete",
+        "summary": "Complete interview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/validate": {
+      "post": {
+        "operationId": "InterviewController_validateAllAnswers",
+        "summary": "Start validation for all submitted answers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartAllAnswerValidationsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/questions/{questionIndex}/validate": {
+      "post": {
+        "operationId": "InterviewController_validateAnswer",
+        "summary": "Start validation for single answer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartAnswerValidationResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/results": {
+      "get": {
+        "operationId": "InterviewController_getResults",
+        "summary": "Get interview results",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResultResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/upload/presign": {
+      "post": {
+        "operationId": "UploadController_presign",
+        "summary": "Generate one-shot upload URL",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedUrlResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/upload/complete": {
+      "post": {
+        "operationId": "UploadController_complete",
+        "summary": "Confirm one-shot upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmUploadResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/upload/multipart/start": {
+      "post": {
+        "operationId": "UploadController_startMultipartUpload",
+        "summary": "Start multipart upload session",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartMultipartUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultipartUploadSessionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/upload/multipart/part": {
+      "post": {
+        "operationId": "UploadController_presignMultipartPart",
+        "summary": "Presign multipart upload part",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignMultipartPartDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultipartUploadPartResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/upload/multipart/complete": {
+      "post": {
+        "operationId": "UploadController_completeMultipartUpload",
+        "summary": "Complete multipart upload session",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteMultipartUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultipartUploadCompleteResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/upload/multipart/abort": {
+      "post": {
+        "operationId": "UploadController_abortMultipartUpload",
+        "summary": "Abort multipart upload session",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbortMultipartUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultipartUploadAbortResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/interviews/{id}/questions/{questionIndex}/media": {
+      "get": {
+        "operationId": "RecruiterMediaController_getAnswerMedia",
+        "summary": "Get signed media URLs for interview answer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewAnswerMediaResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "summary": "Health check endpoint",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/take/{id}": {
+      "get": {
+        "operationId": "TakeController_getInterview",
+        "summary": "Get candidate interview state",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakeInterviewResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ]
+      }
+    },
+    "/take/{id}/answer": {
+      "post": {
+        "operationId": "TakeController_submitAnswer",
+        "summary": "Submit candidate answer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitTakeAnswerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ]
+      }
+    },
+    "/take/{id}/answer/progress": {
+      "post": {
+        "operationId": "TakeController_saveAnswerProgress",
+        "summary": "Save candidate answer progress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAnswerProgressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveTakeAnswerProgressResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ]
+      }
+    },
+    "/take/{id}/questions/{questionIndex}/validate": {
+      "post": {
+        "operationId": "TakeController_startAnswerValidation",
+        "summary": "Start candidate answer validation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartTakeAnswerValidationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ]
+      }
+    },
+    "/ai/chat": {
+      "post": {
+        "operationId": "AiController_chat",
+        "summary": "Candidate chat assistant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/ai/greet": {
+      "post": {
+        "operationId": "AiController_greet",
+        "summary": "Candidate greeting prompt",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GreetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/ai/question-draft": {
+      "post": {
+        "operationId": "AiController_draftQuestion",
+        "summary": "Generate draft question with AI",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Interview App API",
+    "description": "HTTP API contract for Interview App backend",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "cookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@interview-app.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin123"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "8d2a6457-7f4b-4cef-9f10-8cff885f7e15"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@interview-app.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "Super Admin"
+          },
+          "role": {
+            "type": "string",
+            "example": "super_admin"
+          },
+          "organizationId": {
+            "type": "string",
+            "example": "org_123"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-05-05T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "createdAt"
+        ]
+      },
+      "LogoutResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "QuestionExpectedConceptDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "weight",
+          "description"
+        ]
+      },
+      "QuestionRedFlagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "severity"
+        ]
+      },
+      "QuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "outputLanguage",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata",
+          "createdAt",
+          "updatedAt",
+          "deleted"
+        ]
+      },
+      "ApiErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "error": {
+            "type": "string",
+            "example": "Bad Request"
+          },
+          "message": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "example": "Validation failed"
+          },
+          "path": {
+            "type": "string",
+            "example": "/questions/invalid-id"
+          }
+        },
+        "required": [
+          "statusCode",
+          "error",
+          "message"
+        ]
+      },
+      "CreateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "questionText"
+        ]
+      },
+      "FindSimilarDraftDto": {
+        "type": "object",
+        "properties": {
+          "questionText": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          }
+        }
+      },
+      "FindSimilarDto": {
+        "type": "object",
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/FindSimilarDraftDto"
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "excludeQuestionId": {
+            "type": "string"
+          }
+        }
+      },
+      "SimilarQuestionMatchDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "$ref": "#/components/schemas/QuestionResponseDto"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "question",
+          "score",
+          "reasons"
+        ]
+      },
+      "FindSimilarResponseDto": {
+        "type": "object",
+        "properties": {
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarQuestionMatchDto"
+            }
+          }
+        },
+        "required": [
+          "matches"
+        ]
+      },
+      "UpdateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DeleteQuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "deleted"
+        ]
+      },
+      "BulkDeleteQuestionsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "BulkDeleteBlockedItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "reason"
+        ]
+      },
+      "BulkDeleteQuestionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocked": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkDeleteBlockedItemDto"
+            }
+          }
+        },
+        "required": [
+          "deleted",
+          "blocked"
+        ]
+      },
+      "CreateInterviewDto": {
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "questionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "candidateName",
+          "position",
+          "questionIds"
+        ]
+      },
+      "MediaArtifactDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "fileSizeBytes": {
+            "type": "number"
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "contentType",
+          "uploadedAt"
+        ]
+      },
+      "AnswerBehaviorSignalsDto": {
+        "type": "object",
+        "properties": {
+          "tabHiddenCount": {
+            "type": "number"
+          },
+          "windowBlurCount": {
+            "type": "number"
+          },
+          "pasteCount": {
+            "type": "number"
+          },
+          "keydownCount": {
+            "type": "number"
+          },
+          "resizeCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tabHiddenCount",
+          "windowBlurCount",
+          "pasteCount",
+          "keydownCount",
+          "resizeCount"
+        ]
+      },
+      "AnswerTranscriptDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AnswerEvaluationDto": {
+        "type": "object",
+        "properties": {
+          "overallScore": {
+            "type": "number"
+          },
+          "categoryScores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "coveredConceptIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missedConceptIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "redFlagIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "behaviorRisk": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "decisionHint": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "AnswerValidationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "executionArn": {
+            "type": "string"
+          },
+          "sourceVersionNumber": {
+            "type": "number"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AnswerDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "submitted"
+            ]
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "screenMediaKey": {
+            "type": "string"
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "retakeCount": {
+            "type": "number"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "camera": {
+            "$ref": "#/components/schemas/MediaArtifactDto"
+          },
+          "screen": {
+            "$ref": "#/components/schemas/MediaArtifactDto"
+          },
+          "behaviorSignals": {
+            "$ref": "#/components/schemas/AnswerBehaviorSignalsDto"
+          },
+          "selectedVersionNumber": {
+            "type": "number"
+          },
+          "transcript": {
+            "$ref": "#/components/schemas/AnswerTranscriptDto"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/AnswerEvaluationDto"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/AnswerValidationDto"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "questionId",
+          "status",
+          "mediaKey",
+          "uploadedAt"
+        ]
+      },
+      "InterviewBehaviorSummaryDto": {
+        "type": "object",
+        "properties": {
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "notes"
+        ]
+      },
+      "InterviewQuestionResultDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "categoryScores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "decisionHint": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
+          }
+        },
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
+      },
+      "InterviewResultResponseDto": {
+        "type": "object",
+        "properties": {
+          "overallScore": {
+            "type": "number"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "categoryScores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "rubricVersion": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "proceed",
+              "review",
+              "reject"
+            ]
+          },
+          "trustScore": {
+            "type": "number"
+          },
+          "trustFlags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "behaviorSummary": {
+            "$ref": "#/components/schemas/InterviewBehaviorSummaryDto"
+          },
+          "questionResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewQuestionResultDto"
+            }
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "overallScore",
+          "summary",
+          "categoryScores",
+          "completedAt"
+        ]
+      },
+      "InterviewWithCandidateLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionResponseDto"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/InterviewResultResponseDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "candidateLink": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "questions",
+          "answers",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "candidateLink"
+        ]
+      },
+      "InterviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionResponseDto"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/InterviewResultResponseDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "questions",
+          "answers",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CandidateLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "candidateLink": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidateLink"
+        ]
+      },
+      "StartAnswerValidationResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "questionIndex": {
+            "type": "number"
+          },
+          "sourceVersionNumber": {
+            "type": "number"
+          },
+          "reused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "questionIndex",
+          "sourceVersionNumber",
+          "reused"
+        ]
+      },
+      "StartAllAnswerValidationsResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "interviewId": {
+            "type": "string"
+          },
+          "requestedCount": {
+            "type": "number"
+          },
+          "queuedCount": {
+            "type": "number"
+          },
+          "reusedCount": {
+            "type": "number"
+          },
+          "skippedCount": {
+            "type": "number"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StartAnswerValidationResultDto"
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "interviewId",
+          "requestedCount",
+          "queuedCount",
+          "reusedCount",
+          "skippedCount",
+          "answers"
+        ]
+      },
+      "PresignRequestDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "video/webm"
+            ]
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "camera",
+              "screen"
+            ]
+          }
+        },
+        "required": [
+          "questionIndex",
+          "contentType"
+        ]
+      },
+      "PresignedUrlResponseDto": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string"
+          },
+          "mediaKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "mediaKey"
+        ]
+      },
+      "ConfirmUploadDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "mediaKey"
+        ]
+      },
+      "ConfirmUploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "mediaKey",
+          "confirmed"
+        ]
+      },
+      "StartMultipartUploadDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "video/webm"
+            ]
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "camera",
+              "screen"
+            ]
+          }
+        },
+        "required": [
+          "questionIndex",
+          "contentType"
+        ]
+      },
+      "MultipartUploadSessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "uploadId"
+        ]
+      },
+      "PresignMultipartPartDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          },
+          "partNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "uploadId",
+          "partNumber"
+        ]
+      },
+      "MultipartUploadPartResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          },
+          "partNumber": {
+            "type": "number"
+          },
+          "uploadUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "partNumber",
+          "uploadUrl"
+        ]
+      },
+      "CompleteMultipartUploadDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "uploadId"
+        ]
+      },
+      "MultipartUploadCompleteResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "completed"
+        ]
+      },
+      "AbortMultipartUploadDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "uploadId"
+        ]
+      },
+      "MultipartUploadAbortResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "uploadId": {
+            "type": "string"
+          },
+          "aborted": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "aborted"
+        ]
+      },
+      "InterviewAnswerMediaResponseDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "cameraUrl": {
+            "type": "string"
+          },
+          "screenUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionIndex"
+        ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-05-05T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp"
+        ]
+      },
+      "CandidateQuestionViewDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "CurrentAnswerMetaDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "submitted"
+            ]
+          },
+          "versionCount": {
+            "type": "number"
+          },
+          "selectedVersionNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "versionCount",
+          "selectedVersionNumber"
+        ]
+      },
+      "TakeInterviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "totalQuestions": {
+            "type": "number"
+          },
+          "currentQuestion": {
+            "$ref": "#/components/schemas/CandidateQuestionViewDto"
+          },
+          "currentQuestionIndex": {
+            "type": "number"
+          },
+          "currentAnswerMeta": {
+            "$ref": "#/components/schemas/CurrentAnswerMetaDto"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "candidateName",
+          "status",
+          "totalQuestions",
+          "currentQuestionIndex",
+          "completed"
+        ]
+      },
+      "BehaviorSignalsDto": {
+        "type": "object",
+        "properties": {
+          "tabHiddenCount": {
+            "type": "object",
+            "default": 0
+          },
+          "windowBlurCount": {
+            "type": "object",
+            "default": 0
+          },
+          "pasteCount": {
+            "type": "object",
+            "default": 0
+          },
+          "keydownCount": {
+            "type": "object",
+            "default": 0
+          },
+          "resizeCount": {
+            "type": "object",
+            "default": 0
+          }
+        },
+        "required": [
+          "tabHiddenCount",
+          "windowBlurCount",
+          "pasteCount",
+          "keydownCount",
+          "resizeCount"
+        ]
+      },
+      "BehaviorEventDto": {
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "tab_hidden",
+              "window_blur",
+              "paste",
+              "keydown",
+              "resize"
+            ]
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "eventType",
+          "occurredAt",
+          "versionNumber"
+        ]
+      },
+      "ClientTranscriptDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "language",
+          "provider",
+          "generatedAt",
+          "isFinal"
+        ]
+      },
+      "SubmitAnswerDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "versionNumber": {
+            "type": "number"
+          },
+          "submitAnswer": {
+            "type": "boolean"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "screenMediaKey": {
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cameraFileSizeBytes": {
+            "type": "number"
+          },
+          "screenFileSizeBytes": {
+            "type": "number"
+          },
+          "behaviorSignals": {
+            "$ref": "#/components/schemas/BehaviorSignalsDto"
+          },
+          "behaviorEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BehaviorEventDto"
+            }
+          },
+          "clientTranscript": {
+            "$ref": "#/components/schemas/ClientTranscriptDto"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "versionNumber",
+          "submitAnswer",
+          "mediaKey",
+          "durationSeconds",
+          "startedAt",
+          "submittedAt",
+          "behaviorSignals"
+        ]
+      },
+      "SubmitTakeAnswerResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "answeredCount": {
+            "type": "number"
+          },
+          "totalQuestions": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "answeredCount",
+          "totalQuestions",
+          "completed"
+        ]
+      },
+      "SaveAnswerProgressDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "versionNumber": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "screenMediaKey": {
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cameraFileSizeBytes": {
+            "type": "number"
+          },
+          "screenFileSizeBytes": {
+            "type": "number"
+          },
+          "behaviorSignals": {
+            "$ref": "#/components/schemas/BehaviorSignalsDto"
+          },
+          "behaviorEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BehaviorEventDto"
+            }
+          },
+          "clientTranscript": {
+            "$ref": "#/components/schemas/ClientTranscriptDto"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "versionNumber",
+          "mediaKey",
+          "behaviorSignals"
+        ]
+      },
+      "SaveTakeAnswerProgressResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "submitted"
+            ]
+          },
+          "versionCount": {
+            "type": "number"
+          },
+          "selectedVersionNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "versionCount",
+          "selectedVersionNumber"
+        ]
+      },
+      "StartTakeAnswerValidationResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "questionIndex": {
+            "type": "number"
+          },
+          "sourceVersionNumber": {
+            "type": "number"
+          },
+          "reused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "questionIndex",
+          "sourceVersionNumber",
+          "reused"
+        ]
+      },
+      "ChatHistoryItemDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "assistant",
+              "candidate"
+            ]
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "ChatDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryItemDto"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "position",
+          "candidateName",
+          "history",
+          "message"
+        ]
+      },
+      "AiTextResponseDto": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "response"
+        ]
+      },
+      "GreetDto": {
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "totalQuestions": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "candidateName",
+          "position",
+          "totalQuestions"
+        ]
+      },
+      "DraftQuestionDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "$ref": "#/components/schemas/CreateQuestionDto"
+          }
+        }
+      },
+      "QuestionDraftResponseDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "outputLanguage",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata"
+        ]
+      }
+    }
+  }
+}

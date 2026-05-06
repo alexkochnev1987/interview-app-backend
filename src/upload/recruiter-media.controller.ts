@@ -6,12 +6,23 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { InterviewService } from '../interview/interview.service';
 import { UploadService } from './upload.service';
+import { InterviewAnswerMediaResponseDto } from './dto/upload.responses.dto';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
+@ApiTags('interviews')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('super_admin', 'admin', 'hr')
@@ -22,6 +33,12 @@ export class RecruiterMediaController {
   ) {}
 
   @Get(':id/questions/:questionIndex/media')
+  @ApiOperation({ summary: 'Get signed media URLs for interview answer' })
+  @ApiParam({ name: 'id' })
+  @ApiParam({ name: 'questionIndex' })
+  @ApiOkResponse({ type: InterviewAnswerMediaResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async getAnswerMedia(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,

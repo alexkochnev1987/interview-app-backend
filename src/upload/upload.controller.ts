@@ -7,15 +7,14 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { Type } from 'class-transformer';
 import {
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import {
   UploadService,
@@ -26,100 +25,27 @@ import {
   MultipartUploadCompleteResponse,
   MultipartUploadAbortResponse,
 } from './upload.service';
-
-class PresignRequestDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsIn(['video/webm'])
-  contentType!: string;
-
-  @IsOptional()
-  @IsIn(['camera', 'screen'])
-  mediaType?: 'camera' | 'screen';
-}
-
-class ConfirmUploadDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-}
-
-class StartMultipartUploadDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsIn(['video/webm'])
-  contentType!: string;
-
-  @IsOptional()
-  @IsIn(['camera', 'screen'])
-  mediaType?: 'camera' | 'screen';
-}
-
-class PresignMultipartPartDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  uploadId!: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  partNumber!: number;
-}
-
-class CompleteMultipartUploadDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  uploadId!: string;
-}
-
-class AbortMultipartUploadDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  questionIndex!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  mediaKey!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  uploadId!: string;
-}
+import {
+  AbortMultipartUploadDto,
+  CompleteMultipartUploadDto,
+  ConfirmUploadDto,
+  ConfirmUploadResponseDto,
+  MultipartUploadAbortResponseDto,
+  MultipartUploadCompleteResponseDto,
+  MultipartUploadPartResponseDto,
+  MultipartUploadSessionResponseDto,
+  PresignMultipartPartDto,
+  PresignRequestDto,
+  PresignedUrlResponseDto,
+  StartMultipartUploadDto,
+} from './dto/upload.responses.dto';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
 }
 
+@ApiTags('upload')
 @Controller('upload')
 @UseGuards(CandidateSessionGuard)
 @UsePipes(
@@ -132,6 +58,11 @@ export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
   @Post('presign')
+  @ApiOperation({ summary: 'Generate one-shot upload URL' })
+  @ApiBody({ type: PresignRequestDto })
+  @ApiOkResponse({ type: PresignedUrlResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async presign(
     @Body() dto: PresignRequestDto,
     @Req() req: CandidateRequest,
@@ -145,6 +76,11 @@ export class UploadController {
   }
 
   @Post('complete')
+  @ApiOperation({ summary: 'Confirm one-shot upload' })
+  @ApiBody({ type: ConfirmUploadDto })
+  @ApiOkResponse({ type: ConfirmUploadResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   complete(
     @Body() dto: ConfirmUploadDto,
     @Req() req: CandidateRequest,
@@ -157,6 +93,11 @@ export class UploadController {
   }
 
   @Post('multipart/start')
+  @ApiOperation({ summary: 'Start multipart upload session' })
+  @ApiBody({ type: StartMultipartUploadDto })
+  @ApiOkResponse({ type: MultipartUploadSessionResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async startMultipartUpload(
     @Body() dto: StartMultipartUploadDto,
     @Req() req: CandidateRequest,
@@ -170,6 +111,11 @@ export class UploadController {
   }
 
   @Post('multipart/part')
+  @ApiOperation({ summary: 'Presign multipart upload part' })
+  @ApiBody({ type: PresignMultipartPartDto })
+  @ApiOkResponse({ type: MultipartUploadPartResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async presignMultipartPart(
     @Body() dto: PresignMultipartPartDto,
     @Req() req: CandidateRequest,
@@ -184,6 +130,11 @@ export class UploadController {
   }
 
   @Post('multipart/complete')
+  @ApiOperation({ summary: 'Complete multipart upload session' })
+  @ApiBody({ type: CompleteMultipartUploadDto })
+  @ApiOkResponse({ type: MultipartUploadCompleteResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async completeMultipartUpload(
     @Body() dto: CompleteMultipartUploadDto,
     @Req() req: CandidateRequest,
@@ -197,6 +148,11 @@ export class UploadController {
   }
 
   @Post('multipart/abort')
+  @ApiOperation({ summary: 'Abort multipart upload session' })
+  @ApiBody({ type: AbortMultipartUploadDto })
+  @ApiOkResponse({ type: MultipartUploadAbortResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async abortMultipartUpload(
     @Body() dto: AbortMultipartUploadDto,
     @Req() req: CandidateRequest,

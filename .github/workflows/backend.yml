@@ -33,6 +33,7 @@ jobs:
       - run: npm install
       - run: npm run lint
       - run: npm run build
+      - run: npm run openapi:check
       - run: npm run test
 
   build-and-deploy:
