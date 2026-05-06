@@ -5,6 +5,7 @@ import {
   Get,
   ParseIntPipe,
   Param,
+  Query,
   Post,
   Req,
   Res,
@@ -17,6 +18,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -59,12 +61,14 @@ export class TakeController {
   @UseGuards(CandidateAuthGuard)
   @ApiOperation({ summary: 'Get candidate interview state' })
   @ApiParam({ name: 'id' })
+  @ApiQuery({ name: 'token', required: false })
   @ApiOkResponse({ type: TakeInterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async getInterview(
     @Param('id') id: string,
+    @Query('token') token: string,
     @Req() req: CandidateRequest,
     @Res({ passthrough: true }) res: Response,
   ) {

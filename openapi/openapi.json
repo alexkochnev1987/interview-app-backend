@@ -1614,6 +1614,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "token",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
