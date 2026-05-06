@@ -69,10 +69,16 @@ class BehaviorSignalsDto {
 }
 
 class BehaviorEventDto {
-  @IsIn(['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'])
+  @IsIn(['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize', 'copy'])
   @IsString()
   @IsNotEmpty()
-  eventType!: 'tab_hidden' | 'window_blur' | 'paste' | 'keydown' | 'resize';
+  eventType!:
+    | 'tab_hidden'
+    | 'window_blur'
+    | 'paste'
+    | 'keydown'
+    | 'resize'
+    | 'copy';
 
   @Type(() => Date)
   @IsDate()
