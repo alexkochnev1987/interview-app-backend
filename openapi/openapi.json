@@ -2191,13 +2191,13 @@
           "expectedConcepts": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
             }
           },
           "redFlags": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
             }
           },
           "difficulty": {
@@ -2342,13 +2342,13 @@
           "expectedConcepts": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
             }
           },
           "redFlags": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
             }
           },
           "difficulty": {
@@ -2637,6 +2637,82 @@
           "status"
         ]
       },
+      "AnswerBehaviorEventDto": {
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "tab_hidden",
+              "window_blur",
+              "paste",
+              "keydown",
+              "resize"
+            ]
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "eventType",
+          "occurredAt",
+          "versionNumber"
+        ]
+      },
+      "AnswerVersionDto": {
+        "type": "object",
+        "properties": {
+          "versionNumber": {
+            "type": "number"
+          },
+          "mediaKey": {
+            "type": "string"
+          },
+          "screenMediaKey": {
+            "type": "string"
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "camera": {
+            "$ref": "#/components/schemas/MediaArtifactDto"
+          },
+          "screen": {
+            "$ref": "#/components/schemas/MediaArtifactDto"
+          },
+          "behaviorSignals": {
+            "$ref": "#/components/schemas/AnswerBehaviorSignalsDto"
+          },
+          "behaviorEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerBehaviorEventDto"
+            }
+          }
+        },
+        "required": [
+          "versionNumber",
+          "mediaKey",
+          "uploadedAt"
+        ]
+      },
       "AnswerDto": {
         "type": "object",
         "properties": {
@@ -2697,6 +2773,18 @@
           },
           "validation": {
             "$ref": "#/components/schemas/AnswerValidationDto"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerVersionDto"
+            }
+          },
+          "behaviorEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerBehaviorEventDto"
+            }
           }
         },
         "required": [
@@ -2820,6 +2908,53 @@
           "completedAt"
         ]
       },
+      "InterviewWorkflowDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "currentStage": {
+            "type": "string",
+            "enum": [
+              "validate_answers",
+              "transcribe_audio",
+              "analyze_answers",
+              "aggregate_result",
+              "store_result"
+            ]
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastUpdatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "lastUpdatedAt"
+        ]
+      },
       "InterviewWithCandidateLinkResponseDto": {
         "type": "object",
         "properties": {
@@ -2864,6 +2999,9 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/InterviewWorkflowDto"
           },
           "candidateLink": {
             "type": "string"
@@ -2925,6 +3063,9 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/InterviewWorkflowDto"
           }
         },
         "required": [
@@ -3367,23 +3508,23 @@
         "type": "object",
         "properties": {
           "tabHiddenCount": {
-            "type": "object",
+            "type": "number",
             "default": 0
           },
           "windowBlurCount": {
-            "type": "object",
+            "type": "number",
             "default": 0
           },
           "pasteCount": {
-            "type": "object",
+            "type": "number",
             "default": 0
           },
           "keydownCount": {
-            "type": "object",
+            "type": "number",
             "default": 0
           },
           "resizeCount": {
-            "type": "object",
+            "type": "number",
             "default": 0
           }
         },

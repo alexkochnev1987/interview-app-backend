@@ -74,6 +74,19 @@ export class AnswerBehaviorSignalsDto {
   resizeCount: number;
 }
 
+export class AnswerBehaviorEventDto {
+  @ApiProperty({
+    enum: ['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'],
+  })
+  eventType: string;
+
+  @ApiProperty()
+  occurredAt: Date;
+
+  @ApiProperty()
+  versionNumber: number;
+}
+
 export class AnswerEvaluationDto {
   @ApiPropertyOptional()
   overallScore?: number;
@@ -143,6 +156,41 @@ export class AnswerTranscriptDto {
   isFinal?: boolean;
 }
 
+export class AnswerVersionDto {
+  @ApiProperty()
+  versionNumber: number;
+
+  @ApiProperty()
+  mediaKey: string;
+
+  @ApiPropertyOptional()
+  screenMediaKey?: string;
+
+  @ApiProperty()
+  uploadedAt: Date;
+
+  @ApiPropertyOptional()
+  durationSeconds?: number;
+
+  @ApiPropertyOptional()
+  startedAt?: Date;
+
+  @ApiPropertyOptional()
+  submittedAt?: Date;
+
+  @ApiPropertyOptional({ type: MediaArtifactDto })
+  camera?: MediaArtifactDto;
+
+  @ApiPropertyOptional({ type: MediaArtifactDto })
+  screen?: MediaArtifactDto;
+
+  @ApiPropertyOptional({ type: AnswerBehaviorSignalsDto })
+  behaviorSignals?: AnswerBehaviorSignalsDto;
+
+  @ApiPropertyOptional({ type: [AnswerBehaviorEventDto] })
+  behaviorEvents?: AnswerBehaviorEventDto[];
+}
+
 export class AnswerDto {
   @ApiProperty()
   questionIndex: number;
@@ -194,6 +242,12 @@ export class AnswerDto {
 
   @ApiPropertyOptional({ type: AnswerValidationDto })
   validation?: AnswerValidationDto;
+
+  @ApiPropertyOptional({ type: [AnswerVersionDto] })
+  versions?: AnswerVersionDto[];
+
+  @ApiPropertyOptional({ type: [AnswerBehaviorEventDto] })
+  behaviorEvents?: AnswerBehaviorEventDto[];
 }
 
 export class InterviewBehaviorSummaryDto {
@@ -202,6 +256,37 @@ export class InterviewBehaviorSummaryDto {
 
   @ApiProperty({ type: [String] })
   notes: string[];
+}
+
+export class InterviewWorkflowDto {
+  @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
+  status: string;
+
+  @ApiPropertyOptional({
+    enum: [
+      'validate_answers',
+      'transcribe_audio',
+      'analyze_answers',
+      'aggregate_result',
+      'store_result',
+    ],
+  })
+  currentStage?: string;
+
+  @ApiPropertyOptional()
+  executionId?: string;
+
+  @ApiPropertyOptional()
+  startedAt?: Date;
+
+  @ApiPropertyOptional()
+  completedAt?: Date;
+
+  @ApiProperty()
+  lastUpdatedAt: Date;
+
+  @ApiPropertyOptional()
+  errorMessage?: string;
 }
 
 export class InterviewQuestionResultDto {
@@ -283,6 +368,9 @@ export class InterviewResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiPropertyOptional({ type: InterviewWorkflowDto })
+  workflow?: InterviewWorkflowDto;
 }
 
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {

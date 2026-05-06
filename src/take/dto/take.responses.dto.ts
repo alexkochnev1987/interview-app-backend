@@ -15,35 +15,35 @@ import {
 } from 'class-validator';
 
 export class BehaviorSignalsDto {
-  @ApiProperty({ default: 0 })
+  @ApiProperty({ type: Number, default: 0 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  tabHiddenCount = 0;
+  tabHiddenCount: number = 0;
 
-  @ApiProperty({ default: 0 })
+  @ApiProperty({ type: Number, default: 0 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  windowBlurCount = 0;
+  windowBlurCount: number = 0;
 
-  @ApiProperty({ default: 0 })
+  @ApiProperty({ type: Number, default: 0 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  pasteCount = 0;
+  pasteCount: number = 0;
 
-  @ApiProperty({ default: 0 })
+  @ApiProperty({ type: Number, default: 0 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  keydownCount = 0;
+  keydownCount: number = 0;
 
-  @ApiProperty({ default: 0 })
+  @ApiProperty({ type: Number, default: 0 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  resizeCount = 0;
+  resizeCount: number = 0;
 }
 
 export class BehaviorEventDto {

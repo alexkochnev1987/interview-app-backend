@@ -1,8 +1,8 @@
+import { QuestionDifficulty } from '../interfaces/question.interface';
 import {
-  QuestionDifficulty,
-  QuestionExpectedConcept,
-  QuestionRedFlag,
-} from '../interfaces/question.interface';
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question.responses.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateQuestionDto {
@@ -30,11 +30,11 @@ export class CreateQuestionDto {
   @ApiPropertyOptional({ type: [String] })
   followUpQuestions?: string[];
 
-  @ApiPropertyOptional({ type: [Object] })
-  expectedConcepts?: Array<string | Partial<QuestionExpectedConcept>>;
+  @ApiPropertyOptional({ type: [QuestionExpectedConceptDto] })
+  expectedConcepts?: QuestionExpectedConceptDto[];
 
-  @ApiPropertyOptional({ type: [Object] })
-  redFlags?: Array<string | Partial<QuestionRedFlag>>;
+  @ApiPropertyOptional({ type: [QuestionRedFlagDto] })
+  redFlags?: QuestionRedFlagDto[];
 
   @ApiPropertyOptional({ enum: ['easy', 'medium', 'hard'] })
   difficulty?: QuestionDifficulty;
