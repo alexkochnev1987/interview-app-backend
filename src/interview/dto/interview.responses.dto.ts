@@ -348,6 +348,9 @@ export class InterviewResponseDto {
   @ApiProperty()
   candidateName: string;
 
+  @ApiPropertyOptional()
+  candidateEmail?: string;
+
   @ApiProperty()
   position: string;
 
