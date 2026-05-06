@@ -4,8 +4,6 @@ import {
   Post,
   Req,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -48,12 +46,6 @@ interface CandidateRequest {
 @ApiTags('upload')
 @Controller('upload')
 @UseGuards(CandidateSessionGuard)
-@UsePipes(
-  new ValidationPipe({
-    whitelist: true,
-    transform: true,
-  }),
-)
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 

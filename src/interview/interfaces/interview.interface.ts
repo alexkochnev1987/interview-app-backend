@@ -31,12 +31,14 @@ export interface CandidateQuestionView {
 export interface Interview {
   id: string;
   candidateName: string;
+  candidateEmail?: string;
   position: string;
   questions: InterviewQuestion[];
   answers: Answer[];
   status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
   result?: InterviewResult;
   workflow?: InterviewWorkflow;
+  createdById?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,7 +64,8 @@ export interface AnswerBehaviorEvent {
     | 'window_blur'
     | 'paste'
     | 'keydown'
-    | 'resize';
+    | 'resize'
+    | 'copy';
   occurredAt: Date;
   versionNumber: number;
 }

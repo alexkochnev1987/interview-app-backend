@@ -219,4 +219,141 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0009',
+    name: 'add_candidate_role',
+    statements: [
+      // Drop every check constraint that targets the `role` column, regardless
+      // of name (legacy auto-named `users_role_check`, custom names, multiples
+      // from a half-applied previous run). Matching by column via conkey/attname
+      // is safer than the previous `pg_get_constraintdef ILIKE '%role%IN%'` and
+      // safer than dropping by name without `IF EXISTS`. The block is fully
+      // idempotent — safe to re-run after partial failure.
+      `
+        DO $$
+        DECLARE
+          constraint_name TEXT;
+        BEGIN
+          FOR constraint_name IN
+            SELECT con.conname
+            FROM pg_constraint con
+            JOIN pg_attribute att
+              ON att.attrelid = con.conrelid
+             AND att.attnum = ANY (con.conkey)
+            WHERE con.conrelid = 'users'::regclass
+              AND con.contype = 'c'
+              AND att.attname = 'role'
+          LOOP
+            EXECUTE format('ALTER TABLE users DROP CONSTRAINT %I', constraint_name);
+          END LOOP;
+        END $$;
+      `,
+      // Belt-and-braces: handles any leftover constraint with the explicit
+      // name regardless of column matching above.
+      `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`,
+      // ADD CONSTRAINT has no IF NOT EXISTS — wrap in DO block so re-running
+      // after a successful run is a no-op rather than an error.
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'users'::regclass
+              AND conname = 'users_role_check'
+          ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_role_check
+            CHECK (role IN ('super_admin', 'admin', 'hr', 'candidate'));
+          END IF;
+        END $$;
+      `,
+    ],
+  },
+  {
+    version: '0010',
+    name: 'add_interview_owner_and_candidate_email',
+    statements: [
+      `
+        ALTER TABLE interviews
+        ADD COLUMN IF NOT EXISTS created_by_id UUID NULL
+        REFERENCES users(id) ON DELETE SET NULL;
+      `,
+      `
+        ALTER TABLE interviews
+        ADD COLUMN IF NOT EXISTS candidate_email TEXT NULL;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS interviews_created_by_idx
+        ON interviews (created_by_id)
+        WHERE created_by_id IS NOT NULL;
+      `,
+    ],
+  },
+  {
+    version: '0011',
+    name: 'create_feedback_links',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS feedback_links (
+          id UUID PRIMARY KEY,
+          interview_id UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+          expires_at TIMESTAMPTZ NULL,
+          revoked_at TIMESTAMPTZ NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS feedback_links_active_per_interview_idx
+        ON feedback_links (interview_id)
+        WHERE revoked_at IS NULL;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS feedback_links_interview_idx
+        ON feedback_links (interview_id);
+      `,
+    ],
+  },
+  {
+    version: '0012',
+    name: 'feedback_links_random_token',
+    statements: [
+      // `gen_random_uuid()` lives in `pgcrypto`. Older PG installations don't
+      // ship the extension by default — enable it before use so the migration
+      // works on a clean database.
+      `CREATE EXTENSION IF NOT EXISTS pgcrypto;`,
+      `ALTER TABLE feedback_links ADD COLUMN IF NOT EXISTS token TEXT;`,
+      // Any pre-existing JWT-era links cannot be resolved by random token —
+      // revoke them and assign a placeholder token to satisfy NOT NULL.
+      `
+        UPDATE feedback_links
+        SET revoked_at = COALESCE(revoked_at, NOW()),
+            token = COALESCE(token, gen_random_uuid()::text)
+        WHERE token IS NULL;
+      `,
+      `ALTER TABLE feedback_links ALTER COLUMN token SET NOT NULL;`,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS feedback_links_token_idx
+        ON feedback_links (token);
+      `,
+    ],
+  },
+  {
+    version: '0013',
+    name: 'feedback_links_revoke_pre_hash_tokens',
+    statements: [
+      // The application now stores sha256 hashes of feedback tokens instead of
+      // the plaintext value. Any link rows created prior to this change carry
+      // a plaintext token in the column and become unresolvable by the new
+      // lookup path (which hashes the incoming token before querying). Revoke
+      // every still-active row so its expiry is enforced and a fresh link can
+      // be issued by the owner.
+      `
+        UPDATE feedback_links
+        SET revoked_at = NOW()
+        WHERE revoked_at IS NULL;
+      `,
+    ],
+  },
 ];

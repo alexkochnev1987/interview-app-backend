@@ -26,7 +26,11 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
+import { RegisterThrottlerGuard } from './guards/register-throttler.guard';
+import { getPermissions } from './permissions';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { MeResponse } from './interfaces/me.interface';
 import { AuthUserResponseDto } from './dto/auth-user.response.dto';
 import { LogoutResponseDto } from './dto/logout.response.dto';
 
@@ -68,6 +72,29 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.authService.validateUser(dto.email, dto.password);
+    const token = this.authService.login(user);
+    res.cookie('session', token, COOKIE_OPTIONS);
+    return user;
+  }
+
+  @Post('register')
+  @HttpCode(201)
+  @UseGuards(RegisterThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 3,
+      ttl: minutes(1),
+      blockDuration: minutes(60),
+    },
+  })
+  @ApiOperation({ summary: 'Register a new account' })
+  @ApiBody({ type: RegisterDto })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = await this.authService.register(dto);
     const token = this.authService.login(user);
     res.cookie('session', token, COOKIE_OPTIONS);
     return user;
@@ -116,7 +143,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
-  me(@CurrentUser() user: Omit<User, 'passwordHash'>) {
-    return user;
+  me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
+    return {
+      ...user,
+      permissions: getPermissions(user.role),
+    };
   }
 }

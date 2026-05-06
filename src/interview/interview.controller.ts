@@ -25,8 +25,10 @@ import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { Interview, InterviewResult } from './interfaces/interview.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../user/interfaces/user.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import {
@@ -39,10 +41,11 @@ import {
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
+type ActingUser = Omit<User, 'passwordHash'>;
+
 @ApiTags('interviews')
 @Controller('interviews')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InterviewController {
   constructor(
     private readonly interviewService: InterviewService,
@@ -51,6 +54,7 @@ export class InterviewController {
   ) {}
 
   @Post()
+  @RequirePermissions('interviews:create')
   @ApiOperation({ summary: 'Create interview' })
   @ApiBody({ type: CreateInterviewDto })
   @ApiOkResponse({ type: InterviewWithCandidateLinkResponseDto })
@@ -59,8 +63,11 @@ export class InterviewController {
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async create(
     @Body() dto: CreateInterviewDto,
+    @CurrentUser() user: ActingUser,
   ): Promise<Interview & { candidateLink: string }> {
-    const interview = await this.interviewService.create(dto);
+    const interview = await this.interviewService.create(dto, {
+      createdById: user.id,
+    });
     const token = this.authService.generateCandidateToken(interview.id);
     return {
       ...interview,
@@ -69,24 +76,30 @@ export class InterviewController {
   }
 
   @Get()
+  @RequirePermissions('interviews:read_own')
   @ApiOperation({ summary: 'List interviews' })
   @ApiOkResponse({ type: [InterviewResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(): Promise<Interview[]> {
-    return this.interviewService.findAll();
+  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
+    return this.interviewService.findAllForActor(user);
   }
 
   @Get(':id')
+  @RequirePermissions('interviews:read_own')
   @ApiOperation({ summary: 'Get interview by id' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  findOne(@Param('id') id: string): Promise<Interview> {
-    return this.interviewService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    return this.interviewService.findOneForActor(id, user);
   }
 
   @Post(':id/candidate-link')
+  @RequirePermissions('interviews:assign')
   @ApiOperation({ summary: 'Generate candidate interview link' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: CandidateLinkResponseDto })
@@ -94,8 +107,9 @@ export class InterviewController {
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   async generateCandidateLink(
     @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
   ): Promise<{ candidateLink: string }> {
-    await this.interviewService.findOne(id);
+    await this.interviewService.findOneForActor(id, user);
     const token = this.authService.generateCandidateToken(id);
     return {
       candidateLink: `/take/${id}?token=${token}`,
@@ -103,16 +117,22 @@ export class InterviewController {
   }
 
   @Patch(':id/complete')
+  @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Complete interview' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  complete(@Param('id') id: string): Promise<Interview> {
+  async complete(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
     return this.interviewService.complete(id);
   }
 
   @Post(':id/validate')
+  @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Start validation for all submitted answers' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: StartAllAnswerValidationsResponseDto })
@@ -120,13 +140,18 @@ export class InterviewController {
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   @ApiConflictResponse({ type: ApiErrorResponseDto })
   @ApiServiceUnavailableResponse({ type: ApiErrorResponseDto })
-  async validateAllAnswers(@Param('id') id: string) {
+  async validateAllAnswers(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ) {
+    await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidationForAllSubmitted(
       id,
     );
   }
 
   @Post(':id/questions/:questionIndex/validate')
+  @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Start validation for single answer' })
   @ApiParam({ name: 'id' })
   @ApiParam({ name: 'questionIndex' })
@@ -139,7 +164,9 @@ export class InterviewController {
   async validateAnswer(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @CurrentUser() user: ActingUser,
   ) {
+    await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidation(
       id,
       questionIndex,
@@ -147,14 +174,18 @@ export class InterviewController {
   }
 
   @Get(':id/results')
-  @Roles('super_admin', 'admin')
+  @RequirePermissions('interviews:read_own')
   @ApiOperation({ summary: 'Get interview results' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResultResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  getResults(@Param('id') id: string): Promise<InterviewResult> {
+  async getResults(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewResult> {
+    await this.interviewService.findOneForActor(id, user);
     return this.interviewService.getResults(id);
   }
 }

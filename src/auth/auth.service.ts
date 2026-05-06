@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
 import { User } from '../user/interfaces/user.interface';
 import { UserRole } from '../user/interfaces/user.interface';
 import { CANDIDATE_SESSION_TTL_MS } from './candidate-session';
+import { RegisterDto } from './dto/register.dto';
 
 interface CandidatePayload {
   interviewId: string;
@@ -35,9 +40,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.userService.toPublicUser(
-      await this.syncRoleWithEmailPolicy(user),
-    );
+    return this.userService.toPublicUser(user);
   }
 
   login(user: Omit<User, 'passwordHash'>): string {
@@ -51,17 +54,35 @@ export class AuthService {
   ): Promise<Omit<User, 'passwordHash'>> {
     const existing = await this.userService.findByEmail(email);
     if (existing) {
-      return this.userService.toPublicUser(
-        await this.syncRoleWithEmailPolicy(existing),
-      );
+      return this.userService.toPublicUser(existing);
     }
 
-    const role = this.getRoleForEmail(email);
     return this.userService.create({
       email,
       name,
       password: randomUUID(), // random password, login only via Google
-      role,
+      role: this.getRoleForEmail(email),
+    });
+  }
+
+  async register(dto: RegisterDto): Promise<Omit<User, 'passwordHash'>> {
+    // Self-registration must never grant elevated roles. Privileged accounts
+    // come from `onModuleInit` bootstrap or verified SSO (Google), where the
+    // identity provider proves email ownership.
+    //
+    // Both privileged-email and already-registered cases return the same
+    // generic 400 instead of a descriptive 409 to avoid leaking which
+    // addresses are taken or privileged. The DTO trims `name` via
+    // `@Transform`, so no further trimming is needed here.
+    if (this.isSuperAdminEmail(dto.email) || (await this.userService.findByEmail(dto.email))) {
+      throw new BadRequestException('Unable to complete registration');
+    }
+
+    return this.userService.create({
+      email: dto.email,
+      name: dto.name,
+      password: dto.password,
+      role: 'candidate',
     });
   }
 
@@ -87,16 +108,8 @@ export class AuthService {
     }
   }
 
-  private async syncRoleWithEmailPolicy(user: User): Promise<User> {
-    if (!this.isSuperAdminEmail(user.email) || user.role === 'super_admin') {
-      return user;
-    }
-
-    return (await this.userService.updateRole(user.id, 'super_admin')) ?? user;
-  }
-
   private getRoleForEmail(email: string): UserRole {
-    return this.isSuperAdminEmail(email) ? 'super_admin' : 'hr';
+    return this.isSuperAdminEmail(email) ? 'super_admin' : 'candidate';
   }
 
   private isSuperAdminEmail(email: string): boolean {

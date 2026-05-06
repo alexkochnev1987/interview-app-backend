@@ -14,18 +14,19 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { InterviewService } from '../interview/interview.service';
 import { UploadService } from './upload.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../user/interfaces/user.interface';
 import { InterviewAnswerMediaResponseDto } from './dto/upload.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 @ApiTags('interviews')
 @Controller('interviews')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecruiterMediaController {
   constructor(
     private readonly interviewService: InterviewService,
@@ -33,6 +34,7 @@ export class RecruiterMediaController {
   ) {}
 
   @Get(':id/questions/:questionIndex/media')
+  @RequirePermissions('interviews:read_own')
   @ApiOperation({ summary: 'Get signed media URLs for interview answer' })
   @ApiParam({ name: 'id' })
   @ApiParam({ name: 'questionIndex' })
@@ -42,8 +44,9 @@ export class RecruiterMediaController {
   async getAnswerMedia(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
-    const interview = await this.interviewService.findOne(id);
+    const interview = await this.interviewService.findOneForActor(id, user);
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );
@@ -55,26 +58,21 @@ export class RecruiterMediaController {
     }
 
     const [camera, screen] = await Promise.all([
-      answer.mediaKey
-        ? this.uploadService.generateDownloadUrl(
-            id,
-            questionIndex,
-            answer.mediaKey,
-          )
+      answer.camera?.mediaKey
+        ? this.uploadService
+            .generateDownloadUrl(id, questionIndex, answer.camera.mediaKey)
+            .then((res) => res.downloadUrl)
         : Promise.resolve(null),
-      answer.screenMediaKey
-        ? this.uploadService.generateDownloadUrl(
-            id,
-            questionIndex,
-            answer.screenMediaKey,
-          )
+      answer.screen?.mediaKey
+        ? this.uploadService
+            .generateDownloadUrl(id, questionIndex, answer.screen.mediaKey)
+            .then((res) => res.downloadUrl)
         : Promise.resolve(null),
     ]);
 
     return {
-      questionIndex,
-      cameraUrl: camera?.downloadUrl,
-      screenUrl: screen?.downloadUrl,
+      cameraUrl: camera,
+      screenUrl: screen,
     };
   }
 }

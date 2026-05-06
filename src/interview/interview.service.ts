@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
+import { UserRole } from '../user/interfaces/user.interface';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
   Answer,
@@ -30,14 +32,21 @@ import { compareBehaviorRisk } from './answer-behavior-risk';
 interface InterviewRow {
   id: string;
   candidate_name: string;
+  candidate_email: string | null;
   position: string;
   questions_json: InterviewQuestion[] | null;
   answers_json: Record<string, unknown>[] | null;
   status: Interview['status'];
   result_json: Record<string, unknown> | null;
   workflow_json: Record<string, unknown> | null;
+  created_by_id: string | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface InterviewActor {
+  id: string;
+  role: UserRole;
 }
 
 interface AddAnswerInput {
@@ -102,7 +111,10 @@ export class InterviewService {
     private readonly questionService: QuestionService,
   ) {}
 
-  async create(dto: CreateInterviewDto): Promise<Interview> {
+  async create(
+    dto: CreateInterviewDto,
+    context: { createdById?: string } = {},
+  ): Promise<Interview> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
     const questionIds = dto.questionIds.map((id) => id.trim()).filter(Boolean);
@@ -128,33 +140,39 @@ export class InterviewService {
           INSERT INTO interviews (
             id,
             candidate_name,
+            candidate_email,
             position,
             questions_json,
             answers_json,
             status,
-            workflow_json
+            workflow_json,
+            created_by_id
           )
-          VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::jsonb)
+          VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::jsonb, $9)
           RETURNING
             id,
             candidate_name,
+            candidate_email,
             position,
             questions_json,
             answers_json,
             status,
             result_json,
             workflow_json,
+            created_by_id,
             created_at,
             updated_at
         `,
         [
           randomUUID(),
           candidateName,
+          dto.candidateEmail?.trim().toLowerCase() || null,
           position,
           JSON.stringify(questions),
           JSON.stringify([]),
           'pending',
           JSON.stringify(this.buildWorkflow('idle', new Date())),
+          context.createdById ?? null,
         ],
       );
 
@@ -168,12 +186,14 @@ export class InterviewService {
         SELECT
           id,
           candidate_name,
+          candidate_email,
           position,
           questions_json,
           answers_json,
           status,
           result_json,
           workflow_json,
+          created_by_id,
           created_at,
           updated_at
         FROM interviews
@@ -190,12 +210,14 @@ export class InterviewService {
         SELECT
           id,
           candidate_name,
+          candidate_email,
           position,
           questions_json,
           answers_json,
           status,
           result_json,
           workflow_json,
+          created_by_id,
           created_at,
           updated_at
         FROM interviews
@@ -210,6 +232,43 @@ export class InterviewService {
     }
 
     return this.mapRow(result.rows[0]);
+  }
+
+  async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
+    if (actor.role === 'super_admin' || actor.role === 'admin') {
+      return this.findAll();
+    }
+    if (actor.role === 'hr') {
+      const result = await this.databaseService.query<InterviewRow>(
+        `
+          SELECT
+            id,
+            candidate_name,
+            candidate_email,
+            position,
+            questions_json,
+            answers_json,
+            status,
+            result_json,
+            workflow_json,
+            created_by_id,
+            created_at,
+            updated_at
+          FROM interviews
+          WHERE created_by_id = $1
+          ORDER BY created_at DESC
+        `,
+        [actor.id],
+      );
+      return result.rows.map((row) => this.mapRow(row));
+    }
+    throw new ForbiddenException('You do not have access to interviews');
+  }
+
+  async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
+    const interview = await this.findOne(id);
+    this.assertActorCanAccess(interview, actor);
+    return interview;
   }
 
   async complete(id: string): Promise<Interview> {
@@ -231,6 +290,19 @@ export class InterviewService {
       );
     }
     return interview.result;
+  }
+
+  private assertActorCanAccess(
+    interview: Interview,
+    actor: InterviewActor,
+  ): void {
+    if (actor.role === 'super_admin' || actor.role === 'admin') {
+      return;
+    }
+    if (actor.role === 'hr' && interview.createdById === actor.id) {
+      return;
+    }
+    throw new ForbiddenException('You do not have access to this interview');
   }
 
   async addAnswer(
@@ -622,29 +694,33 @@ export class InterviewService {
         UPDATE interviews
         SET
           candidate_name = $2,
-          position = $3,
-          questions_json = $4::jsonb,
-          answers_json = $5::jsonb,
-          status = $6,
-          result_json = $7::jsonb,
-          workflow_json = $8::jsonb,
+          candidate_email = $3,
+          position = $4,
+          questions_json = $5::jsonb,
+          answers_json = $6::jsonb,
+          status = $7,
+          result_json = $8::jsonb,
+          workflow_json = $9::jsonb,
           updated_at = NOW()
         WHERE id = $1
         RETURNING
           id,
           candidate_name,
+          candidate_email,
           position,
           questions_json,
           answers_json,
           status,
           result_json,
           workflow_json,
+          created_by_id,
           created_at,
           updated_at
       `,
       [
         interview.id,
         interview.candidateName,
+        interview.candidateEmail ?? null,
         interview.position,
         JSON.stringify(interview.questions),
         JSON.stringify(interview.answers),
@@ -828,6 +904,7 @@ export class InterviewService {
     return {
       id: row.id,
       candidateName: row.candidate_name,
+      candidateEmail: row.candidate_email ?? undefined,
       position: row.position,
       questions,
       answers: (row.answers_json ?? []).map((answer) =>
@@ -840,6 +917,7 @@ export class InterviewService {
         row.status,
         row.updated_at,
       ),
+      createdById: row.created_by_id ?? undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

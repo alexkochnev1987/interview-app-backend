@@ -11,8 +11,8 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { QuestionDraft } from '../question/interfaces/question.interface';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { CandidateAiThrottlerGuard } from './guards/candidate-ai-throttler.guard';
@@ -78,8 +78,8 @@ export class AiController {
   }
 
   @Post('question-draft')
-  @UseGuards(JwtAuthGuard, RolesGuard, StaffAiThrottlerGuard)
-  @Roles('super_admin', 'admin', 'hr')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, StaffAiThrottlerGuard)
+  @RequirePermissions('questions:create')
   @Throttle({
     default: {
       limit: 20,

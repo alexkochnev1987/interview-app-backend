@@ -1,10 +1,17 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from './interfaces/user.interface';
 import { DatabaseService } from '../database/database.service';
+import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 
 interface UserRow {
   id: string;
@@ -90,19 +97,87 @@ export class UserService implements OnModuleInit {
     return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
   }
 
-  async updateRole(id: string, role: UserRole): Promise<User | undefined> {
+  async listAll(
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<Omit<User, 'passwordHash'>[]> {
+    const limit = options.limit ?? 50;
+    const offset = options.offset ?? 0;
     const result = await this.databaseService.query<UserRow>(
       `
-        UPDATE users
-        SET role = $2,
-            updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, email, name, role, organization_id, password_hash, created_at
+        SELECT id, email, name, role, organization_id, password_hash, created_at
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
       `,
-      [id, role],
+      [limit, offset],
     );
+    return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
+  }
 
-    return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
+  async assignRole(
+    actor: { id: string; role: UserRole },
+    targetId: string,
+    newRole: UserRole,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    if (actor.id === targetId) {
+      throw new ForbiddenException('You cannot change your own role');
+    }
+
+    const allowedNewRoles = ASSIGNABLE_BY[actor.role];
+    if (allowedNewRoles.length === 0) {
+      throw new ForbiddenException('You are not allowed to assign roles');
+    }
+    if (!allowedNewRoles.includes(newRole)) {
+      throw new ForbiddenException(
+        `Role "${newRole}" cannot be assigned by ${actor.role}`,
+      );
+    }
+
+    // SELECT … FOR UPDATE serializes concurrent assignRole calls on the same
+    // target so the rank check cannot be bypassed by interleaving (e.g. two
+    // admins simultaneously promoting the same hr through their bound).
+    return this.databaseService.withTransaction(async (client) => {
+      const targetResult = await client.query<UserRow>(
+        `
+          SELECT id, email, name, role, organization_id, password_hash, created_at
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [targetId],
+      );
+      const targetRow = targetResult.rows[0];
+      if (!targetRow) {
+        throw new NotFoundException(`User ${targetId} not found`);
+      }
+      const target = this.mapRow(targetRow);
+
+      if (!outranks(actor.role, target.role)) {
+        throw new ForbiddenException(
+          'You can only change users whose role is below your own',
+        );
+      }
+
+      if (target.role === newRole) {
+        throw new BadRequestException('User already has the requested role');
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET role = $2,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING id, email, name, role, organization_id, password_hash, created_at
+        `,
+        [targetId, newRole],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${targetId} not found`);
+      }
+      return this.toPublicUser(this.mapRow(updatedRow));
+    });
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {

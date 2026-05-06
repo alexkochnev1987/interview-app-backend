@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -20,6 +21,13 @@ async function bootstrap(): Promise<void> {
     res.json(openApiDocument);
   });
 
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: false,
+    }),
+  );
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

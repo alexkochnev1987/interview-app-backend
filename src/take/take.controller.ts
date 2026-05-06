@@ -9,8 +9,6 @@ import {
   Req,
   Res,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -50,12 +48,6 @@ interface CandidateRequest {
 
 @ApiTags('take')
 @Controller('take')
-@UsePipes(
-  new ValidationPipe({
-    whitelist: true,
-    transform: true,
-  }),
-)
 export class TakeController {
   constructor(
     private readonly interviewService: InterviewService,

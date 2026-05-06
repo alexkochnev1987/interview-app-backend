@@ -7,8 +7,6 @@ import {
   Patch,
   Post,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -24,8 +22,8 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -40,18 +38,18 @@ import {
   BulkDeleteQuestionsResponseDto,
   DeleteQuestionResponseDto,
   FindSimilarResponseDto,
+  QuestionResponseDto,
 } from './dto/question.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { QuestionResponseDto } from './dto/question.responses.dto';
 
 @ApiTags('questions')
 @Controller('questions')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('super_admin', 'admin', 'hr')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
   @Get()
+  @RequirePermissions('questions:read')
   @ApiOperation({ summary: 'List questions' })
   @ApiOkResponse({ type: [QuestionResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -62,6 +60,7 @@ export class QuestionController {
   }
 
   @Get(':id')
+  @RequirePermissions('questions:read')
   @ApiOperation({ summary: 'Get question by id' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: QuestionResponseDto })
@@ -77,7 +76,7 @@ export class QuestionController {
   }
 
   @Post()
-  @Roles('super_admin', 'admin')
+  @RequirePermissions('questions:create')
   @ApiOperation({ summary: 'Create question' })
   @ApiBody({ type: CreateQuestionDto })
   @ApiOkResponse({ type: QuestionResponseDto })
@@ -89,7 +88,7 @@ export class QuestionController {
   }
 
   @Post('similar')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @RequirePermissions('questions:read')
   @ApiOperation({ summary: 'Find similar questions' })
   @ApiBody({ type: FindSimilarDto })
   @ApiOkResponse({ type: FindSimilarResponseDto })
@@ -107,7 +106,7 @@ export class QuestionController {
   }
 
   @Patch(':id')
-  @Roles('super_admin', 'admin')
+  @RequirePermissions('questions:update')
   @ApiOperation({ summary: 'Update question' })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: UpdateQuestionDto })
@@ -124,7 +123,7 @@ export class QuestionController {
   }
 
   @Delete(':id')
-  @Roles('super_admin')
+  @RequirePermissions('questions:delete')
   @ApiOperation({ summary: 'Soft delete question' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: DeleteQuestionResponseDto })
@@ -139,8 +138,7 @@ export class QuestionController {
   }
 
   @Post('bulk-delete')
-  @Roles('super_admin')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @RequirePermissions('questions:delete')
   @ApiOperation({ summary: 'Soft delete questions in bulk' })
   @ApiBody({ type: BulkDeleteQuestionsDto })
   @ApiOkResponse({ type: BulkDeleteQuestionsResponseDto })
@@ -155,7 +153,7 @@ export class QuestionController {
   }
 
   @Patch(':id/restore')
-  @Roles('super_admin')
+  @RequirePermissions('questions:delete')
   @ApiOperation({ summary: 'Restore soft deleted question' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: QuestionResponseDto })
