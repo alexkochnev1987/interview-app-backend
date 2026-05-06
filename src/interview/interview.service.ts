@@ -90,6 +90,7 @@ interface QueueAnswerValidationInput {
 interface CompleteAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber: number;
+  requestedAt: Date;
   executionArn?: string;
   transcript?: AnswerTranscript;
   evaluation?: AnswerEvaluation;
@@ -99,6 +100,7 @@ interface CompleteAnswerValidationInput {
 interface FailAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber?: number;
+  requestedAt?: Date;
   executionArn?: string;
   errorMessage?: string;
   completedAt: Date;
@@ -376,6 +378,10 @@ export class InterviewService {
     const interview = await this.findOne(id);
     const answer = this.requireAnswer(interview, input.questionIndex);
 
+    if (this.isStaleValidationWrite(answer, input.requestedAt)) {
+      return interview;
+    }
+
     const nextAnswer: Answer = {
       ...answer,
       transcript: this.mergeTranscript(answer.transcript, input.transcript),
@@ -396,12 +402,26 @@ export class InterviewService {
     return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
   }
 
+  private isStaleValidationWrite(
+    answer: Answer,
+    inputRequestedAt: Date | undefined,
+  ): boolean {
+    if (!inputRequestedAt) return false;
+    const existingRequestedAt = answer.validation?.requestedAt;
+    if (!existingRequestedAt) return false;
+    return existingRequestedAt.getTime() !== new Date(inputRequestedAt).getTime();
+  }
+
   async failAnswerValidation(
     id: string,
     input: FailAnswerValidationInput,
   ): Promise<Interview> {
     const interview = await this.findOne(id);
     const answer = this.requireAnswer(interview, input.questionIndex);
+
+    if (this.isStaleValidationWrite(answer, input.requestedAt)) {
+      return interview;
+    }
 
     const nextAnswer: Answer = {
       ...answer,
@@ -424,19 +444,33 @@ export class InterviewService {
     };
 
     const now = new Date(input.completedAt);
+    const updatedAnswers = interview.answers.map((item) =>
+      item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
+    );
+
+    const submittedAnswers = updatedAnswers.filter((a) => a.status === 'submitted');
+    const allFailed =
+      submittedAnswers.length > 0 &&
+      submittedAnswers.every((a) => a.validation?.status === 'failed');
+
+    const nextStatus = allFailed ? 'failed' : interview.status;
+    const nextWorkflow = allFailed
+      ? this.buildWorkflow('failed', now, {
+          currentStage: 'analyze_answers',
+          startedAt:
+            answer.validation?.startedAt ??
+            answer.validation?.requestedAt ??
+            now,
+          completedAt: now,
+          errorMessage: nextAnswer.validation?.errorMessage,
+        })
+      : interview.workflow;
 
     return this.saveInterview({
       ...interview,
-      answers: interview.answers.map((item) =>
-        item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
-      ),
-      status: 'failed',
-      workflow: this.buildWorkflow('failed', now, {
-        currentStage: 'analyze_answers',
-        startedAt: answer.validation?.startedAt ?? answer.validation?.requestedAt ?? now,
-        completedAt: now,
-        errorMessage: nextAnswer.validation?.errorMessage,
-      }),
+      answers: updatedAnswers,
+      status: nextStatus,
+      workflow: nextWorkflow,
       updatedAt: now,
     });
   }

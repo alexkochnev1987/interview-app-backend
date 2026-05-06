@@ -45,18 +45,13 @@ export class AnswerValidationWorkflowService
   implements OnApplicationBootstrap
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
+  private readonly interviewLocks = new Map<string, Promise<unknown>>();
 
   constructor(private readonly interviewService: InterviewService) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    if (!resolveNativeProvider()) {
-      this.logger.warn(
-        'AI provider not configured — skipping stuck validation recovery.',
-      );
-      return;
-    }
-
     const interviews = await this.interviewService.findAll();
+    const now = new Date();
     for (const interview of interviews) {
       for (const answer of interview.answers) {
         const status = answer.validation?.status;
@@ -65,53 +60,89 @@ export class AnswerValidationWorkflowService
         }
 
         try {
-          await this.dispatchValidation(
-            interview.id,
-            answer.questionIndex,
-            true,
+          await this.withInterviewLock(interview.id, () =>
+            this.interviewService.failAnswerValidation(interview.id, {
+              questionIndex: answer.questionIndex,
+              sourceVersionNumber: answer.validation?.sourceVersionNumber,
+              requestedAt: answer.validation?.requestedAt,
+              errorMessage:
+                'Validation worker restarted before this run completed. Re-run AI evaluation to retry.',
+              completedAt: now,
+            }),
           );
           this.logger.log(
-            `Recovered stuck validation interview=${interview.id} question=${answer.questionIndex}`,
+            `Marked stuck validation as failed: interview=${interview.id} question=${answer.questionIndex}`,
           );
         } catch (error) {
           this.logger.warn(
-            `Failed to recover validation interview=${interview.id} question=${answer.questionIndex}: ${this.formatError(error)}`,
+            `Failed to mark stuck validation: interview=${interview.id} question=${answer.questionIndex}: ${this.formatError(error)}`,
           );
         }
       }
     }
   }
 
+  private async withInterviewLock<T>(
+    interviewId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.interviewLocks.get(interviewId) ?? Promise.resolve();
+    let resolveNext: () => void = () => {};
+    const next = previous.catch(() => undefined).then(async () => {
+      try {
+        return await fn();
+      } finally {
+        resolveNext();
+      }
+    });
+    const tracker = new Promise<void>((resolve) => {
+      resolveNext = resolve;
+    });
+    this.interviewLocks.set(
+      interviewId,
+      tracker.finally(() => {
+        if (this.interviewLocks.get(interviewId) === tracker) {
+          this.interviewLocks.delete(interviewId);
+        }
+      }),
+    );
+    return next;
+  }
+
   startValidation(
     interviewId: string,
     questionIndex: number,
+    force = false,
   ): Promise<StartAnswerValidationResult> {
-    return this.dispatchValidation(interviewId, questionIndex, false);
+    return this.dispatchValidation(interviewId, questionIndex, force);
   }
 
   async startValidationForAllSubmitted(
     interviewId: string,
+    force = false,
   ): Promise<StartAllAnswerValidationsResult> {
     const interview = await this.interviewService.findOne(interviewId);
     const submittedAnswers = interview.answers
       .filter((answer) => answer.status === 'submitted')
       .sort((left, right) => left.questionIndex - right.questionIndex);
 
-    const hasActiveValidation = submittedAnswers.some(
-      (answer) =>
-        answer.validation?.status === 'queued' ||
-        answer.validation?.status === 'processing',
-    );
-    if (hasActiveValidation) {
-      throw new ConflictException(
-        'Answer validation is already running for this interview.',
+    if (!force) {
+      const hasActiveValidation = submittedAnswers.some(
+        (answer) =>
+          answer.validation?.status === 'queued' ||
+          answer.validation?.status === 'processing',
       );
+      if (hasActiveValidation) {
+        throw new ConflictException(
+          'Answer validation is already running for this interview.',
+        );
+      }
     }
 
     const answers: StartAnswerValidationResult[] = [];
     for (const answer of submittedAnswers) {
       answers.push(
-        await this.startValidation(interviewId, answer.questionIndex),
+        await this.startValidation(interviewId, answer.questionIndex, force),
       );
     }
 
@@ -198,18 +229,26 @@ export class AnswerValidationWorkflowService
     }
 
     const requestedAt = new Date();
-    await this.interviewService.queueAnswerValidation(interview.id, {
-      questionIndex,
-      sourceVersionNumber,
-      requestedAt,
-    });
+    await this.withInterviewLock(interview.id, () =>
+      this.interviewService.queueAnswerValidation(interview.id, {
+        questionIndex,
+        sourceVersionNumber,
+        requestedAt,
+      }),
+    );
+
+    this.logger.log(
+      `[validate] queued interview=${interview.id} q=${questionIndex} v=${sourceVersionNumber} mediaKey=${selectedVersion.mediaKey}`,
+    );
 
     void this.runInProcess({
       interviewId: interview.id,
       questionIndex,
       sourceVersionNumber,
+      requestedAt,
       question,
       selectedVersion,
+      existingTranscript: answer.transcript,
     });
 
     return {
@@ -224,15 +263,19 @@ export class AnswerValidationWorkflowService
     interviewId: string;
     questionIndex: number;
     sourceVersionNumber: number;
+    requestedAt: Date;
     question: InterviewQuestion;
     selectedVersion: AnswerVersion;
+    existingTranscript?: AnswerTranscript;
   }): Promise<void> {
     const {
       interviewId,
       questionIndex,
       sourceVersionNumber,
+      requestedAt,
       question,
       selectedVersion,
+      existingTranscript,
     } = params;
 
     try {
@@ -243,22 +286,54 @@ export class AnswerValidationWorkflowService
         );
       }
 
-      const whisperResult = await transcribeInterviewMedia(
-        selectedVersion.mediaKey,
+      this.logger.log(
+        `[validate] runInProcess start interview=${interviewId} q=${questionIndex} provider=${provider.kind}/${provider.model}`,
       );
 
-      const transcript: AnswerTranscript = {
-        text: whisperResult.text,
-        language: whisperResult.language,
-        provider: 'openai-whisper',
-        generatedAt: new Date(),
-        isFinal: true,
-      };
+      let transcriptText: string;
+      let transcript: AnswerTranscript;
+      const whisperT0 = Date.now();
+      try {
+        const whisperResult = await transcribeInterviewMedia(
+          selectedVersion.mediaKey,
+        );
+        this.logger.log(
+          `[validate] whisper ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - whisperT0} chars=${whisperResult.text.length} lang=${whisperResult.language ?? '?'}`,
+        );
+        transcriptText = whisperResult.text;
+        transcript = {
+          text: whisperResult.text,
+          language: whisperResult.language,
+          provider: 'openai-whisper',
+          generatedAt: new Date(),
+          isFinal: true,
+        };
+      } catch (whisperError) {
+        const previous = existingTranscript;
+        const fallbackText = previous?.text?.trim();
+        if (!previous || !fallbackText) {
+          throw whisperError;
+        }
+        this.logger.warn(
+          `[validate] whisper failed interview=${interviewId} q=${questionIndex} ms=${Date.now() - whisperT0} err="${this.formatError(whisperError)}" — falling back to existing transcript (${fallbackText.length} chars)`,
+        );
+        transcriptText = fallbackText;
+        transcript = {
+          ...previous,
+          text: fallbackText,
+          provider: 'whisper-fallback-existing',
+          isFinal: true,
+        };
+      }
 
+      const llmT0 = Date.now();
       const rawEvaluation = await evaluateAnswerWithNativeLlm(
         provider,
         question,
-        whisperResult.text,
+        transcriptText,
+      );
+      this.logger.log(
+        `[validate] llm ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - llmT0} score=${rawEvaluation.overallScore ?? '?'} hint=${rawEvaluation.decisionHint ?? '?'}`,
       );
 
       const behaviorRisk = computeAnswerBehaviorRisk(
@@ -289,27 +364,36 @@ export class AnswerValidationWorkflowService
         evaluatedAt: new Date(),
       };
 
-      await this.interviewService.completeAnswerValidation(interviewId, {
-        questionIndex,
-        sourceVersionNumber,
-        transcript,
-        evaluation,
-        completedAt: new Date(),
+      await this.withInterviewLock(interviewId, async () => {
+        await this.interviewService.completeAnswerValidation(interviewId, {
+          questionIndex,
+          sourceVersionNumber,
+          requestedAt,
+          transcript,
+          evaluation,
+          completedAt: new Date(),
+        });
+        await this.interviewService.recomputeResult(interviewId);
       });
 
-      await this.interviewService.recomputeResult(interviewId);
+      this.logger.log(
+        `[validate] persisted+done interview=${interviewId} q=${questionIndex} score=${evaluation.overallScore ?? '?'}`,
+      );
     } catch (error) {
       this.logger.error(
         `Answer validation failed for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
       );
 
       try {
-        await this.interviewService.failAnswerValidation(interviewId, {
-          questionIndex,
-          sourceVersionNumber,
-          errorMessage: this.formatError(error),
-          completedAt: new Date(),
-        });
+        await this.withInterviewLock(interviewId, () =>
+          this.interviewService.failAnswerValidation(interviewId, {
+            questionIndex,
+            sourceVersionNumber,
+            requestedAt,
+            errorMessage: this.formatError(error),
+            completedAt: new Date(),
+          }),
+        );
       } catch (saveError) {
         this.logger.error(
           `Failed to record validation failure for interview=${interviewId} question=${questionIndex}: ${this.formatError(saveError)}`,

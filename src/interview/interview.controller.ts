@@ -93,6 +93,7 @@ export class InterviewController {
     await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidationForAllSubmitted(
       id,
+      true,
     );
   }
 
@@ -107,6 +108,7 @@ export class InterviewController {
     return this.answerValidationWorkflowService.startValidation(
       id,
       questionIndex,
+      true,
     );
   }
 
