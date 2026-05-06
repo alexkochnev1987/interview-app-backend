@@ -64,7 +64,8 @@ export interface AnswerBehaviorEvent {
     | 'window_blur'
     | 'paste'
     | 'keydown'
-    | 'resize';
+    | 'resize'
+    | 'copy';
   occurredAt: Date;
   versionNumber: number;
 }
