@@ -71,6 +71,7 @@ export class RecruiterMediaController {
     ]);
 
     return {
+      questionIndex,
       cameraUrl: camera,
       screenUrl: screen,
     };

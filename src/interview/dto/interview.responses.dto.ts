@@ -71,12 +71,15 @@ export class AnswerBehaviorSignalsDto {
   keydownCount: number;
 
   @ApiProperty()
+  copyCount: number;
+
+  @ApiProperty()
   resizeCount: number;
 }
 
 export class AnswerBehaviorEventDto {
   @ApiProperty({
-    enum: ['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'],
+    enum: ['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'],
   })
   eventType: string;
 

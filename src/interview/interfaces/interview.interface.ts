@@ -55,6 +55,7 @@ export interface AnswerBehaviorSignals {
   windowBlurCount: number;
   pasteCount: number;
   keydownCount: number;
+  copyCount: number;
   resizeCount: number;
 }
 

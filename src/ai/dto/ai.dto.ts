@@ -1,48 +1,87 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { CreateQuestionDto } from '../../question/dto/create-question.dto';
 
 export class ChatHistoryItemDto {
   @ApiProperty({ enum: ['system', 'assistant', 'candidate'] })
-  role: 'system' | 'assistant' | 'candidate';
+  @IsIn(['system', 'assistant', 'candidate'])
+  role!: 'system' | 'assistant' | 'candidate';
 
   @ApiProperty()
-  content: string;
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
 }
 
 export class ChatDto {
   @ApiProperty()
-  question: string;
+  @IsString()
+  @IsNotEmpty()
+  question!: string;
 
   @ApiProperty()
-  position: string;
+  @IsString()
+  @IsNotEmpty()
+  position!: string;
 
   @ApiProperty()
-  candidateName: string;
+  @IsString()
+  @IsNotEmpty()
+  candidateName!: string;
 
   @ApiProperty({ type: [ChatHistoryItemDto] })
-  history: ChatHistoryItemDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChatHistoryItemDto)
+  history!: ChatHistoryItemDto[];
 
   @ApiProperty()
-  message: string;
+  @IsString()
+  @IsNotEmpty()
+  message!: string;
 }
 
 export class GreetDto {
   @ApiProperty()
-  candidateName: string;
+  @IsString()
+  @IsNotEmpty()
+  candidateName!: string;
 
   @ApiProperty()
-  position: string;
+  @IsString()
+  @IsNotEmpty()
+  position!: string;
 
   @ApiProperty()
-  totalQuestions: number;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  totalQuestions!: number;
 }
 
 export class DraftQuestionDto {
   @ApiPropertyOptional({ type: CreateQuestionDto })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateQuestionDto)
   question?: Partial<CreateQuestionDto>;
 }
 
 export class AiTextResponseDto {
   @ApiProperty()
-  response: string;
+  @IsString()
+  @IsNotEmpty()
+  response!: string;
 }

@@ -43,15 +43,21 @@ export class BehaviorSignalsDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  copyCount: number = 0;
+
+  @ApiProperty({ type: Number, default: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
   resizeCount: number = 0;
 }
 
 export class BehaviorEventDto {
-  @ApiProperty({ enum: ['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'] })
-  @IsIn(['tab_hidden', 'window_blur', 'paste', 'keydown', 'resize'])
+  @ApiProperty({ enum: ['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'] })
+  @IsIn(['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'])
   @IsString()
   @IsNotEmpty()
-  eventType!: 'tab_hidden' | 'window_blur' | 'paste' | 'keydown' | 'resize';
+  eventType!: 'tab_hidden' | 'window_blur' | 'copy' | 'paste' | 'keydown' | 'resize';
 
   @ApiProperty()
   @Type(() => Date)
