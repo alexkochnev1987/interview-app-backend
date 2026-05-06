@@ -2835,6 +2835,9 @@
           "keydownCount": {
             "type": "number"
           },
+          "copyCount": {
+            "type": "number"
+          },
           "resizeCount": {
             "type": "number"
           }
@@ -2844,6 +2847,7 @@
           "windowBlurCount",
           "pasteCount",
           "keydownCount",
+          "copyCount",
           "resizeCount"
         ]
       },
@@ -2970,6 +2974,7 @@
             "enum": [
               "tab_hidden",
               "window_blur",
+              "copy",
               "paste",
               "keydown",
               "resize"
@@ -3854,6 +3859,10 @@
             "type": "number",
             "default": 0
           },
+          "copyCount": {
+            "type": "number",
+            "default": 0
+          },
           "resizeCount": {
             "type": "number",
             "default": 0
@@ -3864,6 +3873,7 @@
           "windowBlurCount",
           "pasteCount",
           "keydownCount",
+          "copyCount",
           "resizeCount"
         ]
       },
@@ -3875,6 +3885,7 @@
             "enum": [
               "tab_hidden",
               "window_blur",
+              "copy",
               "paste",
               "keydown",
               "resize"
