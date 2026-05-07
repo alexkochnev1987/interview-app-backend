@@ -1,12 +1,16 @@
 import {
+  Body,
   Controller,
   Get,
   NotFoundException,
   Param,
   ParseIntPipe,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
+  ApiBody,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -21,7 +25,13 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
-import { InterviewAnswerMediaResponseDto } from './dto/upload.responses.dto';
+import {
+  InterviewAnswerMediaResponseDto,
+  PresignedUrlResponseDto,
+  ConfirmUploadResponseDto,
+  RecruiterPresignUploadBodyDto,
+  RecruiterConfirmUploadBodyDto,
+} from './dto/upload.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 @ApiTags('interviews')
@@ -32,6 +42,53 @@ export class RecruiterMediaController {
     private readonly interviewService: InterviewService,
     private readonly uploadService: UploadService,
   ) {}
+
+  @Post(':id/questions/:questionIndex/upload-url')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({
+    summary: 'Generate presigned URL for recruiter manual answer upload',
+  })
+  @ApiParam({ name: 'id' })
+  @ApiParam({ name: 'questionIndex' })
+  @ApiBody({ type: RecruiterPresignUploadBodyDto })
+  @ApiOkResponse({ type: PresignedUrlResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async presignManualUpload(
+    @Param('id') id: string,
+    @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @Body() dto: RecruiterPresignUploadBodyDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ) {
+    await this.interviewService.findOneForActor(id, user);
+    return this.uploadService.generatePresignedUrl(
+      id,
+      questionIndex,
+      dto.contentType,
+      dto.mediaType ?? 'camera',
+    );
+  }
+
+  @Post(':id/questions/:questionIndex/complete-upload')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Confirm recruiter manual answer upload' })
+  @ApiParam({ name: 'id' })
+  @ApiParam({ name: 'questionIndex' })
+  @ApiBody({ type: RecruiterConfirmUploadBodyDto })
+  @ApiOkResponse({ type: ConfirmUploadResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async completeManualUpload(
+    @Param('id') id: string,
+    @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @Body() dto: RecruiterConfirmUploadBodyDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ) {
+    await this.interviewService.findOneForActor(id, user);
+    return this.uploadService.confirmUpload(id, questionIndex, dto.mediaKey);
+  }
 
   @Get(':id/questions/:questionIndex/media')
   @RequirePermissions('interviews:read_own')

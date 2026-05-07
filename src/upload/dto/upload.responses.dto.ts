@@ -186,3 +186,21 @@ export class InterviewAnswerMediaResponseDto {
   @ApiPropertyOptional()
   screenUrl?: string;
 }
+
+export class RecruiterPresignUploadBodyDto {
+  @ApiProperty({ enum: ['video/webm'] })
+  @IsIn(['video/webm'])
+  contentType!: 'video/webm';
+
+  @ApiPropertyOptional({ enum: ['camera', 'screen'] })
+  @IsOptional()
+  @IsIn(['camera', 'screen'])
+  mediaType?: 'camera' | 'screen';
+}
+
+export class RecruiterConfirmUploadBodyDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  mediaKey!: string;
+}

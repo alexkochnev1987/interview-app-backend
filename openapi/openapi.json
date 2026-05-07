@@ -1521,6 +1521,164 @@
         ]
       }
     },
+    "/interviews/{id}/questions/{questionIndex}/upload-url": {
+      "post": {
+        "operationId": "RecruiterMediaController_presignManualUpload",
+        "summary": "Generate presigned URL for recruiter manual answer upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecruiterPresignUploadBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedUrlResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/interviews/{id}/questions/{questionIndex}/complete-upload": {
+      "post": {
+        "operationId": "RecruiterMediaController_completeManualUpload",
+        "summary": "Confirm recruiter manual answer upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecruiterConfirmUploadBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmUploadResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
     "/interviews/{id}/questions/{questionIndex}/media": {
       "get": {
         "operationId": "RecruiterMediaController_getAnswerMedia",
@@ -3736,6 +3894,38 @@
           "mediaKey",
           "uploadId",
           "aborted"
+        ]
+      },
+      "RecruiterPresignUploadBodyDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "video/webm"
+            ]
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "camera",
+              "screen"
+            ]
+          }
+        },
+        "required": [
+          "contentType"
+        ]
+      },
+      "RecruiterConfirmUploadBodyDto": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey"
         ]
       },
       "InterviewAnswerMediaResponseDto": {
