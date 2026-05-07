@@ -83,6 +83,7 @@ interface SaveAnswerProgressInput {
 interface QueueAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber: number;
+  runId: string;
   executionArn?: string;
   requestedAt: Date;
 }
@@ -90,6 +91,7 @@ interface QueueAnswerValidationInput {
 interface CompleteAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber: number;
+  runId: string;
   requestedAt: Date;
   executionArn?: string;
   transcript?: AnswerTranscript;
@@ -100,7 +102,7 @@ interface CompleteAnswerValidationInput {
 interface FailAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber?: number;
-  requestedAt?: Date;
+  runId?: string;
   executionArn?: string;
   errorMessage?: string;
   completedAt: Date;
@@ -340,34 +342,59 @@ export class InterviewService {
     id: string,
     input: QueueAnswerValidationInput,
   ): Promise<Interview> {
-    const interview = await this.findOne(id);
-    const answer = this.requireAnswer(interview, input.questionIndex);
-    const now = new Date(input.requestedAt);
+    return this.queueAnswerValidations(id, [input]);
+  }
 
-    const nextAnswer: Answer = {
-      ...answer,
-      validation: {
-        status: 'queued',
-        executionArn: input.executionArn,
-        sourceVersionNumber: input.sourceVersionNumber,
-        requestedAt: now,
-        startedAt: now,
-        errorMessage: undefined,
-      },
-    };
+  async queueAnswerValidations(
+    id: string,
+    inputs: QueueAnswerValidationInput[],
+  ): Promise<Interview> {
+    if (inputs.length === 0) {
+      return this.findOne(id);
+    }
+
+    const interview = await this.findOne(id);
+    const inputByIndex = new Map(
+      inputs.map((input) => [input.questionIndex, input]),
+    );
+
+    inputByIndex.forEach((_value, questionIndex) =>
+      this.requireAnswer(interview, questionIndex),
+    );
+
+    const earliest = inputs.reduce<Date>((acc, input) => {
+      const candidate = new Date(input.requestedAt);
+      return candidate.getTime() < acc.getTime() ? candidate : acc;
+    }, new Date(inputs[0].requestedAt));
+
+    const updatedAnswers = interview.answers.map((answer) => {
+      const input = inputByIndex.get(answer.questionIndex);
+      if (!input) return answer;
+      const stamp = new Date(input.requestedAt);
+      return {
+        ...answer,
+        validation: {
+          status: 'queued' as const,
+          executionArn: input.executionArn,
+          sourceVersionNumber: input.sourceVersionNumber,
+          runId: input.runId,
+          requestedAt: stamp,
+          startedAt: stamp,
+          errorMessage: undefined,
+        },
+      };
+    });
 
     return this.saveInterview({
       ...interview,
-      answers: interview.answers.map((item) =>
-        item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
-      ),
+      answers: updatedAnswers,
       status: 'processing',
-      workflow: this.buildWorkflow('processing', now, {
+      workflow: this.buildWorkflow('processing', earliest, {
         currentStage: 'validate_answers',
-        startedAt: interview.workflow?.startedAt ?? now,
+        startedAt: interview.workflow?.startedAt ?? earliest,
         errorMessage: undefined,
       }),
-      updatedAt: now,
+      updatedAt: earliest,
     });
   }
 
@@ -378,7 +405,7 @@ export class InterviewService {
     const interview = await this.findOne(id);
     const answer = this.requireAnswer(interview, input.questionIndex);
 
-    if (this.isStaleValidationWrite(answer, input.requestedAt)) {
+    if (this.isStaleValidationWrite(answer, input.runId)) {
       return interview;
     }
 
@@ -391,6 +418,7 @@ export class InterviewService {
         executionArn:
           input.executionArn ?? answer.validation?.executionArn,
         sourceVersionNumber: input.sourceVersionNumber,
+        runId: input.runId,
         requestedAt:
           answer.validation?.requestedAt ?? input.completedAt,
         startedAt:
@@ -399,17 +427,25 @@ export class InterviewService {
       },
     };
 
-    return this.saveInterviewWithUpdatedAnswer(interview, nextAnswer);
+    const withUpdatedAnswer: Interview = {
+      ...interview,
+      answers: interview.answers.map((item) =>
+        item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
+      ),
+      updatedAt: new Date(),
+    };
+
+    return this.saveInterview(this.applyResultRecomputation(withUpdatedAnswer));
   }
 
   private isStaleValidationWrite(
     answer: Answer,
-    inputRequestedAt: Date | undefined,
+    inputRunId: string | undefined,
   ): boolean {
-    if (!inputRequestedAt) return false;
-    const existingRequestedAt = answer.validation?.requestedAt;
-    if (!existingRequestedAt) return false;
-    return existingRequestedAt.getTime() !== new Date(inputRequestedAt).getTime();
+    if (!inputRunId) return false;
+    const existingRunId = answer.validation?.runId;
+    if (!existingRunId) return false;
+    return existingRunId !== inputRunId;
   }
 
   async failAnswerValidation(
@@ -419,7 +455,7 @@ export class InterviewService {
     const interview = await this.findOne(id);
     const answer = this.requireAnswer(interview, input.questionIndex);
 
-    if (this.isStaleValidationWrite(answer, input.requestedAt)) {
+    if (this.isStaleValidationWrite(answer, input.runId)) {
       return interview;
     }
 
@@ -431,6 +467,7 @@ export class InterviewService {
           input.executionArn ?? answer.validation?.executionArn,
         sourceVersionNumber:
           input.sourceVersionNumber ?? answer.validation?.sourceVersionNumber,
+        runId: input.runId ?? answer.validation?.runId,
         requestedAt:
           answer.validation?.requestedAt ?? input.completedAt,
         startedAt:
@@ -707,21 +744,6 @@ export class InterviewService {
     return answer;
   }
 
-  private saveInterviewWithUpdatedAnswer(
-    interview: Interview,
-    nextAnswer: Answer,
-  ): Promise<Interview> {
-    const now = new Date();
-
-    return this.saveInterview({
-      ...interview,
-      answers: interview.answers.map((answer) =>
-        answer.questionIndex === nextAnswer.questionIndex ? nextAnswer : answer,
-      ),
-      updatedAt: now,
-    });
-  }
-
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
       `
@@ -769,6 +791,14 @@ export class InterviewService {
 
   async recomputeResult(id: string): Promise<Interview> {
     const interview = await this.findOne(id);
+    const next = this.applyResultRecomputation(interview);
+    if (next === interview) {
+      return interview;
+    }
+    return this.saveInterview(next);
+  }
+
+  private applyResultRecomputation(interview: Interview): Interview {
     const submittedAnswers = interview.answers.filter(
       (answer) => answer.status === 'submitted',
     );
@@ -872,7 +902,7 @@ export class InterviewService {
       completedAt,
     };
 
-    return this.saveInterview({
+    return {
       ...interview,
       result,
       status: isFinal ? 'completed' : interview.status,
@@ -887,7 +917,7 @@ export class InterviewService {
             startedAt: interview.workflow?.startedAt ?? completedAt,
           }),
       updatedAt: completedAt,
-    });
+    };
   }
 
   private computeInterviewDecision(
@@ -1357,6 +1387,7 @@ export class InterviewService {
     const sourceVersionNumber = this.asNumber(
       rawValidation.sourceVersionNumber,
     );
+    const runId = this.asString(rawValidation.runId);
     const requestedAt = this.asDate(rawValidation.requestedAt);
     const startedAt = this.asDate(rawValidation.startedAt);
     const completedAt = this.asDate(rawValidation.completedAt);
@@ -1366,6 +1397,7 @@ export class InterviewService {
       !status &&
       !executionArn &&
       sourceVersionNumber === undefined &&
+      !runId &&
       !requestedAt &&
       !startedAt &&
       !completedAt &&
@@ -1378,6 +1410,7 @@ export class InterviewService {
       status: status ?? 'idle',
       executionArn,
       sourceVersionNumber,
+      runId,
       requestedAt,
       startedAt,
       completedAt,
