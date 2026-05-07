@@ -23,6 +23,7 @@ import {
   RawAnswerEvaluation,
 } from '../ai/llm/answer-evaluation-llm';
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
+import { DatabaseService } from '../database/database.service';
 
 export interface StartAnswerValidationResult {
   status: AnswerValidationStatus;
@@ -46,9 +47,11 @@ export class AnswerValidationWorkflowService
   implements OnApplicationBootstrap
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
-  private readonly interviewLocks = new Map<string, Promise<unknown>>();
 
-  constructor(private readonly interviewService: InterviewService) {}
+  constructor(
+    private readonly interviewService: InterviewService,
+    private readonly databaseService: DatabaseService,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     const interviews = await this.interviewService.findAll();
@@ -84,28 +87,14 @@ export class AnswerValidationWorkflowService
     }
   }
 
-  private async withInterviewLock<T>(
+  private withInterviewLock<T>(
     interviewId: string,
     fn: () => Promise<T>,
   ): Promise<T> {
-    const previous = this.interviewLocks.get(interviewId) ?? Promise.resolve();
-    let resolveNext: () => void = () => {};
-    const tracker = new Promise<void>((resolve) => {
-      resolveNext = resolve;
-    });
-    const entry: Promise<unknown> = tracker.finally(() => {
-      if (this.interviewLocks.get(interviewId) === entry) {
-        this.interviewLocks.delete(interviewId);
-      }
-    });
-    this.interviewLocks.set(interviewId, entry);
-    return previous.catch(() => undefined).then(async () => {
-      try {
-        return await fn();
-      } finally {
-        resolveNext();
-      }
-    });
+    return this.databaseService.withAdvisoryLock(
+      `interview-validation:${interviewId}`,
+      fn,
+    );
   }
 
   startValidation(
@@ -151,17 +140,15 @@ export class AnswerValidationWorkflowService
 
       requestedCount = submittedAnswers.length;
 
-      if (!force) {
-        const hasActiveValidation = submittedAnswers.some(
-          (answer) =>
-            answer.validation?.status === 'queued' ||
-            answer.validation?.status === 'processing',
+      const hasActiveValidation = submittedAnswers.some(
+        (answer) =>
+          answer.validation?.status === 'queued' ||
+          answer.validation?.status === 'processing',
+      );
+      if (hasActiveValidation) {
+        throw new ConflictException(
+          'Answer validation is already running for this interview.',
         );
-        if (hasActiveValidation) {
-          throw new ConflictException(
-            'Answer validation is already running for this interview.',
-          );
-        }
       }
 
       const requestedAt = new Date();
@@ -319,7 +306,6 @@ export class AnswerValidationWorkflowService
       const sourceVersionNumber = selectedVersion.versionNumber;
       const existingValidation = answer.validation;
       if (
-        !force &&
         existingValidation?.sourceVersionNumber === sourceVersionNumber &&
         (existingValidation.status === 'queued' ||
           existingValidation.status === 'processing')

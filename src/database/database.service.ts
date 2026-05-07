@@ -63,6 +63,22 @@ export class DatabaseService implements OnModuleDestroy {
     });
   }
 
+  async withAdvisoryLock<T>(
+    key: string,
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    return this.withClient(async (client) => {
+      await client.query('SELECT pg_advisory_lock(hashtext($1))', [key]);
+      try {
+        return await callback();
+      } finally {
+        try {
+          await client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]);
+        } catch {}
+      }
+    });
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();
   }

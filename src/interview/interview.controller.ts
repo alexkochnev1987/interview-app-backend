@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseBoolPipe,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,6 +21,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiServiceUnavailableResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -137,6 +141,13 @@ export class InterviewController {
   @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Start validation for all submitted answers' })
   @ApiParam({ name: 'id' })
+  @ApiQuery({
+    name: 'force',
+    required: false,
+    type: Boolean,
+    description:
+      'Re-evaluate answers whose latest validation already completed. Defaults to false; in-flight validations always return 409.',
+  })
   @ApiOkResponse({ type: StartAllAnswerValidationsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
@@ -144,12 +155,13 @@ export class InterviewController {
   @ApiServiceUnavailableResponse({ type: ApiErrorResponseDto })
   async validateAllAnswers(
     @Param('id') id: string,
+    @Query('force', new DefaultValuePipe(false), ParseBoolPipe) force: boolean,
     @CurrentUser() user: ActingUser,
   ) {
     await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidationForAllSubmitted(
       id,
-      true,
+      force,
     );
   }
 
@@ -158,6 +170,13 @@ export class InterviewController {
   @ApiOperation({ summary: 'Start validation for single answer' })
   @ApiParam({ name: 'id' })
   @ApiParam({ name: 'questionIndex' })
+  @ApiQuery({
+    name: 'force',
+    required: false,
+    type: Boolean,
+    description:
+      'Re-evaluate the answer if its latest validation already completed. Defaults to false; in-flight validations always return 409.',
+  })
   @ApiOkResponse({ type: StartAnswerValidationResultDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -167,13 +186,14 @@ export class InterviewController {
   async validateAnswer(
     @Param('id') id: string,
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
+    @Query('force', new DefaultValuePipe(false), ParseBoolPipe) force: boolean,
     @CurrentUser() user: ActingUser,
   ) {
     await this.interviewService.findOneForActor(id, user);
     return this.answerValidationWorkflowService.startValidation(
       id,
       questionIndex,
-      true,
+      force,
     );
   }
 
