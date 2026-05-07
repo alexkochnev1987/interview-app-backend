@@ -1179,6 +1179,7 @@ export class InterviewService {
       windowBlurCount: this.asNumber(rawSignals?.windowBlurCount) ?? 0,
       pasteCount: this.asNumber(rawSignals?.pasteCount) ?? 0,
       keydownCount: this.asNumber(rawSignals?.keydownCount) ?? 0,
+      copyCount: this.asNumber(rawSignals?.copyCount) ?? 0,
       resizeCount: this.asNumber(rawSignals?.resizeCount) ?? 0,
     };
   }

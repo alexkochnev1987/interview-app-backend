@@ -1,7 +1,10 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
+import { createOpenApiDocument } from './openapi/swagger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -10,6 +13,14 @@ async function bootstrap(): Promise<void> {
     origin: true,
     credentials: true,
   });
+
+  const openApiDocument = createOpenApiDocument(app);
+
+  SwaggerModule.setup('docs', app, openApiDocument);
+  app.getHttpAdapter().getInstance().get('/openapi.json', (_req: Request, res: Response) => {
+    res.json(openApiDocument);
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
