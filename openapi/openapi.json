@@ -148,7 +148,7 @@
         ],
         "security": [
           {
-            "session": []
+            "sessionAuth": []
           }
         ]
       }
@@ -210,7 +210,7 @@
         ],
         "security": [
           {
-            "bearer": []
+            "sessionAuth": []
           }
         ]
       }
@@ -266,7 +266,7 @@
         ],
         "security": [
           {
-            "bearer": []
+            "sessionAuth": []
           }
         ]
       }
@@ -303,6 +303,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       },
       "post": {
@@ -363,6 +368,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -414,6 +424,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       },
       "patch": {
@@ -493,6 +508,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       },
       "delete": {
@@ -562,6 +582,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -614,6 +639,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -676,6 +706,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -737,6 +772,11 @@
         },
         "tags": [
           "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -799,6 +839,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       },
       "get": {
@@ -832,6 +877,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -883,6 +933,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -934,6 +989,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -985,6 +1045,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1056,6 +1121,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1145,6 +1215,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1206,6 +1281,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1258,6 +1338,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1310,6 +1395,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1362,6 +1452,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1414,6 +1509,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1466,6 +1566,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1518,6 +1623,11 @@
         },
         "tags": [
           "upload"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1597,6 +1707,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1676,6 +1791,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1735,6 +1855,11 @@
         },
         "tags": [
           "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -1826,6 +1951,11 @@
         },
         "tags": [
           "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1897,6 +2027,11 @@
         },
         "tags": [
           "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -1968,6 +2103,11 @@
         },
         "tags": [
           "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -2037,6 +2177,11 @@
         },
         "tags": [
           "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -2089,6 +2234,11 @@
         },
         "tags": [
           "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -2141,6 +2291,11 @@
         },
         "tags": [
           "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
         ]
       }
     },
@@ -2203,6 +2358,11 @@
         },
         "tags": [
           "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
         ]
       }
     },
@@ -2299,7 +2459,7 @@
         ],
         "security": [
           {
-            "bearer": []
+            "sessionAuth": []
           }
         ]
       },
@@ -2337,7 +2497,7 @@
         ],
         "security": [
           {
-            "bearer": []
+            "sessionAuth": []
           }
         ]
       }
@@ -2353,10 +2513,15 @@
   "servers": [],
   "components": {
     "securitySchemes": {
-      "cookie": {
+      "sessionAuth": {
         "type": "apiKey",
         "in": "cookie",
         "name": "session"
+      },
+      "candidateSessionAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "candidate_session"
       }
     },
     "schemas": {
@@ -2679,13 +2844,27 @@
           "expectedConcepts": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+                }
+              ]
             }
           },
           "redFlags": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionRedFlagDto"
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/QuestionRedFlagDto"
+                }
+              ]
             }
           },
           "difficulty": {
@@ -2830,13 +3009,27 @@
           "expectedConcepts": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+                }
+              ]
             }
           },
           "redFlags": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionRedFlagDto"
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/QuestionRedFlagDto"
+                }
+              ]
             }
           },
           "difficulty": {

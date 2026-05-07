@@ -8,21 +8,14 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
-import {
-  UploadService,
-  PresignedUrlResponse,
-  ConfirmUploadResponse,
-  MultipartUploadSessionResponse,
-  MultipartUploadPartResponse,
-  MultipartUploadCompleteResponse,
-  MultipartUploadAbortResponse,
-} from './upload.service';
+import { UploadService } from './upload.service';
 import {
   AbortMultipartUploadDto,
   CompleteMultipartUploadDto,
@@ -44,6 +37,7 @@ interface CandidateRequest {
 }
 
 @ApiTags('upload')
+@ApiCookieAuth('candidateSessionAuth')
 @Controller('upload')
 @UseGuards(CandidateSessionGuard)
 export class UploadController {
@@ -58,7 +52,7 @@ export class UploadController {
   async presign(
     @Body() dto: PresignRequestDto,
     @Req() req: CandidateRequest,
-  ): Promise<PresignedUrlResponse> {
+  ): Promise<PresignedUrlResponseDto> {
     return this.uploadService.generatePresignedUrl(
       req.candidatePayload.interviewId,
       dto.questionIndex,
@@ -76,7 +70,7 @@ export class UploadController {
   complete(
     @Body() dto: ConfirmUploadDto,
     @Req() req: CandidateRequest,
-  ): ConfirmUploadResponse {
+  ): ConfirmUploadResponseDto {
     return this.uploadService.confirmUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,
@@ -93,7 +87,7 @@ export class UploadController {
   async startMultipartUpload(
     @Body() dto: StartMultipartUploadDto,
     @Req() req: CandidateRequest,
-  ): Promise<MultipartUploadSessionResponse> {
+  ): Promise<MultipartUploadSessionResponseDto> {
     return this.uploadService.startMultipartUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,
@@ -111,7 +105,7 @@ export class UploadController {
   async presignMultipartPart(
     @Body() dto: PresignMultipartPartDto,
     @Req() req: CandidateRequest,
-  ): Promise<MultipartUploadPartResponse> {
+  ): Promise<MultipartUploadPartResponseDto> {
     return this.uploadService.presignMultipartPart(
       req.candidatePayload.interviewId,
       dto.questionIndex,
@@ -130,7 +124,7 @@ export class UploadController {
   async completeMultipartUpload(
     @Body() dto: CompleteMultipartUploadDto,
     @Req() req: CandidateRequest,
-  ): Promise<MultipartUploadCompleteResponse> {
+  ): Promise<MultipartUploadCompleteResponseDto> {
     return this.uploadService.completeMultipartUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,
@@ -148,7 +142,7 @@ export class UploadController {
   async abortMultipartUpload(
     @Body() dto: AbortMultipartUploadDto,
     @Req() req: CandidateRequest,
-  ): Promise<MultipartUploadAbortResponse> {
+  ): Promise<MultipartUploadAbortResponseDto> {
     return this.uploadService.abortMultipartUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,

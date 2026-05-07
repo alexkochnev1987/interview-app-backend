@@ -11,6 +11,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -35,6 +36,7 @@ import {
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 @ApiTags('interviews')
+@ApiCookieAuth('sessionAuth')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecruiterMediaController {

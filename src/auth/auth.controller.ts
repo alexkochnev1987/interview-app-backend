@@ -139,7 +139,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('session')
+  @ApiCookieAuth('sessionAuth')
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })

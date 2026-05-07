@@ -2,6 +2,7 @@ import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +34,7 @@ export class AiController {
 
   @Post('chat')
   @UseGuards(CandidateSessionGuard, CandidateAiThrottlerGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @Throttle({
     default: {
       limit: 12,
@@ -57,6 +59,7 @@ export class AiController {
 
   @Post('greet')
   @UseGuards(CandidateSessionGuard, CandidateAiThrottlerGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @Throttle({
     default: {
       limit: 5,
@@ -79,6 +82,7 @@ export class AiController {
 
   @Post('question-draft')
   @UseGuards(JwtAuthGuard, PermissionsGuard, StaffAiThrottlerGuard)
+  @ApiCookieAuth('sessionAuth')
   @RequirePermissions('questions:create')
   @Throttle({
     default: {

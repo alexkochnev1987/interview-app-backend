@@ -7,7 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -25,7 +25,7 @@ import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { FeedbackLinkResponseDto } from './dto/feedback-link.response.dto';
 
 @ApiTags('interviews')
-@ApiBearerAuth()
+@ApiCookieAuth('sessionAuth')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class FeedbackLinkController {

@@ -14,6 +14,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -59,6 +60,7 @@ export class TakeController {
 
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @ApiOperation({ summary: 'Get candidate interview state' })
   @ApiParam({ name: 'id' })
   @ApiQuery({ name: 'token', required: false })
@@ -134,6 +136,7 @@ export class TakeController {
 
   @Post(':id/answer')
   @UseGuards(CandidateSessionGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @ApiOperation({ summary: 'Submit candidate answer' })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: SubmitAnswerDto })
@@ -166,6 +169,7 @@ export class TakeController {
 
   @Post(':id/answer/progress')
   @UseGuards(CandidateSessionGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @ApiOperation({ summary: 'Save candidate answer progress' })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: SaveAnswerProgressDto })
@@ -197,6 +201,7 @@ export class TakeController {
 
   @Post(':id/questions/:questionIndex/validate')
   @UseGuards(CandidateSessionGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @ApiOperation({ summary: 'Start candidate answer validation' })
   @ApiParam({ name: 'id' })
   @ApiParam({ name: 'questionIndex' })

@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -28,7 +28,7 @@ import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AuthUserResponseDto } from '../auth/dto/auth-user.response.dto';
 
 @ApiTags('users')
-@ApiBearerAuth()
+@ApiCookieAuth('sessionAuth')
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserController {

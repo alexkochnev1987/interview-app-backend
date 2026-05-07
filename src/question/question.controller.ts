@@ -11,6 +11,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -43,6 +44,7 @@ import {
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
 @ApiTags('questions')
+@ApiCookieAuth('sessionAuth')
 @Controller('questions')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class QuestionController {

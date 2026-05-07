@@ -11,6 +11,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCookieAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -44,6 +45,7 @@ import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 type ActingUser = Omit<User, 'passwordHash'>;
 
 @ApiTags('interviews')
+@ApiCookieAuth('sessionAuth')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InterviewController {

@@ -1,5 +1,8 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import {
+  ApiExtraModels,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   IsArray,
   IsIn,
@@ -9,14 +12,18 @@ import {
   IsString,
   Length,
   Min,
-  ValidateNested,
 } from 'class-validator';
-import { QuestionDifficulty } from '../interfaces/question.interface';
+import {
+  QuestionDifficulty,
+  QuestionExpectedConcept,
+  QuestionRedFlag,
+} from '../interfaces/question.interface';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question.responses.dto';
 
+@ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto)
 export class UpdateQuestionDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -60,19 +67,31 @@ export class UpdateQuestionDto {
   @IsString({ each: true })
   followUpQuestions?: string[];
 
-  @ApiPropertyOptional({ type: [QuestionExpectedConceptDto] })
+  @ApiPropertyOptional({
+    type: 'array',
+    items: {
+      oneOf: [
+        { type: 'string' },
+        { $ref: getSchemaPath(QuestionExpectedConceptDto) },
+      ],
+    },
+  })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuestionExpectedConceptDto)
-  expectedConcepts?: QuestionExpectedConceptDto[];
+  expectedConcepts?: Array<string | Partial<QuestionExpectedConcept>>;
 
-  @ApiPropertyOptional({ type: [QuestionRedFlagDto] })
+  @ApiPropertyOptional({
+    type: 'array',
+    items: {
+      oneOf: [
+        { type: 'string' },
+        { $ref: getSchemaPath(QuestionRedFlagDto) },
+      ],
+    },
+  })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuestionRedFlagDto)
-  redFlags?: QuestionRedFlagDto[];
+  redFlags?: Array<string | Partial<QuestionRedFlag>>;
 
   @ApiPropertyOptional({ enum: ['easy', 'medium', 'hard'] })
   @IsOptional()
