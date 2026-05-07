@@ -25,6 +25,33 @@ import {
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 import { DatabaseService } from '../database/database.service';
 
+const MAX_CONCURRENT_VALIDATIONS = 3;
+
+class Semaphore {
+  private inflight = 0;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(private readonly max: number) {}
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.inflight >= this.max) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    } else {
+      this.inflight++;
+    }
+    try {
+      return await fn();
+    } finally {
+      const next = this.waiters.shift();
+      if (next) {
+        next();
+      } else {
+        this.inflight--;
+      }
+    }
+  }
+}
+
 export interface StartAnswerValidationResult {
   status: AnswerValidationStatus;
   questionIndex: number;
@@ -47,6 +74,9 @@ export class AnswerValidationWorkflowService
   implements OnApplicationBootstrap
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
+  private readonly validationSemaphore = new Semaphore(
+    MAX_CONCURRENT_VALIDATIONS,
+  );
 
   constructor(
     private readonly interviewService: InterviewService,
@@ -214,21 +244,25 @@ export class AnswerValidationWorkflowService
       this.logger.log(
         `[validate] queued interview=${interviewId} q=${payload.questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId} mediaKey=${payload.selectedVersion.mediaKey}`,
       );
-      void this.runInProcess({
-        interviewId,
-        questionIndex: payload.questionIndex,
-        sourceVersionNumber: payload.sourceVersionNumber,
-        runId: payload.runId,
-        requestedAt: payload.requestedAt,
-        question: payload.question,
-        selectedVersion: payload.selectedVersion,
-        existingTranscript: payload.existingTranscript,
-      }).catch((error) => {
-        this.logger.error(
-          `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${payload.questionIndex}: ${this.formatError(error)}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-      });
+      void this.validationSemaphore
+        .run(() =>
+          this.runInProcess({
+            interviewId,
+            questionIndex: payload.questionIndex,
+            sourceVersionNumber: payload.sourceVersionNumber,
+            runId: payload.runId,
+            requestedAt: payload.requestedAt,
+            question: payload.question,
+            selectedVersion: payload.selectedVersion,
+            existingTranscript: payload.existingTranscript,
+          }),
+        )
+        .catch((error) => {
+          this.logger.error(
+            `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${payload.questionIndex}: ${this.formatError(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        });
     }
 
     const queuedAnswers: StartAnswerValidationResult[] = newPayloads.map(
@@ -365,30 +399,36 @@ export class AnswerValidationWorkflowService
       );
     }
 
+    const payload = spawnPayload;
+
     this.logger.log(
-      `[validate] queued interview=${interviewId} q=${questionIndex} v=${spawnPayload.sourceVersionNumber} runId=${spawnPayload.runId} mediaKey=${spawnPayload.selectedVersion.mediaKey}`,
+      `[validate] queued interview=${interviewId} q=${questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId} mediaKey=${payload.selectedVersion.mediaKey}`,
     );
 
-    void this.runInProcess({
-      interviewId,
-      questionIndex,
-      sourceVersionNumber: spawnPayload.sourceVersionNumber,
-      runId: spawnPayload.runId,
-      requestedAt: spawnPayload.requestedAt,
-      question: spawnPayload.question,
-      selectedVersion: spawnPayload.selectedVersion,
-      existingTranscript: spawnPayload.existingTranscript,
-    }).catch((error) => {
-      this.logger.error(
-        `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-    });
+    void this.validationSemaphore
+      .run(() =>
+        this.runInProcess({
+          interviewId,
+          questionIndex,
+          sourceVersionNumber: payload.sourceVersionNumber,
+          runId: payload.runId,
+          requestedAt: payload.requestedAt,
+          question: payload.question,
+          selectedVersion: payload.selectedVersion,
+          existingTranscript: payload.existingTranscript,
+        }),
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
 
     return {
       status: 'queued',
       questionIndex,
-      sourceVersionNumber: spawnPayload.sourceVersionNumber,
+      sourceVersionNumber: payload.sourceVersionNumber,
       reused: false,
     };
   }
