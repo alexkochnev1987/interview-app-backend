@@ -12,44 +12,18 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { InterviewService } from '../interview/interview.service';
 import {
+  ConfirmUploadResponseDto,
+  MultipartUploadAbortResponseDto,
+  MultipartUploadCompleteResponseDto,
+  MultipartUploadPartResponseDto,
+  MultipartUploadSessionResponseDto,
+  PresignedUrlResponseDto,
+} from './dto/upload.responses.dto';
+import {
   buildInterviewMediaKey,
   InterviewMediaType,
   matchesInterviewMediaKey,
 } from './upload-key';
-
-export interface PresignedUrlResponse {
-  uploadUrl: string;
-  mediaKey: string;
-}
-
-export interface ConfirmUploadResponse {
-  mediaKey: string;
-  confirmed: boolean;
-}
-
-export interface MultipartUploadSessionResponse {
-  mediaKey: string;
-  uploadId: string;
-}
-
-export interface MultipartUploadPartResponse {
-  mediaKey: string;
-  uploadId: string;
-  partNumber: number;
-  uploadUrl: string;
-}
-
-export interface MultipartUploadCompleteResponse {
-  mediaKey: string;
-  uploadId: string;
-  completed: boolean;
-}
-
-export interface MultipartUploadAbortResponse {
-  mediaKey: string;
-  uploadId: string;
-  aborted: boolean;
-}
 
 export interface PresignedDownloadUrlResponse {
   downloadUrl: string;
@@ -88,7 +62,7 @@ export class UploadService {
     questionIndex: number,
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
-  ): Promise<PresignedUrlResponse> {
+  ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
     await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
 
@@ -117,7 +91,7 @@ export class UploadService {
     questionIndex: number,
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
-  ): Promise<MultipartUploadSessionResponse> {
+  ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
     await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
 
@@ -151,7 +125,7 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     partNumber: number,
-  ): Promise<MultipartUploadPartResponse> {
+  ): Promise<MultipartUploadPartResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -186,7 +160,7 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     uploadId: string,
-  ): Promise<MultipartUploadCompleteResponse> {
+  ): Promise<MultipartUploadCompleteResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -239,7 +213,7 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     uploadId: string,
-  ): Promise<MultipartUploadAbortResponse> {
+  ): Promise<MultipartUploadAbortResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -267,7 +241,7 @@ export class UploadService {
     interviewId: string,
     questionIndex: number,
     mediaKey: string,
-  ): ConfirmUploadResponse {
+  ): ConfirmUploadResponseDto {
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     return { mediaKey, confirmed: true };

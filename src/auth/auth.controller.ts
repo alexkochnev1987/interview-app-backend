@@ -8,6 +8,16 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTooManyRequestsResponse,
+  ApiUnauthorizedResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
@@ -21,6 +31,8 @@ import { getPermissions } from './permissions';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
+import { AuthUserResponseDto } from './dto/auth-user.response.dto';
+import { LogoutResponseDto } from './dto/logout.response.dto';
 
 const isLocal = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
 
@@ -35,6 +47,7 @@ const COOKIE_OPTIONS = {
 // Frontend URL to redirect after Google login
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -49,6 +62,11 @@ export class AuthController {
       blockDuration: minutes(15),
     },
   })
+  @ApiOperation({ summary: 'Sign in with email and password' })
+  @ApiBody({ type: LoginDto })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiTooManyRequestsResponse({ description: 'Too many login attempts' })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -69,6 +87,9 @@ export class AuthController {
       blockDuration: minutes(60),
     },
   })
+  @ApiOperation({ summary: 'Register a new account' })
+  @ApiBody({ type: RegisterDto })
+  @ApiOkResponse({ type: AuthUserResponseDto })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -82,6 +103,8 @@ export class AuthController {
   // Step 1: Redirect to Google
   @Get('google')
   @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Start Google OAuth sign-in flow' })
+  @ApiFoundResponse({ description: 'Redirects to Google OAuth consent screen' })
   googleLogin() {
     // Guard redirects to Google automatically
   }
@@ -89,6 +112,8 @@ export class AuthController {
   // Step 2: Google redirects back here
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth callback endpoint' })
+  @ApiFoundResponse({ description: 'Sets session cookie and redirects to frontend' })
   async googleCallback(
     @Req() req: Request,
     @Res() res: Response,
@@ -105,6 +130,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Sign out current user' })
+  @ApiOkResponse({ type: LogoutResponseDto })
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('session', { path: '/' });
     return { ok: true };
@@ -112,6 +139,10 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('sessionAuth')
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
     return {
       ...user,

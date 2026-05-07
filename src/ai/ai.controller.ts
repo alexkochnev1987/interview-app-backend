@@ -1,84 +1,51 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { Throttle, minutes } from '@nestjs/throttler';
-import { Type } from 'class-transformer';
 import {
-  IsArray,
-  IsIn,
-  IsInt,
-  IsObject,
-  IsOptional,
-  IsString,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiCookieAuth,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { QuestionDraft } from '../question/interfaces/question.interface';
-import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { CandidateAiThrottlerGuard } from './guards/candidate-ai-throttler.guard';
 import { StaffAiThrottlerGuard } from './guards/staff-ai-throttler.guard';
+import {
+  AiTextResponseDto,
+  ChatDto,
+  DraftQuestionDto,
+  GreetDto,
+} from './dto/ai.dto';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { QuestionDraftResponseDto } from '../question/dto/question.responses.dto';
 
-class ChatHistoryEntryDto {
-  @IsIn(['system', 'assistant', 'candidate'])
-  role!: 'system' | 'assistant' | 'candidate';
-
-  @IsString()
-  content!: string;
-}
-
-class ChatDto {
-  @IsString()
-  question!: string;
-
-  @IsString()
-  position!: string;
-
-  @IsString()
-  candidateName!: string;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChatHistoryEntryDto)
-  history!: ChatHistoryEntryDto[];
-
-  @IsString()
-  message!: string;
-}
-
-class GreetDto {
-  @IsString()
-  candidateName!: string;
-
-  @IsString()
-  position!: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  totalQuestions!: number;
-}
-
-class DraftQuestionDto {
-  @IsOptional()
-  @IsObject()
-  question?: Partial<CreateQuestionDto>;
-}
-
+@ApiTags('ai')
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
   @UseGuards(CandidateSessionGuard, CandidateAiThrottlerGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @Throttle({
     default: {
       limit: 12,
       ttl: minutes(5),
     },
   })
+  @ApiOperation({ summary: 'Candidate chat assistant' })
+  @ApiBody({ type: ChatDto })
+  @ApiOkResponse({ type: AiTextResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async chat(@Body() dto: ChatDto) {
     const response = await this.aiService.chat(
       dto.question,
@@ -92,12 +59,18 @@ export class AiController {
 
   @Post('greet')
   @UseGuards(CandidateSessionGuard, CandidateAiThrottlerGuard)
+  @ApiCookieAuth('candidateSessionAuth')
   @Throttle({
     default: {
       limit: 5,
       ttl: minutes(1),
     },
   })
+  @ApiOperation({ summary: 'Candidate greeting prompt' })
+  @ApiBody({ type: GreetDto })
+  @ApiOkResponse({ type: AiTextResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async greet(@Body() dto: GreetDto) {
     const response = await this.aiService.greet(
       dto.candidateName,
@@ -109,6 +82,7 @@ export class AiController {
 
   @Post('question-draft')
   @UseGuards(JwtAuthGuard, PermissionsGuard, StaffAiThrottlerGuard)
+  @ApiCookieAuth('sessionAuth')
   @RequirePermissions('questions:create')
   @Throttle({
     default: {
@@ -116,6 +90,12 @@ export class AiController {
       ttl: minutes(5),
     },
   })
+  @ApiOperation({ summary: 'Generate draft question with AI' })
+  @ApiBody({ type: DraftQuestionDto })
+  @ApiOkResponse({ type: QuestionDraftResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   draftQuestion(@Body() dto: DraftQuestionDto): Promise<QuestionDraft> {
     return this.aiService.draftQuestion(dto.question ?? {});
   }

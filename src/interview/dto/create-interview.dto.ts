@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
@@ -8,20 +9,24 @@ import {
 } from 'class-validator';
 
 export class CreateInterviewDto {
+  @ApiProperty()
   @IsString()
   @Length(1, 200)
-  candidateName!: string;
+  candidateName: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   candidateEmail?: string;
 
+  @ApiProperty()
   @IsString()
   @Length(1, 200)
-  position!: string;
+  position: string;
 
+  @ApiProperty({ type: [String] })
   @IsArray()
-  @ArrayMinSize(1)
   @IsString({ each: true })
-  questionIds!: string[];
+  @ArrayMinSize(1)
+  questionIds: string[];
 }
