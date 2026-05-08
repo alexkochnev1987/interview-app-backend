@@ -25,7 +25,17 @@ import {
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 import { DatabaseService } from '../database/database.service';
 
-const MAX_CONCURRENT_VALIDATIONS = 3;
+const DEFAULT_MAX_CONCURRENT_VALIDATIONS = 3;
+
+function resolveMaxConcurrentValidations(): number {
+  const raw = process.env.VALIDATION_MAX_CONCURRENCY;
+  if (!raw) return DEFAULT_MAX_CONCURRENT_VALIDATIONS;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_MAX_CONCURRENT_VALIDATIONS;
+  }
+  return parsed;
+}
 
 class Semaphore {
   private inflight = 0;
@@ -75,7 +85,7 @@ export class AnswerValidationWorkflowService
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
   private readonly validationSemaphore = new Semaphore(
-    MAX_CONCURRENT_VALIDATIONS,
+    resolveMaxConcurrentValidations(),
   );
 
   constructor(
