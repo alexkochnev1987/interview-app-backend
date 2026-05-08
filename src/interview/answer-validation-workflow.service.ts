@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -22,6 +23,54 @@ import {
   RawAnswerEvaluation,
 } from '../ai/llm/answer-evaluation-llm';
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
+import { DatabaseService } from '../database/database.service';
+
+const DEFAULT_MAX_CONCURRENT_VALIDATIONS = 3;
+
+function resolveMaxConcurrentValidations(): number {
+  const raw = process.env.VALIDATION_MAX_CONCURRENCY;
+  if (!raw) return DEFAULT_MAX_CONCURRENT_VALIDATIONS;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_MAX_CONCURRENT_VALIDATIONS;
+  }
+  return parsed;
+}
+
+class Semaphore {
+  private inflight = 0;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(private readonly max: number) {}
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.inflight >= this.max) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    } else {
+      this.inflight++;
+    }
+    try {
+      return await fn();
+    } finally {
+      const next = this.waiters.shift();
+      if (next) {
+        next();
+      } else {
+        this.inflight--;
+      }
+    }
+  }
+}
+
+interface SpawnPayload {
+  questionIndex: number;
+  sourceVersionNumber: number;
+  runId: string;
+  requestedAt: Date;
+  question: InterviewQuestion;
+  selectedVersion: AnswerVersion;
+  existingTranscript?: AnswerTranscript;
+}
 
 export interface StartAnswerValidationResult {
   status: AnswerValidationStatus;
@@ -45,18 +94,32 @@ export class AnswerValidationWorkflowService
   implements OnApplicationBootstrap
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
+  private readonly validationConcurrency = resolveMaxConcurrentValidations();
+  private readonly validationSemaphore = new Semaphore(
+    this.validationConcurrency,
+  );
 
-  constructor(private readonly interviewService: InterviewService) {}
+  constructor(
+    private readonly interviewService: InterviewService,
+    private readonly databaseService: DatabaseService,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    const poolMax = this.databaseService.getPoolMax();
+    if (this.validationConcurrency * 2 + 2 > poolMax) {
+      this.logger.warn(
+        `VALIDATION_MAX_CONCURRENCY=${this.validationConcurrency} may exhaust the DB pool (max=${poolMax}); each in-flight validation holds one advisory-lock connection plus one for inner queries. Increase pool size or reduce concurrency.`,
+      );
+    }
+
     if (!resolveNativeProvider()) {
       this.logger.warn(
-        'AI provider not configured — skipping stuck validation recovery.',
+        'AI provider not configured at boot; skipping recovery of stuck validations to avoid permanently failing in-flight runs.',
       );
       return;
     }
-
     const interviews = await this.interviewService.findAll();
+    const now = new Date();
     for (const interview of interviews) {
       for (const answer of interview.answers) {
         const status = answer.validation?.status;
@@ -65,67 +128,188 @@ export class AnswerValidationWorkflowService
         }
 
         try {
-          await this.dispatchValidation(
-            interview.id,
-            answer.questionIndex,
-            true,
+          await this.withInterviewLock(interview.id, () =>
+            this.interviewService.failAnswerValidation(interview.id, {
+              questionIndex: answer.questionIndex,
+              sourceVersionNumber: answer.validation?.sourceVersionNumber,
+              runId: answer.validation?.runId,
+              errorMessage:
+                'Validation worker restarted before this run completed. Re-run AI evaluation to retry.',
+              completedAt: now,
+            }),
           );
           this.logger.log(
-            `Recovered stuck validation interview=${interview.id} question=${answer.questionIndex}`,
+            `Marked stuck validation as failed: interview=${interview.id} question=${answer.questionIndex}`,
           );
         } catch (error) {
-          this.logger.warn(
-            `Failed to recover validation interview=${interview.id} question=${answer.questionIndex}: ${this.formatError(error)}`,
+          this.logger.error(
+            `Failed to mark stuck validation: interview=${interview.id} question=${answer.questionIndex}: ${this.formatError(error)}`,
+            error instanceof Error ? error.stack : undefined,
           );
         }
       }
     }
   }
 
+  private withInterviewLock<T>(
+    interviewId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return this.databaseService.withAdvisoryLock(
+      `interview-validation:${interviewId}`,
+      fn,
+    );
+  }
+
   startValidation(
     interviewId: string,
     questionIndex: number,
+    force = false,
   ): Promise<StartAnswerValidationResult> {
-    return this.dispatchValidation(interviewId, questionIndex, false);
+    return this.dispatchValidation(interviewId, questionIndex, force);
   }
 
   async startValidationForAllSubmitted(
     interviewId: string,
+    force = false,
   ): Promise<StartAllAnswerValidationsResult> {
-    const interview = await this.interviewService.findOne(interviewId);
-    const submittedAnswers = interview.answers
-      .filter((answer) => answer.status === 'submitted')
-      .sort((left, right) => left.questionIndex - right.questionIndex);
+    if (!resolveNativeProvider()) {
+      throw new ServiceUnavailableException(
+        'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
+      );
+    }
 
-    const hasActiveValidation = submittedAnswers.some(
-      (answer) =>
-        answer.validation?.status === 'queued' ||
-        answer.validation?.status === 'processing',
+    const reusedAnswers: StartAnswerValidationResult[] = [];
+    const newPayloads: SpawnPayload[] = [];
+    let requestedCount = 0;
+    let totalQuestions = 0;
+
+    await this.withInterviewLock(interviewId, async () => {
+      const interview = await this.interviewService.findOne(interviewId);
+      totalQuestions = interview.questions.length;
+
+      const submittedAnswers = interview.answers
+        .filter((answer) => answer.status === 'submitted')
+        .sort((left, right) => left.questionIndex - right.questionIndex);
+
+      requestedCount = submittedAnswers.length;
+
+      const hasActiveValidation = submittedAnswers.some(
+        (answer) =>
+          answer.validation?.status === 'queued' ||
+          answer.validation?.status === 'processing',
+      );
+      if (hasActiveValidation) {
+        throw new ConflictException(
+          'Answer validation is already running for this interview.',
+        );
+      }
+
+      const requestedAt = new Date();
+
+      for (const answer of submittedAnswers) {
+        const selectedVersion = this.resolveSelectedVersion(answer);
+        if (!selectedVersion?.mediaKey) {
+          throw new BadRequestException(
+            `Question ${answer.questionIndex} does not have an uploaded answer media key`,
+          );
+        }
+
+        const sourceVersionNumber = selectedVersion.versionNumber;
+        const existingValidation = answer.validation;
+
+        if (
+          !force &&
+          existingValidation &&
+          existingValidation.sourceVersionNumber === sourceVersionNumber &&
+          existingValidation.status === 'completed'
+        ) {
+          reusedAnswers.push({
+            status: existingValidation.status,
+            questionIndex: answer.questionIndex,
+            sourceVersionNumber,
+            reused: true,
+          });
+          continue;
+        }
+
+        const question = interview.questions[answer.questionIndex];
+        if (!question) {
+          throw new BadRequestException(
+            `Question ${answer.questionIndex} is out of range`,
+          );
+        }
+
+        newPayloads.push({
+          questionIndex: answer.questionIndex,
+          sourceVersionNumber,
+          runId: randomUUID(),
+          requestedAt,
+          question,
+          selectedVersion,
+          existingTranscript: answer.transcript,
+        });
+      }
+
+      if (newPayloads.length > 0) {
+        await this.interviewService.queueAnswerValidations(
+          interviewId,
+          newPayloads.map((payload) => ({
+            questionIndex: payload.questionIndex,
+            sourceVersionNumber: payload.sourceVersionNumber,
+            runId: payload.runId,
+            requestedAt: payload.requestedAt,
+          })),
+        );
+      }
+    });
+
+    for (const payload of newPayloads) {
+      this.logger.log(
+        `[validate] queued interview=${interviewId} q=${payload.questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId}`,
+      );
+      void this.validationSemaphore
+        .run(() =>
+          this.runInProcess({
+            interviewId,
+            questionIndex: payload.questionIndex,
+            sourceVersionNumber: payload.sourceVersionNumber,
+            runId: payload.runId,
+            requestedAt: payload.requestedAt,
+            question: payload.question,
+            selectedVersion: payload.selectedVersion,
+            existingTranscript: payload.existingTranscript,
+          }),
+        )
+        .catch((error) => {
+          this.logger.error(
+            `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${payload.questionIndex}: ${this.formatError(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        });
+    }
+
+    const queuedAnswers: StartAnswerValidationResult[] = newPayloads.map(
+      (payload) => ({
+        status: 'queued',
+        questionIndex: payload.questionIndex,
+        sourceVersionNumber: payload.sourceVersionNumber,
+        reused: false,
+      }),
     );
-    if (hasActiveValidation) {
-      throw new ConflictException(
-        'Answer validation is already running for this interview.',
-      );
-    }
 
-    const answers: StartAnswerValidationResult[] = [];
-    for (const answer of submittedAnswers) {
-      answers.push(
-        await this.startValidation(interviewId, answer.questionIndex),
-      );
-    }
-
-    const queuedCount = answers.filter((item) => !item.reused).length;
-    const reusedCount = answers.filter((item) => item.reused).length;
+    const orderedAnswers = [...reusedAnswers, ...queuedAnswers].sort(
+      (left, right) => left.questionIndex - right.questionIndex,
+    );
 
     return {
       ok: true,
       interviewId,
-      requestedCount: submittedAnswers.length,
-      queuedCount,
-      reusedCount,
-      skippedCount: Math.max(interview.questions.length - submittedAnswers.length, 0),
-      answers,
+      requestedCount,
+      queuedCount: queuedAnswers.length,
+      reusedCount: reusedAnswers.length,
+      skippedCount: Math.max(totalQuestions - requestedCount, 0),
+      answers: orderedAnswers,
     };
   }
 
@@ -134,88 +318,133 @@ export class AnswerValidationWorkflowService
     questionIndex: number,
     force: boolean,
   ): Promise<StartAnswerValidationResult> {
-    const interview = await this.interviewService.findOne(interviewId);
-    const answer = interview.answers.find(
-      (item) => item.questionIndex === questionIndex,
-    );
-
-    if (!answer) {
-      throw new BadRequestException(
-        `Answer for question ${questionIndex} is not available`,
-      );
-    }
-
-    if (answer.status !== 'submitted') {
-      throw new BadRequestException(
-        `Question ${questionIndex} must be submitted before validation starts`,
-      );
-    }
-
-    const selectedVersion = this.resolveSelectedVersion(answer);
-    if (!selectedVersion?.mediaKey) {
-      throw new BadRequestException(
-        `Question ${questionIndex} does not have an uploaded answer media key`,
-      );
-    }
-
-    const sourceVersionNumber = selectedVersion.versionNumber;
-    const existingValidation = answer.validation;
-    if (
-      !force &&
-      existingValidation?.sourceVersionNumber === sourceVersionNumber &&
-      (existingValidation.status === 'queued' ||
-        existingValidation.status === 'processing')
-    ) {
-      throw new ConflictException(
-        `Answer validation is already running for question ${questionIndex}.`,
-      );
-    }
-    if (
-      !force &&
-      existingValidation &&
-      existingValidation.sourceVersionNumber === sourceVersionNumber &&
-      existingValidation.status === 'completed'
-    ) {
-      return {
-        status: existingValidation.status,
-        questionIndex,
-        sourceVersionNumber,
-        reused: true,
-      };
-    }
-
-    const question = interview.questions[questionIndex];
-    if (!question) {
-      throw new BadRequestException(
-        `Question ${questionIndex} is out of range`,
-      );
-    }
-
     if (!resolveNativeProvider()) {
       throw new ServiceUnavailableException(
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
 
-    const requestedAt = new Date();
-    await this.interviewService.queueAnswerValidation(interview.id, {
-      questionIndex,
-      sourceVersionNumber,
-      requestedAt,
+    let reusedResult: StartAnswerValidationResult | undefined;
+    let spawnPayload: SpawnPayload | undefined;
+
+    await this.withInterviewLock(interviewId, async () => {
+      const interview = await this.interviewService.findOne(interviewId);
+      const answer = interview.answers.find(
+        (item) => item.questionIndex === questionIndex,
+      );
+
+      if (!answer) {
+        throw new BadRequestException(
+          `Answer for question ${questionIndex} is not available`,
+        );
+      }
+
+      if (answer.status !== 'submitted') {
+        throw new BadRequestException(
+          `Question ${questionIndex} must be submitted before validation starts`,
+        );
+      }
+
+      const selectedVersion = this.resolveSelectedVersion(answer);
+      if (!selectedVersion?.mediaKey) {
+        throw new BadRequestException(
+          `Question ${questionIndex} does not have an uploaded answer media key`,
+        );
+      }
+
+      const sourceVersionNumber = selectedVersion.versionNumber;
+      const existingValidation = answer.validation;
+      if (
+        existingValidation?.sourceVersionNumber === sourceVersionNumber &&
+        (existingValidation.status === 'queued' ||
+          existingValidation.status === 'processing')
+      ) {
+        throw new ConflictException(
+          `Answer validation is already running for question ${questionIndex}.`,
+        );
+      }
+      if (
+        !force &&
+        existingValidation &&
+        existingValidation.sourceVersionNumber === sourceVersionNumber &&
+        existingValidation.status === 'completed'
+      ) {
+        reusedResult = {
+          status: existingValidation.status,
+          questionIndex,
+          sourceVersionNumber,
+          reused: true,
+        };
+        return;
+      }
+
+      const question = interview.questions[questionIndex];
+      if (!question) {
+        throw new BadRequestException(
+          `Question ${questionIndex} is out of range`,
+        );
+      }
+
+      const requestedAt = new Date();
+      const runId = randomUUID();
+      await this.interviewService.queueAnswerValidation(interview.id, {
+        questionIndex,
+        sourceVersionNumber,
+        runId,
+        requestedAt,
+      });
+
+      spawnPayload = {
+        questionIndex,
+        sourceVersionNumber,
+        runId,
+        requestedAt,
+        question,
+        selectedVersion,
+        existingTranscript: answer.transcript,
+      };
     });
 
-    void this.runInProcess({
-      interviewId: interview.id,
-      questionIndex,
-      sourceVersionNumber,
-      question,
-      selectedVersion,
-    });
+    if (reusedResult) {
+      return reusedResult;
+    }
+
+    if (!spawnPayload) {
+      throw new Error(
+        `dispatchValidation produced no payload for interview=${interviewId} question=${questionIndex}`,
+      );
+    }
+
+    const payload = spawnPayload;
+
+    this.logger.log(
+      `[validate] queued interview=${interviewId} q=${questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId}`,
+    );
+
+    void this.validationSemaphore
+      .run(() =>
+        this.runInProcess({
+          interviewId,
+          questionIndex,
+          sourceVersionNumber: payload.sourceVersionNumber,
+          runId: payload.runId,
+          requestedAt: payload.requestedAt,
+          question: payload.question,
+          selectedVersion: payload.selectedVersion,
+          existingTranscript: payload.existingTranscript,
+        }),
+      )
+      .catch((error) => {
+        this.logger.error(
+          `[validate] runInProcess unhandled rejection for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
 
     return {
       status: 'queued',
       questionIndex,
-      sourceVersionNumber,
+      sourceVersionNumber: payload.sourceVersionNumber,
       reused: false,
     };
   }
@@ -224,15 +453,21 @@ export class AnswerValidationWorkflowService
     interviewId: string;
     questionIndex: number;
     sourceVersionNumber: number;
+    runId: string;
+    requestedAt: Date;
     question: InterviewQuestion;
     selectedVersion: AnswerVersion;
+    existingTranscript?: AnswerTranscript;
   }): Promise<void> {
     const {
       interviewId,
       questionIndex,
       sourceVersionNumber,
+      runId,
+      requestedAt,
       question,
       selectedVersion,
+      existingTranscript,
     } = params;
 
     try {
@@ -243,22 +478,54 @@ export class AnswerValidationWorkflowService
         );
       }
 
-      const whisperResult = await transcribeInterviewMedia(
-        selectedVersion.mediaKey,
+      this.logger.log(
+        `[validate] runInProcess start interview=${interviewId} q=${questionIndex} provider=${provider.kind}/${provider.model}`,
       );
 
-      const transcript: AnswerTranscript = {
-        text: whisperResult.text,
-        language: whisperResult.language,
-        provider: 'openai-whisper',
-        generatedAt: new Date(),
-        isFinal: true,
-      };
+      let transcriptText: string;
+      let transcript: AnswerTranscript;
+      const whisperT0 = Date.now();
+      try {
+        const whisperResult = await transcribeInterviewMedia(
+          selectedVersion.mediaKey,
+        );
+        this.logger.log(
+          `[validate] whisper ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - whisperT0} chars=${whisperResult.text.length} lang=${whisperResult.language ?? '?'}`,
+        );
+        transcriptText = whisperResult.text;
+        transcript = {
+          text: whisperResult.text,
+          language: whisperResult.language,
+          provider: 'openai-whisper',
+          generatedAt: new Date(),
+          isFinal: true,
+        };
+      } catch (whisperError) {
+        const previous = existingTranscript;
+        const fallbackText = previous?.text?.trim();
+        if (!previous || !fallbackText) {
+          throw whisperError;
+        }
+        this.logger.warn(
+          `[validate] whisper failed interview=${interviewId} q=${questionIndex} ms=${Date.now() - whisperT0} err="${this.formatError(whisperError)}" — falling back to existing transcript (${fallbackText.length} chars)`,
+        );
+        transcriptText = fallbackText;
+        transcript = {
+          ...previous,
+          text: fallbackText,
+          provider: 'whisper-fallback-existing',
+          isFinal: true,
+        };
+      }
 
+      const llmT0 = Date.now();
       const rawEvaluation = await evaluateAnswerWithNativeLlm(
         provider,
         question,
-        whisperResult.text,
+        transcriptText,
+      );
+      this.logger.log(
+        `[validate] llm ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - llmT0} score=${rawEvaluation.overallScore ?? '?'} hint=${rawEvaluation.decisionHint ?? '?'}`,
       );
 
       const behaviorRisk = computeAnswerBehaviorRisk(
@@ -289,30 +556,41 @@ export class AnswerValidationWorkflowService
         evaluatedAt: new Date(),
       };
 
-      await this.interviewService.completeAnswerValidation(interviewId, {
-        questionIndex,
-        sourceVersionNumber,
-        transcript,
-        evaluation,
-        completedAt: new Date(),
+      await this.withInterviewLock(interviewId, async () => {
+        await this.interviewService.completeAnswerValidation(interviewId, {
+          questionIndex,
+          sourceVersionNumber,
+          runId,
+          requestedAt,
+          transcript,
+          evaluation,
+          completedAt: new Date(),
+        });
       });
 
-      await this.interviewService.recomputeResult(interviewId);
+      this.logger.log(
+        `[validate] persisted+done interview=${interviewId} q=${questionIndex} score=${evaluation.overallScore ?? '?'}`,
+      );
     } catch (error) {
       this.logger.error(
-        `Answer validation failed for interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
+        `[validate] failed step=runInProcess interview=${interviewId} question=${questionIndex}: ${this.formatError(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
 
       try {
-        await this.interviewService.failAnswerValidation(interviewId, {
-          questionIndex,
-          sourceVersionNumber,
-          errorMessage: this.formatError(error),
-          completedAt: new Date(),
-        });
+        await this.withInterviewLock(interviewId, () =>
+          this.interviewService.failAnswerValidation(interviewId, {
+            questionIndex,
+            sourceVersionNumber,
+            runId,
+            errorMessage: this.formatError(error),
+            completedAt: new Date(),
+          }),
+        );
       } catch (saveError) {
         this.logger.error(
-          `Failed to record validation failure for interview=${interviewId} question=${questionIndex}: ${this.formatError(saveError)}`,
+          `[validate] failed to record validation failure for interview=${interviewId} question=${questionIndex}: ${this.formatError(saveError)}`,
+          saveError instanceof Error ? saveError.stack : undefined,
         );
       }
     }

@@ -95,6 +95,7 @@ export interface AnswerValidation {
   status: AnswerValidationStatus;
   executionArn?: string;
   sourceVersionNumber?: number;
+  runId?: string;
   requestedAt?: Date;
   startedAt?: Date;
   completedAt?: Date;

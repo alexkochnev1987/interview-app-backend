@@ -1065,6 +1065,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Re-evaluate answers whose latest validation already completed. Defaults to false; in-flight validations always return 409.",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1148,6 +1157,15 @@
             "in": "path",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Re-evaluate the answer if its latest validation already completed. Defaults to false; in-flight validations always return 409.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
