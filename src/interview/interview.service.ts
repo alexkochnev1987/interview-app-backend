@@ -350,7 +350,7 @@ export class InterviewService {
     inputs: QueueAnswerValidationInput[],
   ): Promise<Interview> {
     if (inputs.length === 0) {
-      return this.findOne(id);
+      throw new Error('queueAnswerValidations requires at least one input.');
     }
 
     const interview = await this.findOne(id);
@@ -362,10 +362,10 @@ export class InterviewService {
       this.requireAnswer(interview, questionIndex),
     );
 
-    const earliest = inputs.reduce<Date>((acc, input) => {
-      const candidate = new Date(input.requestedAt);
-      return candidate.getTime() < acc.getTime() ? candidate : acc;
-    }, new Date(inputs[0].requestedAt));
+    const stamps = inputs.map((input) => new Date(input.requestedAt));
+    const earliest = stamps.reduce((acc, candidate) =>
+      candidate.getTime() < acc.getTime() ? candidate : acc,
+    );
 
     const updatedAnswers = interview.answers.map((answer) => {
       const input = inputByIndex.get(answer.questionIndex);
@@ -444,7 +444,10 @@ export class InterviewService {
   ): boolean {
     if (!inputRunId) return false;
     const existingRunId = answer.validation?.runId;
-    if (!existingRunId) return false;
+    if (!existingRunId) {
+      const existingStatus = answer.validation?.status;
+      return existingStatus !== 'queued' && existingStatus !== 'processing';
+    }
     return existingRunId !== inputRunId;
   }
 
@@ -503,13 +506,15 @@ export class InterviewService {
         })
       : interview.workflow;
 
-    return this.saveInterview({
-      ...interview,
-      answers: updatedAnswers,
-      status: nextStatus,
-      workflow: nextWorkflow,
-      updatedAt: now,
-    });
+    return this.saveInterview(
+      this.applyResultRecomputation({
+        ...interview,
+        answers: updatedAnswers,
+        status: nextStatus,
+        workflow: nextWorkflow,
+        updatedAt: now,
+      }),
+    );
   }
 
   private async persistAnswerVersion(
@@ -880,8 +885,13 @@ export class InterviewService {
     const trustScore = this.riskToTrustScore(maxRisk);
 
     const allAnswered = submittedAnswers.length >= interview.questions.length;
-    const allEvaluated = evaluatedAnswers.length === submittedAnswers.length;
-    const isFinal = allAnswered && allEvaluated;
+    const terminalAnswers = submittedAnswers.filter(
+      (answer) =>
+        answer.validation?.status === 'completed' ||
+        answer.validation?.status === 'failed',
+    );
+    const allTerminal = terminalAnswers.length === submittedAnswers.length;
+    const isFinal = allAnswered && allTerminal;
     const completedAt = new Date();
 
     const result: InterviewResult = {

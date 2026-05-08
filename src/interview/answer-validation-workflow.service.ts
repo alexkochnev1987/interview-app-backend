@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -62,6 +62,16 @@ class Semaphore {
   }
 }
 
+interface SpawnPayload {
+  questionIndex: number;
+  sourceVersionNumber: number;
+  runId: string;
+  requestedAt: Date;
+  question: InterviewQuestion;
+  selectedVersion: AnswerVersion;
+  existingTranscript?: AnswerTranscript;
+}
+
 export interface StartAnswerValidationResult {
   status: AnswerValidationStatus;
   questionIndex: number;
@@ -84,8 +94,9 @@ export class AnswerValidationWorkflowService
   implements OnApplicationBootstrap
 {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
+  private readonly validationConcurrency = resolveMaxConcurrentValidations();
   private readonly validationSemaphore = new Semaphore(
-    resolveMaxConcurrentValidations(),
+    this.validationConcurrency,
   );
 
   constructor(
@@ -94,6 +105,19 @@ export class AnswerValidationWorkflowService
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    const poolMax = this.databaseService.getPoolMax();
+    if (this.validationConcurrency * 2 + 2 > poolMax) {
+      this.logger.warn(
+        `VALIDATION_MAX_CONCURRENCY=${this.validationConcurrency} may exhaust the DB pool (max=${poolMax}); each in-flight validation holds one advisory-lock connection plus one for inner queries. Increase pool size or reduce concurrency.`,
+      );
+    }
+
+    if (!resolveNativeProvider()) {
+      this.logger.warn(
+        'AI provider not configured at boot; skipping recovery of stuck validations to avoid permanently failing in-flight runs.',
+      );
+      return;
+    }
     const interviews = await this.interviewService.findAll();
     const now = new Date();
     for (const interview of interviews) {
@@ -154,16 +178,6 @@ export class AnswerValidationWorkflowService
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
-
-    type SpawnPayload = {
-      questionIndex: number;
-      sourceVersionNumber: number;
-      runId: string;
-      requestedAt: Date;
-      question: InterviewQuestion;
-      selectedVersion: AnswerVersion;
-      existingTranscript?: AnswerTranscript;
-    };
 
     const reusedAnswers: StartAnswerValidationResult[] = [];
     const newPayloads: SpawnPayload[] = [];
@@ -252,7 +266,7 @@ export class AnswerValidationWorkflowService
 
     for (const payload of newPayloads) {
       this.logger.log(
-        `[validate] queued interview=${interviewId} q=${payload.questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId} mediaKey=${payload.selectedVersion.mediaKey}`,
+        `[validate] queued interview=${interviewId} q=${payload.questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId}`,
       );
       void this.validationSemaphore
         .run(() =>
@@ -309,15 +323,6 @@ export class AnswerValidationWorkflowService
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
-
-    type SpawnPayload = {
-      sourceVersionNumber: number;
-      runId: string;
-      requestedAt: Date;
-      question: InterviewQuestion;
-      selectedVersion: AnswerVersion;
-      existingTranscript?: AnswerTranscript;
-    };
 
     let reusedResult: StartAnswerValidationResult | undefined;
     let spawnPayload: SpawnPayload | undefined;
@@ -390,6 +395,7 @@ export class AnswerValidationWorkflowService
       });
 
       spawnPayload = {
+        questionIndex,
         sourceVersionNumber,
         runId,
         requestedAt,
@@ -412,7 +418,7 @@ export class AnswerValidationWorkflowService
     const payload = spawnPayload;
 
     this.logger.log(
-      `[validate] queued interview=${interviewId} q=${questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId} mediaKey=${payload.selectedVersion.mediaKey}`,
+      `[validate] queued interview=${interviewId} q=${questionIndex} v=${payload.sourceVersionNumber} runId=${payload.runId}`,
     );
 
     void this.validationSemaphore

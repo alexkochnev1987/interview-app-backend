@@ -7,9 +7,12 @@ import {
   QueryResultRow,
 } from 'pg';
 
+const DEFAULT_POOL_MAX = 10;
+
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool;
+  private readonly poolMax: number;
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
@@ -17,9 +20,11 @@ export class DatabaseService implements OnModuleDestroy {
       throw new Error('DATABASE_URL is required');
     }
 
+    this.poolMax = DEFAULT_POOL_MAX;
+
     const poolConfig: PoolConfig = {
       connectionString,
-      max: 10,
+      max: this.poolMax,
     };
 
     if (this.shouldUseSsl(connectionString)) {
@@ -67,16 +72,17 @@ export class DatabaseService implements OnModuleDestroy {
     key: string,
     callback: () => Promise<T>,
   ): Promise<T> {
-    return this.withClient(async (client) => {
-      await client.query('SELECT pg_advisory_lock(hashtext($1))', [key]);
-      try {
-        return await callback();
-      } finally {
-        try {
-          await client.query('SELECT pg_advisory_unlock(hashtext($1))', [key]);
-        } catch {}
-      }
+    return this.withTransaction(async (client) => {
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [key],
+      );
+      return callback();
     });
+  }
+
+  getPoolMax(): number {
+    return this.poolMax;
   }
 
   async onModuleDestroy(): Promise<void> {
