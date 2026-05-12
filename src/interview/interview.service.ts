@@ -139,6 +139,12 @@ export class InterviewService {
         questionIds,
       );
 
+      if (questions.length !== questionIds.length) {
+        throw new BadRequestException(
+          `Resolved ${questions.length} questions for ${questionIds.length} requested ids; interview cannot be created.`,
+        );
+      }
+
       const result = await client.query<InterviewRow>(
         `
           INSERT INTO interviews (
@@ -178,6 +184,11 @@ export class InterviewService {
           JSON.stringify(this.buildWorkflow('idle', new Date())),
           context.createdById ?? null,
         ],
+      );
+
+      await client.query(
+        `UPDATE questions SET usage_count = usage_count + 1 WHERE id = ANY($1::uuid[])`,
+        [questionIds],
       );
 
       return this.mapRow(result.rows[0]);
