@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsEmail,
   IsOptional,
@@ -28,5 +29,6 @@ export class CreateInterviewDto {
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(1)
+  @ArrayUnique()
   questionIds: string[];
 }
