@@ -462,8 +462,10 @@ export class QuestionService {
       query.tags.length > 0 &&
       options.excludeField !== 'tags'
     ) {
-      params.push(query.tags);
-      whereClauses.push(`tags && $${params.length}::text[]`);
+      params.push(query.tags.map((tag) => tag.toLowerCase()));
+      whereClauses.push(
+        `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY($${params.length}::text[]))`,
+      );
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -879,6 +881,7 @@ export class QuestionService {
           q.created_at,
           q.updated_at,
           q.deleted,
+          q.usage_count,
           (e.embedding <=> $1::vector) AS distance
         FROM question_embeddings e
         INNER JOIN questions q ON q.id = e.question_id

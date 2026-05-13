@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
   ArrayUnique,
@@ -26,6 +27,11 @@ export class CreateInterviewDto {
   position: string;
 
   @ApiProperty({ type: [String] })
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((v) => (typeof v === 'string' ? v.trim() : v))
+      : value,
+  )
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(1)
