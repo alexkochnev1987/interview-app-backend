@@ -423,4 +423,21 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0017',
+    name: 'add_tags_lowercase_gin_index',
+    statements: [
+      `
+        CREATE OR REPLACE FUNCTION tags_lowercase(tags TEXT[]) RETURNS TEXT[]
+        LANGUAGE SQL IMMUTABLE STRICT AS $$
+          SELECT ARRAY(SELECT lower(t) FROM unnest($1) AS t)
+        $$;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_tags_lower_gin_idx
+        ON questions USING GIN (tags_lowercase(tags))
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];

@@ -463,9 +463,7 @@ export class QuestionService {
       options.excludeField !== 'tags'
     ) {
       params.push(query.tags.map((tag) => tag.toLowerCase()));
-      whereClauses.push(
-        `EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY($${params.length}::text[]))`,
-      );
+      whereClauses.push(`tags_lowercase(tags) && $${params.length}::text[]`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';

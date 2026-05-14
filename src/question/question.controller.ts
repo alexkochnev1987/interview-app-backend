@@ -71,9 +71,10 @@ export class QuestionController {
     @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<PaginatedQuestions> {
-    return this.questionService.findAll(query, {
-      forceActive: user.role !== 'super_admin',
-    });
+    const isSuperAdmin = user.role === 'super_admin';
+    const effectiveQuery =
+      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
+    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
   }
 
   @Get('facets')
@@ -89,9 +90,10 @@ export class QuestionController {
     @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
-    return this.questionService.getFacets(query, {
-      forceActive: user.role !== 'super_admin',
-    });
+    const isSuperAdmin = user.role === 'super_admin';
+    const effectiveQuery =
+      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
+    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
   }
 
   @Get(':id')
