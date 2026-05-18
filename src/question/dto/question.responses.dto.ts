@@ -85,6 +85,23 @@ export class QuestionResponseDto {
 
   @ApiProperty()
   deleted: boolean;
+
+  @ApiProperty({ description: 'Number of times this question has been used in an interview.' })
+  usageCount: number;
+}
+
+export class PaginatedQuestionsResponseDto {
+  @ApiProperty({ type: [QuestionResponseDto] })
+  items: QuestionResponseDto[];
+
+  @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
 }
 
 export class QuestionDraftResponseDto {
@@ -178,4 +195,44 @@ export class SimilarQuestionMatchDto {
 export class FindSimilarResponseDto {
   @ApiProperty({ type: [SimilarQuestionMatchDto] })
   matches: SimilarQuestionMatchDto[];
+}
+
+export class FacetCountDto {
+  @ApiProperty()
+  value: string;
+
+  @ApiProperty({ description: 'Number of active questions with this value, given the rest of the current filters.' })
+  count: number;
+}
+
+export class QuestionFacetsResponseDto {
+  @ApiProperty({
+    type: [FacetCountDto],
+    description: 'Difficulty value + count, given all OTHER current filters (difficulty itself is not applied).',
+  })
+  difficulties: FacetCountDto[];
+
+  @ApiProperty({
+    type: [FacetCountDto],
+    description: 'Category value + count, given all OTHER current filters (category itself is not applied).',
+  })
+  categories: FacetCountDto[];
+
+  @ApiProperty({
+    type: [FacetCountDto],
+    description: 'Subcategory value + count, given all OTHER current filters (subcategory itself is not applied). Exposed as the "Type" facet in the picker.',
+  })
+  subcategories: FacetCountDto[];
+
+  @ApiProperty({
+    type: [FacetCountDto],
+    description: 'Role value + count, given all OTHER current filters (role itself is not applied).',
+  })
+  roles: FacetCountDto[];
+
+  @ApiProperty({
+    type: [FacetCountDto],
+    description: 'Tag value + count, given all OTHER current filters (tag overlap is not applied).',
+  })
+  tags: FacetCountDto[];
 }

@@ -356,4 +356,88 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0014',
+    name: 'add_questions_usage_count',
+    statements: [
+      `ALTER TABLE questions ADD COLUMN IF NOT EXISTS usage_count INT NOT NULL DEFAULT 0;`,
+      `
+        UPDATE questions q
+        SET usage_count = sub.cnt
+        FROM (
+          SELECT (item->>'id')::uuid AS qid, count(*) AS cnt
+          FROM interviews i,
+               jsonb_array_elements(i.questions_json) item
+          WHERE item ? 'id'
+            AND item->>'id' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          GROUP BY (item->>'id')::uuid
+        ) sub
+        WHERE q.id = sub.qid;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_usage_count_idx
+        ON questions (usage_count DESC)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
+  {
+    version: '0015',
+    name: 'add_questions_picker_indexes',
+    statements: [
+      `
+        CREATE INDEX IF NOT EXISTS questions_tags_gin_idx
+        ON questions USING GIN (tags)
+        WHERE deleted = FALSE;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_difficulty_updated_idx
+        ON questions (difficulty, updated_at DESC)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
+  {
+    version: '0016',
+    name: 'add_questions_case_insensitive_filter_indexes',
+    statements: [
+      `
+        CREATE INDEX IF NOT EXISTS questions_category_lower_idx
+        ON questions (lower(category))
+        WHERE deleted = FALSE AND category IS NOT NULL;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_subcategory_lower_idx
+        ON questions (lower(subcategory))
+        WHERE deleted = FALSE AND subcategory IS NOT NULL;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_role_lower_idx
+        ON questions (lower(role))
+        WHERE deleted = FALSE AND role IS NOT NULL;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_output_language_lower_idx
+        ON questions (lower(output_language))
+        WHERE deleted = FALSE AND output_language IS NOT NULL;
+      `,
+    ],
+  },
+  {
+    version: '0017',
+    name: 'add_tags_lowercase_gin_index',
+    statements: [
+      `
+        CREATE OR REPLACE FUNCTION tags_lowercase(tags TEXT[]) RETURNS TEXT[]
+        LANGUAGE SQL IMMUTABLE STRICT AS $$
+          SELECT ARRAY(SELECT lower(t) FROM unnest($1) AS t)
+        $$;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_tags_lower_gin_idx
+        ON questions USING GIN (tags_lowercase(tags))
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];

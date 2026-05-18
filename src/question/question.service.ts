@@ -10,6 +10,12 @@ import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
+import {
+  QueryQuestionsDto,
+  QuestionSortField,
+  QuestionSortOrder,
+  QuestionStatusFilter,
+} from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
@@ -21,6 +27,48 @@ import {
   QuestionRedFlagSeverity,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
+
+export const DEFAULT_QUESTIONS_PAGE = 1;
+export const DEFAULT_QUESTIONS_LIMIT = 20;
+export const MAX_QUESTIONS_LIMIT = 100;
+export const DEFAULT_QUESTIONS_SORT_BY: QuestionSortField = 'updatedAt';
+export const DEFAULT_QUESTIONS_SORT_ORDER: QuestionSortOrder = 'desc';
+
+const SORT_FIELD_TO_SQL: Record<QuestionSortField, string> = {
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  difficulty: "CASE difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 ELSE 4 END",
+  questionText: 'lower(question_text)',
+  popularity: 'usage_count',
+};
+
+export interface PaginatedQuestions {
+  items: Question[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type FacetField =
+  | 'difficulty'
+  | 'category'
+  | 'subcategory'
+  | 'role'
+  | 'outputLanguage'
+  | 'tags';
+
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface QuestionFacets {
+  difficulties: FacetCount[];
+  categories: FacetCount[];
+  subcategories: FacetCount[];
+  roles: FacetCount[];
+  tags: FacetCount[];
+}
 
 interface QuestionRow {
   id: string;
@@ -46,6 +94,7 @@ interface QuestionRow {
   created_at: Date;
   updated_at: Date;
   deleted: boolean;
+  usage_count: number;
 }
 
 const ACTIVE_INTERVIEW_STATUSES = [
@@ -80,7 +129,8 @@ const QUESTION_COLUMNS = `
   metadata,
   created_at,
   updated_at,
-  deleted
+  deleted,
+  usage_count
 `;
 
 const QUESTION_SELECT = `SELECT ${QUESTION_COLUMNS} FROM questions`;
@@ -311,16 +361,190 @@ export class QuestionService {
     return byText.rows[0] ? this.mapRow(byText.rows[0]) : undefined;
   }
 
-  async findAll(options: { includeDeleted?: boolean } = {}): Promise<Question[]> {
-    const result = await this.databaseService.query<QuestionRow>(
+  async findAll(
+    query: QueryQuestionsDto = {},
+    options: { forceActive?: boolean } = {},
+  ): Promise<PaginatedQuestions> {
+    const page = Math.max(1, query.page ?? DEFAULT_QUESTIONS_PAGE);
+    const limit = Math.min(
+      MAX_QUESTIONS_LIMIT,
+      Math.max(1, query.limit ?? DEFAULT_QUESTIONS_LIMIT),
+    );
+    const offset = (page - 1) * limit;
+
+    const sortBy = query.sortBy ?? DEFAULT_QUESTIONS_SORT_BY;
+    const sortOrder = (query.sortOrder ?? DEFAULT_QUESTIONS_SORT_ORDER) === 'asc' ? 'ASC' : 'DESC';
+    const sortExpression = SORT_FIELD_TO_SQL[sortBy];
+
+    const { whereSql, params } = this.buildQuestionFilterClauses(query, {
+      forceActive: options.forceActive,
+    });
+
+    params.push(limit);
+    const limitParam = params.length;
+    params.push(offset);
+    const offsetParam = params.length;
+
+    const sql = `
+      SELECT ${QUESTION_COLUMNS}, COUNT(*) OVER() AS __total
+      FROM questions
+      ${whereSql}
+      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
+
+    const result = await this.databaseService.query<QuestionRow & { __total: string }>(sql, params);
+    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const items = result.rows.map((row) => this.mapRow(row));
+
+    return { items, total, page, limit };
+  }
+
+  private escapeLike(value: string): string {
+    return value.replace(/[\\%_]/g, '\\$&');
+  }
+
+  private buildQuestionFilterClauses(
+    query: QueryQuestionsDto,
+    options: { forceActive?: boolean; excludeField?: FacetField } = {},
+  ): { whereSql: string; params: unknown[] } {
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
+
+    const status: QuestionStatusFilter = options.forceActive
+      ? 'active'
+      : (query.status ?? 'active');
+    if (status === 'active') {
+      whereClauses.push('deleted = FALSE');
+    } else if (status === 'inactive') {
+      whereClauses.push('deleted = TRUE');
+    }
+
+    if (query.q) {
+      params.push(`%${this.escapeLike(query.q)}%`);
+      const i = params.length;
+      whereClauses.push(`(
+        question_text ILIKE $${i}
+        OR role ILIKE $${i}
+        OR category ILIKE $${i}
+        OR subcategory ILIKE $${i}
+        OR EXISTS (SELECT 1 FROM unnest(tags) t WHERE t ILIKE $${i})
+      )`);
+    }
+
+    if (query.difficulty && options.excludeField !== 'difficulty') {
+      params.push(query.difficulty);
+      whereClauses.push(`difficulty = $${params.length}`);
+    }
+
+    if (query.category && options.excludeField !== 'category') {
+      params.push(query.category.toLowerCase());
+      whereClauses.push(`lower(category) = $${params.length}`);
+    }
+
+    if (query.subcategory && options.excludeField !== 'subcategory') {
+      params.push(query.subcategory.toLowerCase());
+      whereClauses.push(`lower(subcategory) = $${params.length}`);
+    }
+
+    if (query.role && options.excludeField !== 'role') {
+      params.push(query.role.toLowerCase());
+      whereClauses.push(`lower(role) = $${params.length}`);
+    }
+
+    if (query.outputLanguage && options.excludeField !== 'outputLanguage') {
+      params.push(query.outputLanguage.toLowerCase());
+      whereClauses.push(`lower(output_language) = $${params.length}`);
+    }
+
+    if (
+      query.tags &&
+      query.tags.length > 0 &&
+      options.excludeField !== 'tags'
+    ) {
+      params.push(query.tags.map((tag) => tag.toLowerCase()));
+      whereClauses.push(`tags_lowercase(tags) && $${params.length}::text[]`);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    return { whereSql, params };
+  }
+
+  async getFacets(
+    query: QueryQuestionsDto = {},
+    options: { forceActive?: boolean } = {},
+  ): Promise<QuestionFacets> {
+    const [difficulties, categories, subcategories, roles, tags] = await Promise.all([
+      this.queryScalarFacet('difficulty', 'difficulty', query, options),
+      this.queryScalarFacet('category', 'category', query, options),
+      this.queryScalarFacet('subcategory', 'subcategory', query, options),
+      this.queryScalarFacet('role', 'role', query, options),
+      this.queryTagFacet(query, options),
+    ]);
+
+    return { difficulties, categories, subcategories, roles, tags };
+  }
+
+  private async queryScalarFacet(
+    column: 'difficulty' | 'category' | 'subcategory' | 'role',
+    facetField: FacetField,
+    query: QueryQuestionsDto,
+    options: { forceActive?: boolean },
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = this.buildQuestionFilterClauses(query, {
+      forceActive: options.forceActive,
+      excludeField: facetField,
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
       `
-        ${QUESTION_SELECT}
-        ${options.includeDeleted ? '' : 'WHERE deleted = FALSE'}
-        ORDER BY deleted ASC, updated_at DESC, created_at DESC
+        SELECT ${column} AS value, COUNT(*)::text AS count
+        FROM questions
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} ${column} IS NOT NULL AND ${column} <> ''
+        GROUP BY ${column}
+        ORDER BY COUNT(*) DESC, ${column} ASC
       `,
+      params,
     );
 
-    return result.rows.map((row) => this.mapRow(row));
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
+  }
+
+  private async queryTagFacet(
+    query: QueryQuestionsDto,
+    options: { forceActive?: boolean },
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = this.buildQuestionFilterClauses(query, {
+      forceActive: options.forceActive,
+      excludeField: 'tags',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT tag AS value, COUNT(*)::text AS count
+        FROM questions, unnest(tags) AS tag
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} tag IS NOT NULL AND tag <> ''
+        GROUP BY tag
+        ORDER BY COUNT(*) DESC, tag ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
   }
 
   async findOne(
@@ -402,17 +626,14 @@ export class QuestionService {
     const result = await client.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[]) AND deleted = FALSE
+        WHERE id = ANY($1::uuid[])
         FOR UPDATE
       `,
       [uniqueIds],
     );
 
     const byId = new Map(
-      result.rows.map((row) => {
-        const question = this.mapRow(row);
-        return [question.id, this.toQuestionCore(question)] as const;
-      }),
+      result.rows.map((row) => [row.id, row] as const),
     );
 
     const missingIds = uniqueIds.filter((id) => !byId.has(id));
@@ -422,7 +643,16 @@ export class QuestionService {
       );
     }
 
-    return uniqueIds.map((id) => byId.get(id)!);
+    const deletedIds = uniqueIds.filter((id) => byId.get(id)?.deleted);
+    if (deletedIds.length > 0) {
+      throw new BadRequestException(
+        `Cannot create an interview with deleted questions. Refresh the question list and remove ${deletedIds.length === 1 ? 'this id' : 'these ids'} from your selection: ${deletedIds.join(', ')}`,
+      );
+    }
+
+    return uniqueIds.map((id) =>
+      this.toQuestionCore(this.mapRow(byId.get(id)!)),
+    );
   }
 
   private async lockQuestionForDelete(
@@ -649,6 +879,7 @@ export class QuestionService {
           q.created_at,
           q.updated_at,
           q.deleted,
+          q.usage_count,
           (e.embedding <=> $1::vector) AS distance
         FROM question_embeddings e
         INNER JOIN questions q ON q.id = e.question_id
@@ -1062,6 +1293,7 @@ export class QuestionService {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       deleted: Boolean(row.deleted),
+      usageCount: Number(row.usage_count ?? 0),
     };
   }
 

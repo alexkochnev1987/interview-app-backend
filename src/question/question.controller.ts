@@ -6,7 +6,9 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -29,19 +31,29 @@ import { User } from '../user/interfaces/user.interface';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { FindSimilarDto } from './dto/find-similar.dto';
+import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
-import { QuestionService } from './question.service';
+import { PaginatedQuestions, QuestionFacets, QuestionService } from './question.service';
 import {
   BulkDeleteQuestionsResponseDto,
   DeleteQuestionResponseDto,
   FindSimilarResponseDto,
+  PaginatedQuestionsResponseDto,
+  QuestionFacetsResponseDto,
   QuestionResponseDto,
 } from './dto/question.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+
+const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  transformOptions: { enableImplicitConversion: false },
+});
 
 @ApiTags('questions')
 @ApiCookieAuth('sessionAuth')
@@ -52,13 +64,36 @@ export class QuestionController {
 
   @Get()
   @RequirePermissions('questions:read')
-  @ApiOperation({ summary: 'List questions' })
-  @ApiOkResponse({ type: [QuestionResponseDto] })
+  @ApiOperation({ summary: 'List questions (paginated, filterable, sortable)' })
+  @ApiOkResponse({ type: PaginatedQuestionsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(@CurrentUser() user: Omit<User, 'passwordHash'>): Promise<Question[]> {
-    return this.questionService.findAll({
-      includeDeleted: user.role === 'super_admin',
-    });
+  findAll(
+    @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<PaginatedQuestions> {
+    const isSuperAdmin = user.role === 'super_admin';
+    const effectiveQuery =
+      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
+    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
+  }
+
+  @Get('facets')
+  @RequirePermissions('questions:read')
+  @ApiOperation({
+    summary: 'Faceted counts for the picker sidebar',
+    description:
+      'Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. Counts respect every other filter on the request so the user sees what is still available before clicking.',
+  })
+  @ApiOkResponse({ type: QuestionFacetsResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  getFacets(
+    @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<QuestionFacets> {
+    const isSuperAdmin = user.role === 'super_admin';
+    const effectiveQuery =
+      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
+    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
   }
 
   @Get(':id')

@@ -274,18 +274,148 @@
     "/questions": {
       "get": {
         "operationId": "QuestionController_findAll",
-        "summary": "List questions",
-        "parameters": [],
+        "summary": "List questions (paginated, filterable, sortable)",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search over question text, role, category, subcategory, tags.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "difficulty",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subcategory",
+            "required": false,
+            "in": "query",
+            "description": "Subcategory — exposed as the \"Type\" filter in the picker UI.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "required": false,
+            "in": "query",
+            "description": "ANY-match: rows whose tags array overlaps the given list. Send as ?tags=react,hooks or repeated.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outputLanguage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Non-super_admin callers are forced to \"active\" regardless of what they pass.",
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "difficulty",
+                "questionText",
+                "popularity"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/QuestionResponseDto"
-                  }
+                  "$ref": "#/components/schemas/PaginatedQuestionsResponseDto"
                 }
               }
             }
@@ -356,6 +486,177 @@
             }
           },
           "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/questions/facets": {
+      "get": {
+        "operationId": "QuestionController_getFacets",
+        "summary": "Faceted counts for the picker sidebar",
+        "description": "Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. Counts respect every other filter on the request so the user sees what is still available before clicking.",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search over question text, role, category, subcategory, tags.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "difficulty",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subcategory",
+            "required": false,
+            "in": "query",
+            "description": "Subcategory — exposed as the \"Type\" filter in the picker UI.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "required": false,
+            "in": "query",
+            "description": "ANY-match: rows whose tags array overlaps the given list. Send as ?tags=react,hooks or repeated.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outputLanguage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Non-super_admin callers are forced to \"active\" regardless of what they pass.",
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "inactive",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "difficulty",
+                "questionText",
+                "popularity"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionFacetsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
             "description": "",
             "content": {
               "application/json": {
@@ -2810,6 +3111,10 @@
           },
           "deleted": {
             "type": "boolean"
+          },
+          "usageCount": {
+            "type": "number",
+            "description": "Number of times this question has been used in an interview."
           }
         },
         "required": [
@@ -2826,7 +3131,98 @@
           "metadata",
           "createdAt",
           "updatedAt",
-          "deleted"
+          "deleted",
+          "usageCount"
+        ]
+      },
+      "PaginatedQuestionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total rows matching the filter, ignoring page/limit."
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "FacetCountDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number",
+            "description": "Number of active questions with this value, given the rest of the current filters."
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ]
+      },
+      "QuestionFacetsResponseDto": {
+        "type": "object",
+        "properties": {
+          "difficulties": {
+            "description": "Difficulty value + count, given all OTHER current filters (difficulty itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCountDto"
+            }
+          },
+          "categories": {
+            "description": "Category value + count, given all OTHER current filters (category itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCountDto"
+            }
+          },
+          "subcategories": {
+            "description": "Subcategory value + count, given all OTHER current filters (subcategory itself is not applied). Exposed as the \"Type\" facet in the picker.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCountDto"
+            }
+          },
+          "roles": {
+            "description": "Role value + count, given all OTHER current filters (role itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCountDto"
+            }
+          },
+          "tags": {
+            "description": "Tag value + count, given all OTHER current filters (tag overlap is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCountDto"
+            }
+          }
+        },
+        "required": [
+          "difficulties",
+          "categories",
+          "subcategories",
+          "roles",
+          "tags"
         ]
       },
       "CreateQuestionDto": {
