@@ -206,6 +206,7 @@ export class AiService {
   ): Promise<QuestionDraft> {
     const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input);
+    const llmInput = this.stripAnchorFields(base);
 
     if (aiUrl) {
       const res = await fetch(`${aiUrl}/interview`, {
@@ -213,7 +214,7 @@ export class AiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'question-draft',
-          question: base,
+          question: llmInput,
         }),
       });
       const data = await res.json();
@@ -234,7 +235,7 @@ export class AiService {
     const native = resolveNativeProvider();
     if (native) {
       try {
-        const parsed = await generateQuestionDraftWithNativeLlm(native, base);
+        const parsed = await generateQuestionDraftWithNativeLlm(native, llmInput);
         const normalized = this.normalizeRemoteDraft(parsed, base);
         if (normalized) {
           if (isAiDebugEnabled()) {
@@ -270,6 +271,31 @@ export class AiService {
 
   private formatAiError(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
+  }
+
+  private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
+    const llmInput: Partial<QuestionDraft> = { ...base };
+    delete llmInput.difficulty;
+    delete llmInput.weight;
+    delete llmInput.minimumPassScore;
+    delete llmInput.role;
+    delete llmInput.focus;
+    if (!llmInput.followUpQuestions || llmInput.followUpQuestions.length === 0) {
+      delete llmInput.followUpQuestions;
+    }
+    if (!llmInput.expectedConcepts || llmInput.expectedConcepts.length === 0) {
+      delete llmInput.expectedConcepts;
+    }
+    if (!llmInput.redFlags || llmInput.redFlags.length === 0) {
+      delete llmInput.redFlags;
+    }
+    if (!llmInput.tags || llmInput.tags.length === 0) {
+      delete llmInput.tags;
+    }
+    if (!llmInput.sampleGoodAnswer) {
+      delete llmInput.sampleGoodAnswer;
+    }
+    return llmInput;
   }
 
   private normalizeDraftRequest(input: Partial<CreateQuestionDto>): QuestionDraft {
@@ -447,8 +473,17 @@ export class AiService {
       ].filter(Boolean)),
     );
 
+    const role = base.role ?? 'frontend intern';
+    const focus = base.focus ?? this.pickFocus(source, category);
+    const externalId =
+      base.externalId ??
+      this.buildExternalId(category, subcategory, base.questionText);
+
     return {
       ...base,
+      externalId,
+      role,
+      focus,
       category,
       subcategory,
       difficulty,
@@ -468,6 +503,28 @@ export class AiService {
               : 2.5,
       tags,
     };
+  }
+
+  private pickFocus(source: string, category: string): string {
+    if (/system design|architecture|scalab/.test(source)) return 'system design';
+    if (/algorithm|complexity|data structure/.test(source)) return 'algorithms';
+    if (/performance|optimi[sz]/.test(source)) return 'performance';
+    if (/testing|test\s/.test(source)) return 'testing';
+    if (category === 'soft_skills' || category === 'processes') return 'collaboration';
+    return 'fundamentals';
+  }
+
+  private buildExternalId(
+    category: string,
+    subcategory: string,
+    questionText: string,
+  ): string {
+    const hint = this.slugify(questionText).split('_').slice(0, 3).join('_');
+    const base = [category, subcategory, hint]
+      .map((part) => this.slugify(part))
+      .filter(Boolean)
+      .join('_');
+    return base ? base.slice(0, 60) : `question_${Date.now()}`;
   }
 
   private buildExpectedConcepts(
