@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import {
   QuestionDifficulty,
@@ -206,6 +206,9 @@ export class AiService {
   ): Promise<QuestionDraft> {
     const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input);
+    if (!base.questionText) {
+      throw new BadRequestException('questionText is required to draft a question.');
+    }
     const llmInput = this.stripAnchorFields(base);
 
     if (aiUrl) {
@@ -218,7 +221,7 @@ export class AiService {
         }),
       });
       const data = await res.json();
-      const normalized = this.normalizeRemoteDraft(data, base);
+      const normalized = this.acceptLlmDraft(data, base);
       if (normalized) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
@@ -236,7 +239,7 @@ export class AiService {
     if (native) {
       try {
         const parsed = await generateQuestionDraftWithNativeLlm(native, llmInput);
-        const normalized = this.normalizeRemoteDraft(parsed, base);
+        const normalized = this.acceptLlmDraft(parsed, base);
         if (normalized) {
           if (isAiDebugEnabled()) {
             this.logger.log(
@@ -271,6 +274,53 @@ export class AiService {
 
   private formatAiError(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
+  }
+
+  private acceptLlmDraft(
+    payload: unknown,
+    base: QuestionDraft,
+  ): QuestionDraft | undefined {
+    if (!this.llmDraftHasContent(payload)) {
+      return undefined;
+    }
+    const normalized = this.normalizeRemoteDraft(payload, base);
+    if (!normalized) {
+      return undefined;
+    }
+    if (
+      normalized.followUpQuestions.length < 2 ||
+      normalized.expectedConcepts.length < 3 ||
+      normalized.redFlags.length < 2 ||
+      (normalized.tags?.length ?? 0) < 3 ||
+      !normalized.sampleGoodAnswer ||
+      !normalized.sampleGoodAnswer.trim()
+    ) {
+      return undefined;
+    }
+    return normalized;
+  }
+
+  private llmDraftHasContent(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return false;
+    }
+    const record = payload as Record<string, unknown>;
+    const hasArray = (camel: string, snake: string): boolean => {
+      const value = record[camel] ?? record[snake];
+      return Array.isArray(value) && value.length > 0;
+    };
+    const hasString = (camel: string, snake: string): boolean => {
+      const value = record[camel] ?? record[snake];
+      return typeof value === 'string' && value.trim().length > 0;
+    };
+    return (
+      hasArray('followUpQuestions', 'follow_up_questions') &&
+      hasArray('expectedConcepts', 'expected_concepts') &&
+      hasArray('redFlags', 'red_flags') &&
+      Array.isArray(record.tags) &&
+      (record.tags as unknown[]).length > 0 &&
+      hasString('sampleGoodAnswer', 'sample_good_answer')
+    );
   }
 
   private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
