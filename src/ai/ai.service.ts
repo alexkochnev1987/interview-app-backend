@@ -324,27 +324,31 @@ export class AiService {
   }
 
   private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
-    const llmInput: Partial<QuestionDraft> = { ...base };
-    delete llmInput.difficulty;
-    delete llmInput.weight;
-    delete llmInput.minimumPassScore;
-    delete llmInput.role;
-    delete llmInput.focus;
-    if (!llmInput.followUpQuestions || llmInput.followUpQuestions.length === 0) {
-      delete llmInput.followUpQuestions;
+    const llmInput: Partial<QuestionDraft> = {
+      externalId: base.externalId,
+      outputLanguage: base.outputLanguage,
+      category: base.category,
+      subcategory: base.subcategory,
+      questionText: base.questionText,
+      metadata: base.metadata,
+    };
+
+    if (base.followUpQuestions.length > 0) {
+      llmInput.followUpQuestions = base.followUpQuestions;
     }
-    if (!llmInput.expectedConcepts || llmInput.expectedConcepts.length === 0) {
-      delete llmInput.expectedConcepts;
+    if (base.expectedConcepts.length > 0) {
+      llmInput.expectedConcepts = base.expectedConcepts;
     }
-    if (!llmInput.redFlags || llmInput.redFlags.length === 0) {
-      delete llmInput.redFlags;
+    if (base.redFlags.length > 0) {
+      llmInput.redFlags = base.redFlags;
     }
-    if (!llmInput.tags || llmInput.tags.length === 0) {
-      delete llmInput.tags;
+    if (base.tags.length > 0) {
+      llmInput.tags = base.tags;
     }
-    if (!llmInput.sampleGoodAnswer) {
-      delete llmInput.sampleGoodAnswer;
+    if (base.sampleGoodAnswer) {
+      llmInput.sampleGoodAnswer = base.sampleGoodAnswer;
     }
+
     return llmInput;
   }
 
