@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import {
   QuestionDifficulty,
@@ -206,6 +206,10 @@ export class AiService {
   ): Promise<QuestionDraft> {
     const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input);
+    if (!base.questionText) {
+      throw new BadRequestException('questionText is required to draft a question.');
+    }
+    const llmInput = this.stripAnchorFields(base);
 
     if (aiUrl) {
       const res = await fetch(`${aiUrl}/interview`, {
@@ -213,11 +217,11 @@ export class AiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'question-draft',
-          question: base,
+          question: llmInput,
         }),
       });
       const data = await res.json();
-      const normalized = this.normalizeRemoteDraft(data, base);
+      const normalized = this.acceptLlmDraft(data, base);
       if (normalized) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
@@ -234,8 +238,8 @@ export class AiService {
     const native = resolveNativeProvider();
     if (native) {
       try {
-        const parsed = await generateQuestionDraftWithNativeLlm(native, base);
-        const normalized = this.normalizeRemoteDraft(parsed, base);
+        const parsed = await generateQuestionDraftWithNativeLlm(native, llmInput);
+        const normalized = this.acceptLlmDraft(parsed, base);
         if (normalized) {
           if (isAiDebugEnabled()) {
             this.logger.log(
@@ -270,6 +274,82 @@ export class AiService {
 
   private formatAiError(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
+  }
+
+  private acceptLlmDraft(
+    payload: unknown,
+    base: QuestionDraft,
+  ): QuestionDraft | undefined {
+    if (!this.llmDraftHasContent(payload)) {
+      return undefined;
+    }
+    const normalized = this.normalizeRemoteDraft(payload, base);
+    if (!normalized) {
+      return undefined;
+    }
+    if (
+      normalized.followUpQuestions.length < 2 ||
+      normalized.expectedConcepts.length < 3 ||
+      normalized.redFlags.length < 2 ||
+      (normalized.tags?.length ?? 0) < 3 ||
+      !normalized.sampleGoodAnswer ||
+      !normalized.sampleGoodAnswer.trim()
+    ) {
+      return undefined;
+    }
+    return normalized;
+  }
+
+  private llmDraftHasContent(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return false;
+    }
+    const record = payload as Record<string, unknown>;
+    const hasArray = (camel: string, snake: string): boolean => {
+      const value = record[camel] ?? record[snake];
+      return Array.isArray(value) && value.length > 0;
+    };
+    const hasString = (camel: string, snake: string): boolean => {
+      const value = record[camel] ?? record[snake];
+      return typeof value === 'string' && value.trim().length > 0;
+    };
+    return (
+      hasArray('followUpQuestions', 'follow_up_questions') &&
+      hasArray('expectedConcepts', 'expected_concepts') &&
+      hasArray('redFlags', 'red_flags') &&
+      Array.isArray(record.tags) &&
+      (record.tags as unknown[]).length > 0 &&
+      hasString('sampleGoodAnswer', 'sample_good_answer')
+    );
+  }
+
+  private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
+    const llmInput: Partial<QuestionDraft> = {
+      externalId: base.externalId,
+      outputLanguage: base.outputLanguage,
+      category: base.category,
+      subcategory: base.subcategory,
+      questionText: base.questionText,
+      metadata: base.metadata,
+    };
+
+    if (base.followUpQuestions.length > 0) {
+      llmInput.followUpQuestions = base.followUpQuestions;
+    }
+    if (base.expectedConcepts.length > 0) {
+      llmInput.expectedConcepts = base.expectedConcepts;
+    }
+    if (base.redFlags.length > 0) {
+      llmInput.redFlags = base.redFlags;
+    }
+    if (base.tags.length > 0) {
+      llmInput.tags = base.tags;
+    }
+    if (base.sampleGoodAnswer) {
+      llmInput.sampleGoodAnswer = base.sampleGoodAnswer;
+    }
+
+    return llmInput;
   }
 
   private normalizeDraftRequest(input: Partial<CreateQuestionDto>): QuestionDraft {
@@ -447,8 +527,17 @@ export class AiService {
       ].filter(Boolean)),
     );
 
+    const role = base.role ?? 'frontend intern';
+    const focus = base.focus ?? this.pickFocus(source, category);
+    const externalId =
+      base.externalId ??
+      this.buildExternalId(category, subcategory, base.questionText);
+
     return {
       ...base,
+      externalId,
+      role,
+      focus,
       category,
       subcategory,
       difficulty,
@@ -468,6 +557,28 @@ export class AiService {
               : 2.5,
       tags,
     };
+  }
+
+  private pickFocus(source: string, category: string): string {
+    if (/system design|architecture|scalab/.test(source)) return 'system design';
+    if (/algorithm|complexity|data structure/.test(source)) return 'algorithms';
+    if (/performance|optimi[sz]/.test(source)) return 'performance';
+    if (/testing|test\s/.test(source)) return 'testing';
+    if (category === 'soft_skills' || category === 'processes') return 'collaboration';
+    return 'fundamentals';
+  }
+
+  private buildExternalId(
+    category: string,
+    subcategory: string,
+    questionText: string,
+  ): string {
+    const hint = this.slugify(questionText).split('_').slice(0, 3).join('_');
+    const base = [category, subcategory, hint]
+      .map((part) => this.slugify(part))
+      .filter(Boolean)
+      .join('_');
+    return base ? base.slice(0, 60) : `question_${Date.now()}`;
   }
 
   private buildExpectedConcepts(
