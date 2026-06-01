@@ -440,4 +440,86 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0018',
+    name: 'questions_primary_locale_and_translations',
+    statements: [
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS primary_locale TEXT NULL;
+      `,
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS translations_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+      `,
+      `
+        UPDATE questions
+        SET primary_locale = CASE lower(trim(COALESCE(output_language, '')))
+          WHEN 'en' THEN 'en'
+          WHEN 'english' THEN 'en'
+          WHEN 'be' THEN 'be'
+          WHEN 'belarusian' THEN 'be'
+          WHEN 'belarus' THEN 'be'
+          WHEN 'belarussian' THEN 'be'
+          WHEN 'ru' THEN 'ru'
+          WHEN 'russian' THEN 'ru'
+          WHEN 'russia' THEN 'ru'
+          WHEN 'pl' THEN 'pl'
+          WHEN 'polish' THEN 'pl'
+          WHEN 'poland' THEN 'pl'
+          ELSE 'en'
+        END
+        WHERE primary_locale IS NULL;
+      `,
+      `
+        UPDATE questions
+        SET translations_json = jsonb_build_object(
+          primary_locale,
+          jsonb_strip_nulls(
+            jsonb_build_object(
+              'questionText', COALESCE(NULLIF(question_text, ''), text),
+              'followUpQuestions', COALESCE(to_jsonb(follow_up_questions), '[]'::jsonb),
+              'expectedConcepts', COALESCE(expected_concepts_json, '[]'::jsonb),
+              'redFlags', COALESCE(red_flags_json, '[]'::jsonb),
+              'sampleGoodAnswer', sample_good_answer
+            )
+          )
+        )
+        WHERE translations_json = '{}'::jsonb;
+      `,
+      `
+        ALTER TABLE questions
+        ALTER COLUMN primary_locale SET DEFAULT 'en';
+      `,
+      `
+        UPDATE questions
+        SET primary_locale = 'en'
+        WHERE primary_locale IS NULL;
+      `,
+      `
+        ALTER TABLE questions
+        ALTER COLUMN primary_locale SET NOT NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'questions'::regclass
+              AND conname = 'questions_primary_locale_check'
+          ) THEN
+            ALTER TABLE questions
+            ADD CONSTRAINT questions_primary_locale_check
+            CHECK (primary_locale IN ('en', 'be', 'ru', 'pl'));
+          END IF;
+        END $$;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_primary_locale_idx
+        ON questions (primary_locale)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];

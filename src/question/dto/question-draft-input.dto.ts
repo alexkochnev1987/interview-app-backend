@@ -1,9 +1,4 @@
-import {
-  ApiExtraModels,
-  ApiProperty,
-  ApiPropertyOptional,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import {
   IsArray,
   IsIn,
@@ -12,43 +7,41 @@ import {
   IsOptional,
   IsString,
   Min,
-  Validate,
 } from 'class-validator';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
-import {
-  QuestionExpectedConceptDto,
-  QuestionRedFlagDto,
-} from './question.responses.dto';
 import { QuestionTranslationDto } from './question-translation.dto';
-import { QuestionTranslationsMapConstraint } from './validators/question-translations.validator';
 
-@ApiExtraModels(
-  QuestionExpectedConceptDto,
-  QuestionRedFlagDto,
-  QuestionTranslationDto,
-)
-export class CreateQuestionDto {
-  @ApiProperty({ enum: SUPPORTED_LOCALES, required: true })
+export class QuestionDraftInputDto {
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])
-  primaryLocale: Locale;
+  primaryLocale?: Locale;
 
-  @ApiProperty({
-    required: true,
+  @ApiPropertyOptional({
     type: 'object',
     additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
-    description:
-      'Locale-keyed translation blocks. primaryLocale entry is required; other locales are optional but must be complete blocks when present.',
   })
+  @IsOptional()
   @IsObject()
-  @Validate(QuestionTranslationsMapConstraint)
-  translations: Partial<Record<Locale, QuestionTranslationDto>>;
+  translations?: Partial<Record<Locale, QuestionTranslationDto>>;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  externalId?: string;
+  questionText?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  followUpQuestions?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  outputLanguage?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -59,14 +52,6 @@ export class CreateQuestionDto {
   @IsOptional()
   @IsString()
   focus?: string;
-
-  @ApiPropertyOptional({
-    deprecated: true,
-    description: 'Derived from primaryLocale; ignored when translations are provided.',
-  })
-  @IsOptional()
-  @IsString()
-  outputLanguage?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -88,6 +73,11 @@ export class CreateQuestionDto {
   @IsNumber()
   @Min(0)
   weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sampleGoodAnswer?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

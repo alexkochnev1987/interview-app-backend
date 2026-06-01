@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiConflict, apiServiceUnavailable } from '../common/errors/api-error';
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   Answer,
@@ -175,7 +175,8 @@ export class AnswerValidationWorkflowService
     force = false,
   ): Promise<StartAllAnswerValidationsResult> {
     if (!resolveNativeProvider()) {
-      throw new ServiceUnavailableException(
+      throw apiServiceUnavailable(
+        ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
@@ -201,8 +202,10 @@ export class AnswerValidationWorkflowService
           answer.validation?.status === 'processing',
       );
       if (hasActiveValidation) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.VALIDATION_RUNNING,
           'Answer validation is already running for this interview.',
+          { interviewId },
         );
       }
 
@@ -320,7 +323,8 @@ export class AnswerValidationWorkflowService
     force: boolean,
   ): Promise<StartAnswerValidationResult> {
     if (!resolveNativeProvider()) {
-      throw new ServiceUnavailableException(
+      throw apiServiceUnavailable(
+        ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
@@ -361,8 +365,10 @@ export class AnswerValidationWorkflowService
         (existingValidation.status === 'queued' ||
           existingValidation.status === 'processing')
       ) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.VALIDATION_RUNNING,
           `Answer validation is already running for question ${questionIndex}.`,
+          { interviewId, questionIndex },
         );
       }
       if (

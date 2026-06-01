@@ -1,11 +1,18 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { CreateQuestionDto } from '../question/dto/create-question.dto';
+import { isLocale } from '../locale/locale.constants';
+import { QuestionDraftInput } from '../question/question-draft-input';
 import {
   QuestionDifficulty,
   QuestionDraft,
   QuestionExpectedConcept,
   QuestionRedFlag,
 } from '../question/interfaces/question.interface';
+import {
+  buildTranslation,
+  mapOutputLanguageToPrimaryLocale,
+  mergeTranslations,
+  primaryLocaleToOutputLanguage,
+} from '../question/question-locale';
 import { resolveNativeProvider } from './llm/ai-env';
 import {
   runInterviewChat,
@@ -202,7 +209,7 @@ export class AiService {
   }
 
   async draftQuestion(
-    input: Partial<CreateQuestionDto>,
+    input: QuestionDraftInput,
   ): Promise<QuestionDraft> {
     const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input);
@@ -352,8 +359,35 @@ export class AiService {
     return llmInput;
   }
 
-  private normalizeDraftRequest(input: Partial<CreateQuestionDto>): QuestionDraft {
-    return {
+  private normalizeDraftRequest(input: QuestionDraftInput): QuestionDraft {
+    const outputLanguage =
+      typeof input.outputLanguage === 'string' && input.outputLanguage.trim()
+        ? input.outputLanguage.trim()
+        : 'English';
+    const primaryLocale =
+      input.primaryLocale && isLocale(input.primaryLocale)
+        ? input.primaryLocale
+        : mapOutputLanguageToPrimaryLocale(outputLanguage);
+    const primaryBlock = input.translations?.[primaryLocale];
+    const questionText =
+      primaryBlock?.questionText?.trim() ??
+      (typeof input.questionText === 'string' ? input.questionText.trim() : '');
+    const followUpQuestions = Array.isArray(primaryBlock?.followUpQuestions)
+      ? primaryBlock.followUpQuestions.map((item) => item.trim()).filter(Boolean)
+      : Array.isArray(input.followUpQuestions)
+        ? input.followUpQuestions.map((item) => item.trim()).filter(Boolean)
+        : [];
+    const expectedConcepts = this.normalizeExpectedConcepts(
+      primaryBlock?.expectedConcepts ?? input.expectedConcepts,
+    );
+    const redFlags = this.normalizeRedFlags(primaryBlock?.redFlags ?? input.redFlags);
+    const sampleGoodAnswer =
+      primaryBlock?.sampleGoodAnswer ??
+      (typeof input.sampleGoodAnswer === 'string' && input.sampleGoodAnswer.trim()
+        ? input.sampleGoodAnswer.trim()
+        : undefined);
+
+    return this.withLocaleFields({
       externalId:
         typeof input.externalId === 'string' && input.externalId.trim()
           ? input.externalId.trim()
@@ -366,10 +400,7 @@ export class AiService {
         typeof input.focus === 'string' && input.focus.trim()
           ? input.focus.trim()
           : undefined,
-      outputLanguage:
-        typeof input.outputLanguage === 'string' && input.outputLanguage.trim()
-          ? input.outputLanguage.trim()
-          : 'English',
+      outputLanguage,
       category:
         typeof input.category === 'string' && input.category.trim()
           ? input.category.trim()
@@ -378,20 +409,13 @@ export class AiService {
         typeof input.subcategory === 'string' && input.subcategory.trim()
           ? input.subcategory.trim()
           : undefined,
-      questionText:
-        typeof input.questionText === 'string' ? input.questionText.trim() : '',
-      followUpQuestions: Array.isArray(input.followUpQuestions)
-        ? input.followUpQuestions.map((item) => item.trim()).filter(Boolean)
-        : [],
-      expectedConcepts: this.normalizeExpectedConcepts(input.expectedConcepts),
-      redFlags: this.normalizeRedFlags(input.redFlags),
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
       difficulty: this.normalizeDifficulty(input.difficulty),
       weight: this.normalizeWeight(input.weight),
-      sampleGoodAnswer:
-        typeof input.sampleGoodAnswer === 'string' &&
-        input.sampleGoodAnswer.trim()
-          ? input.sampleGoodAnswer.trim()
-          : undefined,
+      sampleGoodAnswer,
       minimumPassScore: this.normalizeMinimumPassScore(input.minimumPassScore),
       tags: Array.isArray(input.tags)
         ? input.tags.map((item) => item.trim()).filter(Boolean)
@@ -400,7 +424,7 @@ export class AiService {
         input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata)
           ? input.metadata
           : {},
-    };
+    });
   }
 
   private normalizeRemoteDraft(
@@ -412,7 +436,45 @@ export class AiService {
     }
 
     const record = payload as Record<string, unknown>;
-    return {
+    const outputLanguage =
+      typeof record.output_language === 'string'
+        ? record.output_language
+        : typeof record.outputLanguage === 'string'
+          ? record.outputLanguage
+          : base.outputLanguage;
+    const questionText =
+      typeof record.question_text === 'string'
+        ? record.question_text
+        : typeof record.questionText === 'string'
+          ? record.questionText
+          : base.questionText;
+    const followUpQuestions = Array.isArray(record.follow_up_questions)
+      ? (record.follow_up_questions as string[]).map((item) => item.trim()).filter(Boolean)
+      : Array.isArray(record.followUpQuestions)
+        ? (record.followUpQuestions as string[]).map((item) => item.trim()).filter(Boolean)
+        : base.followUpQuestions;
+    const expectedConcepts = this.normalizeExpectedConcepts(
+      Array.isArray(record.expected_concepts)
+        ? (record.expected_concepts as Array<string | Partial<QuestionExpectedConcept>>)
+        : Array.isArray(record.expectedConcepts)
+          ? (record.expectedConcepts as Array<string | Partial<QuestionExpectedConcept>>)
+          : base.expectedConcepts,
+    );
+    const redFlags = this.normalizeRedFlags(
+      Array.isArray(record.red_flags)
+        ? (record.red_flags as Array<string | Partial<QuestionRedFlag>>)
+        : Array.isArray(record.redFlags)
+          ? (record.redFlags as Array<string | Partial<QuestionRedFlag>>)
+          : base.redFlags,
+    );
+    const sampleGoodAnswer =
+      typeof record.sample_good_answer === 'string'
+        ? record.sample_good_answer
+        : typeof record.sampleGoodAnswer === 'string'
+          ? record.sampleGoodAnswer
+          : base.sampleGoodAnswer;
+
+    return this.withLocaleFields({
       externalId:
         typeof record.external_id === 'string'
           ? record.external_id
@@ -427,12 +489,7 @@ export class AiService {
         typeof record.focus === 'string'
           ? record.focus
           : base.focus,
-      outputLanguage:
-        typeof record.output_language === 'string'
-          ? record.output_language
-          : typeof record.outputLanguage === 'string'
-            ? record.outputLanguage
-            : base.outputLanguage,
+      outputLanguage,
       category:
         typeof record.category === 'string'
           ? record.category
@@ -441,42 +498,16 @@ export class AiService {
         typeof record.subcategory === 'string'
           ? record.subcategory
           : base.subcategory,
-      questionText:
-        typeof record.question_text === 'string'
-          ? record.question_text
-          : typeof record.questionText === 'string'
-            ? record.questionText
-            : base.questionText,
-      followUpQuestions: Array.isArray(record.follow_up_questions)
-        ? (record.follow_up_questions as string[]).map((item) => item.trim()).filter(Boolean)
-        : Array.isArray(record.followUpQuestions)
-          ? (record.followUpQuestions as string[]).map((item) => item.trim()).filter(Boolean)
-          : base.followUpQuestions,
-      expectedConcepts: this.normalizeExpectedConcepts(
-        Array.isArray(record.expected_concepts)
-          ? (record.expected_concepts as Array<string | Partial<QuestionExpectedConcept>>)
-          : Array.isArray(record.expectedConcepts)
-            ? (record.expectedConcepts as Array<string | Partial<QuestionExpectedConcept>>)
-            : base.expectedConcepts,
-      ),
-      redFlags: this.normalizeRedFlags(
-        Array.isArray(record.red_flags)
-          ? (record.red_flags as Array<string | Partial<QuestionRedFlag>>)
-          : Array.isArray(record.redFlags)
-            ? (record.redFlags as Array<string | Partial<QuestionRedFlag>>)
-            : base.redFlags,
-      ),
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
       difficulty: this.normalizeDifficulty(
         record.difficulty as QuestionDifficulty,
         base.difficulty,
       ),
       weight: this.normalizeWeight(record.weight, base.weight),
-      sampleGoodAnswer:
-        typeof record.sample_good_answer === 'string'
-          ? record.sample_good_answer
-          : typeof record.sampleGoodAnswer === 'string'
-            ? record.sampleGoodAnswer
-            : base.sampleGoodAnswer,
+      sampleGoodAnswer,
       minimumPassScore: this.normalizeMinimumPassScore(
         record.minimum_pass_score ?? record.minimumPassScore ?? base.minimumPassScore,
       ),
@@ -487,6 +518,30 @@ export class AiService {
         record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
           ? (record.metadata as Record<string, unknown>)
           : base.metadata,
+    }, base.translations);
+  }
+
+  private withLocaleFields(
+    draft: Omit<QuestionDraft, 'primaryLocale' | 'translations'>,
+    existingTranslations?: QuestionDraft['translations'],
+  ): QuestionDraft {
+    const primaryLocale = mapOutputLanguageToPrimaryLocale(draft.outputLanguage);
+    const translations = mergeTranslations(
+      existingTranslations,
+      primaryLocale,
+      buildTranslation({
+        questionText: draft.questionText,
+        followUpQuestions: draft.followUpQuestions,
+        expectedConcepts: draft.expectedConcepts,
+        redFlags: draft.redFlags,
+        sampleGoodAnswer: draft.sampleGoodAnswer,
+      }),
+    );
+    return {
+      ...draft,
+      primaryLocale,
+      translations,
+      outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
     };
   }
 

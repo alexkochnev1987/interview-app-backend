@@ -5,7 +5,24 @@
       "post": {
         "operationId": "AuthController_login",
         "summary": "Sign in with email and password",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -43,7 +60,24 @@
       "post": {
         "operationId": "AuthController_register",
         "summary": "Register a new account",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -75,7 +109,24 @@
       "get": {
         "operationId": "AuthController_googleLogin",
         "summary": "Start Google OAuth sign-in flow",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Redirects to Google OAuth consent screen"
@@ -90,7 +141,24 @@
       "get": {
         "operationId": "AuthController_googleCallback",
         "summary": "Google OAuth callback endpoint",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Sets session cookie and redirects to frontend"
@@ -105,7 +173,24 @@
       "post": {
         "operationId": "AuthController_logout",
         "summary": "Sign out current user",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -127,7 +212,24 @@
       "get": {
         "operationId": "AuthController_me",
         "summary": "Get current authenticated user",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -178,6 +280,22 @@
               "default": 0,
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -226,6 +344,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -344,6 +478,21 @@
             }
           },
           {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Only questions with a non-empty translation for this locale (translations_json).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -388,6 +537,15 @@
             }
           },
           {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, each list item includes the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -406,6 +564,22 @@
               "maximum": 100,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -443,7 +617,24 @@
       "post": {
         "operationId": "QuestionController_create",
         "summary": "Create question",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -460,7 +651,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -580,6 +771,21 @@
             }
           },
           {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Only questions with a non-empty translation for this locale (translations_json).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -624,6 +830,15 @@
             }
           },
           {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, each list item includes the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -642,6 +857,22 @@
               "maximum": 100,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -689,6 +920,31 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, include the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -697,7 +953,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -732,7 +988,7 @@
           }
         ]
       },
-      "patch": {
+      "put": {
         "operationId": "QuestionController_update",
         "summary": "Update question",
         "parameters": [
@@ -742,6 +998,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -761,7 +1033,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -826,6 +1098,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -895,7 +1183,24 @@
       "post": {
         "operationId": "QuestionController_findSimilar",
         "summary": "Find similar questions",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -952,7 +1257,24 @@
       "post": {
         "operationId": "QuestionController_bulkRemove",
         "summary": "Soft delete questions in bulk",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1027,6 +1349,31 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, include the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1035,7 +1382,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -1085,7 +1432,24 @@
       "post": {
         "operationId": "InterviewController_create",
         "summary": "Create interview",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1150,7 +1514,24 @@
       "get": {
         "operationId": "InterviewController_findAll",
         "summary": "List interviews",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -1197,6 +1578,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1254,6 +1651,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1309,6 +1722,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1374,6 +1803,22 @@
             "description": "Re-evaluate answers whose latest validation already completed. Defaults to false; in-flight validations always return 409.",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1468,6 +1913,22 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1554,6 +2015,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1612,7 +2089,24 @@
       "post": {
         "operationId": "UploadController_presign",
         "summary": "Generate one-shot upload URL",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1669,7 +2163,24 @@
       "post": {
         "operationId": "UploadController_complete",
         "summary": "Confirm one-shot upload",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1726,7 +2237,24 @@
       "post": {
         "operationId": "UploadController_startMultipartUpload",
         "summary": "Start multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1783,7 +2311,24 @@
       "post": {
         "operationId": "UploadController_presignMultipartPart",
         "summary": "Presign multipart upload part",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1840,7 +2385,24 @@
       "post": {
         "operationId": "UploadController_completeMultipartUpload",
         "summary": "Complete multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1897,7 +2459,24 @@
       "post": {
         "operationId": "UploadController_abortMultipartUpload",
         "summary": "Abort multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1969,6 +2548,22 @@
             "in": "path",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2054,6 +2649,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "requestBody": {
@@ -2138,6 +2749,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2186,7 +2813,24 @@
       "get": {
         "operationId": "HealthController_check",
         "summary": "Health check endpoint",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -2223,6 +2867,22 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2289,6 +2949,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2365,6 +3041,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2450,6 +3142,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2508,7 +3216,24 @@
       "post": {
         "operationId": "AiController_chat",
         "summary": "Candidate chat assistant",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2565,7 +3290,24 @@
       "post": {
         "operationId": "AiController_greet",
         "summary": "Candidate greeting prompt",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2622,7 +3364,24 @@
       "post": {
         "operationId": "AiController_draftQuestion",
         "summary": "Generate draft question with AI",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2707,6 +3466,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2748,6 +3523,22 @@
             "description": "Interview ID",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2794,6 +3585,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2824,7 +3631,7 @@
   },
   "info": {
     "title": "Interview App API",
-    "description": "HTTP API contract for Interview App backend",
+    "description": "HTTP API contract for Interview App backend.\n\nOptional `X-Locale` (`en`|`be`|`ru`|`pl`, default `en`). Errors: `statusCode`, `code`, `message` — codes in `src/common/errors/api-error.registry.ts`.",
     "version": "1.0.0",
     "contact": {}
   },
@@ -2929,6 +3736,40 @@
           "ok"
         ]
       },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "VALIDATION_ERROR",
+          "INVALID_LOCALE",
+          "REGISTRATION_FAILED",
+          "UPLOAD_FAILED",
+          "UPLOAD_NOT_ALLOWED",
+          "UNAUTHORIZED",
+          "INVALID_CREDENTIALS",
+          "AUTHENTICATION_REQUIRED",
+          "CANDIDATE_SESSION_REQUIRED",
+          "INVALID_CANDIDATE_SESSION",
+          "INTERVIEW_TOKEN_REQUIRED",
+          "INVALID_INTERVIEW_TOKEN",
+          "FORBIDDEN",
+          "INSUFFICIENT_PERMISSIONS",
+          "ACCESS_DENIED",
+          "NOT_FOUND",
+          "QUESTION_NOT_FOUND",
+          "INTERVIEW_NOT_FOUND",
+          "USER_NOT_FOUND",
+          "FEEDBACK_NOT_FOUND",
+          "CONFLICT",
+          "QUESTION_IN_USE",
+          "VALIDATION_RUNNING",
+          "QUESTION_DUPLICATE",
+          "SERVICE_UNAVAILABLE",
+          "AI_PROVIDER_NOT_CONFIGURED",
+          "EMBEDDING_PROVIDER_NOT_CONFIGURED",
+          "INTERNAL_SERVER_ERROR"
+        ]
+      },
       "ApiErrorResponseDto": {
         "type": "object",
         "properties": {
@@ -2936,23 +3777,21 @@
             "type": "number",
             "example": 400
           },
-          "error": {
-            "type": "string",
-            "example": "Bad Request"
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
           },
           "message": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            ],
+            "type": "string",
             "example": "Validation failed"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "errors": [
+                "email must be an email"
+              ]
+            }
           },
           "path": {
             "type": "string",
@@ -2961,7 +3800,7 @@
         },
         "required": [
           "statusCode",
-          "error",
+          "code",
           "message"
         ]
       },
@@ -3029,11 +3868,20 @@
           "severity"
         ]
       },
-      "QuestionResponseDto": {
+      "ResolvedQuestionResponseDto": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
+          },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "externalId": {
             "type": "string"
@@ -3115,6 +3963,34 @@
           "usageCount": {
             "type": "number",
             "description": "Number of times this question has been used in an interview."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Present when includeTranslations=true (GET) or on POST/PUT responses."
+          },
+          "resolvedLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "availableLocales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
+            }
           }
         },
         "required": [
@@ -3132,7 +4008,9 @@
           "createdAt",
           "updatedAt",
           "deleted",
-          "usageCount"
+          "usageCount",
+          "resolvedLocale",
+          "availableLocales"
         ]
       },
       "PaginatedQuestionsResponseDto": {
@@ -3141,7 +4019,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionResponseDto"
+              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
             }
           },
           "total": {
@@ -3225,27 +4103,9 @@
           "tags"
         ]
       },
-      "CreateQuestionDto": {
+      "QuestionTranslationDto": {
         "type": "object",
         "properties": {
-          "externalId": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "focus": {
-            "type": "string"
-          },
-          "outputLanguage": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
-          },
           "questionText": {
             "type": "string"
           },
@@ -3258,28 +4118,64 @@
           "expectedConcepts": {
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-                }
-              ]
+              "type": "array"
             }
           },
           "redFlags": {
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionRedFlagDto"
-                }
-              ]
+              "type": "array"
             }
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags"
+        ]
+      },
+      "CreateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Locale-keyed translation blocks. primaryLocale entry is required; other locales are optional but must be complete blocks when present."
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Derived from primaryLocale; ignored when translations are provided."
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
           },
           "difficulty": {
             "type": "string",
@@ -3291,9 +4187,6 @@
           },
           "weight": {
             "type": "number"
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
           },
           "minimumPassScore": {
             "type": "number"
@@ -3310,7 +4203,8 @@
           }
         },
         "required": [
-          "questionText"
+          "primaryLocale",
+          "translations"
         ]
       },
       "FindSimilarDraftDto": {
@@ -3358,7 +4252,7 @@
         "type": "object",
         "properties": {
           "question": {
-            "$ref": "#/components/schemas/QuestionResponseDto"
+            "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
           },
           "score": {
             "type": "number"
@@ -3393,6 +4287,31 @@
       "UpdateQuestionDto": {
         "type": "object",
         "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translationsMode": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "replace"
+            ],
+            "default": "merge",
+            "description": "How to apply `translations`: merge (default) upserts each locale key; replace sets the stored map to exactly the provided keys."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Locale blocks to merge or replace. Each key must be a complete block (same rules as create)."
+          },
           "externalId": {
             "type": "string"
           },
@@ -3403,7 +4322,8 @@
             "type": "string"
           },
           "outputLanguage": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true
           },
           "category": {
             "type": "string"
@@ -3412,38 +4332,29 @@
             "type": "string"
           },
           "questionText": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true,
+            "description": "Updates the primary locale block when translations are omitted (legacy partial update)."
           },
           "followUpQuestions": {
+            "deprecated": true,
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "expectedConcepts": {
+            "deprecated": true,
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-                }
-              ]
+              "type": "string"
             }
           },
           "redFlags": {
+            "deprecated": true,
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionRedFlagDto"
-                }
-              ]
+              "type": "string"
             }
           },
           "difficulty": {
@@ -3458,7 +4369,8 @@
             "type": "number"
           },
           "sampleGoodAnswer": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true
           },
           "minimumPassScore": {
             "type": "number"
@@ -3568,6 +4480,121 @@
           "candidateName",
           "position",
           "questionIds"
+        ]
+      },
+      "QuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "usageCount": {
+            "type": "number",
+            "description": "Number of times this question has been used in an interview."
+          }
+        },
+        "required": [
+          "id",
+          "outputLanguage",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata",
+          "createdAt",
+          "updatedAt",
+          "deleted",
+          "usageCount"
         ]
       },
       "MediaArtifactDto": {
@@ -5016,11 +6043,82 @@
           "totalQuestions"
         ]
       },
+      "QuestionDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            }
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputLanguage": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
       "DraftQuestionDto": {
         "type": "object",
         "properties": {
           "question": {
-            "$ref": "#/components/schemas/CreateQuestionDto"
+            "$ref": "#/components/schemas/QuestionDraftInputDto"
           }
         }
       },

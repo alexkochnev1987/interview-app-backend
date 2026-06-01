@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   ValidationPipe,
@@ -24,6 +25,8 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -31,20 +34,23 @@ import { User } from '../user/interfaces/user.interface';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { FindSimilarDto } from './dto/find-similar.dto';
+import { GetQuestionQueryDto } from './dto/get-question-query.dto';
 import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { SimilarQuestionMatch } from './interfaces/question.interface';
 import {
-  Question,
-  SimilarQuestionMatch,
-} from './interfaces/question.interface';
-import { PaginatedQuestions, QuestionFacets, QuestionService } from './question.service';
+  PaginatedQuestions,
+  QuestionFacets,
+  QuestionService,
+  ResolvedQuestion,
+} from './question.service';
 import {
   BulkDeleteQuestionsResponseDto,
   DeleteQuestionResponseDto,
   FindSimilarResponseDto,
   PaginatedQuestionsResponseDto,
   QuestionFacetsResponseDto,
-  QuestionResponseDto,
+  ResolvedQuestionResponseDto,
 } from './dto/question.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
@@ -70,11 +76,15 @@ export class QuestionController {
   findAll(
     @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @CurrentLocale() locale: Locale,
   ): Promise<PaginatedQuestions> {
     const isSuperAdmin = user.role === 'super_admin';
     const effectiveQuery =
       isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
+    return this.questionService.findAll(effectiveQuery, {
+      forceActive: !isSuperAdmin,
+      resolveLocale: locale,
+    });
   }
 
   @Get('facets')
@@ -100,15 +110,18 @@ export class QuestionController {
   @RequirePermissions('questions:read')
   @ApiOperation({ summary: 'Get question by id' })
   @ApiParam({ name: 'id' })
-  @ApiOkResponse({ type: QuestionResponseDto })
+  @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   findOne(
     @Param('id') id: string,
+    @Query(QUESTION_QUERY_VALIDATION_PIPE) query: GetQuestionQueryDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
-  ): Promise<Question> {
-    return this.questionService.findOne(id, {
+    @CurrentLocale() locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    return this.questionService.findOneResolved(id, locale, {
       includeDeleted: user.role === 'super_admin',
+      includeTranslations: query.includeTranslations,
     });
   }
 
@@ -116,12 +129,15 @@ export class QuestionController {
   @RequirePermissions('questions:create')
   @ApiOperation({ summary: 'Create question' })
   @ApiBody({ type: CreateQuestionDto })
-  @ApiOkResponse({ type: QuestionResponseDto })
+  @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  create(@Body() dto: CreateQuestionDto): Promise<Question> {
-    return this.questionService.create(dto);
+  create(
+    @Body() dto: CreateQuestionDto,
+    @CurrentLocale() locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    return this.questionService.createResolved(dto, locale);
   }
 
   @Post('similar')
@@ -133,21 +149,24 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async findSimilar(
     @Body() dto: FindSimilarDto,
+    @CurrentLocale() locale: Locale,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
     const matches = await this.questionService.findSimilar(
       dto.draft ?? {},
       dto.limit ?? 5,
       dto.excludeQuestionId,
+      locale,
     );
     return { matches };
   }
 
+  @Put(':id')
   @Patch(':id')
   @RequirePermissions('questions:update')
   @ApiOperation({ summary: 'Update question' })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: UpdateQuestionDto })
-  @ApiOkResponse({ type: QuestionResponseDto })
+  @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -155,8 +174,9 @@ export class QuestionController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateQuestionDto,
-  ): Promise<Question> {
-    return this.questionService.update(id, dto);
+    @CurrentLocale() locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    return this.questionService.updateResolved(id, dto, locale);
   }
 
   @Delete(':id')
@@ -193,11 +213,17 @@ export class QuestionController {
   @RequirePermissions('questions:delete')
   @ApiOperation({ summary: 'Restore soft deleted question' })
   @ApiParam({ name: 'id' })
-  @ApiOkResponse({ type: QuestionResponseDto })
+  @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  restore(@Param('id') id: string): Promise<Question> {
-    return this.questionService.restore(id);
+  restore(
+    @Param('id') id: string,
+    @Query(QUESTION_QUERY_VALIDATION_PIPE) query: GetQuestionQueryDto,
+    @CurrentLocale() locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    return this.questionService.restoreResolved(id, locale, {
+      includeTranslations: query.includeTranslations,
+    });
   }
 }

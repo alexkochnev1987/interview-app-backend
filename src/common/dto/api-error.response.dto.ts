@@ -1,17 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiErrorCode } from '../errors/api-error.codes';
 
 export class ApiErrorResponseDto {
   @ApiProperty({ example: 400 })
   statusCode: number;
 
-  @ApiProperty({ example: 'Bad Request' })
-  error: string;
+  @ApiProperty({ enum: ApiErrorCode, enumName: 'ApiErrorCode' })
+  code: ApiErrorCode;
 
-  @ApiProperty({
-    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
-    example: 'Validation failed',
+  @ApiProperty({ example: 'Validation failed' })
+  message: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    example: { errors: ['email must be an email'] },
   })
-  message: string | string[];
+  params?: Record<string, unknown>;
 
   @ApiPropertyOptional({ example: '/questions/invalid-id' })
   path?: string;

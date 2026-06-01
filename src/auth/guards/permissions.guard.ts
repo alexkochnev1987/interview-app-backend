@@ -1,11 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { apiForbidden, apiUnauthorized } from '../../common/errors/api-error';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
@@ -53,12 +48,18 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const role = request.user?.role;
     if (!role) {
-      throw new UnauthorizedException('Authentication required');
+      throw apiUnauthorized(
+        ApiErrorCode.AUTHENTICATION_REQUIRED,
+        'Authentication required',
+      );
     }
 
     const allowed = required.every((permission) => hasPermission(role, permission));
     if (!allowed) {
-      throw new ForbiddenException('Insufficient permissions');
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        'Insufficient permissions',
+      );
     }
     return true;
   }

@@ -3,6 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -11,6 +12,8 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
 
 export const QUESTION_SORT_FIELDS = [
@@ -35,6 +38,19 @@ function trimToUndefined(value: unknown): string | undefined {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function queryBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (value === true || value === 'true') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
 }
 
 function csvToArray(value: unknown): string[] | undefined {
@@ -97,6 +113,15 @@ export class QueryQuestionsDto {
   @MaxLength(60)
   outputLanguage?: string;
 
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Only questions with a non-empty translation for this locale (translations_json).',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  locale?: Locale;
+
   @ApiPropertyOptional({ enum: QUESTION_STATUS_VALUES, default: 'active', description: 'Non-super_admin callers are forced to "active" regardless of what they pass.' })
   @IsOptional()
   @IsIn(QUESTION_STATUS_VALUES)
@@ -111,6 +136,15 @@ export class QueryQuestionsDto {
   @IsOptional()
   @IsIn(QUESTION_SORT_ORDERS)
   sortOrder?: QuestionSortOrder;
+
+  @ApiPropertyOptional({
+    description:
+      'When true, each list item includes the full translations map. Default false.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => queryBoolean(value))
+  @IsBoolean()
+  includeTranslations?: boolean;
 
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()

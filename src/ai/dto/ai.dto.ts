@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { CreateQuestionDto } from '../../question/dto/create-question.dto';
+import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.dto';
 
 export class ChatHistoryItemDto {
   @ApiProperty({ enum: ['system', 'assistant', 'candidate'] })
@@ -71,12 +71,12 @@ export class GreetDto {
 }
 
 export class DraftQuestionDto {
-  @ApiPropertyOptional({ type: CreateQuestionDto })
+  @ApiPropertyOptional({ type: QuestionDraftInputDto })
   @IsOptional()
   @IsObject()
   @ValidateNested()
-  @Type(() => CreateQuestionDto)
-  question?: Partial<CreateQuestionDto>;
+  @Type(() => QuestionDraftInputDto)
+  question?: QuestionDraftInputDto;
 }
 
 export class AiTextResponseDto {

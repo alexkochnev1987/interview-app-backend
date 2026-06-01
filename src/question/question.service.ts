@@ -1,16 +1,14 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
+import { HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
+import { isLocale, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
 import { CreateQuestionDto } from './dto/create-question.dto';
+import { QuestionTranslationDto } from './dto/question-translation.dto';
 import {
   QueryQuestionsDto,
   QuestionSortField,
@@ -18,6 +16,7 @@ import {
   QuestionStatusFilter,
 } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { applyTranslationsUpdate } from './question-translations-update';
 import {
   Question,
   QuestionCore,
@@ -26,8 +25,25 @@ import {
   QuestionExpectedConcept,
   QuestionRedFlag,
   QuestionRedFlagSeverity,
+  QuestionTranslations,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
+import {
+  buildTranslation,
+  mapOutputLanguageToPrimaryLocale,
+  mergeTranslations,
+  parseTranslationsJson,
+  primaryLocaleToOutputLanguage,
+  resolvePrimaryLocale,
+  resolveQuestionFields,
+} from './question-locale';
+import { resolveQuestion } from './resolve-question';
+
+export type ResolvedQuestion = Omit<Question, 'translations'> & {
+  resolvedLocale: Locale;
+  availableLocales: Locale[];
+  translations?: QuestionTranslations;
+};
 
 export const DEFAULT_QUESTIONS_PAGE = 1;
 export const DEFAULT_QUESTIONS_LIMIT = 20;
@@ -44,7 +60,7 @@ const SORT_FIELD_TO_SQL: Record<QuestionSortField, string> = {
 };
 
 export interface PaginatedQuestions {
-  items: Question[];
+  items: ResolvedQuestion[];
   total: number;
   page: number;
   limit: number;
@@ -56,6 +72,7 @@ export type FacetField =
   | 'subcategory'
   | 'role'
   | 'outputLanguage'
+  | 'locale'
   | 'tags';
 
 export interface FacetCount {
@@ -77,6 +94,8 @@ interface QuestionRow {
   role: string | null;
   focus: string | null;
   output_language: string | null;
+  primary_locale: string | null;
+  translations_json: unknown;
   category: string | null;
   subcategory: string | null;
   text: string;
@@ -107,6 +126,8 @@ const QUESTION_COLUMNS = `
   role,
   focus,
   output_language,
+  primary_locale,
+  translations_json,
   category,
   subcategory,
   text,
@@ -130,6 +151,10 @@ const QUESTION_COLUMNS = `
 
 const QUESTION_SELECT = `SELECT ${QUESTION_COLUMNS} FROM questions`;
 const QUESTION_RETURNING = `RETURNING ${QUESTION_COLUMNS}`;
+const QUESTION_Q_COLUMNS = QUESTION_COLUMNS.trim()
+  .split(',')
+  .map((column) => `q.${column.trim()}`)
+  .join(',\n          ');
 
 type QueryExecutor = {
   query<T extends QueryResultRow = QueryResultRow>(
@@ -161,7 +186,7 @@ export class QuestionService {
   }
 
   async create(dto: CreateQuestionDto): Promise<Question> {
-    const payload = this.normalizeQuestionInput(dto);
+    const payload = this.normalizeCreateQuestionInput(dto);
     const question = await this.insertQuestionRow(
       this.databaseService,
       payload,
@@ -170,8 +195,39 @@ export class QuestionService {
     return question;
   }
 
+  async createResolved(
+    dto: CreateQuestionDto,
+    locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    const question = await this.create(dto);
+    return this.toResolvedQuestion(question, locale, { includeTranslations: true });
+  }
+
+  toResolvedQuestion(
+    question: Question,
+    locale: Locale,
+    options: { includeTranslations?: boolean } = {},
+  ): ResolvedQuestion {
+    const resolved = resolveQuestion(question, locale);
+    const { translations, ...stored } = question;
+    const result: ResolvedQuestion = {
+      ...stored,
+      questionText: resolved.questionText,
+      followUpQuestions: resolved.followUpQuestions,
+      expectedConcepts: resolved.expectedConcepts,
+      redFlags: resolved.redFlags,
+      sampleGoodAnswer: resolved.sampleGoodAnswer,
+      resolvedLocale: resolved.resolvedLocale,
+      availableLocales: resolved.availableLocales,
+    };
+    if (options.includeTranslations) {
+      result.translations = translations;
+    }
+    return result;
+  }
+
   async upsertImportedQuestion(dto: CreateQuestionDto): Promise<Question> {
-    const normalized = this.normalizeQuestionInput(dto);
+    const normalized = this.normalizeCreateQuestionInput(dto);
 
     const question = await this.databaseService.withTransaction(
       async (client) => {
@@ -211,6 +267,8 @@ export class QuestionService {
             role,
             focus,
             output_language,
+            primary_locale,
+            translations_json,
             category,
             subcategory,
             text,
@@ -228,8 +286,8 @@ export class QuestionService {
             metadata
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-            $11, $12::jsonb, $13, $14::jsonb, $15, $16, $17, $18, $19, $20::jsonb
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+            $12, $13::jsonb, $14, $15::jsonb, $16, $17, $18, $19, $20, $21, $22::jsonb
           )
           ${QUESTION_RETURNING}
         `,
@@ -239,6 +297,8 @@ export class QuestionService {
           payload.role ?? null,
           payload.focus ?? null,
           payload.outputLanguage,
+          payload.primaryLocale,
+          JSON.stringify(payload.translations),
           payload.category ?? null,
           payload.subcategory ?? null,
           payload.questionText,
@@ -275,21 +335,23 @@ export class QuestionService {
             role = $3,
             focus = $4,
             output_language = $5,
-            category = $6,
-            subcategory = $7,
-            text = $8,
-            question_text = $9,
-            follow_up_questions = $10,
-            expected_concepts = $11,
-            expected_concepts_json = $12::jsonb,
-            red_flags = $13,
-            red_flags_json = $14::jsonb,
-            difficulty = $15,
-            weight = $16,
-            sample_good_answer = $17,
-            minimum_pass_score = $18,
-            tags = $19,
-            metadata = $20::jsonb,
+            primary_locale = $6,
+            translations_json = $7::jsonb,
+            category = $8,
+            subcategory = $9,
+            text = $10,
+            question_text = $11,
+            follow_up_questions = $12,
+            expected_concepts = $13,
+            expected_concepts_json = $14::jsonb,
+            red_flags = $15,
+            red_flags_json = $16::jsonb,
+            difficulty = $17,
+            weight = $18,
+            sample_good_answer = $19,
+            minimum_pass_score = $20,
+            tags = $21,
+            metadata = $22::jsonb,
             updated_at = NOW()
           WHERE id = $1
           ${QUESTION_RETURNING}
@@ -300,6 +362,8 @@ export class QuestionService {
           payload.role ?? null,
           payload.focus ?? null,
           payload.outputLanguage,
+          payload.primaryLocale,
+          JSON.stringify(payload.translations),
           payload.category ?? null,
           payload.subcategory ?? null,
           payload.questionText,
@@ -358,7 +422,7 @@ export class QuestionService {
 
   async findAll(
     query: QueryQuestionsDto = {},
-    options: { forceActive?: boolean } = {},
+    options: { forceActive?: boolean; resolveLocale: Locale },
   ): Promise<PaginatedQuestions> {
     const page = Math.max(1, query.page ?? DEFAULT_QUESTIONS_PAGE);
     const limit = Math.min(
@@ -390,13 +454,28 @@ export class QuestionService {
 
     const result = await this.databaseService.query<QuestionRow & { __total: string }>(sql, params);
     const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-    const items = result.rows.map((row) => this.mapRow(row));
+    const items = result.rows.map((row) =>
+      this.toResolvedQuestion(this.mapRow(row), options.resolveLocale, {
+        includeTranslations: query.includeTranslations === true,
+      }),
+    );
 
     return { items, total, page, limit };
   }
 
   private escapeLike(value: string): string {
     return value.replace(/[\\%_]/g, '\\$&');
+  }
+
+  private buildHasTranslationClause(localeParamRef: string): string {
+    return `(
+      COALESCE(trim(translations_json -> ${localeParamRef} ->> 'questionText'), '') <> ''
+      OR (
+        primary_locale = ${localeParamRef}
+        AND NOT (translations_json ? ${localeParamRef})
+        AND COALESCE(trim(question_text), '') <> ''
+      )
+    )`;
   }
 
   private buildQuestionFilterClauses(
@@ -448,8 +527,18 @@ export class QuestionService {
     }
 
     if (query.outputLanguage && options.excludeField !== 'outputLanguage') {
+      const locale = mapOutputLanguageToPrimaryLocale(query.outputLanguage);
+      params.push(locale);
       params.push(query.outputLanguage.toLowerCase());
-      whereClauses.push(`lower(output_language) = $${params.length}`);
+      whereClauses.push(
+        `(primary_locale = $${params.length - 1} OR lower(output_language) = $${params.length})`,
+      );
+    }
+
+    if (query.locale && options.excludeField !== 'locale') {
+      params.push(query.locale);
+      const localeParam = `$${params.length}`;
+      whereClauses.push(this.buildHasTranslationClause(localeParam));
     }
 
     if (
@@ -556,10 +645,27 @@ export class QuestionService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Question with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.QUESTION_NOT_FOUND,
+        `Question with id "${id}" not found`,
+        { id },
+      );
     }
 
     return this.mapRow(result.rows[0]);
+  }
+
+  async findOneResolved(
+    id: string,
+    locale: Locale,
+    options: { includeDeleted?: boolean; includeTranslations?: boolean } = {},
+  ): Promise<ResolvedQuestion> {
+    const question = await this.findOne(id, {
+      includeDeleted: options.includeDeleted,
+    });
+    return this.toResolvedQuestion(question, locale, {
+      includeTranslations: options.includeTranslations === true,
+    });
   }
 
   async softDelete(id: string): Promise<{ id: string; deleted: true }> {
@@ -593,7 +699,7 @@ export class QuestionService {
         if (err instanceof NotFoundException) {
           continue;
         }
-        if (err instanceof ConflictException) {
+        if (err instanceof HttpException && err.getStatus() === 409) {
           const existing = await this.findOne(id).catch(() => undefined);
           blocked.push({
             id,
@@ -633,15 +739,19 @@ export class QuestionService {
 
     const missingIds = uniqueIds.filter((id) => !byId.has(id));
     if (missingIds.length > 0) {
-      throw new NotFoundException(
+      throw apiNotFound(
+        ApiErrorCode.QUESTION_NOT_FOUND,
         `Questions not found: ${missingIds.join(', ')}`,
+        { ids: missingIds },
       );
     }
 
     const deletedIds = uniqueIds.filter((id) => byId.get(id)?.deleted);
     if (deletedIds.length > 0) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         `Cannot create an interview with deleted questions. Refresh the question list and remove ${deletedIds.length === 1 ? 'this id' : 'these ids'} from your selection: ${deletedIds.join(', ')}`,
+        { ids: deletedIds },
       );
     }
 
@@ -664,7 +774,11 @@ export class QuestionService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Question with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.QUESTION_NOT_FOUND,
+        `Question with id "${id}" not found`,
+        { id },
+      );
     }
 
     return this.mapRow(result.rows[0]);
@@ -692,8 +806,11 @@ export class QuestionService {
     );
 
     if (result.rows[0]) {
-      throw new ConflictException(
-        `Question is used by an active interview (candidate: ${result.rows[0].candidate_name}). Wait for it to finish before deleting.`,
+      const candidateName = result.rows[0].candidate_name;
+      throw apiConflict(
+        ApiErrorCode.QUESTION_IN_USE,
+        `Question is used by an active interview (candidate: ${candidateName}). Wait for it to finish before deleting.`,
+        { questionId: question.id, interviewId: result.rows[0].id, candidateName },
       );
     }
   }
@@ -709,7 +826,7 @@ export class QuestionService {
     return this.databaseService.withTransaction(async (client) => {
       const existing = await this.lockQuestionForRestore(client, id);
       if (!existing.deleted) {
-        throw new BadRequestException('Question is not deleted');
+        throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Question is not deleted', { id });
       }
 
       await this.assertNoActiveDuplicate(client, existing);
@@ -727,6 +844,17 @@ export class QuestionService {
       );
 
       return this.mapRow(result.rows[0]);
+    });
+  }
+
+  async restoreResolved(
+    id: string,
+    locale: Locale,
+    options: { includeTranslations?: boolean } = {},
+  ): Promise<ResolvedQuestion> {
+    const question = await this.restore(id);
+    return this.toResolvedQuestion(question, locale, {
+      includeTranslations: options.includeTranslations === true,
     });
   }
 
@@ -750,12 +878,15 @@ export class QuestionService {
     } catch (err) {
       const constraint = this.getUniqueViolationConstraint(err);
       if (constraint === 'questions_external_id_unique_idx') {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.QUESTION_DUPLICATE,
           `An active question with external_id "${payload.externalId}" already exists.`,
+          { externalId: payload.externalId },
         );
       }
       if (constraint === 'questions_active_text_unique_idx') {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.QUESTION_DUPLICATE,
           'An active question with the same text already exists.',
         );
       }
@@ -764,7 +895,8 @@ export class QuestionService {
         err !== null &&
         (err as { code?: string }).code === '54000'
       ) {
-        throw new BadRequestException(
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
           'Question text is too long to enforce uniqueness — please shorten it.',
         );
       }
@@ -786,7 +918,11 @@ export class QuestionService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Question with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.QUESTION_NOT_FOUND,
+        `Question with id "${id}" not found`,
+        { id },
+      );
     }
 
     return this.mapRow(result.rows[0]);
@@ -810,8 +946,10 @@ export class QuestionService {
       );
 
       if (externalIdMatch.rows[0]) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.QUESTION_DUPLICATE,
           `Cannot restore: an active question with external_id "${question.externalId}" already exists (id: ${externalIdMatch.rows[0].id}).`,
+          { externalId: question.externalId, existingId: externalIdMatch.rows[0].id },
         );
       }
     }
@@ -829,8 +967,10 @@ export class QuestionService {
     );
 
     if (textMatch.rows[0]) {
-      throw new ConflictException(
+      throw apiConflict(
+        ApiErrorCode.QUESTION_DUPLICATE,
         `Cannot restore: an active question with the same text already exists (id: ${textMatch.rows[0].id}).`,
+        { existingId: textMatch.rows[0].id },
       );
     }
   }
@@ -839,10 +979,14 @@ export class QuestionService {
     draft: Partial<Pick<QuestionCore, 'questionText' | 'category' | 'subcategory' | 'role' | 'difficulty'>>,
     limit: number,
     excludeQuestionId: string | undefined,
+    locale: Locale,
   ): Promise<SimilarQuestionMatch[]> {
     const text = draft.questionText?.trim();
     if (!text) {
-      throw new BadRequestException('draft.questionText is required');
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'draft.questionText is required',
+      );
     }
 
     const vector = await this.embeddingsService.generate(text);
@@ -851,30 +995,7 @@ export class QuestionService {
     const result = await this.databaseService.query<QuestionRow & { distance: number }>(
       `
         SELECT
-          q.id,
-          q.external_id,
-          q.role,
-          q.focus,
-          q.output_language,
-          q.category,
-          q.subcategory,
-          q.text,
-          q.question_text,
-          q.follow_up_questions,
-          q.expected_concepts,
-          q.expected_concepts_json,
-          q.red_flags,
-          q.red_flags_json,
-          q.difficulty,
-          q.weight,
-          q.sample_good_answer,
-          q.minimum_pass_score,
-          q.tags,
-          q.metadata,
-          q.created_at,
-          q.updated_at,
-          q.deleted,
-          q.usage_count,
+          ${QUESTION_Q_COLUMNS},
           (e.embedding <=> $1::vector) AS distance
         FROM question_embeddings e
         INNER JOIN questions q ON q.id = e.question_id
@@ -898,7 +1019,7 @@ export class QuestionService {
       const question = this.mapRow(row);
       const score = Math.max(0, 1 - Number(row.distance));
       return {
-        question,
+        question: this.toResolvedQuestion(question, locale),
         score,
         reasons: this.buildSimilarReasons(draft, question),
       };
@@ -925,26 +1046,9 @@ export class QuestionService {
     return reasons;
   }
 
-  async update(id: string, dto: UpdateQuestionDto | QuestionDraft): Promise<Question> {
+  async update(id: string, dto: UpdateQuestionDto): Promise<Question> {
     const existing = await this.findOne(id);
-    const payload = this.normalizeQuestionInput({
-      externalId: dto.externalId ?? existing.externalId,
-      role: dto.role ?? existing.role,
-      focus: dto.focus ?? existing.focus,
-      outputLanguage: dto.outputLanguage ?? existing.outputLanguage,
-      category: dto.category ?? existing.category,
-      subcategory: dto.subcategory ?? existing.subcategory,
-      questionText: dto.questionText ?? existing.questionText,
-      followUpQuestions: dto.followUpQuestions ?? existing.followUpQuestions,
-      expectedConcepts: dto.expectedConcepts ?? existing.expectedConcepts,
-      redFlags: dto.redFlags ?? existing.redFlags,
-      difficulty: dto.difficulty ?? existing.difficulty,
-      weight: dto.weight ?? existing.weight,
-      sampleGoodAnswer: dto.sampleGoodAnswer ?? existing.sampleGoodAnswer,
-      minimumPassScore: dto.minimumPassScore ?? existing.minimumPassScore,
-      tags: dto.tags ?? existing.tags,
-      metadata: dto.metadata ?? existing.metadata,
-    });
+    const payload = this.normalizeUpdateQuestionInput(dto, existing);
 
     const question = await this.updateQuestionRow(
       this.databaseService,
@@ -953,6 +1057,15 @@ export class QuestionService {
     );
     await this.storeEmbedding(question.id, question.questionText);
     return question;
+  }
+
+  async updateResolved(
+    id: string,
+    dto: UpdateQuestionDto,
+    locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    const question = await this.update(id, dto);
+    return this.toResolvedQuestion(question, locale, { includeTranslations: true });
   }
 
   hydrateStoredQuestionCore(value: unknown): QuestionCore {
@@ -972,15 +1085,14 @@ export class QuestionService {
         )
       : [];
 
-    return {
-      id: String(record.id ?? ''),
-      externalId: this.normalizeOptionalString(record.externalId as string),
-      role: this.normalizeOptionalString(record.role as string),
-      focus: this.normalizeOptionalString(record.focus as string),
-      outputLanguage:
-        this.normalizeOptionalString(record.outputLanguage as string) ?? 'English',
-      category: this.normalizeOptionalString(record.category as string),
-      subcategory: this.normalizeOptionalString(record.subcategory as string),
+    const outputLanguage =
+      this.normalizeOptionalString(record.outputLanguage as string) ?? 'English';
+    const primaryLocale =
+      typeof record.primaryLocale === 'string' && isLocale(record.primaryLocale)
+        ? record.primaryLocale
+        : mapOutputLanguageToPrimaryLocale(outputLanguage);
+    const translations = parseTranslationsJson(record.translations);
+    const legacy = {
       questionText:
         this.normalizeOptionalString(record.questionText as string) ??
         this.normalizeOptionalString(record.text as string) ??
@@ -990,11 +1102,27 @@ export class QuestionService {
         : [],
       expectedConcepts,
       redFlags,
+      sampleGoodAnswer: this.normalizeOptionalString(record.sampleGoodAnswer as string),
+    };
+    const resolved = resolveQuestionFields(primaryLocale, translations, legacy);
+
+    return {
+      id: String(record.id ?? ''),
+      externalId: this.normalizeOptionalString(record.externalId as string),
+      role: this.normalizeOptionalString(record.role as string),
+      focus: this.normalizeOptionalString(record.focus as string),
+      primaryLocale: resolved.primaryLocale,
+      translations: resolved.translations,
+      outputLanguage: primaryLocaleToOutputLanguage(resolved.primaryLocale),
+      category: this.normalizeOptionalString(record.category as string),
+      subcategory: this.normalizeOptionalString(record.subcategory as string),
+      questionText: resolved.questionText,
+      followUpQuestions: this.normalizeStringList(resolved.followUpQuestions),
+      expectedConcepts: this.normalizeExpectedConcepts(resolved.expectedConcepts),
+      redFlags: this.normalizeRedFlags(resolved.redFlags),
       difficulty: this.normalizeDifficulty(record.difficulty),
       weight: this.normalizeWeight(record.weight),
-      sampleGoodAnswer: this.normalizeOptionalString(
-        record.sampleGoodAnswer as string,
-      ),
+      sampleGoodAnswer: this.normalizeOptionalString(resolved.sampleGoodAnswer),
       minimumPassScore: this.normalizeMinimumPassScore(
         record.minimumPassScore,
       ),
@@ -1007,11 +1135,209 @@ export class QuestionService {
     };
   }
 
+  private normalizeUpdateQuestionInput(
+    dto: UpdateQuestionDto,
+    existing: Question,
+  ): QuestionDraft {
+    const primaryLocale =
+      dto.primaryLocale && isLocale(dto.primaryLocale)
+        ? dto.primaryLocale
+        : existing.primaryLocale;
+    const translationsMode = dto.translationsMode ?? 'merge';
+
+    if (dto.primaryLocale && dto.primaryLocale !== existing.primaryLocale && !dto.translations) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'translations is required when changing primaryLocale',
+        { primaryLocale: dto.primaryLocale },
+      );
+    }
+
+    if (translationsMode === 'replace' && !dto.translations) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'translations is required when translationsMode is replace',
+      );
+    }
+
+    let translations: QuestionTranslations = { ...existing.translations };
+
+    if (dto.translations) {
+      const requirePrimary =
+        translationsMode === 'replace' || dto.primaryLocale !== undefined;
+      const incoming = this.normalizeTranslationsInput(dto.translations, {
+        requirePrimaryLocale: requirePrimary ? primaryLocale : undefined,
+      });
+      translations = applyTranslationsUpdate(
+        existing.translations,
+        incoming,
+        translationsMode,
+      );
+    } else if (this.hasLegacyLocalizedPatch(dto)) {
+      translations = mergeTranslations(
+        translations,
+        primaryLocale,
+        buildTranslation({
+          questionText: dto.questionText ?? existing.questionText,
+          followUpQuestions:
+            dto.followUpQuestions ?? existing.followUpQuestions,
+          expectedConcepts:
+            dto.expectedConcepts !== undefined
+              ? this.normalizeExpectedConcepts(dto.expectedConcepts)
+              : existing.expectedConcepts,
+          redFlags:
+            dto.redFlags !== undefined
+              ? this.normalizeRedFlags(dto.redFlags)
+              : existing.redFlags,
+          sampleGoodAnswer: dto.sampleGoodAnswer ?? existing.sampleGoodAnswer,
+        }),
+      );
+    }
+
+    const primary = translations[primaryLocale];
+    if (!primary?.questionText) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        `translations must include a complete block for primaryLocale "${primaryLocale}"`,
+        { primaryLocale },
+      );
+    }
+
+    const weight = Number(dto.weight ?? existing.weight);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Question weight must be greater than 0',
+      );
+    }
+
+    const minimumPassScore = Number(dto.minimumPassScore ?? existing.minimumPassScore);
+    if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Minimum pass score must be between 0 and 5',
+      );
+    }
+
+    return {
+      externalId: this.normalizeOptionalString(dto.externalId) ?? existing.externalId,
+      role: this.normalizeOptionalString(dto.role) ?? existing.role,
+      focus: this.normalizeOptionalString(dto.focus) ?? existing.focus,
+      primaryLocale,
+      translations,
+      outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
+      category: this.normalizeOptionalString(dto.category) ?? existing.category,
+      subcategory: this.normalizeOptionalString(dto.subcategory) ?? existing.subcategory,
+      questionText: primary.questionText,
+      followUpQuestions: primary.followUpQuestions,
+      expectedConcepts: primary.expectedConcepts,
+      redFlags: primary.redFlags,
+      difficulty: dto.difficulty ?? existing.difficulty,
+      weight: Number(weight.toFixed(2)),
+      sampleGoodAnswer: primary.sampleGoodAnswer,
+      minimumPassScore: Number(minimumPassScore.toFixed(2)),
+      tags: this.normalizeStringList(dto.tags ?? existing.tags),
+      metadata: this.normalizeMetadata(dto.metadata ?? existing.metadata),
+    };
+  }
+
+  private hasLegacyLocalizedPatch(dto: UpdateQuestionDto): boolean {
+    return (
+      dto.questionText !== undefined ||
+      dto.followUpQuestions !== undefined ||
+      dto.expectedConcepts !== undefined ||
+      dto.redFlags !== undefined ||
+      dto.sampleGoodAnswer !== undefined
+    );
+  }
+
+  private normalizeCreateQuestionInput(dto: CreateQuestionDto): QuestionDraft {
+    const translations = this.normalizeTranslationsInput(dto.translations, {
+      requirePrimaryLocale: dto.primaryLocale,
+    });
+    const primary = translations[dto.primaryLocale];
+    if (!primary) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        `translations must include a complete block for primaryLocale "${dto.primaryLocale}"`,
+        { primaryLocale: dto.primaryLocale },
+      );
+    }
+
+    const weight = Number(dto.weight ?? 1);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Question weight must be greater than 0',
+      );
+    }
+
+    const minimumPassScore = Number(dto.minimumPassScore ?? 0);
+    if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Minimum pass score must be between 0 and 5',
+      );
+    }
+
+    return {
+      externalId: this.normalizeOptionalString(dto.externalId),
+      role: this.normalizeOptionalString(dto.role),
+      focus: this.normalizeOptionalString(dto.focus),
+      primaryLocale: dto.primaryLocale,
+      translations,
+      outputLanguage: primaryLocaleToOutputLanguage(dto.primaryLocale),
+      category: this.normalizeOptionalString(dto.category),
+      subcategory: this.normalizeOptionalString(dto.subcategory),
+      questionText: primary.questionText,
+      followUpQuestions: primary.followUpQuestions,
+      expectedConcepts: primary.expectedConcepts,
+      redFlags: primary.redFlags,
+      difficulty: dto.difficulty ?? 'medium',
+      weight: Number(weight.toFixed(2)),
+      sampleGoodAnswer: primary.sampleGoodAnswer,
+      minimumPassScore: Number(minimumPassScore.toFixed(2)),
+      tags: this.normalizeStringList(dto.tags),
+      metadata: this.normalizeMetadata(dto.metadata),
+    };
+  }
+
+  private normalizeTranslationsInput(
+    raw: Partial<Record<Locale, QuestionTranslationDto>>,
+    options: { requirePrimaryLocale?: Locale } = {},
+  ): QuestionTranslations {
+    const translations: QuestionTranslations = {};
+    for (const locale of SUPPORTED_LOCALES) {
+      const block = raw[locale];
+      if (!block) {
+        continue;
+      }
+      translations[locale] = {
+        questionText: block.questionText.trim(),
+        followUpQuestions: this.normalizeStringList(block.followUpQuestions),
+        expectedConcepts: this.normalizeExpectedConcepts(block.expectedConcepts),
+        redFlags: this.normalizeRedFlags(block.redFlags),
+        sampleGoodAnswer: this.normalizeOptionalString(block.sampleGoodAnswer),
+      };
+    }
+    const requiredPrimary = options.requirePrimaryLocale;
+    if (requiredPrimary && !translations[requiredPrimary]?.questionText) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        `translations must include a complete block for primaryLocale "${requiredPrimary}"`,
+        { primaryLocale: requiredPrimary },
+      );
+    }
+    return translations;
+  }
+
   private normalizeQuestionInput(dto: {
     externalId?: string;
     role?: string;
     focus?: string;
+    primaryLocale?: Locale;
     outputLanguage?: string;
+    translations?: QuestionTranslations;
     category?: string;
     subcategory?: string;
     questionText: string;
@@ -1027,33 +1353,60 @@ export class QuestionService {
   }): QuestionDraft {
     const questionText = dto.questionText.trim();
     if (!questionText) {
-      throw new BadRequestException('Question text is required');
+      throw apiBadRequest(ApiErrorCode.VALIDATION_ERROR, 'Question text is required');
     }
 
     const weight = Number(dto.weight ?? 1);
     if (!Number.isFinite(weight) || weight <= 0) {
-      throw new BadRequestException('Question weight must be greater than 0');
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Question weight must be greater than 0',
+      );
     }
 
     const minimumPassScore = Number(dto.minimumPassScore ?? 0);
     if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
-      throw new BadRequestException('Minimum pass score must be between 0 and 5');
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Minimum pass score must be between 0 and 5',
+      );
     }
+
+    const followUpQuestions = this.normalizeStringList(dto.followUpQuestions);
+    const expectedConcepts = this.normalizeExpectedConcepts(dto.expectedConcepts);
+    const redFlags = this.normalizeRedFlags(dto.redFlags);
+    const sampleGoodAnswer = this.normalizeOptionalString(dto.sampleGoodAnswer);
+    const primaryLocale =
+      dto.primaryLocale && isLocale(dto.primaryLocale)
+        ? dto.primaryLocale
+        : mapOutputLanguageToPrimaryLocale(
+            this.normalizeOptionalString(dto.outputLanguage) ?? 'English',
+          );
+    const translation = buildTranslation({
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
+      sampleGoodAnswer,
+    });
+    const translations = mergeTranslations(dto.translations, primaryLocale, translation);
 
     return {
       externalId: this.normalizeOptionalString(dto.externalId),
       role: this.normalizeOptionalString(dto.role),
       focus: this.normalizeOptionalString(dto.focus),
-      outputLanguage: this.normalizeOptionalString(dto.outputLanguage) ?? 'English',
+      primaryLocale,
+      translations,
+      outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
       category: this.normalizeOptionalString(dto.category),
       subcategory: this.normalizeOptionalString(dto.subcategory),
       questionText,
-      followUpQuestions: this.normalizeStringList(dto.followUpQuestions),
-      expectedConcepts: this.normalizeExpectedConcepts(dto.expectedConcepts),
-      redFlags: this.normalizeRedFlags(dto.redFlags),
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
       difficulty: dto.difficulty ?? 'medium',
       weight: Number(weight.toFixed(2)),
-      sampleGoodAnswer: this.normalizeOptionalString(dto.sampleGoodAnswer),
+      sampleGoodAnswer,
       minimumPassScore: Number(minimumPassScore.toFixed(2)),
       tags: this.normalizeStringList(dto.tags),
       metadata: this.normalizeMetadata(dto.metadata),
@@ -1245,6 +1598,8 @@ export class QuestionService {
       externalId: question.externalId,
       role: question.role,
       focus: question.focus,
+      primaryLocale: question.primaryLocale,
+      translations: question.translations,
       outputLanguage: question.outputLanguage,
       category: question.category,
       subcategory: question.subcategory,
@@ -1262,15 +1617,12 @@ export class QuestionService {
   }
 
   private mapRow(row: QuestionRow): Question {
-    return {
-      id: row.id,
-      externalId: this.normalizeOptionalString(row.external_id),
-      role: this.normalizeOptionalString(row.role),
-      focus: this.normalizeOptionalString(row.focus),
-      outputLanguage:
-        this.normalizeOptionalString(row.output_language) ?? 'English',
-      category: this.normalizeOptionalString(row.category),
-      subcategory: this.normalizeOptionalString(row.subcategory),
+    const primaryLocale = resolvePrimaryLocale(
+      row.primary_locale,
+      row.output_language,
+    );
+    const translations = parseTranslationsJson(row.translations_json);
+    const legacy = {
       questionText:
         this.normalizeOptionalString(row.question_text) ?? row.text,
       followUpQuestions: row.follow_up_questions ?? [],
@@ -1279,9 +1631,27 @@ export class QuestionService {
         row.expected_concepts,
       ),
       redFlags: this.parseRedFlags(row.red_flags_json, row.red_flags),
+      sampleGoodAnswer: this.normalizeOptionalString(row.sample_good_answer),
+    };
+    const resolved = resolveQuestionFields(primaryLocale, translations, legacy);
+
+    return {
+      id: row.id,
+      externalId: this.normalizeOptionalString(row.external_id),
+      role: this.normalizeOptionalString(row.role),
+      focus: this.normalizeOptionalString(row.focus),
+      primaryLocale: resolved.primaryLocale,
+      translations: resolved.translations,
+      outputLanguage: primaryLocaleToOutputLanguage(resolved.primaryLocale),
+      category: this.normalizeOptionalString(row.category),
+      subcategory: this.normalizeOptionalString(row.subcategory),
+      questionText: resolved.questionText,
+      followUpQuestions: this.normalizeStringList(resolved.followUpQuestions),
+      expectedConcepts: this.normalizeExpectedConcepts(resolved.expectedConcepts),
+      redFlags: this.normalizeRedFlags(resolved.redFlags),
       difficulty: row.difficulty,
       weight: row.weight,
-      sampleGoodAnswer: this.normalizeOptionalString(row.sample_good_answer),
+      sampleGoodAnswer: this.normalizeOptionalString(resolved.sampleGoodAnswer),
       minimumPassScore: Number((row.minimum_pass_score ?? 0).toFixed(2)),
       tags: row.tags ?? [],
       metadata: this.normalizeMetadata(row.metadata ?? {}),

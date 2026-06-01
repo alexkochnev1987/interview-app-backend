@@ -1,4 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
+import { QuestionTranslations } from '../interfaces/question.interface';
+import { QuestionTranslationDto } from './question-translation.dto';
 
 export class QuestionExpectedConceptDto {
   @ApiProperty()
@@ -28,6 +32,9 @@ export class QuestionRedFlagDto {
 export class QuestionResponseDto {
   @ApiProperty()
   id: string;
+
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  primaryLocale?: Locale;
 
   @ApiPropertyOptional()
   externalId?: string;
@@ -90,9 +97,28 @@ export class QuestionResponseDto {
   usageCount: number;
 }
 
+export class ResolvedQuestionResponseDto extends QuestionResponseDto {
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  declare primaryLocale: Locale;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    description:
+      'Present when includeTranslations=true (GET) or on POST/PUT responses.',
+  })
+  translations?: QuestionTranslations;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  resolvedLocale: Locale;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
+  availableLocales: Locale[];
+}
+
 export class PaginatedQuestionsResponseDto {
-  @ApiProperty({ type: [QuestionResponseDto] })
-  items: QuestionResponseDto[];
+  @ApiProperty({ type: [ResolvedQuestionResponseDto] })
+  items: ResolvedQuestionResponseDto[];
 
   @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
   total: number;
@@ -182,8 +208,8 @@ export class BulkDeleteQuestionsResponseDto {
 }
 
 export class SimilarQuestionMatchDto {
-  @ApiProperty({ type: QuestionResponseDto })
-  question: QuestionResponseDto;
+  @ApiProperty({ type: ResolvedQuestionResponseDto })
+  question: ResolvedQuestionResponseDto;
 
   @ApiProperty()
   score: number;
