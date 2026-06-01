@@ -1,9 +1,10 @@
+import { Injectable } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+  apiBadRequest,
+  apiForbidden,
+  apiNotFound,
+} from '../common/errors/api-error';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
 import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
@@ -40,6 +41,16 @@ import {
 } from './interview-access-rules';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
+
+const DEFAULT_INTERVIEW_LIST_LIMIT = 50;
+const MAX_INTERVIEW_LIST_LIMIT = 100;
+
+export interface PaginatedInterviews {
+  items: Interview[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 const INTERVIEW_SELECT_COLUMNS = `
   id,
@@ -153,19 +164,19 @@ export class InterviewService {
     const questionIds = dto.questionIds.map((id) => id.trim()).filter(Boolean);
 
     if (!candidateName) {
-      throw new BadRequestException('Candidate name is required');
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
     }
     if (!position) {
-      throw new BadRequestException('Position is required');
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Position is required');
     }
     if (questionIds.length === 0) {
-      throw new BadRequestException('At least one question must be selected');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'At least one question must be selected',
+      );
     }
 
-    const interviewLocale =
-      dto.interviewLocale && isLocale(dto.interviewLocale)
-        ? dto.interviewLocale
-        : DEFAULT_LOCALE;
+    const interviewLocale = dto.interviewLocale ?? DEFAULT_LOCALE;
 
     return this.databaseService.withTransaction(async (client) => {
       const questions = await this.questionService.findManyByIdsForUpdate(
@@ -174,7 +185,8 @@ export class InterviewService {
       );
 
       if (questions.length !== questionIds.length) {
-        throw new BadRequestException(
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
           `Resolved ${questions.length} questions for ${questionIds.length} requested ids; interview cannot be created.`,
         );
       }
@@ -219,16 +231,35 @@ export class InterviewService {
     });
   }
 
-  async findAll(): Promise<Interview[]> {
-    const result = await this.databaseService.query<InterviewRow>(
+  async findAll(options?: {
+    limit?: number;
+    offset?: number;
+    page?: number;
+  }): Promise<PaginatedInterviews> {
+    const limit = Math.min(
+      MAX_INTERVIEW_LIST_LIMIT,
+      Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
+    );
+    const page = Math.max(1, options?.page ?? 1);
+    const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
+
+    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
       `
-        SELECT ${INTERVIEW_SELECT_COLUMNS}
+        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
         FROM interviews
         ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
       `,
+      [limit, offset],
     );
 
-    return result.rows.map((row) => this.mapRow(row));
+    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    return {
+      items: result.rows.map((row) => this.mapRow(row)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<Interview> {
@@ -243,29 +274,53 @@ export class InterviewService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Interview with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.INTERVIEW_NOT_FOUND,
+        `Interview with id "${id}" not found`,
+        { id },
+      );
     }
 
     return this.mapRow(result.rows[0]);
   }
 
-  async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
+  async findAllForActor(
+    actor: InterviewActor,
+    options?: { limit?: number; offset?: number; page?: number },
+  ): Promise<PaginatedInterviews> {
+    const limit = Math.min(
+      MAX_INTERVIEW_LIST_LIMIT,
+      Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
+    );
+    const page = Math.max(1, options?.page ?? 1);
+    const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
+
     if (actor.role === 'super_admin' || actor.role === 'admin') {
-      return this.findAll();
+      return this.findAll({ limit, offset, page });
     }
     if (actor.role === 'hr') {
-      const result = await this.databaseService.query<InterviewRow>(
+      const result = await this.databaseService.query<InterviewRow & { __total: string }>(
         `
-          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
           FROM interviews
           WHERE created_by_id = $1
           ORDER BY created_at DESC
+          LIMIT $2 OFFSET $3
         `,
-        [actor.id],
+        [actor.id, limit, offset],
       );
-      return result.rows.map((row) => this.mapRow(row));
+      const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+      return {
+        items: result.rows.map((row) => this.mapRow(row)),
+        total,
+        page,
+        limit,
+      };
     }
-    throw new ForbiddenException('You do not have access to interviews');
+    throw apiForbidden(
+      ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+      'You do not have access to interviews',
+    );
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
@@ -278,7 +333,9 @@ export class InterviewService {
     const interview = await this.findOne(id);
     const blockReason = getInterviewCompletionBlockReason(interview);
     if (blockReason) {
-      throw new BadRequestException(blockReason);
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, blockReason, {
+        interviewId: id,
+      });
     }
 
     return this.recomputeResult(id);
@@ -291,7 +348,10 @@ export class InterviewService {
       id,
     );
     if (unavailableMessage) {
-      throw new NotFoundException(unavailableMessage);
+      throw apiNotFound(ApiErrorCode.NOT_FOUND, unavailableMessage, {
+        id,
+        status: interview.status,
+      });
     }
     return interview.result!;
   }
@@ -302,7 +362,11 @@ export class InterviewService {
   ): void {
     const denial = getInterviewAccessDenialReason(interview, actor);
     if (denial) {
-      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        INTERVIEW_ACCESS_DENIED_MESSAGE,
+        { interviewId: interview.id },
+      );
     }
   }
 
@@ -542,12 +606,18 @@ export class InterviewService {
 
     const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
     if (questionIndex !== currentQuestionIndex) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         'Invalid question index — must answer in order',
+        { interviewId: id, questionIndex, currentQuestionIndex },
       );
     }
     if (questionIndex >= interview.questions.length) {
-      throw new BadRequestException('Question index is out of range');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Question index is out of range',
+        { interviewId: id, questionIndex },
+      );
     }
     if (
       !matchesInterviewMediaKey({
@@ -557,7 +627,11 @@ export class InterviewService {
         mediaType: 'camera',
       })
     ) {
-      throw new BadRequestException('Invalid camera recording key');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Invalid camera recording key',
+        { interviewId: id, questionIndex },
+      );
     }
     if (
       screenMediaKey &&
@@ -568,7 +642,11 @@ export class InterviewService {
         mediaType: 'screen',
       })
     ) {
-      throw new BadRequestException('Invalid screen recording key');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Invalid screen recording key',
+        { interviewId: id, questionIndex },
+      );
     }
 
     const question = interview.questions[questionIndex];
@@ -576,8 +654,10 @@ export class InterviewService {
       interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
       undefined;
     if (existingAnswer?.status === 'submitted' && !submitAnswer) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         'Cannot update recording progress for a submitted answer',
+        { interviewId: id, questionIndex },
       );
     }
 
@@ -616,8 +696,10 @@ export class InterviewService {
       normalizedSubmittedAt &&
       normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
     ) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         'submittedAt must be after startedAt for the answer',
+        { interviewId: id, questionIndex },
       );
     }
 
@@ -738,8 +820,10 @@ export class InterviewService {
     );
 
     if (!answer) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         `Answer for question ${questionIndex} is not available`,
+        { questionIndex },
       );
     }
 

@@ -40,8 +40,22 @@ export class ApiExceptionFilter implements ExceptionFilter {
       code: normalized.code,
       message: normalized.message,
       ...(normalized.params !== undefined ? { params: normalized.params } : {}),
-      path: request.url,
+      path: this.sanitizePath(request.url),
     });
+  }
+
+  private sanitizePath(url: string): string {
+    const queryIndex = url.indexOf('?');
+    if (queryIndex === -1) {
+      return url;
+    }
+    const pathname = url.slice(0, queryIndex);
+    const params = new URLSearchParams(url.slice(queryIndex + 1));
+    if (params.has('token')) {
+      params.set('token', '[redacted]');
+    }
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
   }
 
   private normalize(exception: unknown): NormalizedApiError {

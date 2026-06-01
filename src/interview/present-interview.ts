@@ -6,6 +6,8 @@ import {
 } from './resolve-interview-question';
 
 export type InterviewPresentation = Omit<Interview, 'questions'> & {
+  /** Locale used to resolve `questions[]` (from `X-Locale`). */
+  questionsDisplayLocale: Locale;
   questions: ResolvedInterviewQuestion[];
 };
 
@@ -15,6 +17,7 @@ export function presentInterview(
 ): InterviewPresentation {
   return {
     ...interview,
+    questionsDisplayLocale: locale,
     questions: resolveInterviewQuestions(interview.questions, locale),
   };
 }

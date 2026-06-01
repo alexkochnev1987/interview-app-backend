@@ -1,12 +1,12 @@
 import { Locale } from '../locale/locale.constants';
-import { evaluationLocaleText } from '../interview/evaluation-locale-text';
+import { localeUiText } from '../locale/locale-ui-text';
 import { InterviewQuestionResult } from '../interview/interfaces/interview.interface';
 
 export function buildFeedbackImprovements(
   questionResults: InterviewQuestionResult[],
   interviewLocale: Locale,
 ): string | undefined {
-  const text = evaluationLocaleText(interviewLocale);
+  const text = localeUiText(interviewLocale);
   const weak = questionResults
     .filter(
       (item) =>

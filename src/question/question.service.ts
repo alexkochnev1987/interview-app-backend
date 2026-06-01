@@ -38,7 +38,12 @@ import {
   resolveQuestionFields,
 } from './question-locale';
 import { resolveQuestion } from './resolve-question';
-import { evaluationLocaleText } from '../interview/evaluation-locale-text';
+import { localeUiText } from '../locale/locale-ui-text';
+import {
+  buildQuestionSearchText,
+  collectQuestionTextVariants,
+} from './question-search-text';
+import { toResolveQuestionInput } from './to-resolve-question-input';
 
 export type ResolvedQuestion = Omit<Question, 'translations'> & {
   resolvedLocale: Locale;
@@ -174,12 +179,34 @@ export class QuestionService {
     private readonly embeddingsService: EmbeddingsService,
   ) {}
 
+  private embeddingSourceText(
+    question: Pick<
+      Question,
+      | 'primaryLocale'
+      | 'translations'
+      | 'questionText'
+      | 'followUpQuestions'
+      | 'expectedConcepts'
+      | 'redFlags'
+      | 'sampleGoodAnswer'
+    >,
+  ): string {
+    return resolveQuestion(
+      toResolveQuestionInput(question as QuestionCore),
+      question.primaryLocale,
+    ).questionText;
+  }
+
   private async storeEmbedding(
     questionId: string,
     text: string,
   ): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
     try {
-      await this.embeddingsService.generateAndStore(questionId, text);
+      await this.embeddingsService.generateAndStore(questionId, trimmed);
     } catch (err) {
       this.logger.warn(
         `failed to store embedding for question ${questionId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -193,7 +220,7 @@ export class QuestionService {
       this.databaseService,
       payload,
     );
-    await this.storeEmbedding(question.id, question.questionText);
+    await this.storeEmbedding(question.id, this.embeddingSourceText(question));
     return question;
   }
 
@@ -252,7 +279,7 @@ export class QuestionService {
       },
     );
 
-    await this.storeEmbedding(question.id, question.questionText);
+    await this.storeEmbedding(question.id, this.embeddingSourceText(question));
     return question;
   }
 
@@ -285,11 +312,12 @@ export class QuestionService {
             sample_good_answer,
             minimum_pass_score,
             tags,
-            metadata
+            metadata,
+            search_text
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-            $12, $13::jsonb, $14, $15::jsonb, $16, $17, $18, $19, $20, $21, $22::jsonb
+            $12, $13::jsonb, $14, $15::jsonb, $16, $17, $18, $19, $20, $21, $22::jsonb, $23
           )
           ${QUESTION_RETURNING}
         `,
@@ -316,6 +344,7 @@ export class QuestionService {
           payload.minimumPassScore,
           payload.tags,
           JSON.stringify(payload.metadata),
+          buildQuestionSearchText(payload.questionText, payload.translations),
         ],
       ),
     );
@@ -354,6 +383,7 @@ export class QuestionService {
             minimum_pass_score = $20,
             tags = $21,
             metadata = $22::jsonb,
+            search_text = $23,
             updated_at = NOW()
           WHERE id = $1
           ${QUESTION_RETURNING}
@@ -381,6 +411,7 @@ export class QuestionService {
           payload.minimumPassScore,
           payload.tags,
           JSON.stringify(payload.metadata),
+          buildQuestionSearchText(payload.questionText, payload.translations),
         ],
       ),
     );
@@ -500,7 +531,7 @@ export class QuestionService {
       params.push(`%${this.escapeLike(query.q)}%`);
       const i = params.length;
       whereClauses.push(`(
-        question_text ILIKE $${i}
+        search_text ILIKE $${i}
         OR role ILIKE $${i}
         OR category ILIKE $${i}
         OR subcategory ILIKE $${i}
@@ -696,7 +727,6 @@ export class QuestionService {
     const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
     const deleted: string[] = [];
     const blocked: Array<{ id: string; questionText: string; reason: string }> = [];
-
     for (const id of uniqueIds) {
       try {
         await this.databaseService.withTransaction(async (client) => {
@@ -710,21 +740,46 @@ export class QuestionService {
           continue;
         }
         if (err instanceof HttpException && err.getStatus() === 409) {
-          const existing = await this.findOne(id).catch(() => undefined);
-          blocked.push({
-            id,
-            questionText: existing
-              ? this.toResolvedQuestion(existing, locale).questionText
-              : '',
-            reason: err.message,
-          });
+          blocked.push({ id, questionText: '', reason: err.message });
           continue;
         }
         throw err;
       }
     }
 
+    if (blocked.length > 0) {
+      const resolvedById = await this.loadResolvedQuestionTexts(
+        blocked.map((item) => item.id),
+        locale,
+      );
+      for (const item of blocked) {
+        item.questionText = resolvedById.get(item.id) ?? '';
+      }
+    }
+
     return { deleted, blocked };
+  }
+
+  private async loadResolvedQuestionTexts(
+    ids: string[],
+    locale: Locale,
+  ): Promise<Map<string, string>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    const result = await this.databaseService.query<QuestionRow>(
+      `${QUESTION_SELECT} WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    const map = new Map<string, string>();
+    for (const row of result.rows) {
+      map.set(
+        row.id,
+        this.toResolvedQuestion(this.mapRow(row), locale).questionText,
+      );
+    }
+    return map;
   }
 
   async findManyByIdsForUpdate(
@@ -966,16 +1021,31 @@ export class QuestionService {
       }
     }
 
+    const textVariants = collectQuestionTextVariants(
+      question.questionText,
+      question.translations,
+    );
+    if (textVariants.length === 0) {
+      return;
+    }
+
     const textMatch = await client.query<{ id: string }>(
       `
         SELECT id
         FROM questions
-        WHERE lower(question_text) = lower($1)
-          AND deleted = FALSE
+        WHERE deleted = FALSE
           AND id <> $2
+          AND (
+            lower(question_text) = ANY($1::text[])
+            OR EXISTS (
+              SELECT 1
+              FROM jsonb_each(translations_json) AS tr(locale_key, block)
+              WHERE lower(trim(block->>'questionText')) = ANY($1::text[])
+            )
+          )
         LIMIT 1
       `,
-      [question.questionText, question.id],
+      [textVariants, question.id],
     );
 
     if (textMatch.rows[0]) {
@@ -1043,7 +1113,7 @@ export class QuestionService {
     match: Question,
     locale: Locale,
   ): string[] {
-    const text = evaluationLocaleText(locale);
+    const text = localeUiText(locale);
     const reasons: string[] = [];
     if (draft.category && draft.category === match.category) {
       reasons.push(text.similarSameCategory(match.category));
@@ -1069,7 +1139,7 @@ export class QuestionService {
       id,
       payload,
     );
-    await this.storeEmbedding(question.id, question.questionText);
+    await this.storeEmbedding(question.id, this.embeddingSourceText(question));
     return question;
   }
 

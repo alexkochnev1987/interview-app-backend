@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   Param,
@@ -20,7 +19,8 @@ import { LoginThrottlerGuard } from '../auth/guards/login-throttler.guard';
 import { FeedbackService } from './feedback.service';
 import { FeedbackResponse } from './interfaces/feedback-link.interface';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest } from '../common/errors/api-error';
 import { FeedbackResponseDto } from './dto/feedback.response.dto';
 
 @ApiTags('feedback')
@@ -52,7 +52,7 @@ export class FeedbackController {
     @Query('token') token: string,
   ): Promise<FeedbackResponse> {
     if (!token) {
-      throw new BadRequestException('Token is required');
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Token is required');
     }
     return this.feedbackService.resolveByToken(interviewId, token);
   }

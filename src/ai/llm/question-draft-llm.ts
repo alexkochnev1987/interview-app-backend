@@ -1,5 +1,5 @@
 import type { QuestionDraft } from '../../question/interfaces/question.interface';
-import { evaluationLocaleText } from '../../interview/evaluation-locale-text';
+import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import { primaryLocaleToOutputLanguage } from '../../question/question-locale';
 import type { NativeProviderConfig } from './ai-env';
@@ -35,7 +35,7 @@ export function buildQuestionDraftUserPrompt(
   base: Partial<QuestionDraft>,
   draftLocale: Locale,
 ): string {
-  const { responseLanguageName } = evaluationLocaleText(draftLocale);
+  const { responseLanguageName } = localeUiText(draftLocale);
   const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
 
   return `Assess and complete this question draft. Keep the same topic; refine wording, rubric, and metadata.

@@ -1,12 +1,12 @@
 import { Locale } from '../locale/locale.constants';
-import { evaluationLocaleText } from './evaluation-locale-text';
+import { localeUiText } from '../locale/locale-ui-text';
 import { InterviewQuestionResult } from './interfaces/interview.interface';
 
 export function buildInterviewSummary(
   questionResults: InterviewQuestionResult[],
   interviewLocale: Locale,
 ): string {
-  const text = evaluationLocaleText(interviewLocale);
+  const text = localeUiText(interviewLocale);
   const lines = questionResults
     .map((item) =>
       item.summary?.trim()

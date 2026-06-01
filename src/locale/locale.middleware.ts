@@ -9,10 +9,16 @@ import {
 import { invalidLocaleException } from './locale.exceptions';
 
 const LENIENT_LOCALE_PATHS = new Set(['/health', '/openapi.json']);
+const TAKE_PATH_PREFIX = '/take';
+
+function isLenientLocalePath(path: string): boolean {
+  return LENIENT_LOCALE_PATHS.has(path) || path.startsWith(TAKE_PATH_PREFIX);
+}
 
 @Injectable()
 export class LocaleMiddleware implements NestMiddleware {
   use(req: Request, _res: Response, next: NextFunction): void {
+    const path = req.path ?? '';
     const raw = req.headers[LOCALE_HEADER];
 
     if (raw === undefined) {
@@ -30,8 +36,8 @@ export class LocaleMiddleware implements NestMiddleware {
     }
 
     if (!isLocale(value)) {
-      if (LENIENT_LOCALE_PATHS.has(req.path)) {
-        req.locale = DEFAULT_LOCALE;
+      if (isLenientLocalePath(path)) {
+        // Take resolves locale in resolveTakeLocale; do not force req.locale to en.
         next();
         return;
       }

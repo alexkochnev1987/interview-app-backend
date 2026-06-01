@@ -15,9 +15,11 @@
 
 - Header: `X-Locale: en | be | ru | pl`
 - Default: `en` if omitted
-- Invalid value: `400`, `code: "INVALID_LOCALE"`
+- Invalid value: `400`, `code: "INVALID_LOCALE"` (except `/take/*` and `/health`: invalid header ignored; take uses `resolveTakeLocale` → `interviewLocale`)
 
 Controls **which translation** is returned in question rubric fields on read/write responses. Send the locale the UI is showing.
+
+`GET /questions?q=` searches denormalized `search_text` (all locale question titles), plus role/category/tags.
 
 **Not the same as** `GET /questions?locale=pl` — that query only **filters** the list to questions with a Polish block; you still need `X-Locale` for resolved text in items.
 
@@ -45,7 +47,9 @@ Controls **which translation** is returned in question rubric fields on read/wri
 | Used for | Take default language, AI evaluation & summaries, feedback text | HR/candidate **display** of rubric from snapshots or question bank |
 | Feedback API | Yes — `generalFeedback`, `improvements` | **No** (v1 single-locale) |
 
-Interview snapshots store full `translations`; HR can preview another language with `X-Locale`. AI text stays in `interviewLocale` until validation is re-run.
+Interview responses include `questionsDisplayLocale` (from `X-Locale`) and `interviewLocale` (AI/feedback language). `result` summaries always use `interviewLocale`.
+
+`GET /interviews` — by default a **JSON array** with full `questions[]` (legacy). With `?paginated=true`: `{ items, total, page, limit }` where each item has `questionCount` and `questionsPreview` only.
 
 ---
 
@@ -99,5 +103,7 @@ curl -s -X POST "http://localhost:3000/ai/question-draft" \
 | Resolve + fallback | `src/question/resolve-question.ts` |
 | Interview snapshots | `src/interview/resolve-interview-question.ts`, `present-interview.ts` |
 | Take | `src/take/take-locale.ts`, `take-question-view.ts` |
-| AI eval / labels | `src/interview/prepare-evaluation-question.ts`, `evaluation-locale-text.ts` |
+| UI strings / AI labels | `src/locale/locale-ui-text.ts` |
+| Resolve input helper | `src/question/to-resolve-question-input.ts` |
+| AI eval | `src/interview/prepare-evaluation-question.ts` |
 | Feedback | `src/feedback/feedback-text.ts` |

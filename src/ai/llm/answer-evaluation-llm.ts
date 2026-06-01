@@ -1,5 +1,5 @@
 import type { InterviewQuestion } from '../../interview/interfaces/interview.interface';
-import { evaluationLocaleText } from '../../interview/evaluation-locale-text';
+import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
@@ -26,7 +26,7 @@ export function buildAnswerEvaluationUserPrompt(
   transcriptText: string,
   interviewLocale: Locale,
 ): string {
-  const { responseLanguageName } = evaluationLocaleText(interviewLocale);
+  const { responseLanguageName } = localeUiText(interviewLocale);
   const expectedConcepts = question.expectedConcepts.map((concept) => ({
     id: concept.id,
     label: concept.label,

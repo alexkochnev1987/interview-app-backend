@@ -1,6 +1,6 @@
-import { Locale } from '../locale/locale.constants';
+import { Locale } from './locale.constants';
 
-export interface EvaluationLocaleText {
+export interface LocaleUiText {
   responseLanguageName: string;
   questionLabel: (questionNumber: number) => string;
   scoreSuffix: (score: number) => string;
@@ -13,7 +13,7 @@ export interface EvaluationLocaleText {
   similarSameDifficulty: (difficulty: string) => string;
 }
 
-const TEXT_BY_LOCALE: Record<Locale, EvaluationLocaleText> = {
+const TEXT_BY_LOCALE: Record<Locale, LocaleUiText> = {
   en: {
     responseLanguageName: 'English',
     questionLabel: (n) => `Question ${n}`,
@@ -64,6 +64,9 @@ const TEXT_BY_LOCALE: Record<Locale, EvaluationLocaleText> = {
   },
 };
 
-export function evaluationLocaleText(locale: Locale): EvaluationLocaleText {
+export function localeUiText(locale: Locale): LocaleUiText {
   return TEXT_BY_LOCALE[locale];
 }
+
+/** @deprecated Use localeUiText */
+export const evaluationLocaleText = localeUiText;

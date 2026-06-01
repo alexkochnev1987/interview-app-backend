@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -30,8 +31,10 @@ import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
 import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
+import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
 import { Interview, InterviewResult } from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
+import { presentInterviewListItem } from './present-interview-list';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -44,6 +47,7 @@ import {
   InterviewResponseDto,
   InterviewResultResponseDto,
   InterviewWithCandidateLinkResponseDto,
+  PaginatedInterviewListResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
@@ -92,16 +96,44 @@ export class InterviewController {
   @RequirePermissions('interviews:read_own')
   @ApiOperation({
     summary: 'List interviews',
-    description: 'Each interview questions[] is resolved for X-Locale.',
+    description:
+      'Default: JSON array with full questions[] (legacy clients). ' +
+      'Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview.',
   })
-  @ApiOkResponse({ type: [InterviewResponseDto] })
+  @ApiOkResponse({
+    description: 'Array when paginated is false/omitted; paginated object when paginated=true',
+    schema: {
+      oneOf: [
+        { type: 'array', items: { $ref: '#/components/schemas/InterviewResponseDto' } },
+        { $ref: '#/components/schemas/PaginatedInterviewListResponseDto' },
+      ],
+    },
+  })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   async findAll(
+    @Query(new ValidationPipe({ transform: true })) query: ListInterviewsQueryDto,
     @CurrentUser() user: ActingUser,
     @CurrentLocale() locale: Locale,
-  ): Promise<InterviewPresentation[]> {
-    const interviews = await this.interviewService.findAllForActor(user);
-    return interviews.map((interview) => presentInterview(interview, locale));
+  ): Promise<PaginatedInterviewListResponseDto | InterviewPresentation[]> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+    const result = await this.interviewService.findAllForActor(user, {
+      page,
+      limit,
+    });
+
+    if (query.paginated) {
+      return {
+        items: result.items.map((interview) =>
+          presentInterviewListItem(interview, locale),
+        ),
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+      };
+    }
+
+    return result.items.map((interview) => presentInterview(interview, locale));
   }
 
   @Get(':id')

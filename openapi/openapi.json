@@ -1552,8 +1552,29 @@
       "get": {
         "operationId": "InterviewController_findAll",
         "summary": "List interviews",
-        "description": "Each interview questions[] is resolved for X-Locale.",
+        "description": "Paginated list with lightweight question previews (no full rubric). Use GET /interviews/:id for full questions[].",
         "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
           {
             "name": "X-Locale",
             "in": "header",
@@ -1577,10 +1598,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InterviewResponseDto"
-                  }
+                  "$ref": "#/components/schemas/PaginatedInterviewListResponseDto"
                 }
               }
             }
@@ -5069,6 +5087,16 @@
               "pl"
             ]
           },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale."
+          },
           "questions": {
             "description": "Resolved for X-Locale on read (resolvedLocale, availableLocales).",
             "type": "array",
@@ -5123,6 +5151,143 @@
           "candidateLink"
         ]
       },
+      "InterviewQuestionPreviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "resolvedLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "resolvedLocale"
+        ]
+      },
+      "InterviewListItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionCount": {
+            "type": "number"
+          },
+          "questionsPreview": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewQuestionPreviewDto"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/InterviewResultResponseDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/InterviewWorkflowDto"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "interviewLocale",
+          "questionCount",
+          "questionsPreview",
+          "answers",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedInterviewListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemResponseDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
       "InterviewResponseDto": {
         "type": "object",
         "properties": {
@@ -5146,6 +5311,16 @@
               "ru",
               "pl"
             ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale."
           },
           "questions": {
             "description": "Resolved for X-Locale on read (resolvedLocale, availableLocales).",

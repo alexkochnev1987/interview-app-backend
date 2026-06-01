@@ -367,6 +367,13 @@ export class InterviewResponseDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   interviewLocale: Locale;
 
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale.',
+  })
+  questionsDisplayLocale?: Locale;
+
   @ApiProperty({
     type: [ResolvedQuestionResponseDto],
     description: 'Resolved for X-Locale on read (resolvedLocale, availableLocales).',
@@ -395,4 +402,73 @@ export class InterviewResponseDto {
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {
   @ApiProperty()
   candidateLink: string;
+}
+
+export class InterviewQuestionPreviewDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  resolvedLocale: Locale;
+}
+
+export class InterviewListItemResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  candidateName: string;
+
+  @ApiPropertyOptional()
+  candidateEmail?: string;
+
+  @ApiProperty()
+  position: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
+
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  questionsDisplayLocale?: Locale;
+
+  @ApiProperty()
+  questionCount: number;
+
+  @ApiProperty({ type: [InterviewQuestionPreviewDto] })
+  questionsPreview: InterviewQuestionPreviewDto[];
+
+  @ApiProperty({ type: [AnswerDto] })
+  answers: AnswerDto[];
+
+  @ApiProperty({ enum: ['pending', 'in_progress', 'processing', 'completed', 'failed'] })
+  status: string;
+
+  @ApiPropertyOptional({ type: InterviewResultResponseDto })
+  result?: InterviewResultResponseDto;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiPropertyOptional({ type: InterviewWorkflowDto })
+  workflow?: InterviewWorkflowDto;
+}
+
+export class PaginatedInterviewListResponseDto {
+  @ApiProperty({ type: [InterviewListItemResponseDto] })
+  items: InterviewListItemResponseDto[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
 }

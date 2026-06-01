@@ -560,4 +560,36 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0020',
+    name: 'questions_search_text_trgm',
+    statements: [
+      `CREATE EXTENSION IF NOT EXISTS pg_trgm;`,
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS search_text TEXT NOT NULL DEFAULT '';
+      `,
+      `
+        UPDATE questions
+        SET search_text = lower(
+          trim(
+            concat_ws(
+              ' ',
+              nullif(trim(question_text), ''),
+              (
+                SELECT string_agg(DISTINCT trim(block->>'questionText'), ' ')
+                FROM jsonb_each(translations_json) AS tr(locale_key, block)
+                WHERE trim(COALESCE(block->>'questionText', '')) <> ''
+              )
+            )
+          )
+        );
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_search_text_trgm_idx
+        ON questions USING GIN (search_text gin_trgm_ops)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
 ];

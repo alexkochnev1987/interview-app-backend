@@ -36,6 +36,7 @@ describe('LocaleMiddleware', () => {
 
   it('rejects invalid locale with INVALID_LOCALE', () => {
     req.headers['x-locale'] = 'xx';
+    (req as Request & { path: string }).path = '/questions';
     middleware.use(req, {} as Response, next as NextFunction);
     expect(next).toHaveBeenCalledTimes(1);
     const err = next.mock.calls[0][0];
@@ -45,10 +46,20 @@ describe('LocaleMiddleware', () => {
     });
   });
 
-  it('defaults to en on /health when locale is invalid', () => {
+  it('ignores invalid locale on /health', () => {
     req = { headers: { 'x-locale': 'xx' }, path: '/health' } as unknown as Request;
     middleware.use(req, {} as Response, next as NextFunction);
-    expect(req.locale).toBe('en');
+    expect(req.locale).toBeUndefined();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('does not reject invalid locale on take routes', () => {
+    req = {
+      headers: { 'x-locale': 'de' },
+      path: '/take/550e8400-e29b-41d4-a716-446655440000',
+    } as unknown as Request;
+    middleware.use(req, {} as Response, next as NextFunction);
+    expect(req.locale).toBeUndefined();
     expect(next).toHaveBeenCalledWith();
   });
 });

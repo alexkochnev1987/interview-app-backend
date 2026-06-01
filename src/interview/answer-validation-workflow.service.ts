@@ -13,6 +13,7 @@ import {
   AnswerTranscript,
   AnswerValidationStatus,
   AnswerVersion,
+  Interview,
   InterviewQuestion,
 } from './interfaces/interview.interface';
 import { InterviewService } from './interview.service';
@@ -122,7 +123,16 @@ export class AnswerValidationWorkflowService
       );
       return;
     }
-    const interviews = await this.interviewService.findAll();
+    const interviews: Interview[] = [];
+    let page = 1;
+    for (;;) {
+      const batch = await this.interviewService.findAll({ page, limit: 100 });
+      interviews.push(...batch.items);
+      if (page * batch.limit >= batch.total) {
+        break;
+      }
+      page += 1;
+    }
     const now = new Date();
     for (const interview of interviews) {
       for (const answer of interview.answers) {

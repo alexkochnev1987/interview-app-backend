@@ -1,8 +1,6 @@
 import { Locale } from '../locale/locale.constants';
-import {
-  resolveQuestion,
-  ResolveQuestionInput,
-} from '../question/resolve-question';
+import { resolveQuestion } from '../question/resolve-question';
+import { toResolveQuestionInput } from '../question/to-resolve-question-input';
 import { InterviewQuestion } from './interfaces/interview.interface';
 
 export type ResolvedInterviewQuestion = InterviewQuestion & {
@@ -14,16 +12,7 @@ export function resolveInterviewQuestion(
   question: InterviewQuestion,
   locale: Locale,
 ): ResolvedInterviewQuestion {
-  const input: ResolveQuestionInput = {
-    primaryLocale: question.primaryLocale,
-    translations: question.translations,
-    questionText: question.questionText,
-    followUpQuestions: question.followUpQuestions,
-    expectedConcepts: question.expectedConcepts,
-    redFlags: question.redFlags,
-    sampleGoodAnswer: question.sampleGoodAnswer,
-  };
-  const resolved = resolveQuestion(input, locale);
+  const resolved = resolveQuestion(toResolveQuestionInput(question), locale);
 
   return {
     ...question,
