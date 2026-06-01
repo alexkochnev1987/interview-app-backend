@@ -21,6 +21,18 @@ npm run start:dev
 - API: http://localhost:3000  
 - Check: `curl http://localhost:3000/health`
 
+## Tests
+
+Unit tests (Jest, `src/**/*.spec.ts`) cover pure business logic: roles/permissions, behavior risk, AI env, session cookies, upload keys, rate-limit IP, and LLM JSON/prompt helpers. Database-backed services are covered in integration/E2E phases.
+
+```bash
+npm run test       
+npm run test:watch 
+npm run test:cov 
+```
+
+Integration/E2E (`npm run test:e2e`) are added in a later phase.
+
 PostgreSQL on host **5433**, MinIO S3 API **9002**, MinIO web console **9003** (`minioadmin` / `minioadmin`).
 
 ## API Documentation
