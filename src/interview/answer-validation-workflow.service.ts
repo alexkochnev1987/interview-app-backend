@@ -25,6 +25,8 @@ import {
 } from '../ai/llm/answer-evaluation-llm';
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 import { DatabaseService } from '../database/database.service';
+import { Locale } from '../locale/locale.constants';
+import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
 
 const DEFAULT_MAX_CONCURRENT_VALIDATIONS = 3;
 
@@ -68,6 +70,7 @@ interface SpawnPayload {
   sourceVersionNumber: number;
   runId: string;
   requestedAt: Date;
+  interviewLocale: Locale;
   question: InterviewQuestion;
   selectedVersion: AnswerVersion;
   existingTranscript?: AnswerTranscript;
@@ -249,6 +252,7 @@ export class AnswerValidationWorkflowService
           sourceVersionNumber,
           runId: randomUUID(),
           requestedAt,
+          interviewLocale: interview.interviewLocale,
           question,
           selectedVersion,
           existingTranscript: answer.transcript,
@@ -280,6 +284,7 @@ export class AnswerValidationWorkflowService
             sourceVersionNumber: payload.sourceVersionNumber,
             runId: payload.runId,
             requestedAt: payload.requestedAt,
+            interviewLocale: payload.interviewLocale,
             question: payload.question,
             selectedVersion: payload.selectedVersion,
             existingTranscript: payload.existingTranscript,
@@ -407,6 +412,7 @@ export class AnswerValidationWorkflowService
         sourceVersionNumber,
         runId,
         requestedAt,
+        interviewLocale: interview.interviewLocale,
         question,
         selectedVersion,
         existingTranscript: answer.transcript,
@@ -437,6 +443,7 @@ export class AnswerValidationWorkflowService
           sourceVersionNumber: payload.sourceVersionNumber,
           runId: payload.runId,
           requestedAt: payload.requestedAt,
+          interviewLocale: payload.interviewLocale,
           question: payload.question,
           selectedVersion: payload.selectedVersion,
           existingTranscript: payload.existingTranscript,
@@ -463,6 +470,7 @@ export class AnswerValidationWorkflowService
     sourceVersionNumber: number;
     runId: string;
     requestedAt: Date;
+    interviewLocale: Locale;
     question: InterviewQuestion;
     selectedVersion: AnswerVersion;
     existingTranscript?: AnswerTranscript;
@@ -473,10 +481,16 @@ export class AnswerValidationWorkflowService
       sourceVersionNumber,
       runId,
       requestedAt,
+      interviewLocale,
       question,
       selectedVersion,
       existingTranscript,
     } = params;
+
+    const questionForEvaluation = prepareQuestionForEvaluation(
+      question,
+      interviewLocale,
+    );
 
     try {
       const provider = resolveNativeProvider();
@@ -529,8 +543,9 @@ export class AnswerValidationWorkflowService
       const llmT0 = Date.now();
       const rawEvaluation = await evaluateAnswerWithNativeLlm(
         provider,
-        question,
+        questionForEvaluation,
         transcriptText,
+        interviewLocale,
       );
       this.logger.log(
         `[validate] llm ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - llmT0} score=${rawEvaluation.overallScore ?? '?'} hint=${rawEvaluation.decisionHint ?? '?'}`,
@@ -548,15 +563,15 @@ export class AnswerValidationWorkflowService
         ),
         coveredConceptIds: this.filterConceptIds(
           rawEvaluation.coveredConceptIds,
-          question.expectedConcepts.map((concept) => concept.id),
+          questionForEvaluation.expectedConcepts.map((concept) => concept.id),
         ),
         missedConceptIds: this.filterConceptIds(
           rawEvaluation.missedConceptIds,
-          question.expectedConcepts.map((concept) => concept.id),
+          questionForEvaluation.expectedConcepts.map((concept) => concept.id),
         ),
         redFlagIds: this.filterConceptIds(
           rawEvaluation.redFlagIds,
-          question.redFlags.map((flag) => flag.id),
+          questionForEvaluation.redFlags.map((flag) => flag.id),
         ),
         behaviorRisk,
         summary: rawEvaluation.summary?.trim() || undefined,

@@ -72,7 +72,10 @@ export class UpdateQuestionDto {
   @IsString()
   focus?: string;
 
-  @ApiPropertyOptional({ deprecated: true })
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignored when primaryLocale or translations are set. Use primaryLocale instead.',
+  })
   @IsOptional()
   @IsString()
   outputLanguage?: string;

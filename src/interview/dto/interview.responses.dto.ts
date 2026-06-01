@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { QuestionResponseDto } from '../../question/dto/question.responses.dto';
+import { Locale, SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { ResolvedQuestionResponseDto } from '../../question/dto/question.responses.dto';
 import { INTERVIEW_STATUSES } from '../interfaces/interview.interface';
 
 export class CandidateLinkResponseDto {
@@ -320,6 +321,11 @@ export class InterviewResultResponseDto {
   @ApiProperty()
   summary: string;
 
+  @ApiPropertyOptional({
+    description: 'Improvement notes in interviewLocale (same language as general summary).',
+  })
+  improvements?: string;
+
   @ApiProperty({ type: 'object', additionalProperties: { type: 'number' } })
   categoryScores: Record<string, number>;
 
@@ -358,8 +364,14 @@ export class InterviewResponseDto {
   @ApiProperty()
   position: string;
 
-  @ApiProperty({ type: [QuestionResponseDto] })
-  questions: QuestionResponseDto[];
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
+
+  @ApiProperty({
+    type: [ResolvedQuestionResponseDto],
+    description: 'Resolved for X-Locale on read (resolvedLocale, availableLocales).',
+  })
+  questions: ResolvedQuestionResponseDto[];
 
   @ApiProperty({ type: [AnswerDto] })
   answers: AnswerDto[];

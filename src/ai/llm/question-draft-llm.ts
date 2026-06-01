@@ -1,4 +1,7 @@
 import type { QuestionDraft } from '../../question/interfaces/question.interface';
+import { evaluationLocaleText } from '../../interview/evaluation-locale-text';
+import { Locale } from '../../locale/locale.constants';
+import { primaryLocaleToOutputLanguage } from '../../question/question-locale';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
 import { parseJsonFromModelOutput } from './parse-model-json';
@@ -25,11 +28,19 @@ expectedConcepts must always contain at least 3 entries — the concepts a stron
 redFlags must always contain at least 2 entries — common wrong answers or missing concepts that should lower the score.
 tags must always contain at least 3 entries — short topic keywords for filtering and search.
 sampleGoodAnswer must always be a populated multi-sentence string — never empty.
-Never return empty arrays for followUpQuestions, expectedConcepts, redFlags, or tags. Generate them from the question text.`;
+Never return empty arrays for followUpQuestions, expectedConcepts, redFlags, or tags. Generate them from the question text.
+Write all candidate-facing natural language (questionText, followUpQuestions, concept labels/descriptions, red flag labels, sampleGoodAnswer) in the response language named in the user message.`;
 
-export function buildQuestionDraftUserPrompt(base: Partial<QuestionDraft>): string {
+export function buildQuestionDraftUserPrompt(
+  base: Partial<QuestionDraft>,
+  draftLocale: Locale,
+): string {
+  const { responseLanguageName } = evaluationLocaleText(draftLocale);
+  const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
+
   return `Assess and complete this question draft. Keep the same topic; refine wording, rubric, and metadata.
 Judge role, focus, difficulty, weight, minimumPassScore, follow-ups, expected concepts, red flags, sample answer, and tags from the question text. Empty/missing fields in the input below must be generated from scratch — never echo empty.
+All candidate-facing text must be written in ${responseLanguageName} (locale code: ${draftLocale}).
 
 Input JSON:
 ${JSON.stringify(base)}
@@ -38,7 +49,7 @@ Output a single JSON object with these camelCase keys. Every key is required.
 - externalId (string) — propose a short slug like "frontend_closures_v1" when the input has none.
 - role (string) — e.g. "frontend intern", "backend engineer". Infer from the question if missing.
 - focus (string) — e.g. "fundamentals", "system design". Infer from the question if missing.
-- outputLanguage (string) — default to "English" when unclear.
+- outputLanguage (string) — must be "${outputLanguage}".
 - category (string)
 - subcategory (string)
 - questionText (string)
@@ -56,8 +67,9 @@ Output a single JSON object with these camelCase keys. Every key is required.
 export async function generateQuestionDraftWithNativeLlm(
   config: NativeProviderConfig,
   base: Partial<QuestionDraft>,
+  draftLocale: Locale,
 ): Promise<unknown> {
-  const user = buildQuestionDraftUserPrompt(base);
+  const user = buildQuestionDraftUserPrompt(base, draftLocale);
   const raw = await completeJson(
     config,
     QUESTION_DRAFT_SYSTEM,

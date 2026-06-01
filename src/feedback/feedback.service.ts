@@ -18,6 +18,7 @@ import {
   FeedbackLink,
   FeedbackResponse,
 } from './interfaces/feedback-link.interface';
+import { buildFeedbackImprovements } from './feedback-text';
 
 export const FEEDBACK_LINK_TTL_DAYS = 7;
 
@@ -190,6 +191,7 @@ export class FeedbackService {
       throw new InternalServerErrorException('Feedback link has no expiry');
     }
     return {
+      interviewLocale: interview.interviewLocale,
       position: interview.position,
       date: result.completedAt.toISOString(),
       expiresAt: linkRow.expires_at.toISOString(),
@@ -197,6 +199,14 @@ export class FeedbackService {
       overallScore: result.overallScore,
       categoryScores: result.categoryScores,
       generalFeedback: result.summary,
+      improvements:
+        result.improvements ??
+        (result.questionResults
+          ? buildFeedbackImprovements(
+              result.questionResults,
+              interview.interviewLocale,
+            )
+          : undefined),
     };
   }
 

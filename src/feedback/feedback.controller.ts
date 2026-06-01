@@ -37,7 +37,12 @@ export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get interview feedback using a share link' })
+  @ApiOperation({
+    summary: 'Get interview feedback using a share link',
+    description:
+      'Returns AI feedback in the interview single locale (interviewLocale). ' +
+      'generalFeedback and improvements are not multi-locale in v1.',
+  })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiQuery({ name: 'token', description: 'Access token from the share link' })
   @ApiOkResponse({ type: FeedbackResponseDto })

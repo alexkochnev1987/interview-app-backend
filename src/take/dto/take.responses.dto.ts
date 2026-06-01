@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -255,6 +257,18 @@ export class SaveAnswerProgressDto {
 export class CandidateQuestionViewDto {
   @ApiProperty()
   text: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  resolvedLocale: Locale;
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Present when resolvedLocale differs from the requested take locale.',
+  })
+  fallbackFromLocale?: Locale;
 }
 
 export class CurrentAnswerMetaDto {

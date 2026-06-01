@@ -68,6 +68,16 @@ const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
 export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
+  private effectiveQuestionsQuery(
+    user: Omit<User, 'passwordHash'>,
+    query: QueryQuestionsDto,
+  ): QueryQuestionsDto {
+    if (user.role === 'super_admin' && !query.status) {
+      return { ...query, status: 'all' };
+    }
+    return query;
+  }
+
   @Get()
   @RequirePermissions('questions:read')
   @ApiOperation({ summary: 'List questions (paginated, filterable, sortable)' })
@@ -78,11 +88,8 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
   ): Promise<PaginatedQuestions> {
-    const isSuperAdmin = user.role === 'super_admin';
-    const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.findAll(effectiveQuery, {
-      forceActive: !isSuperAdmin,
+    return this.questionService.findAll(this.effectiveQuestionsQuery(user, query), {
+      forceActive: user.role !== 'super_admin',
       resolveLocale: locale,
     });
   }
@@ -92,7 +99,10 @@ export class QuestionController {
   @ApiOperation({
     summary: 'Faceted counts for the picker sidebar',
     description:
-      'Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. Counts respect every other filter on the request so the user sees what is still available before clicking.',
+      'Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. ' +
+      'Uses the same query filters as GET /questions (including ?locale=, ?primaryLocale=, ?q=, tags, status). ' +
+      'Deprecated: ?outputLanguage= (use primaryLocale). ' +
+      'The facet being counted is omitted from the filter so counts show remaining options.',
   })
   @ApiOkResponse({ type: QuestionFacetsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -100,15 +110,20 @@ export class QuestionController {
     @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
-    const isSuperAdmin = user.role === 'super_admin';
-    const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
+    return this.questionService.getFacets(this.effectiveQuestionsQuery(user, query), {
+      forceActive: user.role !== 'super_admin',
+    });
   }
 
   @Get(':id')
   @RequirePermissions('questions:read')
-  @ApiOperation({ summary: 'Get question by id' })
+  @ApiOperation({
+    summary: 'Get question by id',
+    description:
+      'Resolved single-locale shape for X-Locale (same as a list item). ' +
+      '?includeTranslations=true adds the full translations map for the editor. ' +
+      'Non–super-admin callers receive 404 for soft-deleted questions.',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -142,7 +157,11 @@ export class QuestionController {
 
   @Post('similar')
   @RequirePermissions('questions:read')
-  @ApiOperation({ summary: 'Find similar questions' })
+  @ApiOperation({
+    summary: 'Find similar questions',
+    description:
+      'Embedding search; each match question is resolved for X-Locale. Match reasons use the same locale.',
+  })
   @ApiBody({ type: FindSimilarDto })
   @ApiOkResponse({ type: FindSimilarResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -196,17 +215,23 @@ export class QuestionController {
 
   @Post('bulk-delete')
   @RequirePermissions('questions:delete')
-  @ApiOperation({ summary: 'Soft delete questions in bulk' })
+  @ApiOperation({
+    summary: 'Soft delete questions in bulk',
+    description: 'Blocked items include questionText resolved for X-Locale.',
+  })
   @ApiBody({ type: BulkDeleteQuestionsDto })
   @ApiOkResponse({ type: BulkDeleteQuestionsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  bulkRemove(@Body() dto: BulkDeleteQuestionsDto): Promise<{
+  bulkRemove(
+    @Body() dto: BulkDeleteQuestionsDto,
+    @CurrentLocale() locale: Locale,
+  ): Promise<{
     deleted: string[];
     blocked: Array<{ id: string; questionText: string; reason: string }>;
   }> {
-    return this.questionService.softDeleteMany(dto.ids);
+    return this.questionService.softDeleteMany(dto.ids, locale);
   }
 
   @Patch(':id/restore')

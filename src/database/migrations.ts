@@ -522,4 +522,42 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0019',
+    name: 'interviews_interview_locale',
+    statements: [
+      `
+        ALTER TABLE interviews
+        ADD COLUMN IF NOT EXISTS interview_locale TEXT NULL;
+      `,
+      `
+        UPDATE interviews
+        SET interview_locale = 'en'
+        WHERE interview_locale IS NULL;
+      `,
+      `
+        ALTER TABLE interviews
+        ALTER COLUMN interview_locale SET DEFAULT 'en';
+      `,
+      `
+        ALTER TABLE interviews
+        ALTER COLUMN interview_locale SET NOT NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'interviews'::regclass
+              AND conname = 'interviews_interview_locale_check'
+          ) THEN
+            ALTER TABLE interviews
+            ADD CONSTRAINT interviews_interview_locale_check
+            CHECK (interview_locale IN ('en', 'be', 'ru', 'pl'));
+          END IF;
+        END $$;
+      `,
+    ],
+  },
 ];

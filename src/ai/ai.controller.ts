@@ -4,11 +4,14 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiForbiddenResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -90,13 +93,52 @@ export class AiController {
       ttl: minutes(5),
     },
   })
-  @ApiOperation({ summary: 'Generate draft question with AI' })
-  @ApiBody({ type: DraftQuestionDto })
+  @ApiOperation({
+    summary: 'Generate draft question with AI',
+    description:
+      'Generates rubric fields in the requested locale. Set `locale` in the body or send `X-Locale`; both default to `en` when omitted.',
+  })
+  @ApiHeader({
+    name: 'X-Locale',
+    required: false,
+    description: 'Used when body `locale` is omitted. Defaults to `en`.',
+  })
+  @ApiBody({
+    type: DraftQuestionDto,
+    examples: {
+      polishFromSeed: {
+        summary: 'Polish draft (body locale)',
+        description:
+          'Seed text can be any language; output rubric is generated in Polish.',
+        value: {
+          locale: 'pl',
+          question: {
+            questionText: 'Wyjaśnij działanie hooków w React.',
+            category: 'react',
+          },
+        },
+      },
+      englishViaHeader: {
+        summary: 'English draft (header only)',
+        value: {
+          question: {
+            questionText: 'Explain how CSS flexbox distributes free space.',
+          },
+        },
+      },
+    },
+  })
   @ApiOkResponse({ type: QuestionDraftResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  draftQuestion(@Body() dto: DraftQuestionDto): Promise<QuestionDraft> {
-    return this.aiService.draftQuestion(dto.question ?? {});
+  draftQuestion(
+    @Body() dto: DraftQuestionDto,
+    @CurrentLocale() headerLocale: Locale,
+  ): Promise<QuestionDraft> {
+    return this.aiService.draftQuestion(dto.question ?? {}, {
+      bodyLocale: dto.locale,
+      headerLocale,
+    });
   }
 }

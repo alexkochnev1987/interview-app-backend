@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UserRole } from '../user/interfaces/user.interface';
@@ -37,12 +38,31 @@ import {
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
+import { buildFeedbackImprovements } from '../feedback/feedback-text';
+import { buildInterviewSummary } from './build-interview-summary';
+
+const INTERVIEW_SELECT_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  interview_locale,
+  questions_json,
+  answers_json,
+  status,
+  result_json,
+  workflow_json,
+  created_by_id,
+  created_at,
+  updated_at
+`;
 
 interface InterviewRow {
   id: string;
   candidate_name: string;
   candidate_email: string | null;
   position: string;
+  interview_locale: string;
   questions_json: InterviewQuestion[] | null;
   answers_json: Record<string, unknown>[] | null;
   status: Interview['status'];
@@ -142,6 +162,11 @@ export class InterviewService {
       throw new BadRequestException('At least one question must be selected');
     }
 
+    const interviewLocale =
+      dto.interviewLocale && isLocale(dto.interviewLocale)
+        ? dto.interviewLocale
+        : DEFAULT_LOCALE;
+
     return this.databaseService.withTransaction(async (client) => {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
@@ -161,32 +186,22 @@ export class InterviewService {
             candidate_name,
             candidate_email,
             position,
+            interview_locale,
             questions_json,
             answers_json,
             status,
             workflow_json,
             created_by_id
           )
-          VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::jsonb, $9)
-          RETURNING
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            questions_json,
-            answers_json,
-            status,
-            result_json,
-            workflow_json,
-            created_by_id,
-            created_at,
-            updated_at
+          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10)
+          RETURNING ${INTERVIEW_SELECT_COLUMNS}
         `,
         [
           randomUUID(),
           candidateName,
           dto.candidateEmail?.trim().toLowerCase() || null,
           position,
+          interviewLocale,
           JSON.stringify(questions),
           JSON.stringify([]),
           'pending',
@@ -207,19 +222,7 @@ export class InterviewService {
   async findAll(): Promise<Interview[]> {
     const result = await this.databaseService.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_SELECT_COLUMNS}
         FROM interviews
         ORDER BY created_at DESC
       `,
@@ -231,19 +234,7 @@ export class InterviewService {
   async findOne(id: string): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_SELECT_COLUMNS}
         FROM interviews
         WHERE id = $1
         LIMIT 1
@@ -265,19 +256,7 @@ export class InterviewService {
     if (actor.role === 'hr') {
       const result = await this.databaseService.query<InterviewRow>(
         `
-          SELECT
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            questions_json,
-            answers_json,
-            status,
-            result_json,
-            workflow_json,
-            created_by_id,
-            created_at,
-            updated_at
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
           FROM interviews
           WHERE created_by_id = $1
           ORDER BY created_at DESC
@@ -782,19 +761,7 @@ export class InterviewService {
           workflow_json = $9::jsonb,
           updated_at = NOW()
         WHERE id = $1
-        RETURNING
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          created_at,
-          updated_at
+        RETURNING ${INTERVIEW_SELECT_COLUMNS}
       `,
       [
         interview.id,
@@ -899,7 +866,10 @@ export class InterviewService {
     }
 
     const decision = this.computeInterviewDecision(overallScore, maxRisk);
-    const summary = this.buildInterviewSummary(questionResults);
+    const summary = buildInterviewSummary(
+      questionResults,
+      interview.interviewLocale,
+    );
     const trustScore = this.riskToTrustScore(maxRisk);
 
     const allAnswered = submittedAnswers.length >= interview.questions.length;
@@ -915,6 +885,10 @@ export class InterviewService {
     const result: InterviewResult = {
       overallScore,
       summary,
+      improvements: buildFeedbackImprovements(
+        questionResults,
+        interview.interviewLocale,
+      ),
       categoryScores,
       rubricVersion: 'mvp-v1',
       decision,
@@ -971,33 +945,21 @@ export class InterviewService {
     return 100;
   }
 
-  private buildInterviewSummary(
-    questionResults: InterviewQuestionResult[],
-  ): string {
-    const lines = questionResults
-      .map((item) =>
-        item.summary
-          ? `Q${item.questionIndex + 1}: ${item.summary}`
-          : undefined,
-      )
-      .filter((line): line is string => Boolean(line));
-
-    if (lines.length === 0) {
-      return 'No per-question summaries were produced.';
-    }
-    return lines.join('\n');
-  }
-
   private mapRow(row: InterviewRow): Interview {
     const questions = (row.questions_json ?? []).map((question) =>
       this.questionService.hydrateStoredQuestionCore(question),
     );
+
+    const interviewLocale = isLocale(row.interview_locale)
+      ? row.interview_locale
+      : DEFAULT_LOCALE;
 
     return {
       id: row.id,
       candidateName: row.candidate_name,
       candidateEmail: row.candidate_email ?? undefined,
       position: row.position,
+      interviewLocale,
       questions,
       answers: (row.answers_json ?? []).map((answer) =>
         this.normalizeAnswer(answer, questions),
@@ -1458,6 +1420,7 @@ export class InterviewService {
     return {
       overallScore: this.asNumber(rawResult.overallScore) ?? 0,
       summary: this.asString(rawResult.summary) ?? '',
+      improvements: this.asString(rawResult.improvements),
       categoryScores: this.asNumberRecord(rawResult.categoryScores),
       rubricVersion: this.asString(rawResult.rubricVersion),
       decision: this.asString(rawResult.decision) as

@@ -7,7 +7,10 @@ export interface FeedbackLink {
   createdAt: Date;
 }
 
+import { Locale } from '../../locale/locale.constants';
+
 export interface FeedbackResponse {
+  interviewLocale: Locale;
   position: string;
   date: string;
   expiresAt: string;

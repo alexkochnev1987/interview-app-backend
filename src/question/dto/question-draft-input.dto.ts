@@ -38,7 +38,10 @@ export class QuestionDraftInputDto {
   @IsString({ each: true })
   followUpQuestions?: string[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Deprecated: use primaryLocale. Still accepted for legacy AI draft requests.',
+  })
   @IsOptional()
   @IsString()
   outputLanguage?: string;

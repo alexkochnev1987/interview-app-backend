@@ -45,8 +45,11 @@ export class QuestionResponseDto {
   @ApiPropertyOptional()
   focus?: string;
 
-  @ApiProperty()
-  outputLanguage: string;
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Legacy display label derived from primaryLocale (e.g. English). Prefer primaryLocale.',
+  })
+  outputLanguage?: string;
 
   @ApiPropertyOptional()
   category?: string;
@@ -140,8 +143,17 @@ export class QuestionDraftResponseDto {
   @ApiPropertyOptional()
   focus?: string;
 
-  @ApiProperty()
-  outputLanguage: string;
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale used for generation (body `locale` or `X-Locale`).',
+  })
+  primaryLocale?: Locale;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Deprecated: use primaryLocale.',
+  })
+  outputLanguage?: string;
 
   @ApiPropertyOptional()
   category?: string;

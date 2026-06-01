@@ -26,9 +26,12 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { Interview, InterviewResult } from './interfaces/interview.interface';
+import { InterviewPresentation, presentInterview } from './present-interview';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -61,7 +64,10 @@ export class InterviewController {
 
   @Post()
   @RequirePermissions('interviews:create')
-  @ApiOperation({ summary: 'Create interview' })
+  @ApiOperation({
+    summary: 'Create interview',
+    description: 'Question snapshots in the response are resolved for X-Locale.',
+  })
   @ApiBody({ type: CreateInterviewDto })
   @ApiOkResponse({ type: InterviewWithCandidateLinkResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -70,38 +76,51 @@ export class InterviewController {
   async create(
     @Body() dto: CreateInterviewDto,
     @CurrentUser() user: ActingUser,
-  ): Promise<Interview & { candidateLink: string }> {
+    @CurrentLocale() locale: Locale,
+  ): Promise<InterviewPresentation & { candidateLink: string }> {
     const interview = await this.interviewService.create(dto, {
       createdById: user.id,
     });
     const token = this.authService.generateCandidateToken(interview.id);
     return {
-      ...interview,
+      ...presentInterview(interview, locale),
       candidateLink: `/take/${interview.id}?token=${token}`,
     };
   }
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'List interviews' })
+  @ApiOperation({
+    summary: 'List interviews',
+    description: 'Each interview questions[] is resolved for X-Locale.',
+  })
   @ApiOkResponse({ type: [InterviewResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
-    return this.interviewService.findAllForActor(user);
+  async findAll(
+    @CurrentUser() user: ActingUser,
+    @CurrentLocale() locale: Locale,
+  ): Promise<InterviewPresentation[]> {
+    const interviews = await this.interviewService.findAllForActor(user);
+    return interviews.map((interview) => presentInterview(interview, locale));
   }
 
   @Get(':id')
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'Get interview by id' })
+  @ApiOperation({
+    summary: 'Get interview by id',
+    description: 'questions[] resolved for X-Locale (fallback chain per BE-005).',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  findOne(
+  async findOne(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
-  ): Promise<Interview> {
-    return this.interviewService.findOneForActor(id, user);
+    @CurrentLocale() locale: Locale,
+  ): Promise<InterviewPresentation> {
+    const interview = await this.interviewService.findOneForActor(id, user);
+    return presentInterview(interview, locale);
   }
 
   @Post(':id/candidate-link')
@@ -124,7 +143,10 @@ export class InterviewController {
 
   @Patch(':id/complete')
   @RequirePermissions('interviews:update_own')
-  @ApiOperation({ summary: 'Complete interview' })
+  @ApiOperation({
+    summary: 'Complete interview',
+    description: 'Response questions[] resolved for X-Locale.',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -132,9 +154,11 @@ export class InterviewController {
   async complete(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
-  ): Promise<Interview> {
+    @CurrentLocale() locale: Locale,
+  ): Promise<InterviewPresentation> {
     await this.interviewService.findOneForActor(id, user);
-    return this.interviewService.complete(id);
+    const interview = await this.interviewService.complete(id);
+    return presentInterview(interview, locale);
   }
 
   @Post(':id/validate')

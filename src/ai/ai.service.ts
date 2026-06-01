@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { isLocale } from '../locale/locale.constants';
+import { Locale } from '../locale/locale.constants';
+import { resolveDraftLocale } from './resolve-draft-locale';
 import { QuestionDraftInput } from '../question/question-draft-input';
 import {
   QuestionDifficulty,
@@ -210,9 +211,14 @@ export class AiService {
 
   async draftQuestion(
     input: QuestionDraftInput,
+    localeOptions: { bodyLocale?: Locale; headerLocale: Locale },
   ): Promise<QuestionDraft> {
+    const draftLocale = resolveDraftLocale(
+      localeOptions.bodyLocale,
+      localeOptions.headerLocale,
+    );
     const aiUrl = process.env.AI_API_URL?.trim();
-    const base = this.normalizeDraftRequest(input);
+    const base = this.normalizeDraftRequest(input, draftLocale);
     if (!base.questionText) {
       throw new BadRequestException('questionText is required to draft a question.');
     }
@@ -224,11 +230,12 @@ export class AiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'question-draft',
+          locale: draftLocale,
           question: llmInput,
         }),
       });
       const data = await res.json();
-      const normalized = this.acceptLlmDraft(data, base);
+      const normalized = this.acceptLlmDraft(data, base, draftLocale);
       if (normalized) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
@@ -245,8 +252,12 @@ export class AiService {
     const native = resolveNativeProvider();
     if (native) {
       try {
-        const parsed = await generateQuestionDraftWithNativeLlm(native, llmInput);
-        const normalized = this.acceptLlmDraft(parsed, base);
+        const parsed = await generateQuestionDraftWithNativeLlm(
+          native,
+          llmInput,
+          draftLocale,
+        );
+        const normalized = this.acceptLlmDraft(parsed, base, draftLocale);
         if (normalized) {
           if (isAiDebugEnabled()) {
             this.logger.log(
@@ -286,11 +297,12 @@ export class AiService {
   private acceptLlmDraft(
     payload: unknown,
     base: QuestionDraft,
+    draftLocale: Locale,
   ): QuestionDraft | undefined {
     if (!this.llmDraftHasContent(payload)) {
       return undefined;
     }
-    const normalized = this.normalizeRemoteDraft(payload, base);
+    const normalized = this.normalizeRemoteDraft(payload, base, draftLocale);
     if (!normalized) {
       return undefined;
     }
@@ -359,15 +371,12 @@ export class AiService {
     return llmInput;
   }
 
-  private normalizeDraftRequest(input: QuestionDraftInput): QuestionDraft {
-    const outputLanguage =
-      typeof input.outputLanguage === 'string' && input.outputLanguage.trim()
-        ? input.outputLanguage.trim()
-        : 'English';
-    const primaryLocale =
-      input.primaryLocale && isLocale(input.primaryLocale)
-        ? input.primaryLocale
-        : mapOutputLanguageToPrimaryLocale(outputLanguage);
+  private normalizeDraftRequest(
+    input: QuestionDraftInput,
+    draftLocale: Locale,
+  ): QuestionDraft {
+    const primaryLocale = draftLocale;
+    const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
     const primaryBlock = input.translations?.[primaryLocale];
     const questionText =
       primaryBlock?.questionText?.trim() ??
@@ -424,24 +433,20 @@ export class AiService {
         input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata)
           ? input.metadata
           : {},
-    });
+    }, input.translations, draftLocale);
   }
 
   private normalizeRemoteDraft(
     payload: unknown,
     base: QuestionDraft,
+    draftLocale: Locale,
   ): QuestionDraft | undefined {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return undefined;
     }
 
     const record = payload as Record<string, unknown>;
-    const outputLanguage =
-      typeof record.output_language === 'string'
-        ? record.output_language
-        : typeof record.outputLanguage === 'string'
-          ? record.outputLanguage
-          : base.outputLanguage;
+    const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
     const questionText =
       typeof record.question_text === 'string'
         ? record.question_text
@@ -518,14 +523,16 @@ export class AiService {
         record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
           ? (record.metadata as Record<string, unknown>)
           : base.metadata,
-    }, base.translations);
+    }, base.translations, draftLocale);
   }
 
   private withLocaleFields(
     draft: Omit<QuestionDraft, 'primaryLocale' | 'translations'>,
     existingTranslations?: QuestionDraft['translations'],
+    forcePrimaryLocale?: Locale,
   ): QuestionDraft {
-    const primaryLocale = mapOutputLanguageToPrimaryLocale(draft.outputLanguage);
+    const primaryLocale =
+      forcePrimaryLocale ?? mapOutputLanguageToPrimaryLocale(draft.outputLanguage);
     const translations = mergeTranslations(
       existingTranslations,
       primaryLocale,

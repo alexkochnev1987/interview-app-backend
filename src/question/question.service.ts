@@ -38,6 +38,7 @@ import {
   resolveQuestionFields,
 } from './question-locale';
 import { resolveQuestion } from './resolve-question';
+import { evaluationLocaleText } from '../interview/evaluation-locale-text';
 
 export type ResolvedQuestion = Omit<Question, 'translations'> & {
   resolvedLocale: Locale;
@@ -71,6 +72,7 @@ export type FacetField =
   | 'category'
   | 'subcategory'
   | 'role'
+  | 'primaryLocale'
   | 'outputLanguage'
   | 'locale'
   | 'tags';
@@ -526,7 +528,14 @@ export class QuestionService {
       whereClauses.push(`lower(role) = $${params.length}`);
     }
 
-    if (query.outputLanguage && options.excludeField !== 'outputLanguage') {
+    if (
+      query.primaryLocale &&
+      options.excludeField !== 'primaryLocale' &&
+      options.excludeField !== 'outputLanguage'
+    ) {
+      params.push(query.primaryLocale);
+      whereClauses.push(`primary_locale = $${params.length}`);
+    } else if (query.outputLanguage && options.excludeField !== 'outputLanguage') {
       const locale = mapOutputLanguageToPrimaryLocale(query.outputLanguage);
       params.push(locale);
       params.push(query.outputLanguage.toLowerCase());
@@ -679,6 +688,7 @@ export class QuestionService {
 
   async softDeleteMany(
     ids: string[],
+    locale: Locale,
   ): Promise<{
     deleted: string[];
     blocked: Array<{ id: string; questionText: string; reason: string }>;
@@ -703,7 +713,9 @@ export class QuestionService {
           const existing = await this.findOne(id).catch(() => undefined);
           blocked.push({
             id,
-            questionText: existing?.questionText ?? '',
+            questionText: existing
+              ? this.toResolvedQuestion(existing, locale).questionText
+              : '',
             reason: err.message,
           });
           continue;
@@ -1021,7 +1033,7 @@ export class QuestionService {
       return {
         question: this.toResolvedQuestion(question, locale),
         score,
-        reasons: this.buildSimilarReasons(draft, question),
+        reasons: this.buildSimilarReasons(draft, question, locale),
       };
     });
   }
@@ -1029,19 +1041,21 @@ export class QuestionService {
   private buildSimilarReasons(
     draft: Partial<Pick<QuestionCore, 'category' | 'subcategory' | 'role' | 'difficulty'>>,
     match: Question,
+    locale: Locale,
   ): string[] {
+    const text = evaluationLocaleText(locale);
     const reasons: string[] = [];
     if (draft.category && draft.category === match.category) {
-      reasons.push(`Same category: ${match.category}`);
+      reasons.push(text.similarSameCategory(match.category));
     }
     if (draft.subcategory && draft.subcategory === match.subcategory) {
-      reasons.push(`Same subcategory: ${match.subcategory}`);
+      reasons.push(text.similarSameSubcategory(match.subcategory));
     }
     if (draft.role && draft.role === match.role) {
-      reasons.push(`Same role: ${match.role}`);
+      reasons.push(text.similarSameRole(match.role));
     }
     if (draft.difficulty && draft.difficulty === match.difficulty) {
-      reasons.push(`Same difficulty: ${match.difficulty}`);
+      reasons.push(text.similarSameDifficulty(match.difficulty));
     }
     return reasons;
   }

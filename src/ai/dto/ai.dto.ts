@@ -12,6 +12,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.dto';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 
 export class ChatHistoryItemDto {
   @ApiProperty({ enum: ['system', 'assistant', 'candidate'] })
@@ -71,6 +73,17 @@ export class GreetDto {
 }
 
 export class DraftQuestionDto {
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    default: 'en',
+    description:
+      'Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).',
+    example: 'pl',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  locale?: Locale;
+
   @ApiPropertyOptional({ type: QuestionDraftInputDto })
   @IsOptional()
   @IsObject()

@@ -106,7 +106,19 @@ export class QueryQuestionsDto {
   @MaxLength(120)
   role?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Filter by canonical question locale (primary_locale).',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  primaryLocale?: Locale;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Deprecated: use primaryLocale (en|be|ru|pl). Legacy labels (e.g. English) still match output_language.',
+  })
   @IsOptional()
   @Transform(({ value }) => trimToUndefined(value))
   @IsString()

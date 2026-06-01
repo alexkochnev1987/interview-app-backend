@@ -23,12 +23,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
-import { CandidateQuestionView } from '../interview/interfaces/interview.interface';
 import { AuthService } from '../auth/auth.service';
+import { resolveTakeLocale } from './take-locale';
+import { buildCandidateQuestionView } from './take-question-view';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
   CANDIDATE_SESSION_COOKIE,
@@ -62,7 +63,11 @@ export class TakeController {
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
   @ApiCookieAuth('candidateSessionAuth')
-  @ApiOperation({ summary: 'Get candidate interview state' })
+  @ApiOperation({
+    summary: 'Get candidate interview state',
+    description:
+      'Resolves currentQuestion.text and followUpQuestions using X-Locale when sent, otherwise interview.interviewLocale. Includes resolvedLocale and optional fallbackFromLocale.',
+  })
   @ApiParam({ name: 'id' })
   @ApiQuery({ name: 'token', required: false })
   @ApiOkResponse({ type: TakeInterviewResponseDto })
@@ -72,7 +77,7 @@ export class TakeController {
   async getInterview(
     @Param('id') id: string,
     @Query('token') token: string,
-    @Req() req: CandidateRequest,
+    @Req() req: CandidateRequest & Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const tokenMismatch = getCandidateTokenMismatchReason(
@@ -92,6 +97,7 @@ export class TakeController {
     }
 
     const interview = await this.interviewService.findOne(id);
+    const takeLocale = resolveTakeLocale(req, interview);
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -116,9 +122,10 @@ export class TakeController {
       };
     }
 
-    const currentQuestion: CandidateQuestionView = {
-      text: interview.questions[answeredCount].questionText,
-    };
+    const currentQuestion = buildCandidateQuestionView(
+      interview.questions[answeredCount],
+      takeLocale,
+    );
 
     return {
       id: interview.id,
