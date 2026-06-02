@@ -23,15 +23,25 @@ npm run start:dev
 
 ## Tests
 
-Unit tests (Jest, `src/**/*.spec.ts`) cover pure business logic: roles/permissions, behavior risk, AI env, session cookies, upload keys, rate-limit IP, and LLM JSON/prompt helpers. Database-backed services are covered in integration/E2E phases.
+Unit test: behavior risk scoring (`answer-behavior-risk.spec.ts`). Everything else is integration.
 
 ```bash
-npm run test       
-npm run test:watch 
-npm run test:cov 
+docker compose up -d
+npm run test:integration
+npm run test
 ```
 
-Integration/E2E (`npm run test:e2e`) are added in a later phase.
+Uses seed users (created on first run):
+
+| Role | Email | Password |
+|------|-------|----------|
+| super_admin | `admin@test.local` | `TestPass123!` |
+| admin | `staff-admin@test.local` | `TestPass123!` |
+| hr | `hr@test.local` | `TestPass123!` |
+
+**Coverage:** auth session, permissions by role, full recruiter journey (question CRUD → interview → candidate take link), health.
+
+Pure role/permission rules are covered here; unit tests focus on algorithmic helpers (risk scoring, JSON parsing, upload keys).
 
 PostgreSQL on host **5433**, MinIO S3 API **9002**, MinIO web console **9003** (`minioadmin` / `minioadmin`).
 

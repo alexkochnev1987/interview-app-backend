@@ -25,6 +25,30 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: interview_app
+          POSTGRES_PASSWORD: localpass
+          POSTGRES_DB: interview_app_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U interview_app -d interview_app_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://interview_app:localpass@localhost:5433/interview_app_test
+      JWT_SECRET: ci-integration-test-jwt-secret
+      FRONTEND_URL: http://localhost:3001
+      AWS_S3_BUCKET: interview-app-test
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      S3_ENDPOINT: http://localhost:9002
+      S3_FORCE_PATH_STYLE: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +59,7 @@ jobs:
       - run: npm run build
       - run: npm run openapi:check
       - run: npm run test
+      - run: npm run test:integration
 
   build-and-deploy:
     needs: test
