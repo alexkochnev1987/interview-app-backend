@@ -10,6 +10,10 @@ process.env.S3_ENDPOINT = process.env.S3_ENDPOINT ?? "http://localhost:9002";
 process.env.S3_FORCE_PATH_STYLE = "true";
 process.env.S3_PREFIX = process.env.S3_PREFIX ?? "test/";
 process.env.SUPER_ADMIN_EMAILS = process.env.SUPER_ADMIN_EMAILS ?? "admin@test.local";
+process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "integration-google-client-id";
+process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "integration-google-client-secret";
+process.env.GOOGLE_CALLBACK_URL =
+  process.env.GOOGLE_CALLBACK_URL ?? "http://localhost:3000/auth/google/callback";
 
 delete process.env.AI_PROVIDER;
 delete process.env.OPENAI_API_KEY;
