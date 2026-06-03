@@ -1,24 +1,39 @@
 import { buildQuestionDraftUserPrompt } from './question-draft-llm';
 
 describe('buildQuestionDraftUserPrompt', () => {
-  it('requires draft content in the requested locale language', () => {
+  it('requires draft rubric content in the requested locale language', () => {
     const prompt = buildQuestionDraftUserPrompt(
       { questionText: 'Explain React hooks' },
       'pl',
     );
 
-    expect(prompt).toContain('written in Polish');
-    expect(prompt).toContain('locale code: pl');
+    expect(prompt).toContain('Output locale: pl (Polish)');
+    expect(prompt).toContain('Write ALL human-readable rubric text in Polish');
+    expect(prompt).toContain('snake_case Latin');
+    expect(prompt).toContain('match the rubric language to the requested locale (pl)');
+    expect(prompt).toContain('Do not use English boilerplate templates');
     expect(prompt).toContain('must be "Polish"');
   });
 
-  it('defaults to English instructions for en locale', () => {
+  it('omits English-boilerplate warning for en locale', () => {
     const prompt = buildQuestionDraftUserPrompt(
       { questionText: 'What is a closure?' },
       'en',
     );
 
-    expect(prompt).toContain('written in English');
+    expect(prompt).toContain('Output locale: en (English)');
+    expect(prompt).not.toContain('Do not use English boilerplate templates');
     expect(prompt).toContain('must be "English"');
+  });
+
+  it('adds strict locale mode in prompt when requested', () => {
+    const prompt = buildQuestionDraftUserPrompt(
+      { questionText: 'замыкание' },
+      'ru',
+      { strictLocale: true },
+    );
+
+    expect(prompt).toContain('STRICT LOCALE MODE');
+    expect(prompt).toContain('Russian (ru)');
   });
 });

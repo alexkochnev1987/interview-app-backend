@@ -29,18 +29,60 @@ redFlags must always contain at least 2 entries — common wrong answers or miss
 tags must always contain at least 3 entries — short topic keywords for filtering and search.
 sampleGoodAnswer must always be a populated multi-sentence string — never empty.
 Never return empty arrays for followUpQuestions, expectedConcepts, redFlags, or tags. Generate them from the question text.
-Write all candidate-facing natural language (questionText, followUpQuestions, concept labels/descriptions, red flag labels, sampleGoodAnswer) in the response language named in the user message.`;
+
+Locale and language (from the user message):
+- Write all human-readable rubric text in the output language named there: questionText, followUpQuestions, expectedConcepts[].label and description, redFlags[].label, sampleGoodAnswer.
+- Keep technical identifiers in English ASCII: concept and red-flag ids as snake_case Latin (e.g. concept_1, incorrect_runtime_explanation); difficulty easy|medium|hard; category, subcategory, tags as lowercase English slugs; metadata keys in English camelCase or snake_case.
+- The seed question may be in any language; match rubric text to the requested output locale, not to the seed language.
+- When output locale is not en, do not use English boilerplate for rubric text.`;
+
+function buildQuestionDraftLocaleBlock(
+  draftLocale: Locale,
+  options: { strictLocale?: boolean } = {},
+): string {
+  const { responseLanguageName } = localeUiText(draftLocale);
+  const strictLocaleLine = options.strictLocale
+    ? `STRICT LOCALE MODE: Every human-readable rubric value MUST be in ${responseLanguageName} (${draftLocale}). If any value is in another language, regenerate before responding.`
+    : '';
+
+  const noEnglishBoilerplate =
+    draftLocale === 'en'
+      ? ''
+      : 'Do not use English boilerplate templates for rubric text.';
+
+  return `Output locale: ${draftLocale} (${responseLanguageName}).
+
+Write ALL human-readable rubric text in ${responseLanguageName}:
+- follow-up questions
+- expected concept labels and descriptions
+- red flag labels
+- sample good answer
+- questionText (refine or translate to match the output locale when needed)
+
+Keep technical identifiers in English ASCII:
+- concept and red-flag ids: snake_case Latin (e.g. concept_1, incorrect_runtime_explanation)
+- difficulty: easy | medium | hard
+- category, subcategory, tags: lowercase English slugs
+- metadata keys: English camelCase or snake_case
+
+The interviewer seed question text may be in any language; match the rubric language to the requested locale (${draftLocale}), not to the seed taxonomy language.
+Ignore deprecated seed fields (outputLanguage, primaryLocale, role, category, tags) when choosing rubric language — only the output locale above applies.
+${noEnglishBoilerplate}
+${strictLocaleLine}`.trim();
+}
 
 export function buildQuestionDraftUserPrompt(
   base: Partial<QuestionDraft>,
   draftLocale: Locale,
+  options: { strictLocale?: boolean } = {},
 ): string {
-  const { responseLanguageName } = localeUiText(draftLocale);
   const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
+  const localeBlock = buildQuestionDraftLocaleBlock(draftLocale, options);
 
   return `Assess and complete this question draft. Keep the same topic; refine wording, rubric, and metadata.
 Judge role, focus, difficulty, weight, minimumPassScore, follow-ups, expected concepts, red flags, sample answer, and tags from the question text. Empty/missing fields in the input below must be generated from scratch — never echo empty.
-All candidate-facing text must be written in ${responseLanguageName} (locale code: ${draftLocale}).
+
+${localeBlock}
 
 Input JSON:
 ${JSON.stringify(base)}
@@ -50,17 +92,17 @@ Output a single JSON object with these camelCase keys. Every key is required.
 - role (string) — e.g. "frontend intern", "backend engineer". Infer from the question if missing.
 - focus (string) — e.g. "fundamentals", "system design". Infer from the question if missing.
 - outputLanguage (string) — must be "${outputLanguage}".
-- category (string)
-- subcategory (string)
+- category (string) — lowercase English slug
+- subcategory (string) — lowercase English slug
 - questionText (string)
 - followUpQuestions (string[])
-- expectedConcepts: array of { "id", "label", "weight", "description" }
-- redFlags: array of { "id", "label", "severity" }
+- expectedConcepts: array of { "id", "label", "weight", "description" } — id in snake_case Latin; label and description in ${outputLanguage}
+- redFlags: array of { "id", "label", "severity" } — id in snake_case Latin; label in ${outputLanguage}
 - difficulty: "easy" | "medium" | "hard"
 - weight (number, positive)
 - sampleGoodAnswer (string)
 - minimumPassScore (number)
-- tags (string[])
+- tags (string[]) — lowercase English slugs
 - metadata (object; preserve and extend input metadata when useful)`;
 }
 
@@ -68,8 +110,9 @@ export async function generateQuestionDraftWithNativeLlm(
   config: NativeProviderConfig,
   base: Partial<QuestionDraft>,
   draftLocale: Locale,
+  options: { strictLocale?: boolean } = {},
 ): Promise<unknown> {
-  const user = buildQuestionDraftUserPrompt(base, draftLocale);
+  const user = buildQuestionDraftUserPrompt(base, draftLocale, options);
   const raw = await completeJson(
     config,
     QUESTION_DRAFT_SYSTEM,

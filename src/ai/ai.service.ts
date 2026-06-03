@@ -21,10 +21,22 @@ import {
   runInterviewRephrase,
 } from './llm/interview-chat-llm';
 import { generateQuestionDraftWithNativeLlm } from './llm/question-draft-llm';
+import {
+  heuristicExpectedConcepts,
+  heuristicFollowUps,
+  heuristicRedFlags,
+  heuristicSampleAnswer,
+} from './question-draft-heuristic';
+import { draftRubricMatchesLocale } from './question-draft-rubric-locale';
 
 interface ChatMessage {
   role: 'system' | 'assistant' | 'candidate';
   content: string;
+}
+
+interface LlmDraftAttempt {
+  draft?: QuestionDraft;
+  localeMismatch: boolean;
 }
 
 function isAiDebugEnabled(): boolean {
@@ -225,22 +237,39 @@ export class AiService {
     const llmInput = this.stripAnchorFields(base);
 
     if (aiUrl) {
-      const res = await fetch(`${aiUrl}/interview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'question-draft',
-          locale: draftLocale,
-          question: llmInput,
-        }),
-      });
-      const data = await res.json();
-      const normalized = this.acceptLlmDraft(data, base, draftLocale);
-      if (normalized) {
+      const proxyFirst = await this.generateProxyDraft(
+        aiUrl,
+        llmInput,
+        base,
+        draftLocale,
+        false,
+      );
+      if (proxyFirst.draft && !proxyFirst.localeMismatch) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
         }
-        return normalized;
+        return proxyFirst.draft;
+      }
+
+      if (proxyFirst.localeMismatch) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            'question-draft: proxy returned mixed-language draft, retrying once with strict locale hint',
+          );
+        }
+        const proxyRetry = await this.generateProxyDraft(
+          aiUrl,
+          llmInput,
+          base,
+          draftLocale,
+          true,
+        );
+        if (proxyRetry.draft && !proxyRetry.localeMismatch) {
+          if (isAiDebugEnabled()) {
+            this.logger.log(`question-draft: legacy proxy ${aiUrl} (strict retry)`);
+          }
+          return proxyRetry.draft;
+        }
       }
       if (isAiDebugEnabled()) {
         this.logger.warn(
@@ -256,15 +285,38 @@ export class AiService {
           native,
           llmInput,
           draftLocale,
+          { strictLocale: draftLocale !== 'en' },
         );
-        const normalized = this.acceptLlmDraft(parsed, base, draftLocale);
-        if (normalized) {
+        const firstAttempt = this.acceptLlmDraft(parsed, base, draftLocale);
+        if (firstAttempt.draft && !firstAttempt.localeMismatch) {
           if (isAiDebugEnabled()) {
             this.logger.log(
               `question-draft: model ${native.kind} (${native.model})`,
             );
           }
-          return normalized;
+          return firstAttempt.draft;
+        }
+        if (firstAttempt.localeMismatch) {
+          if (isAiDebugEnabled()) {
+            this.logger.warn(
+              'question-draft: model returned mixed-language draft, retrying once with strict locale instructions',
+            );
+          }
+          const strictParsed = await generateQuestionDraftWithNativeLlm(
+            native,
+            llmInput,
+            draftLocale,
+            { strictLocale: true },
+          );
+          const strictAttempt = this.acceptLlmDraft(strictParsed, base, draftLocale);
+          if (strictAttempt.draft && !strictAttempt.localeMismatch) {
+            if (isAiDebugEnabled()) {
+              this.logger.log(
+                `question-draft: model ${native.kind} (${native.model}) (strict retry)`,
+              );
+            }
+            return strictAttempt.draft;
+          }
         }
         if (isAiDebugEnabled()) {
           this.logger.warn(
@@ -287,7 +339,7 @@ export class AiService {
     if (isAiDebugEnabled()) {
       this.logger.log('question-draft: heuristic stub (no LLM)');
     }
-    return this.buildQuestionDraft(base);
+    return this.buildQuestionDraft(base, draftLocale);
   }
 
   private formatAiError(err: unknown): string {
@@ -298,13 +350,13 @@ export class AiService {
     payload: unknown,
     base: QuestionDraft,
     draftLocale: Locale,
-  ): QuestionDraft | undefined {
+  ): LlmDraftAttempt {
     if (!this.llmDraftHasContent(payload)) {
-      return undefined;
+      return { draft: undefined, localeMismatch: false };
     }
     const normalized = this.normalizeRemoteDraft(payload, base, draftLocale);
     if (!normalized) {
-      return undefined;
+      return { draft: undefined, localeMismatch: false };
     }
     if (
       normalized.followUpQuestions.length < 2 ||
@@ -314,9 +366,37 @@ export class AiService {
       !normalized.sampleGoodAnswer ||
       !normalized.sampleGoodAnswer.trim()
     ) {
-      return undefined;
+      return { draft: undefined, localeMismatch: false };
     }
-    return normalized;
+    return {
+      draft: normalized,
+      localeMismatch: this.hasLocaleMismatch(normalized, draftLocale),
+    };
+  }
+
+  private async generateProxyDraft(
+    aiUrl: string,
+    llmInput: Partial<QuestionDraft>,
+    base: QuestionDraft,
+    draftLocale: Locale,
+    strictLocaleRetry: boolean,
+  ): Promise<LlmDraftAttempt> {
+    const res = await fetch(`${aiUrl}/interview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'question-draft',
+        locale: draftLocale,
+        strictLocaleRetry,
+        question: llmInput,
+      }),
+    });
+    const data = await res.json();
+    return this.acceptLlmDraft(data, base, draftLocale);
+  }
+
+  private hasLocaleMismatch(draft: QuestionDraft, locale: Locale): boolean {
+    return !draftRubricMatchesLocale(draft, locale);
   }
 
   private llmDraftHasContent(payload: unknown): boolean {
@@ -342,32 +422,18 @@ export class AiService {
     );
   }
 
+  /** Seed for LLM: question text only — locale comes from body/X-Locale, not deprecated fields. */
   private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
     const llmInput: Partial<QuestionDraft> = {
-      externalId: base.externalId,
-      outputLanguage: base.outputLanguage,
-      category: base.category,
-      subcategory: base.subcategory,
       questionText: base.questionText,
-      metadata: base.metadata,
     };
-
-    if (base.followUpQuestions.length > 0) {
-      llmInput.followUpQuestions = base.followUpQuestions;
+    if (
+      base.metadata &&
+      typeof base.metadata === 'object' &&
+      Object.keys(base.metadata).length > 0
+    ) {
+      llmInput.metadata = base.metadata;
     }
-    if (base.expectedConcepts.length > 0) {
-      llmInput.expectedConcepts = base.expectedConcepts;
-    }
-    if (base.redFlags.length > 0) {
-      llmInput.redFlags = base.redFlags;
-    }
-    if (base.tags.length > 0) {
-      llmInput.tags = base.tags;
-    }
-    if (base.sampleGoodAnswer) {
-      llmInput.sampleGoodAnswer = base.sampleGoodAnswer;
-    }
-
     return llmInput;
   }
 
@@ -531,8 +597,9 @@ export class AiService {
     existingTranslations?: QuestionDraft['translations'],
     forcePrimaryLocale?: Locale,
   ): QuestionDraft {
-    const primaryLocale =
-      forcePrimaryLocale ?? mapOutputLanguageToPrimaryLocale(draft.outputLanguage);
+    const primaryLocale = forcePrimaryLocale
+      ? forcePrimaryLocale
+      : mapOutputLanguageToPrimaryLocale(draft.outputLanguage);
     const translations = mergeTranslations(
       existingTranslations,
       primaryLocale,
@@ -552,7 +619,7 @@ export class AiService {
     };
   }
 
-  private buildQuestionDraft(base: QuestionDraft): QuestionDraft {
+  private buildQuestionDraft(base: QuestionDraft, draftLocale: Locale): QuestionDraft {
     const source = [
       base.questionText,
       base.role,
@@ -570,15 +637,20 @@ export class AiService {
     const expectedConcepts =
       base.expectedConcepts.length > 0
         ? base.expectedConcepts
-        : this.buildExpectedConcepts(category, difficulty);
+        : heuristicExpectedConcepts(
+            draftLocale,
+            category,
+            difficulty,
+            (value) => this.slugify(value),
+          );
     const redFlags =
       base.redFlags.length > 0
         ? base.redFlags
-        : this.buildRedFlags(category);
+        : heuristicRedFlags(draftLocale, category, (value) => this.slugify(value));
     const followUpQuestions =
       base.followUpQuestions.length > 0
         ? base.followUpQuestions
-        : this.buildFollowUps(base.questionText, category);
+        : heuristicFollowUps(draftLocale, base.questionText, category);
     const tags = Array.from(
       new Set([
         ...(base.tags ?? []),
@@ -595,30 +667,36 @@ export class AiService {
       base.externalId ??
       this.buildExternalId(category, subcategory, base.questionText);
 
-    return {
-      ...base,
-      externalId,
-      role,
-      focus,
-      category,
-      subcategory,
-      difficulty,
-      weight: Math.max(base.weight, difficulty === 'hard' ? 3 : difficulty === 'medium' ? 2 : 1),
-      followUpQuestions,
-      expectedConcepts,
-      redFlags,
-      sampleGoodAnswer:
-        base.sampleGoodAnswer ?? this.buildSampleAnswer(category, base.questionText),
-      minimumPassScore:
-        base.minimumPassScore > 0
-          ? base.minimumPassScore
-          : difficulty === 'hard'
-            ? 3.5
-            : difficulty === 'medium'
-              ? 3
-              : 2.5,
-      tags,
-    };
+    return this.withLocaleFields(
+      {
+        ...base,
+        externalId,
+        role,
+        focus,
+        category,
+        subcategory,
+        difficulty,
+        outputLanguage: primaryLocaleToOutputLanguage(draftLocale),
+        weight: Math.max(base.weight, difficulty === 'hard' ? 3 : difficulty === 'medium' ? 2 : 1),
+        followUpQuestions,
+        expectedConcepts,
+        redFlags,
+        sampleGoodAnswer:
+          base.sampleGoodAnswer ??
+          heuristicSampleAnswer(draftLocale, category, base.questionText),
+        minimumPassScore:
+          base.minimumPassScore > 0
+            ? base.minimumPassScore
+            : difficulty === 'hard'
+              ? 3.5
+              : difficulty === 'medium'
+                ? 3
+                : 2.5,
+        tags,
+      },
+      base.translations,
+      draftLocale,
+    );
   }
 
   private pickFocus(source: string, category: string): string {
@@ -643,101 +721,6 @@ export class AiService {
     return base ? base.slice(0, 60) : `question_${Date.now()}`;
   }
 
-  private buildExpectedConcepts(
-    category: string,
-    difficulty: QuestionDifficulty,
-  ): QuestionExpectedConcept[] {
-    const conceptPresets: Record<string, string[]> = {
-      html: ['semantic HTML', 'accessibility basics', 'correct structure'],
-      css: ['layout reasoning', 'box model awareness', 'responsive styling'],
-      javascript: ['language fundamentals', 'runtime behavior', 'practical example'],
-      typescript: ['type safety', 'interface usage', 'trade-offs of typing'],
-      react: ['component reasoning', 'state flow', 'render behavior'],
-      soft_skills: ['clear communication', 'specific example', 'ownership'],
-      processes: ['practical workflow', 'quality mindset', 'team collaboration'],
-    };
-
-    const labels =
-      conceptPresets[category] ??
-      ['clear reasoning', 'relevant example', 'practical outcome'];
-    const weight = Number((1 / labels.length).toFixed(4));
-
-    return labels.map((label, index) => ({
-      id: `${this.slugify(category)}_${this.slugify(label)}_${index + 1}`,
-      label,
-      weight: index === labels.length - 1
-        ? Number((1 - weight * (labels.length - 1)).toFixed(4))
-        : weight,
-      description:
-        difficulty === 'hard'
-          ? `${label} should be explained with enough detail to show strong fundamentals.`
-          : `${label} should be explicitly covered in the answer.`,
-    }));
-  }
-
-  private buildRedFlags(category: string): QuestionRedFlag[] {
-    const preset: Record<string, Array<{ label: string; severity: 'low' | 'medium' | 'high' }>> = {
-      html: [
-        { label: 'Confuses HTML with CSS responsibilities', severity: 'medium' },
-        { label: 'Ignores accessibility implications', severity: 'high' },
-      ],
-      css: [
-        { label: 'Focuses only on memorized properties', severity: 'medium' },
-        { label: 'No responsiveness consideration', severity: 'high' },
-      ],
-      javascript: [
-        { label: 'Uses keywords without explanation', severity: 'medium' },
-        { label: 'Incorrect explanation of core runtime behavior', severity: 'high' },
-      ],
-      typescript: [
-        { label: 'Treats TypeScript as runtime validation', severity: 'high' },
-        { label: 'No understanding of type narrowing', severity: 'medium' },
-      ],
-      react: [
-        { label: 'Explains only syntax without data flow', severity: 'medium' },
-        { label: 'Misses state and rendering implications', severity: 'high' },
-      ],
-      soft_skills: [
-        { label: 'Answer is generic and not evidence-based', severity: 'medium' },
-        { label: 'Avoids ownership in examples', severity: 'high' },
-      ],
-      processes: [
-        { label: 'No concrete workflow example', severity: 'medium' },
-        { label: 'Ignores quality or communication checks', severity: 'high' },
-      ],
-    };
-
-    return (preset[category] ?? preset.processes).map((item) => ({
-      id: this.slugify(item.label),
-      label: item.label,
-      severity: item.severity,
-    }));
-  }
-
-  private buildFollowUps(questionText: string, category: string): string[] {
-    if (!questionText) {
-      return [];
-    }
-
-    const first =
-      category === 'soft_skills'
-        ? 'Can you give a specific example from your own experience?'
-        : 'Can you give a simple practical example?';
-
-    return [
-      first,
-      'What common mistake or misconception would you avoid?',
-    ];
-  }
-
-  private buildSampleAnswer(category: string, questionText: string): string {
-    if (category === 'soft_skills') {
-      return `I would answer this by giving a short real example, explaining my role, what I did, and what result it led to in practice.`;
-    }
-
-    return `A strong answer to "${questionText}" should explain the idea in simple terms, mention why it matters, and give one practical example.`;
-  }
-
   private pickCategory(source: string): string {
     if (source.includes('react') || source.includes('component') || source.includes('hook')) {
       return 'react';
@@ -745,7 +728,15 @@ export class AiService {
     if (source.includes('typescript') || source.includes('type ') || source.includes('interface')) {
       return 'typescript';
     }
-    if (source.includes('javascript') || source.includes('closure') || source.includes('promise')) {
+    if (
+      source.includes('javascript') ||
+      source.includes('closure') ||
+      source.includes('promise') ||
+      source.includes('замыкание') ||
+      source.includes('промис') ||
+      source.includes('асинхрон') ||
+      source.includes('js ')
+    ) {
       return 'javascript';
     }
     if (source.includes('css') || source.includes('layout') || source.includes('flex') || source.includes('grid')) {
