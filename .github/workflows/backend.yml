@@ -5,6 +5,7 @@ on:
     branches: [develop, main]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Dockerfile'
       - 'package.json'
       - 'package-lock.json'
@@ -43,12 +44,6 @@ jobs:
       DATABASE_URL: postgresql://interview_app:localpass@localhost:5433/interview_app_test
       JWT_SECRET: ci-integration-test-jwt-secret
       FRONTEND_URL: http://localhost:3001
-      AWS_S3_BUCKET: interview-app-test
-      AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      S3_ENDPOINT: http://localhost:9002
-      S3_FORCE_PATH_STYLE: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

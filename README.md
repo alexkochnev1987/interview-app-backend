@@ -39,11 +39,11 @@ Uses seed users (created on first run):
 | admin | `staff-admin@test.local` | `TestPass123!` |
 | hr | `hr@test.local` | `TestPass123!` |
 
-**Coverage:** auth session, permissions by role, recruiter journey, candidate take flow, interview APIs.
+**Coverage:** auth session, permissions by role, recruiter journey, candidate take flow, interview APIs, API contract negatives (400/401/403).
 
 Integration specs share one Nest app per Jest run (`test/helpers/integration-app.ts`). Each test calls `useIntegrationHarness()` to truncate/reseed the DB and reset the Supertest agent so state does not leak between tests.
 
-Pure role/permission rules are covered here; unit tests focus on algorithmic helpers (risk scoring, JSON parsing, upload keys).
+Integration covers role/permission rules; the only unit spec today is behavior risk scoring (`answer-behavior-risk.spec.ts`). S3/MinIO defaults in `test/integration-env.ts` are for local Docker — CI omits them until upload/presign integration tests add a MinIO service.
 
 PostgreSQL on host **5433**, MinIO S3 API **9002**, MinIO web console **9003** (`minioadmin` / `minioadmin`).
 
