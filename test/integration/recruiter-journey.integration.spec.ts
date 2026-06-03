@@ -2,11 +2,20 @@ import {
   closeIntegrationApp,
   getIntegrationApp,
   parseCandidateToken,
+  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 
 describe('Recruiter journey (integration)', () => {
+  beforeAll(async () => {
+    await getIntegrationApp();
+  });
+
+  beforeEach(async () => {
+    await resetIntegrationFixtures();
+  });
+
   afterAll(async () => {
     await closeIntegrationApp();
   });

@@ -79,6 +79,16 @@ export async function getIntegrationApp(): Promise<{
   return { app, agent, fixtures };
 }
 
+export async function resetIntegrationFixtures(): Promise<IntegrationFixtures> {
+  if (!app) {
+    throw new Error('Call getIntegrationApp() before resetIntegrationFixtures().');
+  }
+
+  agent = supertest.agent(app.getHttpServer());
+  fixtures = await seedIntegrationFixtures(app);
+  return fixtures;
+}
+
 export async function closeIntegrationApp(): Promise<void> {
   if (app) {
     await app.close();

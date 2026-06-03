@@ -112,3 +112,16 @@ export async function openCandidateTakeSession(
 ) {
   return agent.get(`/take/${interviewId}`).query({ token }).expect(200);
 }
+
+export async function submitCandidateAnswer(
+  agent: IntegrationAgent,
+  interviewId: string,
+  token: string,
+) {
+  await openCandidateTakeSession(agent, interviewId, token);
+
+  await agent
+    .post(`/take/${interviewId}/answer`)
+    .send(buildSubmitAnswerPayload(interviewId, 0, 1))
+    .expect(201);
+}

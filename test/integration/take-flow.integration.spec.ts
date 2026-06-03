@@ -3,9 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import {
   closeIntegrationApp,
   getIntegrationApp,
+  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
-import {  loginAsSuperAdmin } from '../helpers/integration-auth';
+import { loginAsSuperAdmin } from '../helpers/integration-auth';
 import {
   buildAnswerProgressPayload,
   buildSubmitAnswerPayload,
@@ -17,7 +18,11 @@ describe('Take flow (integration)', () => {
   let seedQuestionId = '';
 
   beforeAll(async () => {
-    const { fixtures } = await getIntegrationApp();
+    await getIntegrationApp();
+  });
+
+  beforeEach(async () => {
+    const fixtures = await resetIntegrationFixtures();
     seedQuestionId = fixtures.seedQuestionId;
   });
 

@@ -2,6 +2,7 @@ import {
   closeIntegrationApp,
   getIntegrationApp,
   INTEGRATION_USERS,
+  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import {
@@ -15,7 +16,11 @@ describe('Permissions (integration)', () => {
   let seedQuestionId = '';
 
   beforeAll(async () => {
-    const { fixtures } = await getIntegrationApp();
+    await getIntegrationApp();
+  });
+
+  beforeEach(async () => {
+    const fixtures = await resetIntegrationFixtures();
     seedQuestionId = fixtures.seedQuestionId;
   });
 
@@ -50,7 +55,8 @@ describe('Permissions (integration)', () => {
     await unauthenticatedRequest(app).get('/auth/me').expect(401);
   });
 
-  it('HR can read questions and create interviews but not create questions', async () => {    const { agent } = await getIntegrationApp();
+  it('HR can read questions and create interviews but not create questions', async () => {
+    const { agent } = await getIntegrationApp();
     const hrSession = await loginAsHr(agent);
 
     await agent
