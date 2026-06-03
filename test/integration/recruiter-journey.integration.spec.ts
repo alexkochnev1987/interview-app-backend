@@ -1,6 +1,5 @@
 import {
   getIntegrationApp,
-  parseCandidateToken,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
@@ -92,17 +91,6 @@ describe('Recruiter journey (integration)', () => {
       .expect(201);
 
     expect(linkResponse.body.candidateLink).toContain(`/take/${interviewId}`);
-
-    const token = parseCandidateToken(linkResponse.body.candidateLink);
-
-    const take = await agent
-      .get(`/take/${interviewId}`)
-      .query({ token })
-      .expect(200);
-
-    expect(take.body.position).toBe('Platform Engineer');
-    expect(take.body.totalQuestions).toBe(1);
-    expect(take.body.completed).toBe(false);
 
     const disposable = await agent
       .post('/questions')

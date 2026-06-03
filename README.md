@@ -39,7 +39,7 @@ Uses seed users (created on first run):
 | admin | `staff-admin@test.local` | `TestPass123!` |
 | hr | `hr@test.local` | `TestPass123!` |
 
-**Coverage:** auth session, permissions by role, recruiter journey, candidate take flow, interview APIs, API contract negatives (400/401/403).
+**Coverage:** auth session, permissions by role, recruiter journey (question CRUD → interview → candidate link), candidate take flow (`take-flow.integration.spec.ts`), interview APIs, API contract negatives (400/401/403).
 
 Integration specs share one Nest app per Jest run (`test/helpers/integration-app.ts`). Each test calls `useIntegrationHarness()` to truncate/reseed the DB and reset the Supertest agent so state does not leak between tests.
 

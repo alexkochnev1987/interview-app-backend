@@ -37,4 +37,17 @@ describe('answer-behavior-risk', () => {
     expect(compareBehaviorRisk('low', 'high')).toBeLessThan(0);
     expect(compareBehaviorRisk('medium', 'medium')).toBe(0);
   });
+
+  it('ignores copy, keydown, and resize signals when scoring', () => {
+    expect(
+      computeAnswerBehaviorRisk(
+        signals({
+          copyCount: 100,
+          keydownCount: 100,
+          resizeCount: 100,
+        }),
+        60,
+      ),
+    ).toBe('low');
+  });
 });

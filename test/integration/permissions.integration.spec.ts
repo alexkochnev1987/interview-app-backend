@@ -1,3 +1,5 @@
+import supertest = require('supertest');
+
 import {
   getIntegrationApp,
   INTEGRATION_USERS,
@@ -37,14 +39,28 @@ describe('Permissions (integration)', () => {
   });
 
   it('logout clears staff session', async () => {
-    const { app, agent } = await getIntegrationApp();
-    const session = await loginAsSuperAdmin(agent);
+    const { app } = await getIntegrationApp();
+    const agent = supertest.agent(app.getHttpServer());
 
-    await agent.get('/auth/me').set(authCookie(session)).expect(200);
+    await agent
+      .post('/auth/login')
+      .send({
+        email: INTEGRATION_USERS.superAdmin.email,
+        password: INTEGRATION_USERS.superAdmin.password,
+      })
+      .expect(200);
 
-    await agent.post('/auth/logout').set(authCookie(session)).expect(200);
+    await agent.get('/auth/me').expect(200);
 
-    await unauthenticatedRequest(app).get('/auth/me').expect(401);
+    const logout = await agent.post('/auth/logout').expect(200);
+    expect(logout.body.ok).toBe(true);
+    const setCookie = logout.headers['set-cookie'];
+    const cookieHeader = Array.isArray(setCookie)
+      ? setCookie.join(';')
+      : (setCookie ?? '');
+    expect(cookieHeader).toMatch(/session=;/);
+
+    await agent.get('/auth/me').expect(401);
   });
 
   it('HR can read questions and create interviews but not create questions', async () => {
