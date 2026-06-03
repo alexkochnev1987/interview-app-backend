@@ -1,24 +1,13 @@
 import {
-  closeIntegrationApp,
   getIntegrationApp,
   parseCandidateToken,
-  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
+import { useIntegrationHarness } from '../helpers/integration-harness';
 
 describe('Recruiter journey (integration)', () => {
-  beforeAll(async () => {
-    await getIntegrationApp();
-  });
-
-  beforeEach(async () => {
-    await resetIntegrationFixtures();
-  });
-
-  afterAll(async () => {
-    await closeIntegrationApp();
-  });
+  useIntegrationHarness();
 
   it('login → question CRUD → interview with questions → candidate take link', async () => {
     const { app, agent } = await getIntegrationApp();

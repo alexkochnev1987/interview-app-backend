@@ -1,9 +1,6 @@
-import {
-  closeIntegrationApp,
-  getIntegrationApp,
-  resetIntegrationFixtures,
-} from '../helpers/integration-app';
-import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
+import { getIntegrationApp } from '../helpers/integration-app';
+import { loginAsSuperAdmin, authCookie } from '../helpers/integration-auth';
+import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
   createTakeInterview,
   submitCandidateAnswer,
@@ -12,17 +9,10 @@ import {
 describe('Recruiter interview APIs (integration)', () => {
   let seedQuestionId = '';
 
-  beforeAll(async () => {
-    await getIntegrationApp();
-  });
-
-  beforeEach(async () => {
-    const fixtures = await resetIntegrationFixtures();
-    seedQuestionId = fixtures.seedQuestionId;
-  });
-
-  afterAll(async () => {
-    await closeIntegrationApp();
+  useIntegrationHarness({
+    onFixtures: (fixtures) => {
+      seedQuestionId = fixtures.seedQuestionId;
+    },
   });
 
   it('lists interviews and covers complete, validate, and results endpoints', async () => {

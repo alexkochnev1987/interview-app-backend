@@ -1,12 +1,11 @@
 import { JwtService } from '@nestjs/jwt';
 
 import {
-  closeIntegrationApp,
   getIntegrationApp,
-  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import { loginAsSuperAdmin } from '../helpers/integration-auth';
+import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
   buildAnswerProgressPayload,
   buildSubmitAnswerPayload,
@@ -17,17 +16,10 @@ import {
 describe('Take flow (integration)', () => {
   let seedQuestionId = '';
 
-  beforeAll(async () => {
-    await getIntegrationApp();
-  });
-
-  beforeEach(async () => {
-    const fixtures = await resetIntegrationFixtures();
-    seedQuestionId = fixtures.seedQuestionId;
-  });
-
-  afterAll(async () => {
-    await closeIntegrationApp();
+  useIntegrationHarness({
+    onFixtures: (fixtures) => {
+      seedQuestionId = fixtures.seedQuestionId;
+    },
   });
 
   it('covers candidate progress, submit, and validation guards on happy path', async () => {

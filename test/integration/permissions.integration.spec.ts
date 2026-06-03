@@ -1,8 +1,6 @@
 import {
-  closeIntegrationApp,
   getIntegrationApp,
   INTEGRATION_USERS,
-  resetIntegrationFixtures,
   unauthenticatedRequest,
 } from '../helpers/integration-app';
 import {
@@ -11,21 +9,15 @@ import {
   loginAsStaffAdmin,
   loginAsSuperAdmin,
 } from '../helpers/integration-auth';
+import { useIntegrationHarness } from '../helpers/integration-harness';
 
 describe('Permissions (integration)', () => {
   let seedQuestionId = '';
 
-  beforeAll(async () => {
-    await getIntegrationApp();
-  });
-
-  beforeEach(async () => {
-    const fixtures = await resetIntegrationFixtures();
-    seedQuestionId = fixtures.seedQuestionId;
-  });
-
-  afterAll(async () => {
-    await closeIntegrationApp();
+  useIntegrationHarness({
+    onFixtures: (fixtures) => {
+      seedQuestionId = fixtures.seedQuestionId;
+    },
   });
 
   it('rejects invalid login and unauthenticated /auth/me', async () => {
