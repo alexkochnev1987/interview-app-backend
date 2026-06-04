@@ -3,7 +3,6 @@ import supertest = require('supertest');
 import {
   getIntegrationApp,
   INTEGRATION_USERS,
-  unauthenticatedRequest,
 } from '../helpers/integration-app';
 import {
   authCookie,
