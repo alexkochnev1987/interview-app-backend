@@ -43,6 +43,7 @@ import {
   TakeInterviewResponseDto,
 } from './dto/take.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -74,8 +75,12 @@ export class TakeController {
     @Req() req: CandidateRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (req.candidatePayload.interviewId !== id) {
-      throw new BadRequestException('Token does not match interview');
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
     }
 
     if (req.candidateTokenSource === 'query') {
@@ -149,8 +154,12 @@ export class TakeController {
     @Body() body: SubmitAnswerDto,
     @Req() req: CandidateRequest,
   ) {
-    if (req.candidatePayload.interviewId !== id) {
-      throw new BadRequestException('Token does not match interview');
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
     }
 
     const interview = await this.interviewService.addAnswer(id, body);
@@ -182,8 +191,12 @@ export class TakeController {
     @Body() body: SaveAnswerProgressDto,
     @Req() req: CandidateRequest,
   ) {
-    if (req.candidatePayload.interviewId !== id) {
-      throw new BadRequestException('Token does not match interview');
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
     }
 
     const interview = await this.interviewService.saveAnswerProgress(id, body);
@@ -214,8 +227,12 @@ export class TakeController {
     @Param('questionIndex', ParseIntPipe) questionIndex: number,
     @Req() req: CandidateRequest,
   ) {
-    if (req.candidatePayload.interviewId !== id) {
-      throw new BadRequestException('Token does not match interview');
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
     }
 
     const validation = await this.answerValidationWorkflowService.startValidation(

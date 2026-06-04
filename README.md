@@ -23,13 +23,24 @@ npm run start:dev
 
 ## Tests
 
-Unit test: behavior risk scoring (`answer-behavior-risk.spec.ts`). Everything else is integration.
+Backend tests follow a **pyramid**: many fast unit tests at the base, a thin integration layer on top. CI enforces **≥75% unit / ≤25% integration** by test-case count (`test/assert-test-pyramid.js`).
 
 ```bash
+npm run test                 # unit (default) — rules, guards, DTOs, env, …
 docker compose up -d
-npm run test:integration
-npm run test
+npm run test:integration     # 4 wiring smokes — Nest + Postgres + cookies
+npm run test:pyramid         # unit + integration + budget check
+npm run test:pyramid:check   # budget only (after both suites ran)
 ```
+
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| **Unit (~80%)** | `src/**/*.spec.ts` | Pure rules: permissions, roles, cookies, JWT, DTOs, interview access/completion, answer validation, guards, AI env, behavior risk |
+| **Integration (~20%)** | `test/integration/app-wiring.integration.spec.ts` | Wiring only: staff auth + guards, recruiter CRUD, HR IDOR, candidate take happy path |
+
+Specs share one Nest app per integration run (`test/helpers/integration-app.ts`) and `useIntegrationHarness()` to reseed the DB between tests.
+
+**E2E** (browser flows) lives in [interview-app-frontend](https://github.com/alexkochnev1987/interview-app-frontend) (`e2e/*.spec.ts`), not in this repo.
 
 Uses seed users (created on first run):
 
@@ -39,11 +50,7 @@ Uses seed users (created on first run):
 | admin | `staff-admin@test.local` | `TestPass123!` |
 | hr | `hr@test.local` | `TestPass123!` |
 
-**Coverage:** auth session, permissions by role, recruiter journey (question CRUD → interview → candidate link), candidate take flow (`take-flow.integration.spec.ts`), interview APIs, API contract negatives (400/401/403).
-
-Integration specs share one Nest app per Jest run (`test/helpers/integration-app.ts`). Each test calls `useIntegrationHarness()` to truncate/reseed the DB and reset the Supertest agent so state does not leak between tests.
-
-Integration covers role/permission rules; the only unit spec today is behavior risk scoring (`answer-behavior-risk.spec.ts`). S3/MinIO defaults in `test/integration-env.ts` are for local Docker — CI omits them until upload/presign integration tests add a MinIO service.
+S3/MinIO defaults in `test/integration-env.ts` are for local Docker — CI omits them until upload/presign integration tests add a MinIO service.
 
 PostgreSQL on host **5433**, MinIO S3 API **9002**, MinIO web console **9003** (`minioadmin` / `minioadmin`).
 

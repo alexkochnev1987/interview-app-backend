@@ -14,9 +14,12 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
+    "test:unit": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:integration": "jest --config ./test/jest-integration.json --runInBand",
+    "test:pyramid": "npm run test && npm run test:integration && node test/assert-test-pyramid.js",
+    "test:pyramid:check": "node test/assert-test-pyramid.js",
     "questions:import": "ts-node src/question/import-questions.ts",
     "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts"
   },
