@@ -84,6 +84,20 @@ describe('App wiring (integration)', () => {
       .expect(403);
   });
 
+  it('wires ValidationPipe on recruiter write routes', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    await agent
+      .post('/questions')
+      .set(authCookie(session))
+      .send({
+        difficulty: 'medium',
+        weight: 1,
+      })
+      .expect(400);
+  });
+
   it('wires recruiter APIs through Postgres', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
@@ -158,7 +172,15 @@ describe('App wiring (integration)', () => {
 
     expect(submitted.body.completed).toBe(true);
 
-    const completed = await agent.get(`/take/${interviewId}`).expect(200);
-    expect(completed.body.completed).toBe(true);
+    const takeAfterSubmit = await agent.get(`/take/${interviewId}`).expect(200);
+    expect(takeAfterSubmit.body.completed).toBe(true);
+
+    const completed = await agent
+      .patch(`/interviews/${interviewId}/complete`)
+      .set(authCookie(staffSession))
+      .expect(200);
+
+    expect(completed.body.answers).toHaveLength(1);
+    expect(completed.body.answers[0].status).toBe('submitted');
   });
 });

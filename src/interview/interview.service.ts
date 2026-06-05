@@ -32,6 +32,7 @@ import {
   getInterviewCompletionBlockReason,
   getSubmittedAnswerCount as countSubmittedAnswers,
 } from './interview-completion-rules';
+import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import {
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
@@ -306,12 +307,14 @@ export class InterviewService {
 
   async getResults(id: string): Promise<InterviewResult> {
     const interview = await this.findOne(id);
-    if (interview.status !== 'completed' || !interview.result) {
-      throw new NotFoundException(
-        `Results for interview "${id}" are not available yet (status: ${interview.status})`,
-      );
+    const unavailableMessage = getInterviewResultsUnavailableMessage(
+      interview,
+      id,
+    );
+    if (unavailableMessage) {
+      throw new NotFoundException(unavailableMessage);
     }
-    return interview.result;
+    return interview.result!;
   }
 
   private assertActorCanAccess(
