@@ -33,9 +33,6 @@ export const INTEGRATION_USERS = {
   },
 };
 
-/** @deprecated use INTEGRATION_USERS.superAdmin */
-export const INTEGRATION_ADMIN = INTEGRATION_USERS.superAdmin;
-
 export type IntegrationFixtures = {
   superAdmin: { id: string; email: string; role: string };
   admin: { id: string; email: string; role: string };
