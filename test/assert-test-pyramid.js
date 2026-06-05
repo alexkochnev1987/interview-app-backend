@@ -41,6 +41,11 @@ const integrationCases = integrationFiles.reduce(
   0,
 );
 const total = unitCases + integrationCases;
+if (total === 0) {
+  console.error('No test cases found.');
+  process.exit(1);
+}
+
 const unitShare = unitCases / total;
 const integrationShare = integrationCases / total;
 

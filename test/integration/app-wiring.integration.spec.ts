@@ -91,10 +91,7 @@ describe('App wiring (integration)', () => {
     await agent
       .post('/questions')
       .set(authCookie(session))
-      .send({
-        difficulty: 'medium',
-        weight: 1,
-      })
+      .send({})
       .expect(400);
   });
 
