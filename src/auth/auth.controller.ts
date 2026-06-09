@@ -33,16 +33,10 @@ import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
 import { AuthUserResponseDto } from './dto/auth-user.response.dto';
 import { LogoutResponseDto } from './dto/logout.response.dto';
-
-const isLocal = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: !isLocal,
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: 24 * 60 * 60 * 1000, // 24h
-};
+import {
+  getStaffSessionCookieOptions,
+  STAFF_SESSION_COOKIE,
+} from './staff-session';
 
 // Frontend URL to redirect after Google login
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -73,7 +67,7 @@ export class AuthController {
   ) {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = this.authService.login(user);
-    res.cookie('session', token, COOKIE_OPTIONS);
+    res.cookie(STAFF_SESSION_COOKIE, token, getStaffSessionCookieOptions());
     return user;
   }
 
@@ -96,7 +90,7 @@ export class AuthController {
   ) {
     const user = await this.authService.register(dto);
     const token = this.authService.login(user);
-    res.cookie('session', token, COOKIE_OPTIONS);
+    res.cookie(STAFF_SESSION_COOKIE, token, getStaffSessionCookieOptions());
     return user;
   }
 
@@ -124,7 +118,7 @@ export class AuthController {
       googleUser.name,
     );
     const token = this.authService.login(user);
-    res.cookie('session', token, COOKIE_OPTIONS);
+    res.cookie(STAFF_SESSION_COOKIE, token, getStaffSessionCookieOptions());
     res.redirect(FRONTEND_URL);
   }
 
@@ -133,7 +127,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign out current user' })
   @ApiOkResponse({ type: LogoutResponseDto })
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('session', { path: '/' });
+    res.clearCookie(STAFF_SESSION_COOKIE, { path: '/' });
     return { ok: true };
   }
 

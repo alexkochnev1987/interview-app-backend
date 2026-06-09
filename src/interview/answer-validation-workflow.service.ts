@@ -17,6 +17,7 @@ import {
 } from './interfaces/interview.interface';
 import { InterviewService } from './interview.service';
 import { resolveNativeProvider } from '../ai/llm/ai-env';
+import { getAnswerValidationSubmissionBlockReason } from './answer-validation-rules';
 import { transcribeInterviewMedia } from '../ai/llm/whisper-transcribe';
 import {
   evaluateAnswerWithNativeLlm,
@@ -333,15 +334,16 @@ export class AnswerValidationWorkflowService
         (item) => item.questionIndex === questionIndex,
       );
 
+      const submissionBlock = getAnswerValidationSubmissionBlockReason(
+        questionIndex,
+        answer,
+      );
+      if (submissionBlock) {
+        throw new BadRequestException(submissionBlock);
+      }
       if (!answer) {
         throw new BadRequestException(
           `Answer for question ${questionIndex} is not available`,
-        );
-      }
-
-      if (answer.status !== 'submitted') {
-        throw new BadRequestException(
-          `Question ${questionIndex} must be submitted before validation starts`,
         );
       }
 

@@ -28,6 +28,15 @@ import {
   MediaArtifact,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
+import {
+  getInterviewCompletionBlockReason,
+  getSubmittedAnswerCount as countSubmittedAnswers,
+} from './interview-completion-rules';
+import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
+import {
+  getInterviewAccessDenialReason,
+  INTERVIEW_ACCESS_DENIED_MESSAGE,
+} from './interview-access-rules';
 
 interface InterviewRow {
   id: string;
@@ -288,10 +297,9 @@ export class InterviewService {
 
   async complete(id: string): Promise<Interview> {
     const interview = await this.findOne(id);
-    if (this.getSubmittedAnswerCount(interview) < interview.questions.length) {
-      throw new BadRequestException(
-        'Interview can only be completed after all answers are submitted',
-      );
+    const blockReason = getInterviewCompletionBlockReason(interview);
+    if (blockReason) {
+      throw new BadRequestException(blockReason);
     }
 
     return this.recomputeResult(id);
@@ -299,25 +307,24 @@ export class InterviewService {
 
   async getResults(id: string): Promise<InterviewResult> {
     const interview = await this.findOne(id);
-    if (interview.status !== 'completed' || !interview.result) {
-      throw new NotFoundException(
-        `Results for interview "${id}" are not available yet (status: ${interview.status})`,
-      );
+    const unavailableMessage = getInterviewResultsUnavailableMessage(
+      interview,
+      id,
+    );
+    if (unavailableMessage) {
+      throw new NotFoundException(unavailableMessage);
     }
-    return interview.result;
+    return interview.result!;
   }
 
   private assertActorCanAccess(
     interview: Interview,
     actor: InterviewActor,
   ): void {
-    if (actor.role === 'super_admin' || actor.role === 'admin') {
-      return;
+    const denial = getInterviewAccessDenialReason(interview, actor);
+    if (denial) {
+      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
     }
-    if (actor.role === 'hr' && interview.createdById === actor.id) {
-      return;
-    }
-    throw new ForbiddenException('You do not have access to this interview');
   }
 
   async addAnswer(
@@ -1576,8 +1583,7 @@ export class InterviewService {
   }
 
   private getSubmittedAnswerCount(interview: Interview): number {
-    return interview.answers.filter((answer) => answer.status === 'submitted')
-      .length;
+    return countSubmittedAnswers(interview);
   }
 
   private getAnswerVersions(answer?: Answer): AnswerVersion[] {
