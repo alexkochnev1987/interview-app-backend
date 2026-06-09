@@ -103,7 +103,10 @@ jobs:
             --query SecretString \
             --output text)
 
-          DB_PASSWORD=$(echo "$SECRETS" | python3 -c "import sys,json,urllib.parse; print(urllib.parse.quote(json.load(sys.stdin)['db_password'], safe=''))")
+          DB_PASSWORD_RAW=$(echo "$SECRETS" | python3 -c "import sys,json; print(json.load(sys.stdin)['db_password'])")
+          DB_PASSWORD=$(python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASSWORD_RAW")
+          echo "::add-mask::$DB_PASSWORD_RAW"
+          echo "::add-mask::$DB_PASSWORD"
           DB_HOST=$(aws rds describe-db-instances \
             --db-instance-identifier $PROJECT_NAME-$ENV \
             --region $AWS_REGION \
@@ -120,7 +123,9 @@ jobs:
             --query 'DBInstances[0].DBName' \
             --output text)
 
-          echo "DATABASE_URL=postgresql://interview_app:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" >> $GITHUB_ENV
+          DATABASE_URL="postgresql://interview_app:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+          echo "::add-mask::$DATABASE_URL"
+          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
 
       # DATABASE_URL from RDS (step above). AI_* / OPENAI_* from repo/environment Variables + Secrets (dev/prod).
       - name: Inject database and AI env into task definition
@@ -239,11 +244,28 @@ jobs:
             --output text)
 
           if [ "$MIGRATION_EXIT_CODE" != "0" ]; then
+            echo "::group::Migration task summary"
             aws ecs describe-tasks \
               --cluster $PROJECT_NAME-$ENV \
               --tasks "$MIGRATION_TASK_ARN" \
-              --query 'tasks[0].containers[?name==`backend`].[name,lastStatus,exitCode,reason]' \
-              --output table
+              --query 'tasks[0].{stoppedReason:stoppedReason,stopCode:stopCode,containers:containers[?name==`backend`].[name,lastStatus,exitCode,reason]}' \
+              --output json
+            echo "::endgroup::"
+
+            LOG_GROUP=$(jq -r '.containerDefinitions[] | select(.name=="backend") | .logConfiguration.options."awslogs-group"' task-definition.json)
+            LOG_PREFIX=$(jq -r '.containerDefinitions[] | select(.name=="backend") | .logConfiguration.options."awslogs-stream-prefix"' task-definition.json)
+            TASK_ID=$(basename "$MIGRATION_TASK_ARN")
+            STREAM="$LOG_PREFIX/backend/$TASK_ID"
+
+            echo "::group::Migration logs ($LOG_GROUP / $STREAM)"
+            aws logs get-log-events \
+              --log-group-name "$LOG_GROUP" \
+              --log-stream-name "$STREAM" \
+              --limit 500 \
+              --query 'events[*].message' \
+              --output text 2>&1 || echo "No logs found for stream $STREAM"
+            echo "::endgroup::"
+
             exit 1
           fi
 
