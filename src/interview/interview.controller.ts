@@ -17,6 +17,7 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiConflictResponse,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -27,7 +28,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
 import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
@@ -43,6 +43,7 @@ import { User } from '../user/interfaces/user.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import {
+  CreateInterviewResultDto,
   CandidateLinkResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
@@ -70,35 +71,39 @@ export class InterviewController {
   @RequirePermissions('interviews:create')
   @ApiOperation({
     summary: 'Create interview',
-    description: 'Question snapshots in the response are resolved for X-Locale.',
+    description:
+      'Question snapshots in the response are resolved for interviewLocale. ' +
+      'If some selected questions have no translation for interviewLocale, creation still succeeds and `localeWarnings` is returned.',
   })
   @ApiBody({ type: CreateInterviewDto })
-  @ApiOkResponse({ type: InterviewWithCandidateLinkResponseDto })
+  @ApiOkResponse({ type: CreateInterviewResultDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async create(
     @Body() dto: CreateInterviewDto,
     @CurrentUser() user: ActingUser,
-    @CurrentLocale() locale: Locale,
-  ): Promise<InterviewPresentation & { candidateLink: string }> {
-    const interview = await this.interviewService.create(dto, {
+  ): Promise<InterviewPresentation & { candidateLink: string; localeWarnings: Array<{ questionId: string; availableLocales: Locale[] }> }> {
+    const created = await this.interviewService.create(dto, {
       createdById: user.id,
     });
-    const token = this.authService.generateCandidateToken(interview.id);
+    const token = this.authService.generateCandidateToken(created.interview.id);
     return {
-      ...presentInterview(interview, locale),
-      candidateLink: `/take/${interview.id}?token=${token}`,
+      ...presentInterview(created.interview),
+      candidateLink: `/take/${created.interview.id}?token=${token}`,
+      localeWarnings: created.localeWarnings,
     };
   }
 
   @Get()
   @RequirePermissions('interviews:read_own')
+  @ApiExtraModels(InterviewResponseDto, PaginatedInterviewListResponseDto)
   @ApiOperation({
     summary: 'List interviews',
     description:
       'Default: JSON array with full questions[] (legacy clients). ' +
-      'Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview.',
+      'Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. ' +
+      'questions[]/questionsPreview are resolved in interviewLocale.',
   })
   @ApiOkResponse({
     description: 'Array when paginated is false/omitted; paginated object when paginated=true',
@@ -113,7 +118,6 @@ export class InterviewController {
   async findAll(
     @Query(new ValidationPipe({ transform: true })) query: ListInterviewsQueryDto,
     @CurrentUser() user: ActingUser,
-    @CurrentLocale() locale: Locale,
   ): Promise<PaginatedInterviewListResponseDto | InterviewPresentation[]> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
@@ -125,7 +129,7 @@ export class InterviewController {
     if (query.paginated) {
       return {
         items: result.items.map((interview) =>
-          presentInterviewListItem(interview, locale),
+          presentInterviewListItem(interview),
         ),
         total: result.total,
         page: result.page,
@@ -133,14 +137,14 @@ export class InterviewController {
       };
     }
 
-    return result.items.map((interview) => presentInterview(interview, locale));
+    return result.items.map((interview) => presentInterview(interview));
   }
 
   @Get(':id')
   @RequirePermissions('interviews:read_own')
   @ApiOperation({
     summary: 'Get interview by id',
-    description: 'questions[] resolved for X-Locale (fallback chain per BE-005).',
+    description: 'questions[] resolved for interviewLocale (single-language interview content).',
   })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
@@ -149,10 +153,9 @@ export class InterviewController {
   async findOne(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
-    @CurrentLocale() locale: Locale,
   ): Promise<InterviewPresentation> {
     const interview = await this.interviewService.findOneForActor(id, user);
-    return presentInterview(interview, locale);
+    return presentInterview(interview);
   }
 
   @Post(':id/candidate-link')
@@ -177,7 +180,7 @@ export class InterviewController {
   @RequirePermissions('interviews:update_own')
   @ApiOperation({
     summary: 'Complete interview',
-    description: 'Response questions[] resolved for X-Locale.',
+    description: 'Response questions[] resolved for interviewLocale.',
   })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
@@ -186,11 +189,10 @@ export class InterviewController {
   async complete(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
-    @CurrentLocale() locale: Locale,
   ): Promise<InterviewPresentation> {
     await this.interviewService.findOneForActor(id, user);
     const interview = await this.interviewService.complete(id);
-    return presentInterview(interview, locale);
+    return presentInterview(interview);
   }
 
   @Post(':id/validate')
@@ -255,7 +257,11 @@ export class InterviewController {
 
   @Get(':id/results')
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'Get interview results' })
+  @ApiOperation({
+    summary: 'Get interview results',
+    description:
+      'Returns single-locale AI result content in interviewLocale (not X-Locale).',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResultResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

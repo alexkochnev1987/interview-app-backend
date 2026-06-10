@@ -2,6 +2,23 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 
+export class FeedbackQuestionResultDto {
+  @ApiProperty()
+  questionIndex: number;
+
+  @ApiProperty()
+  questionId: string;
+
+  @ApiPropertyOptional()
+  score?: number;
+
+  @ApiPropertyOptional({ enum: ['pass', 'review', 'fail'] })
+  decisionHint?: 'pass' | 'review' | 'fail';
+
+  @ApiPropertyOptional()
+  summary?: string;
+}
+
 export class FeedbackResponseDto {
   @ApiProperty({
     enum: SUPPORTED_LOCALES,
@@ -37,4 +54,10 @@ export class FeedbackResponseDto {
     description: 'Improvement notes in interviewLocale (aggregated from weak answers).',
   })
   improvements?: string;
+
+  @ApiPropertyOptional({
+    type: [FeedbackQuestionResultDto],
+    description: 'Per-question feedback snippets in interviewLocale.',
+  })
+  questionResults?: FeedbackQuestionResultDto[];
 }

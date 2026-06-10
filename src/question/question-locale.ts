@@ -66,9 +66,7 @@ export function buildTranslation(fields: QuestionLegacyFields): QuestionTranslat
     followUpQuestions: fields.followUpQuestions,
     expectedConcepts: fields.expectedConcepts,
     redFlags: fields.redFlags,
-    ...(fields.sampleGoodAnswer !== undefined
-      ? { sampleGoodAnswer: fields.sampleGoodAnswer }
-      : {}),
+    sampleGoodAnswer: fields.sampleGoodAnswer ?? '',
   };
 }
 
@@ -111,9 +109,7 @@ export function parseTranslationsJson(value: unknown): QuestionTranslations {
         ? (record.redFlags as QuestionRedFlag[])
         : [],
       sampleGoodAnswer:
-        typeof record.sampleGoodAnswer === 'string'
-          ? record.sampleGoodAnswer
-          : undefined,
+        typeof record.sampleGoodAnswer === 'string' ? record.sampleGoodAnswer : '',
     };
   }
   return translations;
@@ -137,15 +133,9 @@ export function resolveQuestionFields(
     };
   }
 
-  const merged = mergeTranslations(
-    translations,
-    primaryLocale,
-    buildTranslation(legacy),
-  );
-
   return {
     primaryLocale,
-    translations: merged,
+    translations,
     ...legacy,
   };
 }

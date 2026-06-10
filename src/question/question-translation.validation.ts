@@ -23,6 +23,12 @@ export function isCompleteTranslationBlock(value: unknown): boolean {
   if (!value.followUpQuestions.every((item) => typeof item === 'string')) {
     return false;
   }
+  if (
+    typeof value.sampleGoodAnswer !== 'string' ||
+    !value.sampleGoodAnswer.trim()
+  ) {
+    return false;
+  }
   return true;
 }
 

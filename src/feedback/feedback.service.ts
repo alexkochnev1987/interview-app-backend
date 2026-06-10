@@ -222,6 +222,13 @@ export class FeedbackService {
               interview.interviewLocale,
             )
           : undefined),
+      questionResults: result.questionResults?.map((item) => ({
+        questionIndex: item.questionIndex,
+        questionId: item.questionId,
+        score: item.score,
+        decisionHint: item.decisionHint,
+        summary: item.summary,
+      })),
     };
   }
 

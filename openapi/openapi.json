@@ -714,6 +714,84 @@
         ]
       }
     },
+    "/questions/ai/draft": {
+      "post": {
+        "operationId": "QuestionController_draftQuestion",
+        "summary": "Generate AI question draft",
+        "description": "Generates a full question draft in the locale from body `locale` or X-Locale header. Does not persist anything to the database.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "description": "Used when body `locale` is omitted. Defaults to `en`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/questions/facets": {
       "get": {
         "operationId": "QuestionController_getFacets",
@@ -1465,11 +1543,259 @@
         ]
       }
     },
+    "/ai/chat": {
+      "post": {
+        "operationId": "AiController_chat",
+        "summary": "Candidate chat assistant",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
+    "/ai/greet": {
+      "post": {
+        "operationId": "AiController_greet",
+        "summary": "Candidate greeting prompt",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GreetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
+    "/ai/question-draft": {
+      "post": {
+        "operationId": "AiController_draftQuestion",
+        "summary": "Generate draft question with AI",
+        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Generates rubric fields in the requested locale from body `locale` or `X-Locale` (default `en`).",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "description": "Used when body `locale` is omitted. Defaults to `en`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              },
+              "examples": {
+                "polishFromSeed": {
+                  "summary": "Polish draft (body locale)",
+                  "description": "Seed text can be any language; output rubric is generated in Polish.",
+                  "value": {
+                    "locale": "pl",
+                    "question": {
+                      "questionText": "Wyjaśnij działanie hooków w React.",
+                      "category": "react"
+                    }
+                  }
+                },
+                "englishViaHeader": {
+                  "summary": "English draft (header only)",
+                  "value": {
+                    "question": {
+                      "questionText": "Explain how CSS flexbox distributes free space."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/interviews": {
       "post": {
         "operationId": "InterviewController_create",
         "summary": "Create interview",
-        "description": "Question snapshots in the response are resolved for X-Locale.",
+        "description": "Question snapshots in the response are resolved for interviewLocale. If some selected questions have no translation for interviewLocale, creation still succeeds and `localeWarnings` is returned.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -1504,7 +1830,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InterviewWithCandidateLinkResponseDto"
+                  "$ref": "#/components/schemas/CreateInterviewResultDto"
                 }
               }
             }
@@ -1552,8 +1878,18 @@
       "get": {
         "operationId": "InterviewController_findAll",
         "summary": "List interviews",
-        "description": "Paginated list with lightweight question previews (no full rubric). Use GET /interviews/:id for full questions[].",
+        "description": "Default: JSON array with full questions[] (legacy clients). Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. questions[]/questionsPreview are resolved in interviewLocale.",
         "parameters": [
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "description": "When true, response is { items, total, page, limit }. When false or omitted, returns a plain array (legacy clients).",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
           {
             "name": "page",
             "required": false,
@@ -1594,11 +1930,21 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Array when paginated is false/omitted; paginated object when paginated=true",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedInterviewListResponseDto"
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InterviewResponseDto"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedInterviewListResponseDto"
+                    }
+                  ]
                 }
               }
             }
@@ -1628,7 +1974,7 @@
       "get": {
         "operationId": "InterviewController_findOne",
         "summary": "Get interview by id",
-        "description": "questions[] resolved for X-Locale (fallback chain per BE-005).",
+        "description": "questions[] resolved for interviewLocale (single-language interview content).",
         "parameters": [
           {
             "name": "id",
@@ -1773,7 +2119,7 @@
       "patch": {
         "operationId": "InterviewController_complete",
         "summary": "Complete interview",
-        "description": "Response questions[] resolved for X-Locale.",
+        "description": "Response questions[] resolved for interviewLocale.",
         "parameters": [
           {
             "name": "id",
@@ -2066,6 +2412,7 @@
       "get": {
         "operationId": "InterviewController_getResults",
         "summary": "Get interview results",
+        "description": "Returns single-locale AI result content in interviewLocale (not X-Locale).",
         "parameters": [
           {
             "name": "id",
@@ -2911,7 +3258,7 @@
       "get": {
         "operationId": "TakeController_getInterview",
         "summary": "Get candidate interview state",
-        "description": "Resolves currentQuestion.text and followUpQuestions using X-Locale when sent, otherwise interview.interviewLocale. Includes resolvedLocale and optional fallbackFromLocale.",
+        "description": "Resolves currentQuestion using interviewLocale only (X-Locale is ignored on take). Includes resolvedLocale and optional fallbackFromLocale.",
         "parameters": [
           {
             "name": "id",
@@ -3272,258 +3619,11 @@
         ]
       }
     },
-    "/ai/chat": {
-      "post": {
-        "operationId": "AiController_chat",
-        "summary": "Candidate chat assistant",
-        "parameters": [
-          {
-            "name": "X-Locale",
-            "in": "header",
-            "required": false,
-            "description": "Response language for localized content. Defaults to `en` when omitted.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "en",
-                "be",
-                "ru",
-                "pl"
-              ],
-              "default": "en"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiTextResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "candidateSessionAuth": []
-          }
-        ]
-      }
-    },
-    "/ai/greet": {
-      "post": {
-        "operationId": "AiController_greet",
-        "summary": "Candidate greeting prompt",
-        "parameters": [
-          {
-            "name": "X-Locale",
-            "in": "header",
-            "required": false,
-            "description": "Response language for localized content. Defaults to `en` when omitted.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "en",
-                "be",
-                "ru",
-                "pl"
-              ],
-              "default": "en"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GreetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiTextResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "candidateSessionAuth": []
-          }
-        ]
-      }
-    },
-    "/ai/question-draft": {
-      "post": {
-        "operationId": "AiController_draftQuestion",
-        "summary": "Generate draft question with AI",
-        "description": "Generates rubric fields in the requested locale. Set `locale` in the body or send `X-Locale`; both default to `en` when omitted.",
-        "parameters": [
-          {
-            "name": "X-Locale",
-            "in": "header",
-            "description": "Used when body `locale` is omitted. Defaults to `en`.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftQuestionDto"
-              },
-              "examples": {
-                "polishFromSeed": {
-                  "summary": "Polish draft (body locale)",
-                  "description": "Seed text can be any language; output rubric is generated in Polish.",
-                  "value": {
-                    "locale": "pl",
-                    "question": {
-                      "questionText": "Wyjaśnij działanie hooków w React.",
-                      "category": "react"
-                    }
-                  }
-                },
-                "englishViaHeader": {
-                  "summary": "English draft (header only)",
-                  "value": {
-                    "question": {
-                      "questionText": "Explain how CSS flexbox distributes free space."
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ]
-      }
-    },
     "/feedback/{id}": {
       "get": {
         "operationId": "FeedbackController_getFeedback",
         "summary": "Get interview feedback using a share link",
-        "description": "Returns AI feedback in the interview single locale (interviewLocale). generalFeedback and improvements are not multi-locale in v1.",
+        "description": "Returns AI feedback in the interview single locale (interviewLocale). generalFeedback, improvements and per-question summaries are single-locale in v1.",
         "parameters": [
           {
             "name": "id",
@@ -4069,6 +4169,16 @@
                 "pl"
               ]
             }
+          },
+          "fallbackFromLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Present when resolvedLocale differs from the requested X-Locale."
           }
         },
         "required": [
@@ -4115,6 +4225,193 @@
           "total",
           "page",
           "limit"
+        ]
+      },
+      "QuestionDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            }
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Deprecated: use primaryLocale. Still accepted for legacy AI draft requests."
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DraftQuestionDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "default": "en",
+            "description": "Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).",
+            "example": "pl"
+          },
+          "question": {
+            "$ref": "#/components/schemas/QuestionDraftInputDto"
+          }
+        }
+      },
+      "QuestionDraftResponseDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for generation (body `locale` or `X-Locale`)."
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Deprecated: use primaryLocale."
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata"
         ]
       },
       "FacetCountDto": {
@@ -4212,7 +4509,8 @@
           "questionText",
           "followUpQuestions",
           "expectedConcepts",
-          "redFlags"
+          "redFlags",
+          "sampleGoodAnswer"
         ]
       },
       "CreateQuestionDto": {
@@ -4533,6 +4831,86 @@
         "required": [
           "deleted",
           "blocked"
+        ]
+      },
+      "ChatHistoryItemDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "assistant",
+              "candidate"
+            ]
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "ChatDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryItemDto"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "position",
+          "candidateName",
+          "history",
+          "message"
+        ]
+      },
+      "AiTextResponseDto": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "response"
+        ]
+      },
+      "GreetDto": {
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "totalQuestions": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "candidateName",
+          "position",
+          "totalQuestions"
         ]
       },
       "CreateInterviewDto": {
@@ -4959,6 +5337,16 @@
       "InterviewResultResponseDto": {
         "type": "object",
         "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Interview language used for AI evaluation and summary text."
+          },
           "overallScore": {
             "type": "number"
           },
@@ -5010,6 +5398,7 @@
           }
         },
         "required": [
+          "interviewLocale",
           "overallScore",
           "summary",
           "categoryScores",
@@ -5063,7 +5452,31 @@
           "lastUpdatedAt"
         ]
       },
-      "InterviewWithCandidateLinkResponseDto": {
+      "InterviewLocaleWarningDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "availableLocales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
+            }
+          }
+        },
+        "required": [
+          "questionId",
+          "availableLocales"
+        ]
+      },
+      "CreateInterviewResultDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -5095,10 +5508,10 @@
               "ru",
               "pl"
             ],
-            "description": "Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale."
+            "description": "Locale used for questions[] (always interviewLocale)."
           },
           "questions": {
-            "description": "Resolved for X-Locale on read (resolvedLocale, availableLocales).",
+            "description": "Resolved for interviewLocale on read (resolvedLocale, availableLocales).",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
@@ -5136,6 +5549,12 @@
           },
           "candidateLink": {
             "type": "string"
+          },
+          "localeWarnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewLocaleWarningDto"
+            }
           }
         },
         "required": [
@@ -5148,7 +5567,92 @@
           "status",
           "createdAt",
           "updatedAt",
-          "candidateLink"
+          "candidateLink",
+          "localeWarnings"
+        ]
+      },
+      "InterviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questions[] (always interviewLocale)."
+          },
+          "questions": {
+            "description": "Resolved for interviewLocale on read (resolvedLocale, availableLocales).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/InterviewResultResponseDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/InterviewWorkflowDto"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "interviewLocale",
+          "questions",
+          "answers",
+          "status",
+          "createdAt",
+          "updatedAt"
         ]
       },
       "InterviewQuestionPreviewDto": {
@@ -5207,7 +5711,8 @@
               "be",
               "ru",
               "pl"
-            ]
+            ],
+            "description": "Locale used for questionsPreview (always interviewLocale)."
           },
           "questionCount": {
             "type": "number"
@@ -5286,90 +5791,6 @@
           "total",
           "page",
           "limit"
-        ]
-      },
-      "InterviewResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "candidateEmail": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "interviewLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          },
-          "questionsDisplayLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ],
-            "description": "Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale."
-          },
-          "questions": {
-            "description": "Resolved for X-Locale on read (resolvedLocale, availableLocales).",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
-            }
-          },
-          "answers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AnswerDto"
-            }
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "in_progress",
-              "processing",
-              "completed",
-              "failed"
-            ]
-          },
-          "result": {
-            "$ref": "#/components/schemas/InterviewResultResponseDto"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/InterviewWorkflowDto"
-          }
-        },
-        "required": [
-          "id",
-          "candidateName",
-          "position",
-          "interviewLocale",
-          "questions",
-          "answers",
-          "status",
-          "createdAt",
-          "updatedAt"
         ]
       },
       "CandidateLinkResponseDto": {
@@ -5824,6 +6245,15 @@
           "position": {
             "type": "string"
           },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
           "candidateName": {
             "type": "string"
           },
@@ -5849,6 +6279,7 @@
         "required": [
           "id",
           "position",
+          "interviewLocale",
           "candidateName",
           "status",
           "totalQuestions",
@@ -6147,271 +6578,33 @@
           "reused"
         ]
       },
-      "ChatHistoryItemDto": {
+      "FeedbackQuestionResultDto": {
         "type": "object",
         "properties": {
-          "role": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "decisionHint": {
             "type": "string",
             "enum": [
-              "system",
-              "assistant",
-              "candidate"
+              "pass",
+              "review",
+              "fail"
             ]
           },
-          "content": {
+          "summary": {
             "type": "string"
           }
         },
         "required": [
-          "role",
-          "content"
-        ]
-      },
-      "ChatDto": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "history": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatHistoryItemDto"
-            }
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "question",
-          "position",
-          "candidateName",
-          "history",
-          "message"
-        ]
-      },
-      "AiTextResponseDto": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "response"
-        ]
-      },
-      "GreetDto": {
-        "type": "object",
-        "properties": {
-          "candidateName": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "totalQuestions": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "candidateName",
-          "position",
-          "totalQuestions"
-        ]
-      },
-      "QuestionDraftInputDto": {
-        "type": "object",
-        "properties": {
-          "primaryLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          },
-          "translations": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/QuestionTranslationDto"
-            }
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "outputLanguage": {
-            "type": "string",
-            "deprecated": true,
-            "description": "Deprecated: use primaryLocale. Still accepted for legacy AI draft requests."
-          },
-          "role": {
-            "type": "string"
-          },
-          "focus": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
-          },
-          "difficulty": {
-            "type": "string",
-            "enum": [
-              "easy",
-              "medium",
-              "hard"
-            ]
-          },
-          "weight": {
-            "type": "number"
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
-          },
-          "minimumPassScore": {
-            "type": "number"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        }
-      },
-      "DraftQuestionDto": {
-        "type": "object",
-        "properties": {
-          "locale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ],
-            "default": "en",
-            "description": "Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).",
-            "example": "pl"
-          },
-          "question": {
-            "$ref": "#/components/schemas/QuestionDraftInputDto"
-          }
-        }
-      },
-      "QuestionDraftResponseDto": {
-        "type": "object",
-        "properties": {
-          "externalId": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "focus": {
-            "type": "string"
-          },
-          "primaryLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ],
-            "description": "Locale used for generation (body `locale` or `X-Locale`)."
-          },
-          "outputLanguage": {
-            "type": "string",
-            "deprecated": true,
-            "description": "Deprecated: use primaryLocale."
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expectedConcepts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-            }
-          },
-          "redFlags": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionRedFlagDto"
-            }
-          },
-          "difficulty": {
-            "type": "string",
-            "enum": [
-              "easy",
-              "medium",
-              "hard"
-            ]
-          },
-          "weight": {
-            "type": "number"
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
-          },
-          "minimumPassScore": {
-            "type": "number"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        },
-        "required": [
-          "questionText",
-          "followUpQuestions",
-          "expectedConcepts",
-          "redFlags",
-          "difficulty",
-          "weight",
-          "minimumPassScore",
-          "tags",
-          "metadata"
+          "questionIndex",
+          "questionId"
         ]
       },
       "FeedbackResponseDto": {
@@ -6460,6 +6653,13 @@
           "improvements": {
             "type": "string",
             "description": "Improvement notes in interviewLocale (aggregated from weak answers)."
+          },
+          "questionResults": {
+            "description": "Per-question feedback snippets in interviewLocale.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestionResultDto"
+            }
           }
         },
         "required": [

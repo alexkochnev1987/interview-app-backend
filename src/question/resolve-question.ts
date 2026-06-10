@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
+import { Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
 import {
   QuestionExpectedConcept,
   QuestionRedFlag,
@@ -20,6 +20,7 @@ export interface ResolveQuestionInput {
 export interface ResolvedQuestion {
   resolvedLocale: Locale;
   availableLocales: Locale[];
+  fallbackFromLocale?: Locale;
   questionText: string;
   followUpQuestions: string[];
   expectedConcepts: QuestionExpectedConcept[];
@@ -63,7 +64,7 @@ function pickResolvedLocale(
   requestedLocale: Locale,
   primaryLocale: Locale,
 ): Locale | undefined {
-  const chain: Locale[] = [requestedLocale, primaryLocale, DEFAULT_LOCALE];
+  const chain: Locale[] = [requestedLocale, primaryLocale];
   const seen = new Set<Locale>();
   for (const locale of chain) {
     if (seen.has(locale)) {
@@ -98,8 +99,8 @@ export function resolveQuestion(
   const resolvedLocale =
     pickResolvedLocale(translations, requestedLocale, question.primaryLocale) ??
     question.primaryLocale;
-
   const translation = translations[resolvedLocale];
+
   const fields = translation
     ? toLocalizedFields(translation)
     : toLocalizedFields(
@@ -112,9 +113,13 @@ export function resolveQuestion(
         }),
       );
 
-  return {
+  const resolved: ResolvedQuestion = {
     ...fields,
     resolvedLocale,
     availableLocales,
   };
+  if (resolvedLocale !== requestedLocale) {
+    resolved.fallbackFromLocale = requestedLocale;
+  }
+  return resolved;
 }

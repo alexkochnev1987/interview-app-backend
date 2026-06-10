@@ -289,6 +289,9 @@ export class TakeInterviewResponseDto {
   @ApiProperty()
   position: string;
 
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
+
   @ApiProperty()
   candidateName: string;
 

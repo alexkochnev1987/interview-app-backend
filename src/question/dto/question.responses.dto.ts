@@ -117,6 +117,12 @@ export class ResolvedQuestionResponseDto extends QuestionResponseDto {
 
   @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
   availableLocales: Locale[];
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Present when resolvedLocale differs from the requested X-Locale.',
+  })
+  fallbackFromLocale?: Locale;
 }
 
 export class PaginatedQuestionsResponseDto {

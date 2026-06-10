@@ -177,6 +177,7 @@ export interface InterviewBehaviorSummary {
 }
 
 export interface InterviewResult {
+  interviewLocale: Locale;
   overallScore: number;
   summary: string;
   improvements?: string;

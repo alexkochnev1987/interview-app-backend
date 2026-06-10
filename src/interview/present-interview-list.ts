@@ -1,11 +1,10 @@
-import { Locale } from '../locale/locale.constants';
 import { Interview } from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
 
 export type InterviewQuestionPreview = {
   id: string;
   questionText: string;
-  resolvedLocale: Locale;
+  resolvedLocale: Interview['interviewLocale'];
 };
 
 export type InterviewListItemPresentation = Omit<InterviewPresentation, 'questions'> & {
@@ -15,9 +14,8 @@ export type InterviewListItemPresentation = Omit<InterviewPresentation, 'questio
 
 export function presentInterviewListItem(
   interview: Interview,
-  locale: Locale,
 ): InterviewListItemPresentation {
-  const presented = presentInterview(interview, locale);
+  const presented = presentInterview(interview);
   const { questions, ...rest } = presented;
 
   return {

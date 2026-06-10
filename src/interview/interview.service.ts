@@ -7,7 +7,12 @@ import {
 } from '../common/errors/api-error';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
-import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
+import {
+  DEFAULT_LOCALE,
+  isLocale,
+  Locale,
+  SUPPORTED_LOCALES,
+} from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UserRole } from '../user/interfaces/user.interface';
@@ -51,6 +56,20 @@ export interface PaginatedInterviews {
   page: number;
   limit: number;
 }
+
+export interface InterviewLocaleWarning {
+  questionId: string;
+  availableLocales: Locale[];
+}
+
+export interface CreateInterviewResult {
+  interview: Interview;
+  localeWarnings: InterviewLocaleWarning[];
+}
+
+export type InterviewResultWithLocale = InterviewResult & {
+  interviewLocale: Locale;
+};
 
 const INTERVIEW_SELECT_COLUMNS = `
   id,
@@ -158,7 +177,7 @@ export class InterviewService {
   async create(
     dto: CreateInterviewDto,
     context: { createdById?: string } = {},
-  ): Promise<Interview> {
+  ): Promise<CreateInterviewResult> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
     const questionIds = dto.questionIds.map((id) => id.trim()).filter(Boolean);
@@ -190,6 +209,11 @@ export class InterviewService {
           `Resolved ${questions.length} questions for ${questionIds.length} requested ids; interview cannot be created.`,
         );
       }
+
+      const localeWarnings = this.collectInterviewLocaleWarnings(
+        questions,
+        interviewLocale,
+      );
 
       const result = await client.query<InterviewRow>(
         `
@@ -227,7 +251,10 @@ export class InterviewService {
         [questionIds],
       );
 
-      return this.mapRow(result.rows[0]);
+      return {
+        interview: this.mapRow(result.rows[0]),
+        localeWarnings,
+      };
     });
   }
 
@@ -341,7 +368,7 @@ export class InterviewService {
     return this.recomputeResult(id);
   }
 
-  async getResults(id: string): Promise<InterviewResult> {
+  async getResults(id: string): Promise<InterviewResultWithLocale> {
     const interview = await this.findOne(id);
     const unavailableMessage = getInterviewResultsUnavailableMessage(
       interview,
@@ -353,7 +380,39 @@ export class InterviewService {
         status: interview.status,
       });
     }
-    return interview.result!;
+    return {
+      ...interview.result!,
+      interviewLocale: interview.interviewLocale,
+    };
+  }
+
+  private collectInterviewLocaleWarnings(
+    questions: InterviewQuestion[],
+    interviewLocale: Locale,
+  ): InterviewLocaleWarning[] {
+    return questions
+      .filter((question) => !this.questionHasLocale(question, interviewLocale))
+      .map((question) => ({
+        questionId: question.id,
+        availableLocales: this.listQuestionAvailableLocales(question),
+      }));
+  }
+
+  private listQuestionAvailableLocales(question: InterviewQuestion): Locale[] {
+    return SUPPORTED_LOCALES.filter((locale) =>
+      this.questionHasLocale(question, locale),
+    );
+  }
+
+  private questionHasLocale(
+    question: InterviewQuestion,
+    locale: Locale,
+  ): boolean {
+    const translated = question.translations[locale]?.questionText?.trim();
+    if (translated) {
+      return true;
+    }
+    return locale === question.primaryLocale && Boolean(question.questionText.trim());
   }
 
   private assertActorCanAccess(
@@ -967,6 +1026,7 @@ export class InterviewService {
     const completedAt = new Date();
 
     const result: InterviewResult = {
+      interviewLocale: interview.interviewLocale,
       overallScore,
       summary,
       improvements: buildFeedbackImprovements(
@@ -1049,7 +1109,7 @@ export class InterviewService {
         this.normalizeAnswer(answer, questions),
       ),
       status: row.status,
-      result: this.normalizeResult(row.result_json),
+      result: this.normalizeResult(row.result_json, interviewLocale),
       workflow: this.normalizeWorkflow(
         row.workflow_json,
         row.status,
@@ -1495,13 +1555,19 @@ export class InterviewService {
 
   private normalizeResult(
     value: Record<string, unknown> | null,
+    interviewLocale: Locale,
   ): InterviewResult | undefined {
     const rawResult = this.asRecord(value);
     if (!rawResult) {
       return undefined;
     }
 
+    const storedInterviewLocale = this.asString(rawResult.interviewLocale);
     return {
+      interviewLocale:
+        storedInterviewLocale && isLocale(storedInterviewLocale)
+          ? storedInterviewLocale
+          : interviewLocale,
       overallScore: this.asNumber(rawResult.overallScore) ?? 0,
       summary: this.asString(rawResult.summary) ?? '',
       improvements: this.asString(rawResult.improvements),

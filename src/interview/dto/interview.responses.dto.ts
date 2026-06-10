@@ -8,6 +8,14 @@ export class CandidateLinkResponseDto {
   candidateLink: string;
 }
 
+export class InterviewLocaleWarningDto {
+  @ApiProperty()
+  questionId: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
+  availableLocales: Locale[];
+}
+
 export class StartAnswerValidationResultDto {
   @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
   status: string;
@@ -315,6 +323,12 @@ export class InterviewQuestionResultDto {
 }
 
 export class InterviewResultResponseDto {
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description: 'Interview language used for AI evaluation and summary text.',
+  })
+  interviewLocale: Locale;
+
   @ApiProperty()
   overallScore: number;
 
@@ -370,13 +384,14 @@ export class InterviewResponseDto {
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
     description:
-      'Locale used for questions[] (X-Locale). AI summaries in result use interviewLocale.',
+      'Locale used for questions[] (always interviewLocale).',
   })
   questionsDisplayLocale?: Locale;
 
   @ApiProperty({
     type: [ResolvedQuestionResponseDto],
-    description: 'Resolved for X-Locale on read (resolvedLocale, availableLocales).',
+    description:
+      'Resolved for interviewLocale on read (resolvedLocale, availableLocales).',
   })
   questions: ResolvedQuestionResponseDto[];
 
@@ -402,6 +417,11 @@ export class InterviewResponseDto {
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {
   @ApiProperty()
   candidateLink: string;
+}
+
+export class CreateInterviewResultDto extends InterviewWithCandidateLinkResponseDto {
+  @ApiProperty({ type: [InterviewLocaleWarningDto] })
+  localeWarnings: InterviewLocaleWarningDto[];
 }
 
 export class InterviewQuestionPreviewDto {
@@ -431,7 +451,10 @@ export class InterviewListItemResponseDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   interviewLocale: Locale;
 
-  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale used for questionsPreview (always interviewLocale).',
+  })
   questionsDisplayLocale?: Locale;
 
   @ApiProperty()

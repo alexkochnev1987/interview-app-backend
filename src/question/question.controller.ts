@@ -17,6 +17,7 @@ import {
   ApiCookieAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiHeader,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -37,7 +38,10 @@ import { FindSimilarDto } from './dto/find-similar.dto';
 import { GetQuestionQueryDto } from './dto/get-question-query.dto';
 import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { SimilarQuestionMatch } from './interfaces/question.interface';
+import {
+  QuestionDraft,
+  SimilarQuestionMatch,
+} from './interfaces/question.interface';
 import {
   PaginatedQuestions,
   QuestionFacets,
@@ -50,9 +54,12 @@ import {
   FindSimilarResponseDto,
   PaginatedQuestionsResponseDto,
   QuestionFacetsResponseDto,
+  QuestionDraftResponseDto,
   ResolvedQuestionResponseDto,
 } from './dto/question.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { AiService } from '../ai/ai.service';
+import { DraftQuestionDto } from '../ai/dto/ai.dto';
 
 const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,
@@ -66,7 +73,10 @@ const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
 @Controller('questions')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class QuestionController {
-  constructor(private readonly questionService: QuestionService) {}
+  constructor(
+    private readonly questionService: QuestionService,
+    private readonly aiService: AiService,
+  ) {}
 
   private effectiveQuestionsQuery(
     user: Omit<User, 'passwordHash'>,
@@ -91,6 +101,33 @@ export class QuestionController {
     return this.questionService.findAll(this.effectiveQuestionsQuery(user, query), {
       forceActive: user.role !== 'super_admin',
       resolveLocale: locale,
+    });
+  }
+
+  @Post('ai/draft')
+  @RequirePermissions('questions:create')
+  @ApiOperation({
+    summary: 'Generate AI question draft',
+    description:
+      'Generates a full question draft in the locale from body `locale` or X-Locale header. Does not persist anything to the database.',
+  })
+  @ApiHeader({
+    name: 'X-Locale',
+    required: false,
+    description: 'Used when body `locale` is omitted. Defaults to `en`.',
+  })
+  @ApiBody({ type: DraftQuestionDto })
+  @ApiOkResponse({ type: QuestionDraftResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  draftQuestion(
+    @Body() dto: DraftQuestionDto,
+    @CurrentLocale() locale: Locale,
+  ): Promise<QuestionDraft> {
+    return this.aiService.draftQuestion(dto.question ?? {}, {
+      bodyLocale: dto.locale,
+      headerLocale: locale,
     });
   }
 

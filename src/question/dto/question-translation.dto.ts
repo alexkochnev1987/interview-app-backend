@@ -1,8 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsOptional,
   IsString,
   Length,
   ValidateNested,
@@ -35,8 +34,8 @@ export class QuestionTranslationDto {
   @Type(() => QuestionRedFlagDto)
   redFlags: QuestionRedFlagDto[];
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  sampleGoodAnswer?: string;
+  @Length(1, 5000)
+  sampleGoodAnswer: string;
 }

@@ -33,7 +33,7 @@ export class QuestionTranslationsMapConstraint implements ValidatorConstraintInt
     return (
       `translations must include a complete block for primaryLocale. ` +
       `Each locale key (${supportedLocaleListHint()}) must include ` +
-      `questionText, followUpQuestions, expectedConcepts, and redFlags.`
+      `questionText, followUpQuestions, expectedConcepts, redFlags, and sampleGoodAnswer.`
     );
   }
 }
@@ -80,7 +80,7 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
     }
     return (
       `each translations locale key (${supportedLocaleListHint()}) must be a complete block ` +
-      `(questionText, followUpQuestions, expectedConcepts, redFlags).`
+      `(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer).`
     );
   }
 }

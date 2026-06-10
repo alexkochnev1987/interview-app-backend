@@ -21,7 +21,7 @@ export interface QuestionTranslation {
   followUpQuestions: string[];
   expectedConcepts: QuestionExpectedConcept[];
   redFlags: QuestionRedFlag[];
-  sampleGoodAnswer?: string;
+  sampleGoodAnswer: string;
 }
 
 export type QuestionTranslations = Partial<Record<Locale, QuestionTranslation>>;
@@ -60,6 +60,7 @@ export type QuestionDraft = Omit<QuestionCore, 'id'>;
 export type SimilarQuestionResolved = Omit<Question, 'translations'> & {
   resolvedLocale: Locale;
   availableLocales: Locale[];
+  fallbackFromLocale?: Locale;
   translations?: QuestionTranslations;
 };
 

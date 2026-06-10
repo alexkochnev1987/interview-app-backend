@@ -28,7 +28,6 @@ import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
 import { AuthService } from '../auth/auth.service';
-import { resolveTakeLocale } from './take-locale';
 import { buildCandidateQuestionView } from './take-question-view';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
@@ -66,7 +65,7 @@ export class TakeController {
   @ApiOperation({
     summary: 'Get candidate interview state',
     description:
-      'Resolves currentQuestion.text and followUpQuestions using X-Locale when sent, otherwise interview.interviewLocale. Includes resolvedLocale and optional fallbackFromLocale.',
+      'Resolves currentQuestion using interviewLocale only (X-Locale is ignored on take). Includes resolvedLocale and optional fallbackFromLocale.',
   })
   @ApiParam({ name: 'id' })
   @ApiQuery({ name: 'token', required: false })
@@ -97,7 +96,7 @@ export class TakeController {
     }
 
     const interview = await this.interviewService.findOne(id);
-    const takeLocale = resolveTakeLocale(req, interview);
+    const takeLocale = interview.interviewLocale;
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -112,6 +111,7 @@ export class TakeController {
       return {
         id: interview.id,
         position: interview.position,
+        interviewLocale: interview.interviewLocale,
         candidateName: interview.candidateName,
         status: interview.status,
         totalQuestions,
@@ -130,6 +130,7 @@ export class TakeController {
     return {
       id: interview.id,
       position: interview.position,
+      interviewLocale: interview.interviewLocale,
       candidateName: interview.candidateName,
       status: interview.status,
       totalQuestions,

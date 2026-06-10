@@ -48,6 +48,7 @@ import { toResolveQuestionInput } from './to-resolve-question-input';
 export type ResolvedQuestion = Omit<Question, 'translations'> & {
   resolvedLocale: Locale;
   availableLocales: Locale[];
+  fallbackFromLocale?: Locale;
   translations?: QuestionTranslations;
 };
 
@@ -249,6 +250,9 @@ export class QuestionService {
       resolvedLocale: resolved.resolvedLocale,
       availableLocales: resolved.availableLocales,
     };
+    if (resolved.fallbackFromLocale) {
+      result.fallbackFromLocale = resolved.fallbackFromLocale;
+    }
     if (options.includeTranslations) {
       result.translations = translations;
     }
@@ -502,12 +506,8 @@ export class QuestionService {
 
   private buildHasTranslationClause(localeParamRef: string): string {
     return `(
-      COALESCE(trim(translations_json -> ${localeParamRef} ->> 'questionText'), '') <> ''
-      OR (
-        primary_locale = ${localeParamRef}
-        AND NOT (translations_json ? ${localeParamRef})
-        AND COALESCE(trim(question_text), '') <> ''
-      )
+      primary_locale = ${localeParamRef}
+      OR COALESCE(trim(translations_json -> ${localeParamRef} ->> 'questionText'), '') <> ''
     )`;
   }
 
@@ -1401,7 +1401,7 @@ export class QuestionService {
         followUpQuestions: this.normalizeStringList(block.followUpQuestions),
         expectedConcepts: this.normalizeExpectedConcepts(block.expectedConcepts),
         redFlags: this.normalizeRedFlags(block.redFlags),
-        sampleGoodAnswer: this.normalizeOptionalString(block.sampleGoodAnswer),
+        sampleGoodAnswer: this.normalizeOptionalString(block.sampleGoodAnswer) ?? '',
       };
     }
     const requiredPrimary = options.requirePrimaryLocale;

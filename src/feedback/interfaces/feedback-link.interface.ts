@@ -19,4 +19,11 @@ export interface FeedbackResponse {
   categoryScores?: Record<string, number>;
   generalFeedback?: string;
   improvements?: string;
+  questionResults?: Array<{
+    questionIndex: number;
+    questionId: string;
+    summary?: string;
+    score?: number;
+    decisionHint?: 'pass' | 'review' | 'fail';
+  }>;
 }

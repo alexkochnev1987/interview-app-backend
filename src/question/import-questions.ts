@@ -89,7 +89,7 @@ function toTranslationBlock(
         ? record.sample_good_answer
         : typeof record.sampleGoodAnswer === 'string'
           ? record.sampleGoodAnswer
-          : undefined,
+          : '',
   };
 }
 

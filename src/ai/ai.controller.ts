@@ -96,7 +96,9 @@ export class AiController {
   @ApiOperation({
     summary: 'Generate draft question with AI',
     description:
-      'Generates rubric fields in the requested locale. Set `locale` in the body or send `X-Locale`; both default to `en` when omitted.',
+      'Deprecated compatibility endpoint. Use POST /questions/ai/draft. ' +
+      'Generates rubric fields in the requested locale from body `locale` or `X-Locale` (default `en`).',
+    deprecated: true,
   })
   @ApiHeader({
     name: 'X-Locale',

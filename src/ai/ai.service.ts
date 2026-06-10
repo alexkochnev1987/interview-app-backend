@@ -1,7 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Locale } from '../locale/locale.constants';
 import { resolveDraftLocale } from './resolve-draft-locale';
 import { QuestionDraftInput } from '../question/question-draft-input';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest } from '../common/errors/api-error';
 import {
   QuestionDifficulty,
   QuestionDraft,
@@ -232,7 +234,11 @@ export class AiService {
     const aiUrl = process.env.AI_API_URL?.trim();
     const base = this.normalizeDraftRequest(input, draftLocale);
     if (!base.questionText) {
-      throw new BadRequestException('questionText is required to draft a question.');
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.questionText is required to draft a question',
+        { field: 'question.questionText' },
+      );
     }
     const llmInput = this.stripAnchorFields(base);
 
