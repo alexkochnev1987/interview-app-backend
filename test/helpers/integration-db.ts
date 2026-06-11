@@ -15,3 +15,14 @@ export async function truncateIntegrationTables(
     `TRUNCATE TABLE ${TRUNCATE_TABLES.join(', ')} RESTART IDENTITY CASCADE`,
   );
 }
+
+export async function updateInterviewStatus(
+  databaseService: DatabaseService,
+  interviewId: string,
+  status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed',
+): Promise<void> {
+  await databaseService.query(
+    `UPDATE interviews SET status = $2, updated_at = NOW() WHERE id = $1`,
+    [interviewId, status],
+  );
+}

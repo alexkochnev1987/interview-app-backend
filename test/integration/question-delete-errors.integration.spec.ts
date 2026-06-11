@@ -1,8 +1,11 @@
+import { INestApplication } from '@nestjs/common';
+import { DatabaseService } from '../../src/database/database.service';
 import {
   getIntegrationApp,
   type IntegrationAgent,
 } from '../helpers/integration-app';
-import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
+import { authCookie, loginAsStaffAdmin, loginAsSuperAdmin } from '../helpers/integration-auth';
+import { updateInterviewStatus } from '../helpers/integration-db';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 
 async function createQuestion(
@@ -41,6 +44,31 @@ async function createInterviewWithQuestion(
   return response.body.id as string;
 }
 
+async function completeInterviewWithQuestion(
+  agent: IntegrationAgent,
+  session: string,
+  questionId: string,
+  app: INestApplication,
+): Promise<string> {
+  const interviewId = await createInterviewWithQuestion(
+    agent,
+    session,
+    questionId,
+  );
+
+  const databaseService = app.get(DatabaseService);
+  await updateInterviewStatus(databaseService, interviewId, 'completed');
+
+  const interview = await agent
+    .get(`/interviews/${interviewId}`)
+    .set(authCookie(session))
+    .expect(200);
+
+  expect(interview.body.status).toBe('completed');
+
+  return interviewId;
+}
+
 describe('Question delete error contracts (integration)', () => {
   useIntegrationHarness();
 
@@ -63,6 +91,58 @@ describe('Question delete error contracts (integration)', () => {
     expect(response.body.statusCode).toBe(409);
     expect(response.body.message).toMatch(/active interview/i);
     expect(response.body.message).toMatch(/Wait for it to finish/i);
+  });
+
+  it('deletes a question used only in a completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question in completed interview.',
+    );
+    await completeInterviewWithQuestion(agent, session, questionId, app);
+
+    const deleteResponse = await agent
+      .delete(`/questions/${questionId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(deleteResponse.body).toEqual({ id: questionId, deleted: true });
+
+    const staffSession = await loginAsStaffAdmin(agent);
+    await agent
+      .get(`/questions/${questionId}`)
+      .set(authCookie(staffSession))
+      .expect(404);
+  });
+
+  it('bulk-deletes a question used only in a completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question in completed interview for bulk delete.',
+    );
+    await completeInterviewWithQuestion(agent, session, questionId, app);
+
+    const response = await agent
+      .post('/questions/bulk-delete')
+      .set(authCookie(session))
+      .send({ ids: [questionId] })
+      .expect(201);
+
+    expect(response.body.deleted).toEqual([questionId]);
+    expect(response.body.blocked).toEqual([]);
+
+    const staffSession = await loginAsStaffAdmin(agent);
+    await agent
+      .get(`/questions/${questionId}`)
+      .set(authCookie(staffSession))
+      .expect(404);
   });
 
   it('bulk-deletes free questions and blocks questions in active interviews', async () => {
