@@ -18,10 +18,10 @@ export interface QuestionRedFlag {
 
 export interface QuestionTranslation {
   questionText: string;
-  followUpQuestions: string[];
-  expectedConcepts: QuestionExpectedConcept[];
-  redFlags: QuestionRedFlag[];
-  sampleGoodAnswer: string;
+  followUpQuestions?: string[];
+  expectedConcepts?: QuestionExpectedConcept[];
+  redFlags?: QuestionRedFlag[];
+  sampleGoodAnswer?: string;
 }
 
 export type QuestionTranslations = Partial<Record<Locale, QuestionTranslation>>;

@@ -718,7 +718,7 @@
       "post": {
         "operationId": "QuestionController_draftQuestion",
         "summary": "Generate AI question draft",
-        "description": "Generates a full question draft in the locale from body `locale` or X-Locale header. Does not persist anything to the database.",
+        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate` (or auto-detected by locale mismatch with seed `primaryLocale` and no rubric seed), always translates `questionText` from source locale to target locale for all non-equal pairs in `en|be|ru|pl` (12 directions). If `mode=generate`, builds a full rubric in target locale. Does not persist anything to the database.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -1695,7 +1695,7 @@
       "post": {
         "operationId": "AiController_draftQuestion",
         "summary": "Generate draft question with AI",
-        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Generates rubric fields in the requested locale from body `locale` or `X-Locale` (default `en`).",
+        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (always translate seed `questionText` from `primaryLocale` to `locale` for any non-equal locale pair en|be|ru|pl: 12 directions) and `generate` (full rubric in target locale). When `mode` is omitted, locale mismatch with seed `primaryLocale` and no rubric seed triggers translate mode automatically.",
         "deprecated": true,
         "parameters": [
           {
@@ -1732,6 +1732,40 @@
                   "value": {
                     "question": {
                       "questionText": "Explain how CSS flexbox distributes free space."
+                    }
+                  }
+                },
+                "translateRuToPl": {
+                  "summary": "Translate questionText ru -> pl",
+                  "description": "Explicit translate mode: always translates from primaryLocale to locale.",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "pl",
+                    "question": {
+                      "primaryLocale": "ru",
+                      "questionText": "Объясните замыкания в JavaScript."
+                    }
+                  }
+                },
+                "translateBeToEn": {
+                  "summary": "Translate questionText be -> en",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "en",
+                    "question": {
+                      "primaryLocale": "be",
+                      "questionText": "Растлумачце, як працуе віртуальны DOM у React."
+                    }
+                  }
+                },
+                "translateEnToRu": {
+                  "summary": "Translate questionText en -> ru",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "ru",
+                    "question": {
+                      "primaryLocale": "en",
+                      "questionText": "Explain closures in JavaScript."
                     }
                   }
                 }
@@ -4315,6 +4349,15 @@
             "description": "Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).",
             "example": "pl"
           },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "translate",
+              "generate"
+            ],
+            "description": "Optional explicit mode. `translate` translates `question.questionText` from `question.primaryLocale` to `locale` for any non-equal pair in en|be|ru|pl (4x3 directions). `generate` builds a full draft in `locale`. If omitted, mode is auto-detected: locale mismatch + no rubric seed => translate, otherwise generate.",
+            "example": "translate"
+          },
           "question": {
             "$ref": "#/components/schemas/QuestionDraftInputDto"
           }
@@ -4484,33 +4527,33 @@
             "type": "string"
           },
           "followUpQuestions": {
+            "description": "Optional for non-primary locales. Required for primaryLocale.",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "expectedConcepts": {
+            "description": "Optional for non-primary locales. Required for primaryLocale.",
             "type": "array",
             "items": {
               "type": "array"
             }
           },
           "redFlags": {
+            "description": "Optional for non-primary locales. Required for primaryLocale.",
             "type": "array",
             "items": {
               "type": "array"
             }
           },
           "sampleGoodAnswer": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional for non-primary locales. Required for primaryLocale."
           }
         },
         "required": [
-          "questionText",
-          "followUpQuestions",
-          "expectedConcepts",
-          "redFlags",
-          "sampleGoodAnswer"
+          "questionText"
         ]
       },
       "CreateQuestionDto": {
@@ -4530,7 +4573,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/QuestionTranslationDto"
             },
-            "description": "Locale-keyed translation blocks. primaryLocale entry is required; other locales are optional but must be complete blocks when present."
+            "description": "Locale-keyed translation blocks. primaryLocale entry must be a full block (questionText + followUpQuestions + expectedConcepts + redFlags + sampleGoodAnswer). Other locales require questionText only; rubric fields are optional."
           },
           "externalId": {
             "type": "string"
@@ -4685,7 +4728,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/QuestionTranslationDto"
             },
-            "description": "Locale blocks to merge or replace. Each key must be a complete block (same rules as create)."
+            "description": "Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields."
           },
           "externalId": {
             "type": "string"

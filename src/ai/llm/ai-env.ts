@@ -77,6 +77,6 @@ export function resolveNativeProvider(): NativeProviderConfig | null {
   const model =
     trimEnv('GOOGLE_AI_MODEL') ??
     trimEnv('GEMINI_MODEL') ??
-    'gemini-2.0-flash';
+    'gemini-2.5-flash-lite';
   return { kind: 'google', apiKey, model };
 }

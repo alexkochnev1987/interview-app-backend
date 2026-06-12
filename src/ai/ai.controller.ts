@@ -97,7 +97,8 @@ export class AiController {
     summary: 'Generate draft question with AI',
     description:
       'Deprecated compatibility endpoint. Use POST /questions/ai/draft. ' +
-      'Generates rubric fields in the requested locale from body `locale` or `X-Locale` (default `en`).',
+      'Supports two scenarios: `translate` (always translate seed `questionText` from `primaryLocale` to `locale` for any non-equal locale pair en|be|ru|pl: 12 directions) and `generate` (full rubric in target locale). ' +
+      'When `mode` is omitted, locale mismatch with seed `primaryLocale` and no rubric seed triggers translate mode automatically.',
     deprecated: true,
   })
   @ApiHeader({
@@ -128,6 +129,41 @@ export class AiController {
           },
         },
       },
+      translateRuToPl: {
+        summary: 'Translate questionText ru -> pl',
+        description:
+          'Explicit translate mode: always translates from primaryLocale to locale.',
+        value: {
+          mode: 'translate',
+          locale: 'pl',
+          question: {
+            primaryLocale: 'ru',
+            questionText: 'Объясните замыкания в JavaScript.',
+          },
+        },
+      },
+      translateBeToEn: {
+        summary: 'Translate questionText be -> en',
+        value: {
+          mode: 'translate',
+          locale: 'en',
+          question: {
+            primaryLocale: 'be',
+            questionText: 'Растлумачце, як працуе віртуальны DOM у React.',
+          },
+        },
+      },
+      translateEnToRu: {
+        summary: 'Translate questionText en -> ru',
+        value: {
+          mode: 'translate',
+          locale: 'ru',
+          question: {
+            primaryLocale: 'en',
+            questionText: 'Explain closures in JavaScript.',
+          },
+        },
+      },
     },
   })
   @ApiOkResponse({ type: QuestionDraftResponseDto })
@@ -141,6 +177,7 @@ export class AiController {
     return this.aiService.draftQuestion(dto.question ?? {}, {
       bodyLocale: dto.locale,
       headerLocale,
+      mode: dto.mode,
     });
   }
 }

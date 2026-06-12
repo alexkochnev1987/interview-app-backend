@@ -1,6 +1,7 @@
 import { AiService } from './ai.service';
 import * as aiEnv from './llm/ai-env';
 import * as questionDraftLlm from './llm/question-draft-llm';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
   collectRubricHumanReadableTexts,
   conceptAndRedFlagIdsAreLatinSnakeCase,
@@ -139,5 +140,71 @@ describe('AiService.draftQuestion', () => {
     expect(draftRubricMatchesLocale(draft, 'ru')).toBe(true);
     expect(draft.followUpQuestions[0]).toMatch(/[А-Яа-яЁё]/);
     expect(draft.expectedConcepts[0].label).toMatch(/[А-Яа-яЁё]/);
+  });
+
+  it('translate mode uses native LLM and parses JSON with trailing text', async () => {
+    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+      kind: 'google',
+      apiKey: 'AQ.test-key',
+      model: 'gemini-2.5-flash-lite',
+    });
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: '{"questionText":"Co to jest DOM?"}\nNote: translated.',
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    } as Response);
+
+    const draft = await service.draftQuestion(
+      {
+        questionText: 'Что такое DOM?',
+        primaryLocale: 'ru',
+      },
+      { bodyLocale: 'pl', headerLocale: 'pl', mode: 'translate' },
+    );
+
+    expect(draft.questionText).toBe('Co to jest DOM?');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-goog-api-key': 'AQ.test-key',
+        }),
+      }),
+    );
+  });
+
+  it('translate mode returns 503 when AI returns unchanged text', async () => {
+    process.env.AI_API_URL = 'http://fake-ai.local';
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        questionText: 'Объясните замыкания в JavaScript.',
+      }),
+    } as Response);
+
+    await expect(
+      service.draftQuestion(
+        {
+          questionText: 'Объясните замыкания в JavaScript.',
+          primaryLocale: 'ru',
+        },
+        { bodyLocale: 'pl', headerLocale: 'pl', mode: 'translate' },
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        code: ApiErrorCode.SERVICE_UNAVAILABLE,
+      },
+      status: 503,
+    });
   });
 });

@@ -17,7 +17,7 @@
 - Default: `en` if omitted
 - Invalid value: `400`, `code: "INVALID_LOCALE"` (except `/take/*` and `/health`: invalid header ignored)
 
-Controls **which translation** is returned in question rubric fields on read/write responses. Send the locale the UI is showing.
+Controls locale resolution for question text on read/write responses. Rubric fields fall back to `primaryLocale` when they are missing in the resolved text locale.
 
 `GET /questions?q=` searches denormalized `search_text` (all locale question titles), plus role/category/tags.
 
@@ -27,7 +27,7 @@ Controls **which translation** is returned in question rubric fields on read/wri
 
 ## Resolved fields
 
-**Localized** (from `translations` via `resolveQuestion`, one locale per response):
+**Localized** (from `translations` via `resolveQuestion`):
 
 `questionText`, `followUpQuestions`, `expectedConcepts`, `redFlags`, `sampleGoodAnswer` — on question CRUD/list/similar, interview `questions[]`, take `currentQuestion`.
 
@@ -35,8 +35,8 @@ Controls **which translation** is returned in question rubric fields on read/wri
 
 **Non-localized:** `id`, `category`, `role`, `difficulty`, `tags`, `primaryLocale`, scores, media, workflow. Deprecated: `outputLanguage` (use `primaryLocale`).
 
-**Fallback order** for requested locale `L`: `translations[L]` → `primaryLocale` → any available locale with non-empty `questionText`.
-All localized fields (`questionText` + rubric) are taken from the same resolved locale.
+**questionText fallback** for requested locale `L`: `translations[L]` → `primaryLocale` → any available locale with non-empty `questionText`.
+Rubric fields (`followUpQuestions`, `expectedConcepts`, `redFlags`, `sampleGoodAnswer`) use the resolved text locale first, then fallback to `primaryLocale` when missing there.
 
 ---
 
@@ -62,7 +62,7 @@ Interview responses include `questionsDisplayLocale` (always `interviewLocale`) 
 | `GET /questions/facets` | yes (filters only; no rubric text) |
 | `GET/POST/PATCH` `/interviews…` (incl. `questions[]` in body) | no (resolved by `interviewLocale`) |
 | `GET /take/:id` | no (resolved by `interviewLocale`) |
-| `POST /questions/ai/draft` | `body.locale` → header → `en` |
+| `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate` (auto: locale mismatch + no rubric seed → translate). Translate supports all non-equal locale pairs from en|be|ru|pl (12 directions). |
 | `POST /ai/question-draft` | same as above, **deprecated compatibility endpoint** |
 | `GET /feedback/:id` | exempt — use `interviewLocale` in response |
 | `POST /ai/chat`, `POST /ai/greet` | exempt |
@@ -93,6 +93,16 @@ curl -s "http://localhost:3000/feedback/INTERVIEW_ID?token=FEEDBACK_TOKEN"
 curl -s -X POST "http://localhost:3000/questions/ai/draft" \
   -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
   -d '{"locale":"pl","question":{"questionText":"Wyjaśnij hooki w React."}}'
+
+# Translate only (ru -> pl): questionText translated, rubric may be heuristic
+curl -s -X POST "http://localhost:3000/questions/ai/draft" \
+  -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
+  -d '{"mode":"translate","locale":"pl","question":{"primaryLocale":"ru","questionText":"Объясните замыкания в JavaScript."}}'
+
+# Translate only (be -> en)
+curl -s -X POST "http://localhost:3000/questions/ai/draft" \
+  -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
+  -d '{"mode":"translate","locale":"en","question":{"primaryLocale":"be","questionText":"Растлумачце, як працуе віртуальны DOM у React."}}'
 ```
 
 ---

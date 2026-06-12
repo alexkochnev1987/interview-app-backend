@@ -66,7 +66,9 @@ export function buildTranslation(fields: QuestionLegacyFields): QuestionTranslat
     followUpQuestions: fields.followUpQuestions,
     expectedConcepts: fields.expectedConcepts,
     redFlags: fields.redFlags,
-    sampleGoodAnswer: fields.sampleGoodAnswer ?? '',
+    ...(fields.sampleGoodAnswer !== undefined
+      ? { sampleGoodAnswer: fields.sampleGoodAnswer }
+      : {}),
   };
 }
 
@@ -99,17 +101,22 @@ export function parseTranslationsJson(value: unknown): QuestionTranslations {
     }
     translations[key] = {
       questionText,
-      followUpQuestions: Array.isArray(record.followUpQuestions)
-        ? record.followUpQuestions.filter((item): item is string => typeof item === 'string')
-        : [],
-      expectedConcepts: Array.isArray(record.expectedConcepts)
-        ? (record.expectedConcepts as QuestionExpectedConcept[])
-        : [],
-      redFlags: Array.isArray(record.redFlags)
-        ? (record.redFlags as QuestionRedFlag[])
-        : [],
-      sampleGoodAnswer:
-        typeof record.sampleGoodAnswer === 'string' ? record.sampleGoodAnswer : '',
+      ...(Array.isArray(record.followUpQuestions)
+        ? {
+            followUpQuestions: record.followUpQuestions.filter(
+              (item): item is string => typeof item === 'string',
+            ),
+          }
+        : {}),
+      ...(Array.isArray(record.expectedConcepts)
+        ? { expectedConcepts: record.expectedConcepts as QuestionExpectedConcept[] }
+        : {}),
+      ...(Array.isArray(record.redFlags)
+        ? { redFlags: record.redFlags as QuestionRedFlag[] }
+        : {}),
+      ...(typeof record.sampleGoodAnswer === 'string'
+        ? { sampleGoodAnswer: record.sampleGoodAnswer }
+        : {}),
     };
   }
   return translations;
@@ -126,10 +133,10 @@ export function resolveQuestionFields(
       primaryLocale,
       translations,
       questionText: localized.questionText,
-      followUpQuestions: localized.followUpQuestions,
-      expectedConcepts: localized.expectedConcepts,
-      redFlags: localized.redFlags,
-      sampleGoodAnswer: localized.sampleGoodAnswer,
+      followUpQuestions: localized.followUpQuestions ?? legacy.followUpQuestions,
+      expectedConcepts: localized.expectedConcepts ?? legacy.expectedConcepts,
+      redFlags: localized.redFlags ?? legacy.redFlags,
+      sampleGoodAnswer: localized.sampleGoodAnswer ?? legacy.sampleGoodAnswer,
     };
   }
 

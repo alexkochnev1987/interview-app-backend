@@ -25,6 +25,7 @@ import {
   QuestionExpectedConcept,
   QuestionRedFlag,
   QuestionRedFlagSeverity,
+  QuestionTranslation,
   QuestionTranslations,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
@@ -321,7 +322,7 @@ export class QuestionService {
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-            $12, $13::jsonb, $14, $15::jsonb, $16, $17, $18, $19, $20, $21, $22::jsonb, $23
+            $12, $13, $14::jsonb, $15, $16::jsonb, $17, $18, $19, $20, $21, $22::jsonb, $23
           )
           ${QUESTION_RETURNING}
         `,
@@ -925,15 +926,20 @@ export class QuestionService {
     });
   }
 
-  private getUniqueViolationConstraint(err: unknown): string | undefined {
-    if (
-      typeof err === 'object' &&
-      err !== null &&
-      (err as { code?: string }).code === '23505'
-    ) {
-      return (err as { constraint?: string }).constraint;
+  private getDbError(err: unknown): {
+    code?: string;
+    constraint?: string;
+    detail?: string;
+  } {
+    if (typeof err !== 'object' || err === null) {
+      return {};
     }
-    return undefined;
+    const dbErr = err as { code?: string; constraint?: string; detail?: string };
+    return {
+      code: dbErr.code,
+      constraint: dbErr.constraint,
+      detail: dbErr.detail,
+    };
   }
 
   private async runWithDuplicateGuard<T>(
@@ -943,18 +949,41 @@ export class QuestionService {
     try {
       return await operation();
     } catch (err) {
-      const constraint = this.getUniqueViolationConstraint(err);
-      if (constraint === 'questions_external_id_unique_idx') {
+      const dbErr = this.getDbError(err);
+      if (dbErr.code === '23505' && dbErr.constraint === 'questions_external_id_unique_idx') {
         throw apiConflict(
           ApiErrorCode.QUESTION_DUPLICATE,
           `An active question with external_id "${payload.externalId}" already exists.`,
           { externalId: payload.externalId },
         );
       }
-      if (constraint === 'questions_active_text_unique_idx') {
+      if (dbErr.code === '23505' && dbErr.constraint === 'questions_active_text_unique_idx') {
         throw apiConflict(
           ApiErrorCode.QUESTION_DUPLICATE,
           'An active question with the same text already exists.',
+        );
+      }
+      if (dbErr.code === '23505') {
+        const detail = (dbErr.detail ?? '').toLowerCase();
+        if (detail.includes('external_id')) {
+          throw apiConflict(
+            ApiErrorCode.QUESTION_DUPLICATE,
+            `An active question with external_id "${payload.externalId}" already exists.`,
+            { externalId: payload.externalId },
+          );
+        }
+        if (
+          detail.includes('question_text') ||
+          detail.includes('lower(question_text)') ||
+          detail.includes('(text)')
+        ) {
+          throw apiConflict(
+            ApiErrorCode.QUESTION_DUPLICATE,
+            'An active question with the same text already exists.',
+          );
+        }
+        this.logger.warn(
+          `unmapped unique violation while saving question: constraint="${dbErr.constraint ?? 'unknown'}" detail="${dbErr.detail ?? ''}"`,
         );
       }
       if (
@@ -1279,7 +1308,7 @@ export class QuestionService {
     }
 
     const primary = translations[primaryLocale];
-    if (!primary?.questionText) {
+    if (!this.isPrimaryTranslationComplete(primary)) {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         `translations must include a complete block for primaryLocale "${primaryLocale}"`,
@@ -1287,6 +1316,7 @@ export class QuestionService {
       );
     }
 
+    this.assertOptionalNumber(dto.minimumPassScore, 'minimumPassScore');
     const weight = Number(dto.weight ?? existing.weight);
     if (!Number.isFinite(weight) || weight <= 0) {
       throw apiBadRequest(
@@ -1313,12 +1343,12 @@ export class QuestionService {
       category: this.normalizeOptionalString(dto.category) ?? existing.category,
       subcategory: this.normalizeOptionalString(dto.subcategory) ?? existing.subcategory,
       questionText: primary.questionText,
-      followUpQuestions: primary.followUpQuestions,
-      expectedConcepts: primary.expectedConcepts,
-      redFlags: primary.redFlags,
+      followUpQuestions: primary.followUpQuestions ?? [],
+      expectedConcepts: primary.expectedConcepts ?? [],
+      redFlags: primary.redFlags ?? [],
       difficulty: dto.difficulty ?? existing.difficulty,
       weight: Number(weight.toFixed(2)),
-      sampleGoodAnswer: primary.sampleGoodAnswer,
+      sampleGoodAnswer: primary.sampleGoodAnswer ?? '',
       minimumPassScore: Number(minimumPassScore.toFixed(2)),
       tags: this.normalizeStringList(dto.tags ?? existing.tags),
       metadata: this.normalizeMetadata(dto.metadata ?? existing.metadata),
@@ -1340,7 +1370,7 @@ export class QuestionService {
       requirePrimaryLocale: dto.primaryLocale,
     });
     const primary = translations[dto.primaryLocale];
-    if (!primary) {
+    if (!this.isPrimaryTranslationComplete(primary)) {
       throw apiBadRequest(
         ApiErrorCode.VALIDATION_ERROR,
         `translations must include a complete block for primaryLocale "${dto.primaryLocale}"`,
@@ -1348,6 +1378,7 @@ export class QuestionService {
       );
     }
 
+    this.assertOptionalNumber(dto.minimumPassScore, 'minimumPassScore');
     const weight = Number(dto.weight ?? 1);
     if (!Number.isFinite(weight) || weight <= 0) {
       throw apiBadRequest(
@@ -1374,12 +1405,12 @@ export class QuestionService {
       category: this.normalizeOptionalString(dto.category),
       subcategory: this.normalizeOptionalString(dto.subcategory),
       questionText: primary.questionText,
-      followUpQuestions: primary.followUpQuestions,
-      expectedConcepts: primary.expectedConcepts,
-      redFlags: primary.redFlags,
+      followUpQuestions: primary.followUpQuestions ?? [],
+      expectedConcepts: primary.expectedConcepts ?? [],
+      redFlags: primary.redFlags ?? [],
       difficulty: dto.difficulty ?? 'medium',
       weight: Number(weight.toFixed(2)),
-      sampleGoodAnswer: primary.sampleGoodAnswer,
+      sampleGoodAnswer: primary.sampleGoodAnswer ?? '',
       minimumPassScore: Number(minimumPassScore.toFixed(2)),
       tags: this.normalizeStringList(dto.tags),
       metadata: this.normalizeMetadata(dto.metadata),
@@ -1396,16 +1427,29 @@ export class QuestionService {
       if (!block) {
         continue;
       }
+      const followUpQuestions = Array.isArray(block.followUpQuestions)
+        ? this.normalizeStringList(block.followUpQuestions)
+        : undefined;
+      const expectedConcepts = Array.isArray(block.expectedConcepts)
+        ? this.normalizeExpectedConcepts(block.expectedConcepts)
+        : undefined;
+      const redFlags = Array.isArray(block.redFlags)
+        ? this.normalizeRedFlags(block.redFlags)
+        : undefined;
+      const sampleGoodAnswer =
+        typeof block.sampleGoodAnswer === 'string'
+          ? block.sampleGoodAnswer.trim()
+          : undefined;
       translations[locale] = {
         questionText: block.questionText.trim(),
-        followUpQuestions: this.normalizeStringList(block.followUpQuestions),
-        expectedConcepts: this.normalizeExpectedConcepts(block.expectedConcepts),
-        redFlags: this.normalizeRedFlags(block.redFlags),
-        sampleGoodAnswer: this.normalizeOptionalString(block.sampleGoodAnswer) ?? '',
+        ...(followUpQuestions !== undefined ? { followUpQuestions } : {}),
+        ...(expectedConcepts !== undefined ? { expectedConcepts } : {}),
+        ...(redFlags !== undefined ? { redFlags } : {}),
+        ...(sampleGoodAnswer !== undefined ? { sampleGoodAnswer } : {}),
       };
     }
     const requiredPrimary = options.requirePrimaryLocale;
-    if (requiredPrimary && !translations[requiredPrimary]?.questionText) {
+    if (requiredPrimary && !this.isPrimaryTranslationComplete(translations[requiredPrimary])) {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         `translations must include a complete block for primaryLocale "${requiredPrimary}"`,
@@ -1413,6 +1457,25 @@ export class QuestionService {
       );
     }
     return translations;
+  }
+
+  private isPrimaryTranslationComplete(
+    translation: QuestionTranslations[Locale] | undefined,
+  ): translation is QuestionTranslation & {
+    followUpQuestions: string[];
+    expectedConcepts: QuestionExpectedConcept[];
+    redFlags: QuestionRedFlag[];
+    sampleGoodAnswer: string;
+  } {
+    return Boolean(
+      translation &&
+        translation.questionText.trim() &&
+        Array.isArray(translation.followUpQuestions) &&
+        Array.isArray(translation.expectedConcepts) &&
+        Array.isArray(translation.redFlags) &&
+        typeof translation.sampleGoodAnswer === 'string' &&
+        translation.sampleGoodAnswer.trim(),
+    );
   }
 
   private normalizeQuestionInput(dto: {
@@ -1539,7 +1602,7 @@ export class QuestionService {
   }
 
   private normalizeExpectedConcepts(
-    items?: Array<string | Partial<QuestionExpectedConcept>>,
+    items?: unknown[],
   ): QuestionExpectedConcept[] {
     const normalized = (items ?? [])
       .map((item) => {
@@ -1555,9 +1618,34 @@ export class QuestionService {
             : null;
         }
 
-        const label = this.normalizeOptionalString(item.label);
+        const tuple = this.parseExpectedConceptTuple(item);
+        if (tuple) {
+          const label = this.normalizeOptionalString(tuple.label);
+          const description =
+            this.normalizeOptionalString(tuple.description) ??
+            (label ? `${label} should be covered in the answer.` : undefined);
+          if (!label || !description) {
+            return null;
+          }
+          return {
+            id: this.normalizeOptionalString(tuple.id) ?? this.slugify(label),
+            label,
+            weight: Number(tuple.weight ?? 1),
+            description,
+          };
+        }
+
+        if (!this.isRecord(item)) {
+          return null;
+        }
+
+        const label = this.normalizeOptionalString(
+          typeof item.label === 'string' ? item.label : undefined,
+        );
         const description =
-          this.normalizeOptionalString(item.description) ??
+          this.normalizeOptionalString(
+            typeof item.description === 'string' ? item.description : undefined,
+          ) ??
           (label ? `${label} should be covered in the answer.` : undefined);
 
         if (!label || !description) {
@@ -1565,9 +1653,15 @@ export class QuestionService {
         }
 
         return {
-          id: this.normalizeOptionalString(item.id) ?? this.slugify(label),
+          id: this.normalizeOptionalString(
+            typeof item.id === 'string' ? item.id : undefined,
+          ) ?? this.slugify(label),
           label,
-          weight: Number(item.weight ?? 1),
+          weight: Number(
+            typeof item.weight === 'number' || typeof item.weight === 'string'
+              ? item.weight
+              : 1,
+          ),
           description,
         };
       })
@@ -1601,7 +1695,7 @@ export class QuestionService {
   }
 
   private normalizeRedFlags(
-    items?: Array<string | Partial<QuestionRedFlag>>,
+    items?: unknown[],
   ): QuestionRedFlag[] {
     return (items ?? [])
       .map((item) => {
@@ -1616,24 +1710,125 @@ export class QuestionService {
             : null;
         }
 
-        const label = this.normalizeOptionalString(item.label);
+        const tuple = this.parseRedFlagTuple(item);
+        if (tuple) {
+          const label = this.normalizeOptionalString(tuple.label);
+          if (!label) {
+            return null;
+          }
+          return {
+            id: this.normalizeOptionalString(tuple.id) ?? this.slugify(label),
+            label,
+            severity: this.normalizeSeverity(tuple.severity),
+          };
+        }
+
+        if (!this.isRecord(item)) {
+          return null;
+        }
+
+        const label = this.normalizeOptionalString(
+          typeof item.label === 'string' ? item.label : undefined,
+        );
         if (!label) {
           return null;
         }
 
         return {
-          id: this.normalizeOptionalString(item.id) ?? this.slugify(label),
+          id: this.normalizeOptionalString(
+            typeof item.id === 'string' ? item.id : undefined,
+          ) ?? this.slugify(label),
           label,
-          severity: this.normalizeSeverity(item.severity),
+          severity: this.normalizeSeverity(
+            typeof item.severity === 'string' ? item.severity : undefined,
+          ),
         };
       })
       .filter((item): item is QuestionRedFlag => Boolean(item));
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  private parseExpectedConceptTuple(item: unknown): {
+    id?: string;
+    label?: string;
+    weight?: number;
+    description?: string;
+  } | null {
+    if (!Array.isArray(item)) {
+      return null;
+    }
+
+    if (item.length >= 4) {
+      return {
+        id: typeof item[0] === 'string' ? item[0] : undefined,
+        label: typeof item[1] === 'string' ? item[1] : undefined,
+        weight: typeof item[2] === 'number' ? item[2] : Number(item[2]),
+        description: typeof item[3] === 'string' ? item[3] : undefined,
+      };
+    }
+
+    if (item.length >= 3) {
+      return {
+        label: typeof item[0] === 'string' ? item[0] : undefined,
+        weight: typeof item[1] === 'number' ? item[1] : Number(item[1]),
+        description: typeof item[2] === 'string' ? item[2] : undefined,
+      };
+    }
+
+    return null;
+  }
+
+  private parseRedFlagTuple(item: unknown): {
+    id?: string;
+    label?: string;
+    severity?: string;
+  } | null {
+    if (!Array.isArray(item)) {
+      return null;
+    }
+
+    if (item.length >= 3) {
+      return {
+        id: typeof item[0] === 'string' ? item[0] : undefined,
+        label: typeof item[1] === 'string' ? item[1] : undefined,
+        severity: typeof item[2] === 'string' ? item[2] : undefined,
+      };
+    }
+
+    if (
+      item.length >= 2 &&
+      typeof item[0] === 'string' &&
+      (item[1] === 'low' || item[1] === 'medium' || item[1] === 'high')
+    ) {
+      return {
+        label: item[0],
+        severity: item[1],
+      };
+    }
+
+    return null;
   }
 
   private normalizeSeverity(value?: string): QuestionRedFlagSeverity {
     return value === 'low' || value === 'medium' || value === 'high'
       ? value
       : 'medium';
+  }
+
+  private assertOptionalNumber(value: unknown, field: string): void {
+    if (value === undefined) {
+      return;
+    }
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        `${field} must be a number`,
+        { field },
+      );
+    }
   }
 
   private normalizeMetadata(

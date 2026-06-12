@@ -15,6 +15,8 @@ import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.d
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 
+export type DraftQuestionMode = 'translate' | 'generate';
+
 export class ChatHistoryItemDto {
   @ApiProperty({ enum: ['system', 'assistant', 'candidate'] })
   @IsIn(['system', 'assistant', 'candidate'])
@@ -83,6 +85,16 @@ export class DraftQuestionDto {
   @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])
   locale?: Locale;
+
+  @ApiPropertyOptional({
+    enum: ['translate', 'generate'],
+    description:
+      'Optional explicit mode. `translate` translates `question.questionText` from `question.primaryLocale` to `locale` for any non-equal pair in en|be|ru|pl (4x3 directions). `generate` builds a full draft in `locale`. If omitted, mode is auto-detected: locale mismatch + no rubric seed => translate, otherwise generate.',
+    example: 'translate',
+  })
+  @IsOptional()
+  @IsIn(['translate', 'generate'])
+  mode?: DraftQuestionMode;
 
   @ApiPropertyOptional({ type: QuestionDraftInputDto })
   @IsOptional()

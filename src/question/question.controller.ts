@@ -109,7 +109,9 @@ export class QuestionController {
   @ApiOperation({
     summary: 'Generate AI question draft',
     description:
-      'Generates a full question draft in the locale from body `locale` or X-Locale header. Does not persist anything to the database.',
+      'Generates a question draft in locale from body `locale` or X-Locale header. ' +
+      'If `mode=translate` (or auto-detected by locale mismatch with seed `primaryLocale` and no rubric seed), always translates `questionText` from source locale to target locale for all non-equal pairs in `en|be|ru|pl` (12 directions). ' +
+      'If `mode=generate`, builds a full rubric in target locale. Does not persist anything to the database.',
   })
   @ApiHeader({
     name: 'X-Locale',
@@ -128,6 +130,7 @@ export class QuestionController {
     return this.aiService.draftQuestion(dto.question ?? {}, {
       bodyLocale: dto.locale,
       headerLocale: locale,
+      mode: dto.mode,
     });
   }
 

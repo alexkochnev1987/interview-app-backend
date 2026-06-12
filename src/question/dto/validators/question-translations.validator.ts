@@ -33,7 +33,7 @@ export class QuestionTranslationsMapConstraint implements ValidatorConstraintInt
     return (
       `translations must include a complete block for primaryLocale. ` +
       `Each locale key (${supportedLocaleListHint()}) must include ` +
-      `questionText, followUpQuestions, expectedConcepts, redFlags, and sampleGoodAnswer.`
+      `questionText; for primaryLocale also followUpQuestions, expectedConcepts, redFlags, and sampleGoodAnswer are required.`
     );
   }
 }
@@ -69,18 +69,18 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
     if (dto.translationsMode === 'replace' && dto.primaryLocale) {
       return (
         `translations replace mode requires a complete block for primaryLocale (${dto.primaryLocale}). ` +
-        `Each provided locale (${supportedLocaleListHint()}) must be a complete block.`
+        `Non-primary locales must provide at least questionText.`
       );
     }
     if (dto.primaryLocale) {
       return (
         `when primaryLocale is set, translations must include a complete block for that locale. ` +
-        `Each provided locale must be a complete block.`
+        `Each non-primary locale must include at least questionText.`
       );
     }
     return (
-      `each translations locale key (${supportedLocaleListHint()}) must be a complete block ` +
-      `(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer).`
+      `each translations locale key (${supportedLocaleListHint()}) must include questionText; ` +
+      `primaryLocale must include full rubric fields.`
     );
   }
 }

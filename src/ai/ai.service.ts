@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Locale } from '../locale/locale.constants';
 import { resolveDraftLocale } from './resolve-draft-locale';
 import { QuestionDraftInput } from '../question/question-draft-input';
+import { DraftQuestionMode } from './dto/ai.dto';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest } from '../common/errors/api-error';
+import { apiBadRequest, apiServiceUnavailable } from '../common/errors/api-error';
 import {
   QuestionDifficulty,
   QuestionDraft,
@@ -22,7 +23,10 @@ import {
   runInterviewGreet,
   runInterviewRephrase,
 } from './llm/interview-chat-llm';
-import { generateQuestionDraftWithNativeLlm } from './llm/question-draft-llm';
+import {
+  generateQuestionDraftWithNativeLlm,
+  translateQuestionTextWithNativeLlm,
+} from './llm/question-draft-llm';
 import {
   heuristicExpectedConcepts,
   heuristicFollowUps,
@@ -41,6 +45,34 @@ interface LlmDraftAttempt {
   localeMismatch: boolean;
 }
 
+const EXPLAIN_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
+  en: /^explain\s+(.+)$/i,
+  be: /^растлумач(?:це)?\s+(.+)$/i,
+  ru: /^объясни(?:те)?\s+(.+)$/i,
+  pl: /^(?:wyjaśnij|objaśnij)\s+(.+)$/i,
+};
+
+const WHAT_IS_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
+  en: /^(?:what is|what's)\s+(.+)$/i,
+  be: /^што такое\s+(.+)$/i,
+  ru: /^что такое\s+(.+)$/i,
+  pl: /^(?:co to jest|czym jest)\s+(.+)$/i,
+};
+
+const HOW_WORKS_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
+  en: /^how does\s+(.+)$/i,
+  be: /^як працуе\s+(.+)$/i,
+  ru: /^как работает\s+(.+)$/i,
+  pl: /^jak działa\s+(.+)$/i,
+};
+
+const ANY_EXPLAIN_PATTERN =
+  /^(?:explain|растлумач(?:це)?|объясни(?:те)?|wyjaśnij|objaśnij)\s+(.+)$/iu;
+const ANY_WHAT_IS_PATTERN =
+  /^(?:what is|what's|што такое|что такое|co to jest|czym jest)\s+(.+)$/iu;
+const ANY_HOW_WORKS_PATTERN =
+  /^(?:how does|як працуе|как работает|jak działa)\s+(.+)$/iu;
+
 function isAiDebugEnabled(): boolean {
   const v = process.env.AI_DEBUG?.trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes';
@@ -49,8 +81,6 @@ function isAiDebugEnabled(): boolean {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-
-  // Mock implementation — replace with real LLM endpoint later.
 
   async rephrase(question: string): Promise<string> {
     const aiUrl = process.env.AI_API_URL?.trim();
@@ -225,7 +255,11 @@ export class AiService {
 
   async draftQuestion(
     input: QuestionDraftInput,
-    localeOptions: { bodyLocale?: Locale; headerLocale: Locale },
+    localeOptions: {
+      bodyLocale?: Locale;
+      headerLocale: Locale;
+      mode?: DraftQuestionMode;
+    },
   ): Promise<QuestionDraft> {
     const draftLocale = resolveDraftLocale(
       localeOptions.bodyLocale,
@@ -240,6 +274,35 @@ export class AiService {
         { field: 'question.questionText' },
       );
     }
+
+    const sourceLocale = this.resolveSourceLocale(input, draftLocale);
+    const mode = this.resolveDraftMode(
+      localeOptions.mode,
+      input,
+      draftLocale,
+      sourceLocale,
+    );
+    if (mode === 'translate') {
+      const sourceQuestionText = this.resolveTranslateSourceQuestionText(input);
+      const translateSourceLocale = this.resolveTranslateSourceLocale(input);
+      const translatedQuestionText = await this.translateQuestionText(
+        sourceQuestionText,
+        translateSourceLocale,
+        draftLocale,
+      );
+      const translatedBase = this.withLocaleFields(
+        { ...base, questionText: translatedQuestionText },
+        base.translations,
+        draftLocale,
+      );
+      if (isAiDebugEnabled()) {
+        this.logger.log(
+          `question-draft: translate mode (${translateSourceLocale} -> ${draftLocale})`,
+        );
+      }
+      return this.buildQuestionDraft(translatedBase, draftLocale);
+    }
+
     const llmInput = this.stripAnchorFields(base);
 
     if (aiUrl) {
@@ -348,6 +411,287 @@ export class AiService {
     return this.buildQuestionDraft(base, draftLocale);
   }
 
+  private resolveSourceLocale(
+    input: QuestionDraftInput,
+    fallback: Locale,
+  ): Locale {
+    if (input.primaryLocale) {
+      return input.primaryLocale;
+    }
+    if (input.outputLanguage) {
+      return mapOutputLanguageToPrimaryLocale(input.outputLanguage);
+    }
+    return fallback;
+  }
+
+  private resolveTranslateSourceLocale(
+    input: QuestionDraftInput,
+  ): Locale {
+    if (input.primaryLocale) {
+      return input.primaryLocale;
+    }
+    throw apiBadRequest(
+      ApiErrorCode.VALIDATION_ERROR,
+      'question.primaryLocale is required for translate mode',
+      {
+        field: 'question.primaryLocale',
+        mode: 'translate',
+      },
+    );
+  }
+
+  private resolveTranslateSourceQuestionText(input: QuestionDraftInput): string {
+    if (typeof input.questionText === 'string' && input.questionText.trim()) {
+      return input.questionText.trim();
+    }
+    throw apiBadRequest(
+      ApiErrorCode.VALIDATION_ERROR,
+      'question.questionText is required for translate mode',
+      {
+        field: 'question.questionText',
+        mode: 'translate',
+      },
+    );
+  }
+
+  private resolveDraftMode(
+    explicitMode: DraftQuestionMode | undefined,
+    input: QuestionDraftInput,
+    draftLocale: Locale,
+    sourceLocale: Locale,
+  ): DraftQuestionMode {
+    if (explicitMode) {
+      return explicitMode;
+    }
+    if (draftLocale === sourceLocale) {
+      return 'generate';
+    }
+    return this.hasAnyRubricSeed(input) ? 'generate' : 'translate';
+  }
+
+  private hasAnyRubricSeed(input: QuestionDraftInput): boolean {
+    if (input.followUpQuestions !== undefined) return true;
+    if (input.expectedConcepts !== undefined) return true;
+    if (input.redFlags !== undefined) return true;
+    if (input.sampleGoodAnswer !== undefined) return true;
+    if (!input.translations) return false;
+    return Object.values(input.translations).some((translation) => {
+      if (!translation) return false;
+      return (
+        translation.followUpQuestions !== undefined ||
+        translation.expectedConcepts !== undefined ||
+        translation.redFlags !== undefined ||
+        translation.sampleGoodAnswer !== undefined
+      );
+    });
+  }
+
+  private async translateQuestionText(
+    questionText: string,
+    sourceLocale: Locale,
+    targetLocale: Locale,
+  ): Promise<string> {
+    const source = questionText.trim();
+    if (!source) {
+      return source;
+    }
+    if (sourceLocale === targetLocale) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.primaryLocale and locale must be different in translate mode',
+        {
+          field: 'question.primaryLocale',
+          sourceLocale,
+          targetLocale,
+          mode: 'translate',
+        },
+      );
+    }
+
+    const aiUrl = process.env.AI_API_URL?.trim();
+    const native = resolveNativeProvider();
+    const hasAiProvider = Boolean(aiUrl || native);
+    let lastAiError: string | undefined;
+
+    if (aiUrl) {
+      try {
+        const res = await fetch(`${aiUrl}/interview`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'question-translate',
+            sourceLocale,
+            targetLocale,
+            questionText: source,
+          }),
+        });
+        const data = (await res.json()) as { questionText?: unknown };
+        if (typeof data.questionText === 'string' && data.questionText.trim()) {
+          const candidate = data.questionText.trim();
+          if (!this.isSameText(candidate, source)) {
+            return candidate;
+          }
+        }
+      } catch (error) {
+        lastAiError = this.formatAiError(error);
+      }
+    }
+
+    if (native) {
+      try {
+        const translated = await translateQuestionTextWithNativeLlm(
+          native,
+          source,
+          sourceLocale,
+          targetLocale,
+        );
+        if (translated.trim()) {
+          const candidate = translated.trim();
+          if (!this.isSameText(candidate, source)) {
+            return candidate;
+          }
+        }
+      } catch (error) {
+        lastAiError = this.formatAiError(error);
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `question-draft: translate native LLM failed (${sourceLocale} -> ${targetLocale}): ${lastAiError}`,
+          );
+        }
+      }
+    }
+
+    if (hasAiProvider) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'Question translation failed. The AI provider did not return a usable translation.',
+        {
+          sourceLocale,
+          targetLocale,
+          ...(lastAiError ? { cause: lastAiError } : {}),
+        },
+      );
+    }
+
+    const heuristic = this.heuristicTranslateQuestionText(
+      source,
+      sourceLocale,
+      targetLocale,
+    );
+    if (!this.isSameText(heuristic, source)) {
+      return heuristic;
+    }
+
+    throw apiServiceUnavailable(
+      ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
+      'Question translation requires an AI provider or a supported template question.',
+      { sourceLocale, targetLocale },
+    );
+  }
+
+  private heuristicTranslateQuestionText(
+    source: string,
+    sourceLocale: Locale,
+    targetLocale: Locale,
+  ): string {
+    const normalized = source.trim().replace(/[.?!]+$/, '').trim();
+
+    const fromSourceLocale = this.matchQuestionPatternShell(
+      normalized,
+      EXPLAIN_PATTERN_BY_LOCALE[sourceLocale],
+      WHAT_IS_PATTERN_BY_LOCALE[sourceLocale],
+      HOW_WORKS_PATTERN_BY_LOCALE[sourceLocale],
+      targetLocale,
+    );
+    if (fromSourceLocale && !this.isSameText(fromSourceLocale, source)) {
+      return fromSourceLocale;
+    }
+
+    const fromAnyLocale = this.matchQuestionPatternShell(
+      normalized,
+      ANY_EXPLAIN_PATTERN,
+      ANY_WHAT_IS_PATTERN,
+      ANY_HOW_WORKS_PATTERN,
+      targetLocale,
+    );
+    if (fromAnyLocale && !this.isSameText(fromAnyLocale, source)) {
+      return fromAnyLocale;
+    }
+
+    return normalized;
+  }
+
+  private matchQuestionPatternShell(
+    normalized: string,
+    explainPattern: RegExp | undefined,
+    whatIsPattern: RegExp | undefined,
+    howWorksPattern: RegExp | undefined,
+    targetLocale: Locale,
+  ): string | undefined {
+    const explainMatch = explainPattern?.exec(normalized);
+    if (explainMatch) {
+      return this.renderExplainSentence(explainMatch[1].trim(), targetLocale);
+    }
+    const whatIsMatch = whatIsPattern?.exec(normalized);
+    if (whatIsMatch) {
+      return this.renderWhatIsSentence(whatIsMatch[1].trim(), targetLocale);
+    }
+    const howWorksMatch = howWorksPattern?.exec(normalized);
+    if (howWorksMatch) {
+      return this.renderHowWorksSentence(howWorksMatch[1].trim(), targetLocale);
+    }
+    return undefined;
+  }
+
+  private renderExplainSentence(subject: string, targetLocale: Locale): string {
+    switch (targetLocale) {
+      case 'ru':
+        return `Объясните ${subject}.`;
+      case 'be':
+        return `Растлумачце ${subject}.`;
+      case 'pl':
+        return `Wyjaśnij ${subject}.`;
+      default:
+        return `Explain ${subject}.`;
+    }
+  }
+
+  private renderWhatIsSentence(subject: string, targetLocale: Locale): string {
+    switch (targetLocale) {
+      case 'ru':
+        return `Что такое ${subject}?`;
+      case 'be':
+        return `Што такое ${subject}?`;
+      case 'pl':
+        return `Co to jest ${subject}?`;
+      default:
+        return `What is ${subject}?`;
+    }
+  }
+
+  private renderHowWorksSentence(subject: string, targetLocale: Locale): string {
+    switch (targetLocale) {
+      case 'ru':
+        return `Как работает ${subject}?`;
+      case 'be':
+        return `Як працуе ${subject}?`;
+      case 'pl':
+        return `Jak działa ${subject}?`;
+      default:
+        return `How does ${subject} work?`;
+    }
+  }
+
+  private isSameText(left: string, right: string): boolean {
+    const normalize = (value: string): string =>
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[.?!]+$/g, '');
+    return normalize(left) === normalize(right);
+  }
+
   private formatAiError(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
   }
@@ -428,7 +772,6 @@ export class AiService {
     );
   }
 
-  /** Seed for LLM: question text only — locale comes from body/X-Locale, not deprecated fields. */
   private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
     const llmInput: Partial<QuestionDraft> = {
       questionText: base.questionText,

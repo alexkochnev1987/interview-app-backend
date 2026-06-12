@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsOptional,
   IsString,
   Length,
   ValidateNested,
@@ -17,25 +18,40 @@ export class QuestionTranslationDto {
   @Length(1, 5000)
   questionText: string;
 
-  @ApiProperty({ type: [String] })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Optional for non-primary locales. Required for primaryLocale.',
+  })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  followUpQuestions: string[];
+  followUpQuestions?: string[];
 
-  @ApiProperty({ type: [QuestionExpectedConceptDto] })
+  @ApiPropertyOptional({
+    type: [QuestionExpectedConceptDto],
+    description: 'Optional for non-primary locales. Required for primaryLocale.',
+  })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuestionExpectedConceptDto)
-  expectedConcepts: QuestionExpectedConceptDto[];
+  expectedConcepts?: QuestionExpectedConceptDto[];
 
-  @ApiProperty({ type: [QuestionRedFlagDto] })
+  @ApiPropertyOptional({
+    type: [QuestionRedFlagDto],
+    description: 'Optional for non-primary locales. Required for primaryLocale.',
+  })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuestionRedFlagDto)
-  redFlags: QuestionRedFlagDto[];
+  redFlags?: QuestionRedFlagDto[];
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: 'Optional for non-primary locales. Required for primaryLocale.',
+  })
+  @IsOptional()
   @IsString()
-  @Length(1, 5000)
-  sampleGoodAnswer: string;
+  @Length(0, 5000)
+  sampleGoodAnswer?: string;
 }

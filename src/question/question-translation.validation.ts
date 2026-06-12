@@ -32,6 +32,39 @@ export function isCompleteTranslationBlock(value: unknown): boolean {
   return true;
 }
 
+export function isPartialTranslationBlock(value: unknown): boolean {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+  if (typeof value.questionText !== 'string' || !value.questionText.trim()) {
+    return false;
+  }
+
+  if (
+    value.followUpQuestions !== undefined &&
+    (!Array.isArray(value.followUpQuestions) ||
+      !value.followUpQuestions.every((item) => typeof item === 'string'))
+  ) {
+    return false;
+  }
+  if (
+    value.expectedConcepts !== undefined &&
+    !Array.isArray(value.expectedConcepts)
+  ) {
+    return false;
+  }
+  if (value.redFlags !== undefined && !Array.isArray(value.redFlags)) {
+    return false;
+  }
+  if (
+    value.sampleGoodAnswer !== undefined &&
+    typeof value.sampleGoodAnswer !== 'string'
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function validateTranslationMapKeys(translations: unknown): translations is Record<string, unknown> {
   if (!isPlainObject(translations)) {
     return false;
@@ -44,7 +77,7 @@ export function validateTranslationMapKeys(translations: unknown): translations 
     if (!isLocale(key)) {
       return false;
     }
-    if (!isCompleteTranslationBlock(translations[key])) {
+    if (!isPartialTranslationBlock(translations[key])) {
       return false;
     }
   }

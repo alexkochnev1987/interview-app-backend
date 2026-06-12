@@ -50,7 +50,7 @@ export class UpdateQuestionDto {
     type: 'object',
     additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
     description:
-      'Locale blocks to merge or replace. Each key must be a complete block (same rules as create).',
+      'Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields.',
   })
   @IsOptional()
   @IsObject()

@@ -120,3 +120,43 @@ export async function generateQuestionDraftWithNativeLlm(
   );
   return parseJsonFromModelOutput(raw);
 }
+
+const QUESTION_TRANSLATE_SYSTEM = `You translate technical interview question text between locales.
+Return only valid JSON with one key: "questionText".
+Preserve the original meaning, technical terms, and level of specificity.
+Produce a close translation of the same question (same topic, same intent).
+Do not broaden or generalize the question into a generic HR prompt.
+Do not add rubric fields, scoring criteria, or meta commentary.
+Output must be fully in target locale. Do not leave source-language words, except globally accepted technical tokens like JavaScript, React, DOM, API.
+If target locale is "be", output must be Belarusian (product i18n norm), not Russian wording.
+Never return the source text unchanged when source and target locales differ.`;
+
+export async function translateQuestionTextWithNativeLlm(
+  config: NativeProviderConfig,
+  questionText: string,
+  sourceLocale: Locale,
+  targetLocale: Locale,
+): Promise<string> {
+  const sourceLocaleName = localeUiText(sourceLocale).responseLanguageName;
+  const targetLocaleName = localeUiText(targetLocale).responseLanguageName;
+  const user = `Translate the interview question text from ${sourceLocaleName} (${sourceLocale}) to ${targetLocaleName} (${targetLocale}).
+Return a close translation, not a rephrased/new question.
+Keep key technical terms equivalent (e.g. closure <-> замыкание) and preserve original question intent.
+For target "be", use Belarusian wording (e.g. "Што такое замыканне?"), not Russian (e.g. "Что такое замыкание?").
+
+Source question:
+${questionText}
+
+Return JSON: {"questionText":"...translated text..."}`;
+  const raw = await completeJson(config, QUESTION_TRANSLATE_SYSTEM, user);
+  const parsed = parseJsonFromModelOutput(raw);
+  if (
+    parsed &&
+    typeof parsed === 'object' &&
+    !Array.isArray(parsed) &&
+    typeof (parsed as Record<string, unknown>).questionText === 'string'
+  ) {
+    return ((parsed as Record<string, unknown>).questionText as string).trim();
+  }
+  throw new Error('Model response did not include a questionText string.');
+}

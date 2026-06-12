@@ -39,7 +39,8 @@ export class CreateQuestionDto {
     type: 'object',
     additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
     description:
-      'Locale-keyed translation blocks. primaryLocale entry is required; other locales are optional but must be complete blocks when present.',
+      'Locale-keyed translation blocks. primaryLocale entry must be a full block (questionText + followUpQuestions + expectedConcepts + redFlags + sampleGoodAnswer). ' +
+      'Other locales require questionText only; rubric fields are optional.',
   })
   @IsObject()
   @Validate(QuestionTranslationsMapConstraint)

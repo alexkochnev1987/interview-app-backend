@@ -2,7 +2,6 @@ import { Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
 import {
   QuestionExpectedConcept,
   QuestionRedFlag,
-  QuestionTranslation,
   QuestionTranslations,
 } from './interfaces/question.interface';
 import { buildTranslation, mergeTranslations } from './question-locale';
@@ -79,14 +78,18 @@ function pickResolvedLocale(
 }
 
 function toLocalizedFields(
-  translation: QuestionTranslation,
+  questionText: string,
+  followUpQuestions: string[],
+  expectedConcepts: QuestionExpectedConcept[],
+  redFlags: QuestionRedFlag[],
+  sampleGoodAnswer?: string,
 ): Omit<ResolvedQuestion, 'resolvedLocale' | 'availableLocales'> {
   return {
-    questionText: translation.questionText,
-    followUpQuestions: translation.followUpQuestions,
-    expectedConcepts: translation.expectedConcepts,
-    redFlags: translation.redFlags,
-    sampleGoodAnswer: translation.sampleGoodAnswer,
+    questionText,
+    followUpQuestions,
+    expectedConcepts,
+    redFlags,
+    sampleGoodAnswer,
   };
 }
 
@@ -99,26 +102,56 @@ export function resolveQuestion(
   const resolvedLocale =
     pickResolvedLocale(translations, requestedLocale, question.primaryLocale) ??
     question.primaryLocale;
-  const translation = translations[resolvedLocale];
+  const resolvedTranslation = translations[resolvedLocale];
+  const primaryTranslation = translations[question.primaryLocale];
 
-  const fields = translation
-    ? toLocalizedFields(translation)
-    : toLocalizedFields(
-        buildTranslation({
-          questionText: question.questionText,
-          followUpQuestions: question.followUpQuestions,
-          expectedConcepts: question.expectedConcepts,
-          redFlags: question.redFlags,
-          sampleGoodAnswer: question.sampleGoodAnswer,
-        }),
-      );
+  const questionText =
+    resolvedTranslation?.questionText?.trim() || question.questionText;
+
+  const hasResolvedFollowUp = resolvedTranslation?.followUpQuestions !== undefined;
+  const hasResolvedExpectedConcepts =
+    resolvedTranslation?.expectedConcepts !== undefined;
+  const hasResolvedRedFlags = resolvedTranslation?.redFlags !== undefined;
+  const hasResolvedSample = resolvedTranslation?.sampleGoodAnswer !== undefined;
+
+  const followUpQuestions =
+    (hasResolvedFollowUp
+      ? resolvedTranslation?.followUpQuestions
+      : primaryTranslation?.followUpQuestions) ?? question.followUpQuestions;
+  const expectedConcepts =
+    (hasResolvedExpectedConcepts
+      ? resolvedTranslation?.expectedConcepts
+      : primaryTranslation?.expectedConcepts) ?? question.expectedConcepts;
+  const redFlags =
+    (hasResolvedRedFlags
+      ? resolvedTranslation?.redFlags
+      : primaryTranslation?.redFlags) ?? question.redFlags;
+  const sampleGoodAnswer =
+    (hasResolvedSample
+      ? resolvedTranslation?.sampleGoodAnswer
+      : primaryTranslation?.sampleGoodAnswer) ?? question.sampleGoodAnswer;
+
+  const rubricFallbackFromPrimary =
+    resolvedLocale !== question.primaryLocale &&
+    (!hasResolvedFollowUp ||
+      !hasResolvedExpectedConcepts ||
+      !hasResolvedRedFlags ||
+      !hasResolvedSample);
+
+  const fields = toLocalizedFields(
+    questionText,
+    followUpQuestions,
+    expectedConcepts,
+    redFlags,
+    sampleGoodAnswer,
+  );
 
   const resolved: ResolvedQuestion = {
     ...fields,
     resolvedLocale,
     availableLocales,
   };
-  if (resolvedLocale !== requestedLocale) {
+  if (resolvedLocale !== requestedLocale || rubricFallbackFromPrimary) {
     resolved.fallbackFromLocale = requestedLocale;
   }
   return resolved;

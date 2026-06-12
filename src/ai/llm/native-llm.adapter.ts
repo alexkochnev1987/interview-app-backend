@@ -128,15 +128,32 @@ async function completeAnthropic(
   return text;
 }
 
+export function buildGoogleGenerateContentRequest(
+  model: string,
+  apiKey: string,
+): { url: string; headers: Record<string, string> } {
+  const base = 'https://generativelanguage.googleapis.com/v1beta';
+  const encodedModel = encodeURIComponent(model);
+  const url = `${base}/models/${encodedModel}:generateContent`;
+  return {
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+  };
+}
+
 async function completeGoogle(
   config: NativeProviderConfig,
   system: string,
   user: string,
   mode: 'json' | 'text',
 ): Promise<string> {
-  const base = 'https://generativelanguage.googleapis.com/v1beta';
-  const model = encodeURIComponent(config.model);
-  const url = `${base}/models/${model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+  const { url, headers } = buildGoogleGenerateContentRequest(
+    config.model,
+    config.apiKey,
+  );
   const generationConfig: Record<string, unknown> = {
     temperature: mode === 'json' ? 0.25 : 0.5,
   };
@@ -145,7 +162,7 @@ async function completeGoogle(
   }
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
@@ -159,9 +176,11 @@ async function completeGoogle(
   const candidates = data.candidates as Array<Record<string, unknown>> | undefined;
   const parts = candidates?.[0]?.content as Record<string, unknown> | undefined;
   const partsList = parts?.parts as Array<Record<string, unknown>> | undefined;
-  const text =
-    typeof partsList?.[0]?.text === 'string' ? partsList[0].text : '';
-  if (!text.trim()) {
+  const text = (partsList ?? [])
+    .map((part) => (typeof part.text === 'string' ? part.text : ''))
+    .join('')
+    .trim();
+  if (!text) {
     throw new Error('Gemini returned an empty response.');
   }
   return text;
