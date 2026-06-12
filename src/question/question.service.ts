@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
+import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import {
   QueryQuestionsDto,
@@ -96,12 +97,6 @@ interface QuestionRow {
   deleted: boolean;
   usage_count: number;
 }
-
-const ACTIVE_INTERVIEW_STATUSES = [
-  'pending',
-  'in_progress',
-  'processing',
-] as const;
 
 const SIMILARITY_SCORE_THRESHOLD = 0.6;
 const SIMILARITY_DISTANCE_THRESHOLD = 1 - SIMILARITY_SCORE_THRESHOLD;
