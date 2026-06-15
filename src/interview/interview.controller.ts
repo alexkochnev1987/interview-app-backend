@@ -122,6 +122,22 @@ export class InterviewController {
     };
   }
 
+  @Patch(':id/cancel')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Cancel pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.cancel(id);
+  }
+
   @Patch(':id/complete')
   @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Complete interview' })

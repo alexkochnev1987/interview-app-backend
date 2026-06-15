@@ -672,16 +672,35 @@ export class QuestionService {
     return this.mapRow(result.rows[0]);
   }
 
-  private async assertNoActiveInterview(
+  async processPendingDeletionsAfterTerminalInterview(
     client: PoolClient,
-    question: Question,
   ): Promise<void> {
-    const result = await client.query<{
-      id: string;
-      candidate_name: string;
-    }>(
+    const pending = await client.query<{ id: string }>(
       `
-        SELECT id, candidate_name
+        SELECT id
+        FROM questions
+        WHERE pending_deletion = TRUE
+          AND deleted = FALSE
+        FOR UPDATE
+      `,
+    );
+
+    for (const row of pending.rows) {
+      if (await this.hasActiveInterview(client, row.id)) {
+        continue;
+      }
+
+      await this.markDeleted(client, row.id);
+    }
+  }
+
+  private async findActiveInterviewUsingQuestion(
+    client: PoolClient,
+    questionId: string,
+  ): Promise<{ candidate_name: string } | undefined> {
+    const result = await client.query<{ candidate_name: string }>(
+      `
+        SELECT candidate_name
         FROM interviews
         WHERE status = ANY($1::text[])
           AND questions_json @> $2::jsonb
@@ -689,20 +708,45 @@ export class QuestionService {
       `,
       [
         [...ACTIVE_INTERVIEW_STATUSES],
-        JSON.stringify([{ id: question.id }]),
+        JSON.stringify([{ id: questionId }]),
       ],
     );
 
-    if (result.rows[0]) {
+    return result.rows[0];
+  }
+
+  private async hasActiveInterview(
+    client: PoolClient,
+    questionId: string,
+  ): Promise<boolean> {
+    return Boolean(
+      await this.findActiveInterviewUsingQuestion(client, questionId),
+    );
+  }
+
+  private async assertNoActiveInterview(
+    client: PoolClient,
+    question: Question,
+  ): Promise<void> {
+    const activeInterview = await this.findActiveInterviewUsingQuestion(
+      client,
+      question.id,
+    );
+
+    if (activeInterview) {
       throw new ConflictException(
-        `Question is used by an active interview (candidate: ${result.rows[0].candidate_name}). Wait for it to finish before deleting.`,
+        `Question is used by an active interview (candidate: ${activeInterview.candidate_name}). Wait for it to finish before deleting.`,
       );
     }
   }
 
   private async markDeleted(client: PoolClient, id: string): Promise<void> {
     await client.query(
-      `UPDATE questions SET deleted = TRUE, updated_at = NOW() WHERE id = $1`,
+      `
+        UPDATE questions
+        SET deleted = TRUE, pending_deletion = FALSE, updated_at = NOW()
+        WHERE id = $1
+      `,
       [id],
     );
   }

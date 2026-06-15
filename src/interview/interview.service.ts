@@ -1,10 +1,11 @@
 import {
-  BadRequestException,
+  BadRequestException, ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
@@ -37,6 +38,7 @@ import {
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
+import { getInterviewPendingOnlyBlockReason } from './interview-management-rules';
 
 interface InterviewRow {
   id: string;
@@ -201,6 +203,30 @@ export class InterviewService {
       );
 
       return this.mapRow(result.rows[0]);
+    });
+  }
+
+  async cancel(id: string): Promise<Interview> {
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw new ConflictException(blockReason);
+      }
+
+      const now = new Date();
+      const canceled: Interview = {
+        ...interview,
+        status: 'canceled',
+        workflow: this.buildWorkflow('idle', now, { completedAt: now }),
+        updatedAt: now,
+      };
+
+      const saved = await this.saveInterviewInTransaction(client, canceled);
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
+      return saved;
     });
   }
 
@@ -765,6 +791,87 @@ export class InterviewService {
     }
 
     return answer;
+  }
+
+  private async lockInterviewForUpdate(
+    client: PoolClient,
+    id: string,
+  ): Promise<InterviewRow> {
+    const result = await client.query<InterviewRow>(
+      `
+        SELECT
+          id,
+          candidate_name,
+          candidate_email,
+          position,
+          questions_json,
+          answers_json,
+          status,
+          result_json,
+          workflow_json,
+          created_by_id,
+          created_at,
+          updated_at
+        FROM interviews
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException(`Interview with id "${id}" not found`);
+    }
+
+    return result.rows[0];
+  }
+
+  private async saveInterviewInTransaction(
+    client: PoolClient,
+    interview: Interview,
+  ): Promise<Interview> {
+    const result = await client.query<InterviewRow>(
+      `
+        UPDATE interviews
+        SET
+          candidate_name = $2,
+          candidate_email = $3,
+          position = $4,
+          questions_json = $5::jsonb,
+          answers_json = $6::jsonb,
+          status = $7,
+          result_json = $8::jsonb,
+          workflow_json = $9::jsonb,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          candidate_name,
+          candidate_email,
+          position,
+          questions_json,
+          answers_json,
+          status,
+          result_json,
+          workflow_json,
+          created_by_id,
+          created_at,
+          updated_at
+      `,
+      [
+        interview.id,
+        interview.candidateName,
+        interview.candidateEmail ?? null,
+        interview.position,
+        JSON.stringify(interview.questions),
+        JSON.stringify(interview.answers),
+        interview.status,
+        interview.result ? JSON.stringify(interview.result) : null,
+        interview.workflow ? JSON.stringify(interview.workflow) : null,
+      ],
+    );
+
+    return this.mapRow(result.rows[0]);
   }
 
   private async saveInterview(interview: Interview): Promise<Interview> {
