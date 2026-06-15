@@ -21,8 +21,11 @@ export class AuthUserResponseDto {
 
   @ApiProperty({ example: '2026-05-05T12:00:00.000Z' })
   createdAt: Date;
+  
 
   @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
     example: '2026-06-10T14:30:00.000Z',
     description:
       'When the user finished or skipped first-time onboarding. Null means onboarding is pending.',
