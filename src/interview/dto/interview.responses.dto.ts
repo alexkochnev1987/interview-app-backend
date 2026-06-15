@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { QuestionResponseDto } from '../../question/dto/question.responses.dto';
+import { INTERVIEW_STATUSES } from '../interfaces/interview.interface';
 
 export class CandidateLinkResponseDto {
   @ApiProperty()
@@ -363,7 +364,7 @@ export class InterviewResponseDto {
   @ApiProperty({ type: [AnswerDto] })
   answers: AnswerDto[];
 
-  @ApiProperty({ enum: ['pending', 'in_progress', 'processing', 'completed', 'failed'] })
+  @ApiProperty({ enum: INTERVIEW_STATUSES })
   status: string;
 
   @ApiPropertyOptional({ type: InterviewResultResponseDto })

@@ -1,5 +1,24 @@
 import { QuestionCore } from '../../question/interfaces/question.interface';
 
+/** Keep in sync with interviews.status CHECK in src/database/migrations.ts */
+export const INTERVIEW_STATUSES = [
+  'pending',
+  'in_progress',
+  'processing',
+  'completed',
+  'failed',
+] as const;
+
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+
+export const ACTIVE_INTERVIEW_STATUSES = [
+  'pending',
+  'in_progress',
+  'processing',
+] as const satisfies readonly InterviewStatus[];
+
+export type ActiveInterviewStatus = (typeof ACTIVE_INTERVIEW_STATUSES)[number];
+
 export type InterviewQuestion = QuestionCore;
 export type InterviewBehaviorRisk = 'low' | 'medium' | 'high';
 export type InterviewDecision = 'proceed' | 'review' | 'reject';
@@ -35,7 +54,7 @@ export interface Interview {
   position: string;
   questions: InterviewQuestion[];
   answers: Answer[];
-  status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
+  status: InterviewStatus;
   result?: InterviewResult;
   workflow?: InterviewWorkflow;
   createdById?: string;

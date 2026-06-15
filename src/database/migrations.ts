@@ -54,7 +54,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           position TEXT NOT NULL,
           questions_json JSONB NOT NULL DEFAULT '[]'::jsonb,
           answers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-          status TEXT NOT NULL CHECK (status IN ('pending', 'in_progress', 'processing', 'completed', 'failed')),
+          status TEXT NOT NULL CHECK (status IN ('pending', 'in_progress', 'processing', 'completed', 'failed')), -- INTERVIEW_STATUSES
           result_json JSONB NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
