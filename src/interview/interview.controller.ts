@@ -45,6 +45,7 @@ import {
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -151,6 +152,25 @@ export class InterviewController {
   ): Promise<Interview> {
     await this.interviewService.findOneForActor(id, user);
     return this.interviewService.complete(id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Update pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: UpdateInterviewDto })
+  @ApiOkResponse({ type: InterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateInterviewDto,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.update(id, dto);
   }
 
   @Post(':id/validate')

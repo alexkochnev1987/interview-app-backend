@@ -9,6 +9,7 @@ import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { UserRole } from '../user/interfaces/user.interface';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
@@ -227,6 +228,103 @@ export class InterviewService {
       const saved = await this.saveInterviewInTransaction(client, canceled);
       await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
       return saved;
+    });
+  }
+
+  async update(id: string, dto: UpdateInterviewDto): Promise<Interview> {
+    const hasUpdates =
+      dto.candidateName !== undefined ||
+      dto.candidateEmail !== undefined ||
+      dto.position !== undefined ||
+      dto.questionIds !== undefined;
+
+    if (!hasUpdates) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw new ConflictException(blockReason);
+      }
+
+      let candidateName = interview.candidateName;
+      let candidateEmail = interview.candidateEmail;
+      let position = interview.position;
+      let questions = interview.questions;
+
+      if (dto.candidateName !== undefined) {
+        candidateName = dto.candidateName.trim();
+        if (!candidateName) {
+          throw new BadRequestException('Candidate name is required');
+        }
+      }
+
+      if (dto.position !== undefined) {
+        position = dto.position.trim();
+        if (!position) {
+          throw new BadRequestException('Position is required');
+        }
+      }
+
+      if (dto.candidateEmail !== undefined) {
+        candidateEmail = dto.candidateEmail.trim().toLowerCase() || undefined;
+      }
+
+      if (dto.questionIds !== undefined) {
+        const questionIds = dto.questionIds
+          .map((questionId) => questionId.trim())
+          .filter(Boolean);
+
+        if (questionIds.length === 0) {
+          throw new BadRequestException('At least one question must be selected');
+        }
+
+        const nextQuestions = await this.questionService.findManyByIdsForUpdate(
+          client,
+          questionIds,
+        );
+
+        if (nextQuestions.length !== questionIds.length) {
+          throw new BadRequestException(
+            `Resolved ${nextQuestions.length} questions for ${questionIds.length} requested ids; interview cannot be updated.`,
+          );
+        }
+
+        const oldIds = interview.questions.map((question) => question.id);
+        const added = questionIds.filter((questionId) => !oldIds.includes(questionId));
+        const removed = oldIds.filter((questionId) => !questionIds.includes(questionId));
+
+        if (added.length > 0) {
+          await client.query(
+            `UPDATE questions SET usage_count = usage_count + 1 WHERE id = ANY($1::uuid[])`,
+            [added],
+          );
+        }
+
+        if (removed.length > 0) {
+          await client.query(
+            `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+            [removed],
+          );
+        }
+
+        questions = nextQuestions;
+      }
+
+      const updated: Interview = {
+        ...interview,
+        candidateName,
+        candidateEmail,
+        position,
+        questions,
+        updatedAt: new Date(),
+      };
+
+      return this.saveInterviewInTransaction(client, updated);
     });
   }
 
