@@ -96,6 +96,7 @@ interface QuestionRow {
   updated_at: Date;
   deleted: boolean;
   usage_count: number;
+  pending_deletion: boolean;
 }
 
 const SIMILARITY_SCORE_THRESHOLD = 0.6;
@@ -125,7 +126,8 @@ const QUESTION_COLUMNS = `
   created_at,
   updated_at,
   deleted,
-  usage_count
+  usage_count,
+  pending_deletion
 `;
 
 const QUESTION_SELECT = `SELECT ${QUESTION_COLUMNS} FROM questions`;
@@ -1289,6 +1291,7 @@ export class QuestionService {
       updatedAt: new Date(row.updated_at),
       deleted: Boolean(row.deleted),
       usageCount: Number(row.usage_count ?? 0),
+      pendingDeletion: Boolean(row.pending_deletion)
     };
   }
 

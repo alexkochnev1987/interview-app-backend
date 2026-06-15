@@ -440,4 +440,17 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0018',
+    name: 'add_interview_canceled_and_questions_pending_deletion',
+    statements: [
+      `ALTER TABLE interviews DROP CONSTRAINT IF EXISTS interviews_status_check;`,
+      `
+      ALTER TABLE interviews
+      ADD CONSTRAINT interviews_status_check
+      CHECK (status IN ('pending', 'in_progress', 'processing', 'completed', 'failed', 'canceled')); -- INTERVIEW_STATUSES
+    `,
+      `ALTER TABLE questions ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN NOT NULL DEFAULT FALSE;`,
+    ],
+  },
 ];
