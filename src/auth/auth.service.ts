@@ -109,6 +109,12 @@ export class AuthService {
     }
   }
 
+  async completeOnboarding(
+    userId: string,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.userService.completeOnboarding(userId);
+  }
+
   private getRoleForEmail(email: string): UserRole {
     return this.isSuperAdminEmail(email) ? 'super_admin' : 'candidate';
   }

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -34,6 +35,7 @@ import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
 import { AuthUserResponseDto } from './dto/auth-user.response.dto';
 import { LogoutResponseDto } from './dto/logout.response.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
@@ -160,5 +162,19 @@ export class AuthController {
       ...user,
       permissions: getEffectivePermissions(user.role, user.demo),
     };
+  }
+
+  @Patch('me/onboarding')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('sessionAuth')
+  @ApiOperation({ summary: 'Mark first-time onboarding as completed or skipped' })
+  @ApiBody({ type: CompleteOnboardingDto, required: false })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
+  async completeOnboarding(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.authService.completeOnboarding(user.id);
   }
 }

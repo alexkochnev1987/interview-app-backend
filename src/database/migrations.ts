@@ -670,4 +670,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `CREATE UNIQUE INDEX IF NOT EXISTS users_single_demo_idx ON users (demo) WHERE demo = TRUE;`,
     ],
   },
+  {
+    version: '0025',
+    name: 'add_users_onboarding_completed_at',
+    statements: [
+      `
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ NULL;
+      `,
+    ],
+  },
 ];

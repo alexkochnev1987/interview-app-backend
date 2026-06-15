@@ -300,6 +300,46 @@
         ]
       }
     },
+    "/auth/me/onboarding": {
+      "patch": {
+        "operationId": "AuthController_completeOnboarding",
+        "summary": "Mark first-time onboarding as completed or skipped",
+        "parameters": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session cookie"
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "UserController_list",
@@ -4602,6 +4642,12 @@
             "format": "date-time",
             "type": "string",
             "example": "2026-05-05T12:00:00.000Z"
+          },
+          "onboardingCompletedAt": {
+            "type": "object",
+            "example": "2026-06-10T14:30:00.000Z",
+            "description": "When the user finished or skipped first-time onboarding. Null means onboarding is pending.",
+            "nullable": true
           }
         },
         "required": [
@@ -4678,6 +4724,20 @@
           "EMBEDDING_PROVIDER_NOT_CONFIGURED",
           "INTERNAL_SERVER_ERROR"
         ]
+      },
+      "CompleteOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "description": "How the user closed onboarding. Both values persist the same completion timestamp.",
+            "example": "completed"
+          }
+        }
       },
       "ApiErrorResponseDto": {
         "type": "object",
