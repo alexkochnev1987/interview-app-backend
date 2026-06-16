@@ -35,6 +35,7 @@ interface FeedbackLinkRow {
 interface FeedbackActor {
   id: string;
   role: UserRole;
+  demo: boolean;
 }
 
 @Injectable()

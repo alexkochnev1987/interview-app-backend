@@ -56,6 +56,7 @@ interface InterviewRow {
 export interface InterviewActor {
   id: string;
   role: UserRole;
+  demo: boolean;
 }
 
 interface AddAnswerInput {
@@ -259,40 +260,56 @@ export class InterviewService {
   }
 
   async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
-    if (actor.role === 'super_admin' || actor.role === 'admin') {
-      return this.findAll();
-    }
+    // Demo isolation: demo users see only demo interviews, real users only real ones.
+    const whereClauses = ['demo = $1'];
+    const params: unknown[] = [actor.demo === true];
+
     if (actor.role === 'hr') {
-      const result = await this.databaseService.query<InterviewRow>(
-        `
-          SELECT
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            questions_json,
-            answers_json,
-            status,
-            result_json,
-            workflow_json,
-            created_by_id,
-            created_at,
-            updated_at
-          FROM interviews
-          WHERE created_by_id = $1
-          ORDER BY created_at DESC
-        `,
-        [actor.id],
-      );
-      return result.rows.map((row) => this.mapRow(row));
+      params.push(actor.id);
+      whereClauses.push(`created_by_id = $${params.length}`);
+    } else if (actor.role !== 'super_admin' && actor.role !== 'admin') {
+      throw new ForbiddenException('You do not have access to interviews');
     }
-    throw new ForbiddenException('You do not have access to interviews');
+
+    const result = await this.databaseService.query<InterviewRow>(
+      `
+        SELECT
+          id,
+          candidate_name,
+          candidate_email,
+          position,
+          questions_json,
+          answers_json,
+          status,
+          result_json,
+          workflow_json,
+          created_by_id,
+          created_at,
+          updated_at
+        FROM interviews
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY created_at DESC
+      `,
+      params,
+    );
+    return result.rows.map((row) => this.mapRow(row));
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
     const interview = await this.findOne(id);
     this.assertActorCanAccess(interview, actor);
+    await this.assertDemoScope(id, actor.demo === true);
     return interview;
+  }
+
+  private async assertDemoScope(id: string, demo: boolean): Promise<void> {
+    const result = await this.databaseService.query(
+      `SELECT 1 FROM interviews WHERE id = $1 AND demo = $2 LIMIT 1`,
+      [id, demo],
+    );
+    if (result.rows.length === 0) {
+      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
+    }
   }
 
   async complete(id: string): Promise<Interview> {

@@ -74,7 +74,10 @@ export class QuestionController {
     const isSuperAdmin = user.role === 'super_admin';
     const effectiveQuery =
       isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
+    return this.questionService.findAll(effectiveQuery, {
+      forceActive: !isSuperAdmin,
+      demo: user.demo,
+    });
   }
 
   @Get('facets')
@@ -93,7 +96,10 @@ export class QuestionController {
     const isSuperAdmin = user.role === 'super_admin';
     const effectiveQuery =
       isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
+    return this.questionService.getFacets(effectiveQuery, {
+      forceActive: !isSuperAdmin,
+      demo: user.demo,
+    });
   }
 
   @Get(':id')
@@ -109,6 +115,7 @@ export class QuestionController {
   ): Promise<Question> {
     return this.questionService.findOne(id, {
       includeDeleted: user.role === 'super_admin',
+      demo: user.demo,
     });
   }
 
@@ -133,11 +140,13 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async findSimilar(
     @Body() dto: FindSimilarDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
     const matches = await this.questionService.findSimilar(
       dto.draft ?? {},
       dto.limit ?? 5,
       dto.excludeQuestionId,
+      user.demo,
     );
     return { matches };
   }

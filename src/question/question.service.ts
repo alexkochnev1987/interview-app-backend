@@ -358,7 +358,7 @@ export class QuestionService {
 
   async findAll(
     query: QueryQuestionsDto = {},
-    options: { forceActive?: boolean } = {},
+    options: { forceActive?: boolean; demo?: boolean } = {},
   ): Promise<PaginatedQuestions> {
     const page = Math.max(1, query.page ?? DEFAULT_QUESTIONS_PAGE);
     const limit = Math.min(
@@ -373,6 +373,7 @@ export class QuestionService {
 
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
+      demo: options.demo,
     });
 
     params.push(limit);
@@ -401,10 +402,14 @@ export class QuestionService {
 
   private buildQuestionFilterClauses(
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean; excludeField?: FacetField } = {},
+    options: { forceActive?: boolean; excludeField?: FacetField; demo?: boolean } = {},
   ): { whereSql: string; params: unknown[] } {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
+
+    // Demo isolation: demo users see only demo rows, everyone else only real rows.
+    params.push(options.demo === true);
+    whereClauses.push(`demo = $${params.length}`);
 
     const status: QuestionStatusFilter = options.forceActive
       ? 'active'
@@ -467,7 +472,7 @@ export class QuestionService {
 
   async getFacets(
     query: QueryQuestionsDto = {},
-    options: { forceActive?: boolean } = {},
+    options: { forceActive?: boolean; demo?: boolean } = {},
   ): Promise<QuestionFacets> {
     const [difficulties, categories, subcategories, roles, tags] = await Promise.all([
       this.queryScalarFacet('difficulty', 'difficulty', query, options),
@@ -484,11 +489,12 @@ export class QuestionService {
     column: 'difficulty' | 'category' | 'subcategory' | 'role',
     facetField: FacetField,
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean },
+    options: { forceActive?: boolean; demo?: boolean },
   ): Promise<FacetCount[]> {
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
       excludeField: facetField,
+      demo: options.demo,
     });
 
     const result = await this.databaseService.query<{
@@ -514,11 +520,12 @@ export class QuestionService {
 
   private async queryTagFacet(
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean },
+    options: { forceActive?: boolean; demo?: boolean },
   ): Promise<FacetCount[]> {
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
       excludeField: 'tags',
+      demo: options.demo,
     });
 
     const result = await this.databaseService.query<{
@@ -544,15 +551,15 @@ export class QuestionService {
 
   async findOne(
     id: string,
-    options: { includeDeleted?: boolean } = {},
+    options: { includeDeleted?: boolean; demo?: boolean } = {},
   ): Promise<Question> {
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
+        WHERE id = $1 AND demo = $2${options.includeDeleted ? '' : ' AND deleted = FALSE'}
         LIMIT 1
       `,
-      [id],
+      [id, options.demo === true],
     );
 
     if (!result.rows[0]) {
@@ -839,6 +846,7 @@ export class QuestionService {
     draft: Partial<Pick<QuestionCore, 'questionText' | 'category' | 'subcategory' | 'role' | 'difficulty'>>,
     limit: number,
     excludeQuestionId: string | undefined,
+    demo = false,
   ): Promise<SimilarQuestionMatch[]> {
     const text = draft.questionText?.trim();
     if (!text) {
@@ -881,6 +889,7 @@ export class QuestionService {
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
           AND q.deleted = FALSE
+          AND q.demo = $6
           AND (e.embedding <=> $1::vector) <= $4::float
         ORDER BY distance ASC
         LIMIT $5
@@ -891,6 +900,7 @@ export class QuestionService {
         excludeQuestionId ?? null,
         SIMILARITY_DISTANCE_THRESHOLD,
         limit,
+        demo,
       ],
     );
 
