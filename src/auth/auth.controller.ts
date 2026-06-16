@@ -27,7 +27,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from './guards/register-throttler.guard';
-import { getPermissions } from './permissions';
+import { getEffectivePermissions } from './permissions';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
@@ -140,7 +140,7 @@ export class AuthController {
   me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
     return {
       ...user,
-      permissions: getPermissions(user.role),
+      permissions: getEffectivePermissions(user.role, user.demo),
     };
   }
 }

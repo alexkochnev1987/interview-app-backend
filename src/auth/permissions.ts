@@ -44,10 +44,46 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   candidate: [],
 };
 
+// Permissions a read-only demo account keeps; every other permission is denied.
+// Intentionally excludes users:read — the demo never lists accounts, and leaving
+// it out keeps demo safe regardless of the underlying role.
+export const READ_ONLY_PERMISSIONS: readonly Permission[] = [
+  'questions:read',
+  'interviews:read_own',
+];
+
+export function isReadOnlyPermission(permission: Permission): boolean {
+  return READ_ONLY_PERMISSIONS.includes(permission);
+}
+
 export function hasPermission(role: UserRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
+// Like hasPermission, but a demo user is denied any non-read permission.
+export function hasEffectivePermission(
+  role: UserRole,
+  demo: boolean,
+  permission: Permission,
+): boolean {
+  if (demo && !isReadOnlyPermission(permission)) {
+    return false;
+  }
+  return hasPermission(role, permission);
+}
+
 export function getPermissions(role: UserRole): Permission[] {
   return [...ROLE_PERMISSIONS[role]];
+}
+
+// Permissions reported to the client; demo users get the read-only subset.
+export function getEffectivePermissions(
+  role: UserRole,
+  demo: boolean,
+): Permission[] {
+  const base = ROLE_PERMISSIONS[role];
+  if (!demo) {
+    return [...base];
+  }
+  return base.filter(isReadOnlyPermission);
 }

@@ -2884,6 +2884,11 @@
             "type": "string",
             "example": "org_123"
           },
+          "demo": {
+            "type": "boolean",
+            "example": false,
+            "description": "Read-only demo account."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -2895,6 +2900,7 @@
           "email",
           "name",
           "role",
+          "demo",
           "createdAt"
         ]
       },

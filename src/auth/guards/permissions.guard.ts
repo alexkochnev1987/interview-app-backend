@@ -9,11 +9,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { hasPermission, Permission } from '../permissions';
+import {
+  hasEffectivePermission,
+  isReadOnlyPermission,
+  Permission,
+} from '../permissions';
 import { UserRole } from '../../user/interfaces/user.interface';
 
 interface AuthenticatedRequest extends Request {
-  user?: { role?: UserRole };
+  user?: { role?: UserRole; demo?: boolean };
 }
 
 @Injectable()
@@ -56,8 +60,14 @@ export class PermissionsGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const allowed = required.every((permission) => hasPermission(role, permission));
+    const demo = request.user?.demo === true;
+    const allowed = required.every((permission) =>
+      hasEffectivePermission(role, demo, permission),
+    );
     if (!allowed) {
+      if (demo && required.some((permission) => !isReadOnlyPermission(permission))) {
+        throw new ForbiddenException('Demo accounts are read-only');
+      }
       throw new ForbiddenException('Insufficient permissions');
     }
     return true;
