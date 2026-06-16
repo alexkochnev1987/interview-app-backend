@@ -39,7 +39,7 @@ import {
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
-import { getInterviewPendingOnlyBlockReason } from './interview-management-rules';
+import { getInterviewPendingOnlyBlockReason, isTerminalInterviewStatus } from './interview-management-rules';
 
 interface InterviewRow {
   id: string;
@@ -577,7 +577,8 @@ export class InterviewService {
       updatedAt: new Date(),
     };
 
-    return this.saveInterview(this.applyResultRecomputation(withUpdatedAnswer));
+    const next = this.applyResultRecomputation(withUpdatedAnswer);
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next)
   }
 
   private isStaleValidationWrite(
@@ -648,15 +649,14 @@ export class InterviewService {
         })
       : interview.workflow;
 
-    return this.saveInterview(
-      this.applyResultRecomputation({
-        ...interview,
-        answers: updatedAnswers,
-        status: nextStatus,
-        workflow: nextWorkflow,
-        updatedAt: now,
-      }),
-    );
+    const next = this.applyResultRecomputation({
+      ...interview,
+      answers: updatedAnswers,
+      status: nextStatus,
+      workflow: nextWorkflow,
+      updatedAt: now,
+    });
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private async persistAnswerVersion(
@@ -972,6 +972,26 @@ export class InterviewService {
     return this.mapRow(result.rows[0]);
   }
 
+  private async saveInterviewWithTerminalSideEffects(
+      previousStatus: Interview['status'],
+      interview: Interview,
+  ): Promise<Interview> {
+    const beTerminal = !isTerminalInterviewStatus(previousStatus) &&
+        isTerminalInterviewStatus(interview.status);
+
+    if (!beTerminal){
+      return this.saveInterview(interview)
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      await this.lockInterviewForUpdate(client, interview.id);
+      const saved = await this.saveInterviewInTransaction(client, interview);
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
+      return saved;
+    })
+
+  }
+
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
       `
@@ -1023,7 +1043,7 @@ export class InterviewService {
     if (next === interview) {
       return interview;
     }
-    return this.saveInterview(next);
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private applyResultRecomputation(interview: Interview): Interview {
