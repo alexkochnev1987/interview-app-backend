@@ -9,6 +9,8 @@
     "openapi:check": "npm run openapi:generate && npm run openapi:validate && git diff --exit-code -- openapi/openapi.json",
     "db:migrate": "ts-node src/database/migrate.ts",
     "db:migrate:prod": "node dist/database/migrate.js",
+    "seed:demo": "ts-node src/database/seed-demo.ts",
+    "seed:demo:prod": "node dist/database/seed-demo.js",
     "start": "npm run db:migrate && nest start",
     "start:dev": "npm run db:migrate && nest start --watch",
     "start:prod": "node dist/main",
