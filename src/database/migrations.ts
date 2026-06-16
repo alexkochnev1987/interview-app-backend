@@ -440,4 +440,21 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0018',
+    name: 'add_users_demo_flag',
+    statements: [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
+    ],
+  },
+  {
+    version: '0019',
+    name: 'add_demo_flag_to_content',
+    statements: [
+      // Demo content is isolated in both directions: demo users read only demo
+      // rows, real users never see demo rows. Scoping is by this flag.
+      `ALTER TABLE questions ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
+      `ALTER TABLE interviews ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
+    ],
+  },
 ];
