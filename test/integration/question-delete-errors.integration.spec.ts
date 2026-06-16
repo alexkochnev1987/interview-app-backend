@@ -69,11 +69,11 @@ async function completeInterviewWithQuestion(
   return interviewId;
 }
 
-describe('Question delete error contracts (integration)', () => {
+describe('Question delete contracts (integration)', () => {
   useIntegrationHarness();
 
-  it('returns 409 when deleting a question used by an active interview', async () => {
-    const { agent } = await getIntegrationApp();
+  it('schedules deletion when a question is used by an active interview', async () => {
+    const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
 
     const questionId = await createQuestion(
@@ -81,16 +81,35 @@ describe('Question delete error contracts (integration)', () => {
       session,
       'Question blocked by active interview.',
     );
-    await createInterviewWithQuestion(agent, session, questionId);
+    const interviewId = await createInterviewWithQuestion(
+      agent,
+      session,
+      questionId,
+    );
 
     const response = await agent
       .delete(`/questions/${questionId}`)
       .set(authCookie(session))
-      .expect(409);
+      .expect(200);
 
-    expect(response.body.statusCode).toBe(409);
-    expect(response.body.message).toMatch(/active interview/i);
-    expect(response.body.message).toMatch(/Wait for it to finish/i);
+    expect(response.body).toEqual({
+      id: questionId,
+      scheduled: true,
+      blockingInterviews: [
+        {
+          id: interviewId,
+          candidateName: 'Delete Contract Candidate',
+          href: `/interviews/${interviewId}`,
+        },
+      ],
+    });
+
+    const databaseService = app.get(DatabaseService);
+    const row = await databaseService.query<{ pending_deletion: boolean }>(
+      'SELECT pending_deletion FROM questions WHERE id = $1',
+      [questionId],
+    );
+    expect(row.rows[0]?.pending_deletion).toBe(true);
   });
 
   it('deletes a question used only in a completed interview', async () => {
@@ -136,7 +155,7 @@ describe('Question delete error contracts (integration)', () => {
       .expect(201);
 
     expect(response.body.deleted).toEqual([questionId]);
-    expect(response.body.blocked).toEqual([]);
+    expect(response.body.scheduled).toEqual([]);
 
     const staffSession = await loginAsStaffAdmin(agent);
     await agent
@@ -145,11 +164,11 @@ describe('Question delete error contracts (integration)', () => {
       .expect(404);
   });
 
-  it('bulk-deletes free questions and blocks questions in active interviews', async () => {
+  it('bulk-deletes free questions and schedules questions in active interviews', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
 
-    const blockedQuestionId = await createQuestion(
+    const scheduledQuestionId = await createQuestion(
       agent,
       session,
       'Question A in active interview.',
@@ -159,24 +178,35 @@ describe('Question delete error contracts (integration)', () => {
       session,
       'Question B not in any interview.',
     );
-    await createInterviewWithQuestion(agent, session, blockedQuestionId);
+    const interviewId = await createInterviewWithQuestion(
+      agent,
+      session,
+      scheduledQuestionId,
+    );
 
     const response = await agent
       .post('/questions/bulk-delete')
       .set(authCookie(session))
-      .send({ ids: [blockedQuestionId, freeQuestionId] })
+      .send({ ids: [scheduledQuestionId, freeQuestionId] })
       .expect(201);
 
     expect(response.body.deleted).toEqual([freeQuestionId]);
-    expect(response.body.blocked).toHaveLength(1);
-    expect(response.body.blocked[0]).toMatchObject({
-      id: blockedQuestionId,
+    expect(response.body.scheduled).toHaveLength(1);
+    expect(response.body.scheduled[0]).toMatchObject({
+      id: scheduledQuestionId,
       questionText: 'Question A in active interview.',
+      reason: `Question is scheduled for deletion when these active interviews finish: /interviews/${interviewId}`,
+      blockingInterviews: [
+        {
+          id: interviewId,
+          candidateName: 'Delete Contract Candidate',
+          href: `/interviews/${interviewId}`,
+        },
+      ],
     });
-    expect(response.body.blocked[0].reason).toMatch(/active interview/i);
   });
 
-  it('returns all blocked when every question is in an active interview', async () => {
+  it('returns all scheduled when every question is in an active interview', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
 
@@ -185,7 +215,11 @@ describe('Question delete error contracts (integration)', () => {
       session,
       'Question only in active interview.',
     );
-    await createInterviewWithQuestion(agent, session, questionId);
+    const interviewId = await createInterviewWithQuestion(
+      agent,
+      session,
+      questionId,
+    );
 
     const response = await agent
       .post('/questions/bulk-delete')
@@ -194,12 +228,21 @@ describe('Question delete error contracts (integration)', () => {
       .expect(201);
 
     expect(response.body.deleted).toEqual([]);
-    expect(response.body.blocked).toHaveLength(1);
-    expect(response.body.blocked[0].id).toBe(questionId);
-    expect(response.body.blocked[0].questionText).toBe(
-      'Question only in active interview.',
+    expect(response.body.scheduled).toHaveLength(1);
+    expect(response.body.scheduled[0]).toMatchObject({
+      id: questionId,
+      questionText: 'Question only in active interview.',
+      blockingInterviews: [
+        {
+          id: interviewId,
+          candidateName: 'Delete Contract Candidate',
+          href: `/interviews/${interviewId}`,
+        },
+      ],
+    });
+    expect(response.body.scheduled[0].reason).toContain(
+      `/interviews/${interviewId}`,
     );
-    expect(response.body.blocked[0].reason).toMatch(/active interview/i);
   });
 
   it('bulk-deletes questions that are not in any active interview', async () => {
@@ -219,6 +262,6 @@ describe('Question delete error contracts (integration)', () => {
       .expect(201);
 
     expect(response.body.deleted).toEqual([questionId]);
-    expect(response.body.blocked).toEqual([]);
+    expect(response.body.scheduled).toEqual([]);
   });
 });

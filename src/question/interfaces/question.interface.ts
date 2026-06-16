@@ -39,8 +39,29 @@ export interface Question extends QuestionCore {
   updatedAt: Date;
   deleted: boolean;
   usageCount: number;
-  pendingDeletion: boolean
+  pendingDeletion: boolean;
 }
+
+export interface QuestionDeleteBlockingInterview {
+  id: string;
+  candidateName: string;
+  href: string;
+}
+
+export interface QuestionDeleteScheduledItem {
+  id: string;
+  questionText: string;
+  reason: string;
+  blockingInterviews: QuestionDeleteBlockingInterview[];
+}
+
+export type SoftDeleteQuestionResult =
+  | { id: string; deleted: true }
+  | {
+      id: string;
+      scheduled: true;
+      blockingInterviews: QuestionDeleteBlockingInterview[];
+    };
 
 export type QuestionDraft = Omit<QuestionCore, 'id'>;
 

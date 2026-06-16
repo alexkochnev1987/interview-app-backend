@@ -14,7 +14,6 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
-  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -35,7 +34,9 @@ import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
+  QuestionDeleteScheduledItem,
   SimilarQuestionMatch,
+  SoftDeleteQuestionResult,
 } from './interfaces/question.interface';
 import { PaginatedQuestions, QuestionFacets, QuestionService } from './question.service';
 import {
@@ -167,10 +168,7 @@ export class QuestionController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  @ApiConflictResponse({ type: ApiErrorResponseDto })
-  remove(
-    @Param('id') id: string,
-  ): Promise<{ id: string; deleted: true }> {
+  remove(@Param('id') id: string): Promise<SoftDeleteQuestionResult> {
     return this.questionService.softDelete(id);
   }
 
@@ -184,7 +182,7 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   bulkRemove(@Body() dto: BulkDeleteQuestionsDto): Promise<{
     deleted: string[];
-    blocked: Array<{ id: string; questionText: string; reason: string }>;
+    scheduled: QuestionDeleteScheduledItem[];
   }> {
     return this.questionService.softDeleteMany(dto.ids);
   }

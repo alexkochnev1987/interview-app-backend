@@ -21,13 +21,41 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
   QuestionCore,
+  QuestionDeleteBlockingInterview,
+  QuestionDeleteScheduledItem,
   QuestionDifficulty,
   QuestionDraft,
   QuestionExpectedConcept,
   QuestionRedFlag,
   QuestionRedFlagSeverity,
   SimilarQuestionMatch,
+  SoftDeleteQuestionResult,
 } from './interfaces/question.interface';
+
+function buildInterviewHref(interviewId: string): string {
+  return `/interviews/${interviewId}`;
+}
+
+function mapBlockingInterviews(
+  rows: Array<{ id: string; candidate_name: string }>,
+): QuestionDeleteBlockingInterview[] {
+  return rows.map((row) => ({
+    id: row.id,
+    candidateName: row.candidate_name,
+    href: buildInterviewHref(row.id),
+  }));
+}
+
+function buildScheduledDeleteReason(
+  blockingInterviews: QuestionDeleteBlockingInterview[],
+): string {
+  if (blockingInterviews.length === 0) {
+    return 'Question is scheduled for deletion when related active interviews finish.';
+  }
+
+  const links = blockingInterviews.map((interview) => interview.href).join(', ');
+  return `Question is scheduled for deletion when these active interviews finish: ${links}`;
+}
 
 export const DEFAULT_QUESTIONS_PAGE = 1;
 export const DEFAULT_QUESTIONS_LIMIT = 20;
@@ -564,10 +592,22 @@ export class QuestionService {
     return this.mapRow(result.rows[0]);
   }
 
-  async softDelete(id: string): Promise<{ id: string; deleted: true }> {
+  async softDelete(id: string): Promise<SoftDeleteQuestionResult> {
     return this.databaseService.withTransaction(async (client) => {
       const existing = await this.lockQuestionForDelete(client, id);
-      await this.assertNoActiveInterview(client, existing);
+      const blockingInterviews = mapBlockingInterviews(
+        await this.findActiveInterviewsUsingQuestion(client, existing.id),
+      );
+
+      if (blockingInterviews.length > 0) {
+        await this.markPendingDeletion(client, id);
+        return {
+          id,
+          scheduled: true,
+          blockingInterviews,
+        };
+      }
+
       await this.markDeleted(client, id);
       return { id, deleted: true };
     });
@@ -577,17 +617,33 @@ export class QuestionService {
     ids: string[],
   ): Promise<{
     deleted: string[];
-    blocked: Array<{ id: string; questionText: string; reason: string }>;
+    scheduled: QuestionDeleteScheduledItem[];
   }> {
-    const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+    const uniqueIds = Array.from(
+      new Set(ids.map((questionId) => questionId.trim()).filter(Boolean)),
+    );
     const deleted: string[] = [];
-    const blocked: Array<{ id: string; questionText: string; reason: string }> = [];
+    const scheduled: QuestionDeleteScheduledItem[] = [];
 
     for (const id of uniqueIds) {
       try {
         await this.databaseService.withTransaction(async (client) => {
           const existing = await this.lockQuestionForDelete(client, id);
-          await this.assertNoActiveInterview(client, existing);
+          const blockingInterviews = mapBlockingInterviews(
+            await this.findActiveInterviewsUsingQuestion(client, existing.id),
+          );
+
+          if (blockingInterviews.length > 0) {
+            await this.markPendingDeletion(client, id);
+            scheduled.push({
+              id,
+              questionText: existing.questionText,
+              reason: buildScheduledDeleteReason(blockingInterviews),
+              blockingInterviews,
+            });
+            return;
+          }
+
           await this.markDeleted(client, id);
           deleted.push(id);
         });
@@ -595,20 +651,11 @@ export class QuestionService {
         if (err instanceof NotFoundException) {
           continue;
         }
-        if (err instanceof ConflictException) {
-          const existing = await this.findOne(id).catch(() => undefined);
-          blocked.push({
-            id,
-            questionText: existing?.questionText ?? '',
-            reason: err.message,
-          });
-          continue;
-        }
         throw err;
       }
     }
 
-    return { deleted, blocked };
+    return { deleted, scheduled };
   }
 
   async findManyByIdsForUpdate(
@@ -694,17 +741,17 @@ export class QuestionService {
     }
   }
 
-  private async findActiveInterviewUsingQuestion(
+  private async findActiveInterviewsUsingQuestion(
     client: PoolClient,
     questionId: string,
-  ): Promise<{ candidate_name: string } | undefined> {
-    const result = await client.query<{ candidate_name: string }>(
+  ): Promise<Array<{ id: string; candidate_name: string }>> {
+    const result = await client.query<{ id: string; candidate_name: string }>(
       `
-        SELECT candidate_name
+        SELECT id, candidate_name
         FROM interviews
         WHERE status = ANY($1::text[])
           AND questions_json @> $2::jsonb
-        LIMIT 1
+        ORDER BY created_at ASC
       `,
       [
         [...ACTIVE_INTERVIEW_STATUSES],
@@ -712,32 +759,18 @@ export class QuestionService {
       ],
     );
 
-    return result.rows[0];
+    return result.rows;
   }
 
   private async hasActiveInterview(
     client: PoolClient,
     questionId: string,
   ): Promise<boolean> {
-    return Boolean(
-      await this.findActiveInterviewUsingQuestion(client, questionId),
-    );
-  }
-
-  private async assertNoActiveInterview(
-    client: PoolClient,
-    question: Question,
-  ): Promise<void> {
-    const activeInterview = await this.findActiveInterviewUsingQuestion(
+    const activeInterviews = await this.findActiveInterviewsUsingQuestion(
       client,
-      question.id,
+      questionId,
     );
-
-    if (activeInterview) {
-      throw new ConflictException(
-        `Question is used by an active interview (candidate: ${activeInterview.candidate_name}). Wait for it to finish before deleting.`,
-      );
-    }
+    return activeInterviews.length > 0;
   }
 
   private async markDeleted(client: PoolClient, id: string): Promise<void> {
@@ -745,6 +778,17 @@ export class QuestionService {
       `
         UPDATE questions
         SET deleted = TRUE, pending_deletion = FALSE, updated_at = NOW()
+        WHERE id = $1
+      `,
+      [id],
+    );
+  }
+
+  private async markPendingDeletion(client: PoolClient, id: string): Promise<void> {
+    await client.query(
+      `
+        UPDATE questions
+        SET pending_deletion = TRUE, updated_at = NOW()
         WHERE id = $1
       `,
       [id],
@@ -764,7 +808,7 @@ export class QuestionService {
         client.query<QuestionRow>(
           `
             UPDATE questions
-            SET deleted = FALSE, updated_at = NOW()
+            SET deleted = FALSE, pending_deletion = FALSE, updated_at = NOW()
             WHERE id = $1
             ${QUESTION_RETURNING}
           `,

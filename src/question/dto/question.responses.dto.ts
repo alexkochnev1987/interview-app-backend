@@ -86,6 +86,12 @@ export class QuestionResponseDto {
   @ApiProperty()
   deleted: boolean;
 
+  @ApiProperty({
+    description:
+      'True when deletion is scheduled because the question is still used by active interviews.',
+  })
+  pendingDeletion: boolean;
+
   @ApiProperty({ description: 'Number of times this question has been used in an interview.' })
   usageCount: number;
 }
@@ -154,15 +160,35 @@ export class QuestionDraftResponseDto {
   metadata: Record<string, unknown>;
 }
 
+export class QuestionDeleteBlockingInterviewDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  candidateName: string;
+
+  @ApiProperty({
+    description: 'Staff app path to open the blocking interview.',
+    example: '/interviews/550e8400-e29b-41d4-a716-446655440000',
+  })
+  href: string;
+}
+
 export class DeleteQuestionResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ example: true })
-  deleted: true;
+  @ApiPropertyOptional({ example: true })
+  deleted?: true;
+
+  @ApiPropertyOptional({ example: true })
+  scheduled?: true;
+
+  @ApiPropertyOptional({ type: [QuestionDeleteBlockingInterviewDto] })
+  blockingInterviews?: QuestionDeleteBlockingInterviewDto[];
 }
 
-export class BulkDeleteBlockedItemDto {
+export class BulkDeleteScheduledItemDto {
   @ApiProperty()
   id: string;
 
@@ -171,14 +197,17 @@ export class BulkDeleteBlockedItemDto {
 
   @ApiProperty()
   reason: string;
+
+  @ApiProperty({ type: [QuestionDeleteBlockingInterviewDto] })
+  blockingInterviews: QuestionDeleteBlockingInterviewDto[];
 }
 
 export class BulkDeleteQuestionsResponseDto {
   @ApiProperty({ type: [String] })
   deleted: string[];
 
-  @ApiProperty({ type: [BulkDeleteBlockedItemDto] })
-  blocked: BulkDeleteBlockedItemDto[];
+  @ApiProperty({ type: [BulkDeleteScheduledItemDto] })
+  scheduled: BulkDeleteScheduledItemDto[];
 }
 
 export class SimilarQuestionMatchDto {
