@@ -18,13 +18,38 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
+  backend-dev:
     build:
       context: .
     restart: unless-stopped
     env_file:
       - path: .env.lightsail
         required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DEV_DATABASE_URL:-${DATABASE_URL}}
+      S3_PREFIX: ${DEV_S3_PREFIX:-dev/}
+      FRONTEND_URL: ${DEV_FRONTEND_URL:-${FRONTEND_URL}}
+      GOOGLE_CALLBACK_URL: ${DEV_GOOGLE_CALLBACK_URL:-${GOOGLE_CALLBACK_URL}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  backend-prod:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - path: .env.lightsail
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${PROD_DATABASE_URL:-${DATABASE_URL}}
+      S3_PREFIX: ${PROD_S3_PREFIX:-prod/}
+      FRONTEND_URL: ${PROD_FRONTEND_URL:-${FRONTEND_URL}}
+      GOOGLE_CALLBACK_URL: ${PROD_GOOGLE_CALLBACK_URL:-${GOOGLE_CALLBACK_URL}}
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,7 +76,8 @@ services:
       - path: .env.lightsail
         required: false
     depends_on:
-      - backend
+      - backend-dev
+      - backend-prod
     ports:
       - "80:80"
       - "443:443"
