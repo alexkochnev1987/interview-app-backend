@@ -7,21 +7,18 @@ on:
       - 'src/**'
       - 'test/**'
       - 'Dockerfile'
+      - 'docker-compose.lightsail.yml'
+      - 'deploy/lightsail/**'
+      - 'scripts/lightsail/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: interview-app-backend
-  ECS_CLUSTER: interview-app
-  PROJECT_NAME: interview-app
 
 jobs:
   test:
@@ -57,230 +54,49 @@ jobs:
       - run: npm run test:integration
       - run: npm run test:pyramid:check
 
-  build-and-deploy:
+  deploy-lightsail:
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+    environment: dev
     env:
-      ENV: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+      LIGHTSAIL_HOST: ${{ vars.LIGHTSAIL_HOST }}
+      LIGHTSAIL_USER: ${{ vars.LIGHTSAIL_USER || 'ubuntu' }}
+      REMOTE_DIR: /home/ubuntu/interview-app-backend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ env.ENV }}-${{ github.sha }}
+      - name: Configure SSH
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$ENV-latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$ENV-latest
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail
+          chmod 600 ~/.ssh/lightsail
+          ssh-keyscan -H "$LIGHTSAIL_HOST" >> ~/.ssh/known_hosts
 
-      - name: Download current task definition
+      - name: Sync source to Lightsail
         run: |
-          aws ecs describe-task-definition \
-            --task-definition $PROJECT_NAME-$ENV-backend \
-            --query taskDefinition \
-            > task-definition.json
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude 'node_modules/' \
+            --exclude 'dist/' \
+            --exclude 'backups/' \
+            --exclude '.env' \
+            --exclude '.env.lightsail' \
+            -e "ssh -i ~/.ssh/lightsail" \
+            ./ "$LIGHTSAIL_USER@$LIGHTSAIL_HOST:$REMOTE_DIR/"
 
-      - name: Resolve database connection
+      - name: Build, migrate, and restart backend
         run: |
-          # Keep the ECS task definition aligned with the current RDS endpoint and secret.
-          SECRETS=$(aws secretsmanager get-secret-value \
-            --secret-id interview-app/terraform-secrets \
-            --region $AWS_REGION \
-            --query SecretString \
-            --output text)
+          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" <<'SH'
+          set -euo pipefail
+          cd /home/ubuntu/interview-app-backend
+          test -f .env.lightsail
+          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --build migrate
+          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --build backend caddy
+          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml ps
+          SH
 
-          DB_PASSWORD_RAW=$(echo "$SECRETS" | python3 -c "import sys,json; print(json.load(sys.stdin)['db_password'])")
-          DB_PASSWORD=$(python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASSWORD_RAW")
-          echo "::add-mask::$DB_PASSWORD_RAW"
-          echo "::add-mask::$DB_PASSWORD"
-          DB_HOST=$(aws rds describe-db-instances \
-            --db-instance-identifier $PROJECT_NAME-$ENV \
-            --region $AWS_REGION \
-            --query 'DBInstances[0].Endpoint.Address' \
-            --output text)
-          DB_PORT=$(aws rds describe-db-instances \
-            --db-instance-identifier $PROJECT_NAME-$ENV \
-            --region $AWS_REGION \
-            --query 'DBInstances[0].Endpoint.Port' \
-            --output text)
-          DB_NAME=$(aws rds describe-db-instances \
-            --db-instance-identifier $PROJECT_NAME-$ENV \
-            --region $AWS_REGION \
-            --query 'DBInstances[0].DBName' \
-            --output text)
-
-          DATABASE_URL="postgresql://interview_app:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
-          echo "::add-mask::$DATABASE_URL"
-          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
-
-      # DATABASE_URL from RDS (step above). AI_* / OPENAI_* from repo/environment Variables + Secrets (dev/prod).
-      - name: Inject database and AI env into task definition
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
-          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+      - name: Verify health
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          path = Path("task-definition.json")
-          task_definition = json.loads(path.read_text())
-
-          managed_keys = (
-              "DATABASE_URL",
-              "AI_PROVIDER",
-              "OPENAI_API_KEY",
-              "OPENAI_MODEL",
-              "OPENAI_BASE_URL",
-          )
-
-          for container in task_definition.get("containerDefinitions", []):
-            if container.get("name") != "backend":
-              continue
-
-            merged = {}
-            for entry in container.get("environment", []):
-              name = entry.get("name")
-              if name and name not in managed_keys:
-                merged[name] = entry["value"]
-
-            merged["DATABASE_URL"] = os.environ["DATABASE_URL"]
-
-            if os.environ.get("AI_PROVIDER", "").strip():
-              merged["AI_PROVIDER"] = os.environ["AI_PROVIDER"].strip()
-            if os.environ.get("OPENAI_API_KEY", "").strip():
-              merged["OPENAI_API_KEY"] = os.environ["OPENAI_API_KEY"].strip()
-            if os.environ.get("OPENAI_MODEL", "").strip():
-              merged["OPENAI_MODEL"] = os.environ["OPENAI_MODEL"].strip()
-            if os.environ.get("OPENAI_BASE_URL", "").strip():
-              merged["OPENAI_BASE_URL"] = os.environ["OPENAI_BASE_URL"].strip()
-
-            container["environment"] = [
-              {"name": k, "value": v}
-              for k, v in sorted(merged.items())
-            ]
-            break
-
-          path.write_text(json.dumps(task_definition))
-          PY
-
-      - name: Update task definition with new image
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: backend
-          image: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.ENV }}-${{ github.sha }}
-
-      - name: Register task definition revision
-        id: register-task-def
-        run: |
-          TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file://${{ steps.task-def.outputs.task-definition }} \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text)
-          echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-
-      - name: Run database migrations
-        env:
-          TASK_DEFINITION_ARN: ${{ steps.register-task-def.outputs.task_definition_arn }}
-        run: |
-          SERVICE_JSON=$(aws ecs describe-services \
-            --cluster $PROJECT_NAME-$ENV \
-            --services $PROJECT_NAME-$ENV-backend \
-            --query 'services[0]' \
-            --output json)
-          export SERVICE_JSON
-
-          NETWORK_CONFIG=$(python3 - <<'PY'
-          import json
-          import os
-
-          service = json.loads(os.environ["SERVICE_JSON"])
-          awsvpc = service["networkConfiguration"]["awsvpcConfiguration"]
-          subnets = ",".join(awsvpc["subnets"])
-          security_groups = ",".join(awsvpc["securityGroups"])
-          assign_public_ip = awsvpc.get("assignPublicIp", "DISABLED")
-          print(
-              f"awsvpcConfiguration={{subnets=[{subnets}],securityGroups=[{security_groups}],assignPublicIp={assign_public_ip}}}"
-          )
-          PY
-          )
-
-          MIGRATION_TASK_ARN=$(aws ecs run-task \
-            --cluster $PROJECT_NAME-$ENV \
-            --launch-type FARGATE \
-            --task-definition "$TASK_DEFINITION_ARN" \
-            --network-configuration "$NETWORK_CONFIG" \
-            --overrides '{"containerOverrides":[{"name":"backend","command":["node","dist/database/migrate.js"]}]}' \
-            --query 'tasks[0].taskArn' \
-            --output text)
-
-          aws ecs wait tasks-stopped \
-            --cluster $PROJECT_NAME-$ENV \
-            --tasks "$MIGRATION_TASK_ARN"
-
-          MIGRATION_EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster $PROJECT_NAME-$ENV \
-            --tasks "$MIGRATION_TASK_ARN" \
-            --query 'tasks[0].containers[?name==`backend`].exitCode | [0]' \
-            --output text)
-
-          if [ "$MIGRATION_EXIT_CODE" != "0" ]; then
-            echo "::group::Migration task summary"
-            aws ecs describe-tasks \
-              --cluster $PROJECT_NAME-$ENV \
-              --tasks "$MIGRATION_TASK_ARN" \
-              --query 'tasks[0].{stoppedReason:stoppedReason,stopCode:stopCode,containers:containers[?name==`backend`].[name,lastStatus,exitCode,reason]}' \
-              --output json
-            echo "::endgroup::"
-
-            LOG_GROUP=$(jq -r '.containerDefinitions[] | select(.name=="backend") | .logConfiguration.options."awslogs-group"' task-definition.json)
-            LOG_PREFIX=$(jq -r '.containerDefinitions[] | select(.name=="backend") | .logConfiguration.options."awslogs-stream-prefix"' task-definition.json)
-            TASK_ID=$(basename "$MIGRATION_TASK_ARN")
-            STREAM="$LOG_PREFIX/backend/$TASK_ID"
-
-            echo "::group::Migration logs ($LOG_GROUP / $STREAM)"
-            aws logs get-log-events \
-              --log-group-name "$LOG_GROUP" \
-              --log-stream-name "$STREAM" \
-              --limit 500 \
-              --query 'events[*].message' \
-              --output text 2>&1 || echo "No logs found for stream $STREAM"
-            echo "::endgroup::"
-
-            exit 1
-          fi
-
-      - name: Deploy to Amazon ECS
-        env:
-          TASK_DEFINITION_ARN: ${{ steps.register-task-def.outputs.task_definition_arn }}
-        run: |
-          aws ecs update-service \
-            --cluster $PROJECT_NAME-$ENV \
-            --service $PROJECT_NAME-$ENV-backend \
-            --task-definition "$TASK_DEFINITION_ARN"
-
-          aws ecs wait services-stable \
-            --cluster $PROJECT_NAME-$ENV \
-            --services $PROJECT_NAME-$ENV-backend
-
-      # No need to update Amplify — API Gateway + VPC Link provides a permanent URL.
-      # Cloud Map auto-registers new ECS tasks.
+          curl --fail --show-error --silent "http://$LIGHTSAIL_HOST/health"

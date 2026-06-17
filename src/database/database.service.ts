@@ -92,7 +92,9 @@ export class DatabaseService implements OnModuleDestroy {
   private shouldUseSsl(connectionString: string): boolean {
     try {
       const url = new URL(connectionString);
-      return !['localhost', '127.0.0.1', 'db'].includes(url.hostname);
+      return !['localhost', '127.0.0.1', 'db', 'postgres'].includes(
+        url.hostname,
+      );
     } catch {
       return false;
     }

@@ -1,0 +1,8 @@
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	@health path /health
+	header @health Cache-Control "no-store"
+
+	reverse_proxy backend:3000
+}

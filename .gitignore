@@ -1,11 +1,13 @@
 node_modules/
 dist/
 .env
+.env.lightsail
 *.js.map
 coverage/
 .nyc_output/
 cookies.txt
 local-seeds/
+backups/
 
 # Terraform
 infra/**/.terraform/
