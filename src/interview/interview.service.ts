@@ -578,7 +578,7 @@ export class InterviewService {
     };
 
     const next = this.applyResultRecomputation(withUpdatedAnswer);
-    return this.saveInterviewWithTerminalSideEffects(interview.status, next)
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private isStaleValidationWrite(
@@ -973,23 +973,25 @@ export class InterviewService {
   }
 
   private async saveInterviewWithTerminalSideEffects(
-      previousStatus: Interview['status'],
-      interview: Interview,
+    previousStatus: Interview['status'],
+    interview: Interview,
   ): Promise<Interview> {
-    const beTerminal = !isTerminalInterviewStatus(previousStatus) &&
-        isTerminalInterviewStatus(interview.status);
+    const becameTerminal =
+      !isTerminalInterviewStatus(previousStatus) &&
+      isTerminalInterviewStatus(interview.status);
 
-    if (!beTerminal){
-      return this.saveInterview(interview)
+    if (!becameTerminal) {
+      return this.saveInterview(interview);
     }
 
     return this.databaseService.withTransaction(async (client) => {
       await this.lockInterviewForUpdate(client, interview.id);
       const saved = await this.saveInterviewInTransaction(client, interview);
-      await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(
+        client,
+      );
       return saved;
-    })
-
+    });
   }
 
   private async saveInterview(interview: Interview): Promise<Interview> {
