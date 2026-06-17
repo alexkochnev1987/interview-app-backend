@@ -1,7 +1,16 @@
+import {
+  BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
+  MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL,
+  QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE,
+  QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS,
+} from './migration-sql/question-locale';
+
 export interface DatabaseMigration {
   version: string;
   name: string;
   statements: string[];
+  /** Optional manual rollback SQL — not applied automatically; see docs/database-migrations.md */
+  rollbackStatements?: string[];
 }
 
 export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
@@ -443,6 +452,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   {
     version: '0018',
     name: 'questions_primary_locale_and_translations',
+    rollbackStatements: QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS,
     statements: [
       `
         ALTER TABLE questions
@@ -454,38 +464,13 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
       `
         UPDATE questions
-        SET primary_locale = CASE lower(trim(COALESCE(output_language, '')))
-          WHEN 'en' THEN 'en'
-          WHEN 'english' THEN 'en'
-          WHEN 'be' THEN 'be'
-          WHEN 'belarusian' THEN 'be'
-          WHEN 'belarus' THEN 'be'
-          WHEN 'belarussian' THEN 'be'
-          WHEN 'ru' THEN 'ru'
-          WHEN 'russian' THEN 'ru'
-          WHEN 'russia' THEN 'ru'
-          WHEN 'pl' THEN 'pl'
-          WHEN 'polish' THEN 'pl'
-          WHEN 'poland' THEN 'pl'
-          ELSE 'en'
-        END
+        SET primary_locale = ${MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL}
         WHERE primary_locale IS NULL;
       `,
       `
         UPDATE questions
-        SET translations_json = jsonb_build_object(
-          primary_locale,
-          jsonb_strip_nulls(
-            jsonb_build_object(
-              'questionText', COALESCE(NULLIF(question_text, ''), text),
-              'followUpQuestions', COALESCE(to_jsonb(follow_up_questions), '[]'::jsonb),
-              'expectedConcepts', COALESCE(expected_concepts_json, '[]'::jsonb),
-              'redFlags', COALESCE(red_flags_json, '[]'::jsonb),
-              'sampleGoodAnswer', sample_good_answer
-            )
-          )
-        )
-        WHERE translations_json = '{}'::jsonb;
+        SET translations_json = ${BUILD_PRIMARY_TRANSLATION_BLOCK_SQL}
+        WHERE ${QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE};
       `,
       `
         ALTER TABLE questions
@@ -589,6 +574,23 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         CREATE INDEX IF NOT EXISTS questions_search_text_trgm_idx
         ON questions USING GIN (search_text gin_trgm_ops)
         WHERE deleted = FALSE;
+      `,
+    ],
+  },
+  {
+    version: '0021',
+    name: 'questions_primary_locale_backfill',
+    statements: [
+      `
+        UPDATE questions
+        SET primary_locale = ${MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL}
+        WHERE primary_locale IS NULL
+           OR primary_locale NOT IN ('en', 'be', 'ru', 'pl');
+      `,
+      `
+        UPDATE questions
+        SET translations_json = ${BUILD_PRIMARY_TRANSLATION_BLOCK_SQL}
+        WHERE ${QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE};
       `,
     ],
   },

@@ -16,6 +16,7 @@ import {
   createTakeInterview,
   openCandidateTakeSession,
 } from '../helpers/take-flow';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Thin integration layer (~20% of backend tests): Nest + Postgres + cookies/guards.
 // Business rules live in unit specs under src/.
@@ -60,22 +61,22 @@ describe('App wiring (integration)', () => {
     await agent
       .post('/questions')
       .set(authCookie(hrSession))
-      .send({
-        questionText: 'HR should not create this.',
-        difficulty: 'easy',
-        weight: 1,
-      })
+      .send(
+        buildCreateQuestionPayload('HR should not create this.', {
+          difficulty: 'easy',
+        }),
+      )
       .expect(403);
 
     const adminSession = await loginAsStaffAdmin(agent);
     const created = await agent
       .post('/questions')
       .set(authCookie(adminSession))
-      .send({
-        questionText: 'Admin-created question.',
-        difficulty: 'hard',
-        weight: 1,
-      })
+      .send(
+        buildCreateQuestionPayload('Admin-created question.', {
+          difficulty: 'hard',
+        }),
+      )
       .expect(201);
 
     await agent
@@ -102,11 +103,7 @@ describe('App wiring (integration)', () => {
     const created = await agent
       .post('/questions')
       .set(authCookie(session))
-      .send({
-        questionText: 'Integration wiring question.',
-        difficulty: 'medium',
-        weight: 1,
-      })
+      .send(buildCreateQuestionPayload('Integration wiring question.'))
       .expect(201);
 
     const interview = await agent

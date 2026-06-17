@@ -6,6 +6,7 @@ import {
 } from '@nestjs/swagger';
 import {
   IsArray,
+  IsDefined,
   IsIn,
   IsNumber,
   IsObject,
@@ -23,6 +24,7 @@ import {
 } from './question.responses.dto';
 import { QuestionTranslationDto } from './question-translation.dto';
 import { QuestionTranslationsMapConstraint } from './validators/question-translations.validator';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 @ApiExtraModels(
   QuestionExpectedConceptDto,
@@ -31,6 +33,7 @@ import { QuestionTranslationsMapConstraint } from './validators/question-transla
 )
 export class CreateQuestionDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES, required: true })
+  @IsDefined({ message: 'primaryLocale is required (en, be, ru, or pl)' })
   @IsIn([...SUPPORTED_LOCALES])
   primaryLocale: Locale;
 
@@ -39,9 +42,11 @@ export class CreateQuestionDto {
     type: 'object',
     additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
     description:
-      'Locale-keyed translation blocks. primaryLocale entry must be a full block (questionText + followUpQuestions + expectedConcepts + redFlags + sampleGoodAnswer). ' +
-      'Other locales require questionText only; rubric fields are optional.',
+      'Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: ' +
+      'questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. ' +
+      'Additional locales require questionText only; rubric fields are optional.',
   })
+  @IsDefined({ message: 'translations is required' })
   @IsObject()
   @Validate(QuestionTranslationsMapConstraint)
   translations: Partial<Record<Locale, QuestionTranslationDto>>;
@@ -63,13 +68,16 @@ export class CreateQuestionDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Derived from primaryLocale; ignored when translations are provided.',
+    description: `Ignored when translations are provided. ${OUTPUT_LANGUAGE_OPENAPI_NOTE}`,
   })
   @IsOptional()
   @IsString()
   outputLanguage?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Flat question metadata — stored on the question row, not inside translations.',
+  })
   @IsOptional()
   @IsString()
   category?: string;

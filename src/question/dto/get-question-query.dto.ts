@@ -17,7 +17,8 @@ function queryBoolean(value: unknown): boolean | undefined {
 
 export class GetQuestionQueryDto {
   @ApiPropertyOptional({
-    description: 'When true, include the full translations map. Default false.',
+    description:
+      'When false, omit the translations map. Default true for GET /questions/:id.',
   })
   @IsOptional()
   @Transform(({ value }) => queryBoolean(value))

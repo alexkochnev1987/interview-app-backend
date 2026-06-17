@@ -28,10 +28,17 @@ import {
 } from './question.responses.dto';
 import { QuestionTranslationDto } from './question-translation.dto';
 import { QuestionTranslationsUpdateMapConstraint } from './validators/question-translations.validator';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 @ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto, QuestionTranslationDto)
 export class UpdateQuestionDto {
-  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    deprecated: true,
+    description:
+      'Ignored on update — primaryLocale is immutable after creation. ' +
+      'Update the primary locale block via `translations[primaryLocale]` instead.',
+  })
   @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])
   primaryLocale?: Locale;
@@ -40,7 +47,8 @@ export class UpdateQuestionDto {
     enum: ['merge', 'replace'],
     default: 'merge',
     description:
-      'How to apply `translations`: merge (default) upserts each locale key; replace sets the stored map to exactly the provided keys.',
+      'How to apply `translations`. Default `merge` upserts each locale key. ' +
+      'Set to `replace` to replace the entire stored map (requires `translations`).',
   })
   @IsOptional()
   @IsIn(['merge', 'replace'])
@@ -74,7 +82,7 @@ export class UpdateQuestionDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Ignored when primaryLocale or translations are set. Use primaryLocale instead.',
+    description: `Ignored when primaryLocale or translations are set. ${OUTPUT_LANGUAGE_OPENAPI_NOTE}`,
   })
   @IsOptional()
   @IsString()

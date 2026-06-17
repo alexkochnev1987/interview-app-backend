@@ -1,4 +1,5 @@
 import {
+  applyDecorators,
   Body,
   Controller,
   Delete,
@@ -16,6 +17,7 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiConflictResponse,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiHeader,
   ApiNotFoundResponse,
@@ -55,10 +57,14 @@ import {
   PaginatedQuestionsResponseDto,
   QuestionFacetsResponseDto,
   QuestionDraftResponseDto,
+  QuestionDraftContentResponseDto,
+  QuestionResponseDto,
   ResolvedQuestionResponseDto,
 } from './dto/question.responses.dto';
+import { QuestionTranslationDto } from './dto/question-translation.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AiService } from '../ai/ai.service';
+import { QuestionDraftContent } from '../ai/question-draft-content';
 import { DraftQuestionDto } from '../ai/dto/ai.dto';
 
 const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
@@ -68,8 +74,29 @@ const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
   transformOptions: { enableImplicitConversion: false },
 });
 
+function questionUpdateRouteDecorators() {
+  return applyDecorators(
+    RequirePermissions('questions:update'),
+    ApiOperation({
+      summary: 'Update question',
+      description:
+        '`primaryLocale` is immutable — changing it returns 400. ' +
+        'Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). ' +
+        'Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.',
+    }),
+    ApiParam({ name: 'id' }),
+    ApiBody({ type: UpdateQuestionDto }),
+    ApiOkResponse({ type: ResolvedQuestionResponseDto }),
+    ApiUnauthorizedResponse({ type: ApiErrorResponseDto }),
+    ApiForbiddenResponse({ type: ApiErrorResponseDto }),
+    ApiBadRequestResponse({ type: ApiErrorResponseDto }),
+    ApiNotFoundResponse({ type: ApiErrorResponseDto }),
+  );
+}
+
 @ApiTags('questions')
 @ApiCookieAuth('sessionAuth')
+@ApiExtraModels(QuestionResponseDto, QuestionTranslationDto)
 @Controller('questions')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class QuestionController {
@@ -90,7 +117,13 @@ export class QuestionController {
 
   @Get()
   @RequirePermissions('questions:read')
-  @ApiOperation({ summary: 'List questions (paginated, filterable, sortable)' })
+  @ApiOperation({
+    summary: 'List questions (paginated, filterable, sortable)',
+    description:
+      'Filter by translation availability with `?locale=` (primaryLocale match or non-empty `translations[locale].questionText`); list items resolve rubric for that locale when set, otherwise for `X-Locale` (default `en`). ' +
+      'Use `?primaryLocale=` for canonical locale only. Deprecated: `?outputLanguage=`. ' +
+      'Pass `?includeTranslations=true` for the full map per item.',
+  })
   @ApiOkResponse({ type: PaginatedQuestionsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   findAll(
@@ -110,23 +143,78 @@ export class QuestionController {
     summary: 'Generate AI question draft',
     description:
       'Generates a question draft in locale from body `locale` or X-Locale header. ' +
-      'If `mode=translate` (or auto-detected by locale mismatch with seed `primaryLocale` and no rubric seed), always translates `questionText` from source locale to target locale for all non-equal pairs in `en|be|ru|pl` (12 directions). ' +
-      'If `mode=generate`, builds a full rubric in target locale. Does not persist anything to the database.',
+      'If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1). If `mode=generate`, builds the primary locale content block (questionText + rubric) in the target locale; metadata fields on the seed are context only and are not returned. Does not persist anything to the database.',
   })
   @ApiHeader({
     name: 'X-Locale',
     required: false,
     description: 'Used when body `locale` is omitted. Defaults to `en`.',
   })
-  @ApiBody({ type: DraftQuestionDto })
-  @ApiOkResponse({ type: QuestionDraftResponseDto })
+  @ApiBody({
+    type: DraftQuestionDto,
+    examples: {
+      polishGenerate: {
+        summary: 'Generate full rubric in Polish',
+        value: {
+          locale: 'pl',
+          mode: 'generate',
+          question: {
+            questionText: 'Wyjaśnij działanie hooków w React.',
+            category: 'react',
+          },
+        },
+      },
+      translateRuToPl: {
+        summary: 'Translate full primary block ru → pl',
+        value: {
+          mode: 'translate',
+          locale: 'pl',
+          question: {
+            primaryLocale: 'ru',
+            questionText: 'Объясните замыкания в JavaScript.',
+            followUpQuestions: [
+              'Можете привести простой практический пример?',
+              'Какую типичную ошибку вы бы избегали?',
+            ],
+            expectedConcepts: [
+              {
+                id: 'scope_chain',
+                label: 'цепочка областей видимости',
+                weight: 0.34,
+                description: 'должна быть явно раскрыта',
+              },
+              {
+                id: 'lexical_env',
+                label: 'лексическое окружение',
+                weight: 0.33,
+                description: 'объяснить привязку',
+              },
+              {
+                id: 'practical_use',
+                label: 'практическое применение',
+                weight: 0.33,
+                description: 'привести реальный пример',
+              },
+            ],
+            redFlags: [
+              { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+              { id: 'no_example', label: 'Нет примера', severity: 'high' },
+            ],
+            sampleGoodAnswer:
+              'Сильный ответ объясняет замыкания простыми словами и приводит один пример.',
+          },
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: QuestionDraftContentResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   draftQuestion(
     @Body() dto: DraftQuestionDto,
     @CurrentLocale() locale: Locale,
-  ): Promise<QuestionDraft> {
+  ): Promise<QuestionDraft | QuestionDraftContent> {
     return this.aiService.draftQuestion(dto.question ?? {}, {
       bodyLocale: dto.locale,
       headerLocale: locale,
@@ -160,8 +248,8 @@ export class QuestionController {
   @ApiOperation({
     summary: 'Get question by id',
     description:
-      'Resolved single-locale shape for X-Locale (same as a list item). ' +
-      '?includeTranslations=true adds the full translations map for the editor. ' +
+      'Nested editor shape: `primaryLocale`, flat metadata, resolved rubric for `X-Locale`, and `translations` map (omit with `?includeTranslations=false`). ' +
+      'Legacy rows with only `outputLanguage` and flat columns map to `primaryLocale` and hydrate the primary translation block on read. ' +
       'Non–super-admin callers receive 404 for soft-deleted questions.',
   })
   @ApiParam({ name: 'id' })
@@ -182,7 +270,13 @@ export class QuestionController {
 
   @Post()
   @RequirePermissions('questions:create')
-  @ApiOperation({ summary: 'Create question' })
+  @ApiOperation({
+    summary: 'Create question',
+    description:
+      'Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block ' +
+      '(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). ' +
+      'Metadata fields (role, category, tags, …) are stored flat on the question row.',
+  })
   @ApiBody({ type: CreateQuestionDto })
   @ApiOkResponse({ type: ResolvedQuestionResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -220,17 +314,18 @@ export class QuestionController {
   }
 
   @Put(':id')
-  @Patch(':id')
-  @RequirePermissions('questions:update')
-  @ApiOperation({ summary: 'Update question' })
-  @ApiParam({ name: 'id' })
-  @ApiBody({ type: UpdateQuestionDto })
-  @ApiOkResponse({ type: ResolvedQuestionResponseDto })
-  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
-  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @questionUpdateRouteDecorators()
   update(
+    @Param('id') id: string,
+    @Body() dto: UpdateQuestionDto,
+    @CurrentLocale() locale: Locale,
+  ): Promise<ResolvedQuestion> {
+    return this.questionService.updateResolved(id, dto, locale);
+  }
+
+  @Patch(':id')
+  @questionUpdateRouteDecorators()
+  patchUpdate(
     @Param('id') id: string,
     @Body() dto: UpdateQuestionDto,
     @CurrentLocale() locale: Locale,

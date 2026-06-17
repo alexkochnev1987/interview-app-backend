@@ -12,7 +12,7 @@ describe('buildQuestionDraftUserPrompt', () => {
     expect(prompt).toContain('snake_case Latin');
     expect(prompt).toContain('match the rubric language to the requested locale (pl)');
     expect(prompt).toContain('Do not use English boilerplate templates');
-    expect(prompt).toContain('must be "Polish"');
+    expect(prompt).toContain('label and description in Polish');
   });
 
   it('omits English-boilerplate warning for en locale', () => {
@@ -23,7 +23,7 @@ describe('buildQuestionDraftUserPrompt', () => {
 
     expect(prompt).toContain('Output locale: en (English)');
     expect(prompt).not.toContain('Do not use English boilerplate templates');
-    expect(prompt).toContain('must be "English"');
+    expect(prompt).toContain('label and description in English');
   });
 
   it('adds strict locale mode in prompt when requested', () => {

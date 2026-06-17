@@ -35,8 +35,10 @@ import {
   mergeTranslations,
   parseTranslationsJson,
   primaryLocaleToOutputLanguage,
+  rejectPrimaryLocaleChange,
   resolvePrimaryLocale,
   resolveQuestionFields,
+  ensurePrimaryTranslationBlock,
 } from './question-locale';
 import { resolveQuestion } from './resolve-question';
 import { localeUiText } from '../locale/locale-ui-text';
@@ -492,8 +494,9 @@ export class QuestionService {
 
     const result = await this.databaseService.query<QuestionRow & { __total: string }>(sql, params);
     const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const itemResolveLocale = query.locale ?? options.resolveLocale;
     const items = result.rows.map((row) =>
-      this.toResolvedQuestion(this.mapRow(row), options.resolveLocale, {
+      this.toResolvedQuestion(this.mapRow(row), itemResolveLocale, {
         includeTranslations: query.includeTranslations === true,
       }),
     );
@@ -705,7 +708,7 @@ export class QuestionService {
       includeDeleted: options.includeDeleted,
     });
     return this.toResolvedQuestion(question, locale, {
-      includeTranslations: options.includeTranslations === true,
+      includeTranslations: options.includeTranslations !== false,
     });
   }
 
@@ -1204,7 +1207,6 @@ export class QuestionService {
       typeof record.primaryLocale === 'string' && isLocale(record.primaryLocale)
         ? record.primaryLocale
         : mapOutputLanguageToPrimaryLocale(outputLanguage);
-    const translations = parseTranslationsJson(record.translations);
     const legacy = {
       questionText:
         this.normalizeOptionalString(record.questionText as string) ??
@@ -1217,6 +1219,11 @@ export class QuestionService {
       redFlags,
       sampleGoodAnswer: this.normalizeOptionalString(record.sampleGoodAnswer as string),
     };
+    const translations = ensurePrimaryTranslationBlock(
+      primaryLocale,
+      parseTranslationsJson(record.translations),
+      legacy,
+    );
     const resolved = resolveQuestionFields(primaryLocale, translations, legacy);
 
     return {
@@ -1252,19 +1259,10 @@ export class QuestionService {
     dto: UpdateQuestionDto,
     existing: Question,
   ): QuestionDraft {
-    const primaryLocale =
-      dto.primaryLocale && isLocale(dto.primaryLocale)
-        ? dto.primaryLocale
-        : existing.primaryLocale;
-    const translationsMode = dto.translationsMode ?? 'merge';
+    rejectPrimaryLocaleChange(existing.primaryLocale, dto.primaryLocale);
 
-    if (dto.primaryLocale && dto.primaryLocale !== existing.primaryLocale && !dto.translations) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'translations is required when changing primaryLocale',
-        { primaryLocale: dto.primaryLocale },
-      );
-    }
+    const primaryLocale = existing.primaryLocale;
+    const translationsMode = dto.translationsMode ?? 'merge';
 
     if (translationsMode === 'replace' && !dto.translations) {
       throw apiBadRequest(
@@ -1276,8 +1274,12 @@ export class QuestionService {
     let translations: QuestionTranslations = { ...existing.translations };
 
     if (dto.translations) {
+      const patchesPrimary = Object.prototype.hasOwnProperty.call(
+        dto.translations,
+        primaryLocale,
+      );
       const requirePrimary =
-        translationsMode === 'replace' || dto.primaryLocale !== undefined;
+        translationsMode === 'replace' || patchesPrimary;
       const incoming = this.normalizeTranslationsInput(dto.translations, {
         requirePrimaryLocale: requirePrimary ? primaryLocale : undefined,
       });
@@ -1912,7 +1914,16 @@ export class QuestionService {
       redFlags: this.parseRedFlags(row.red_flags_json, row.red_flags),
       sampleGoodAnswer: this.normalizeOptionalString(row.sample_good_answer),
     };
-    const resolved = resolveQuestionFields(primaryLocale, translations, legacy);
+    const hydratedTranslations = ensurePrimaryTranslationBlock(
+      primaryLocale,
+      translations,
+      legacy,
+    );
+    const resolved = resolveQuestionFields(
+      primaryLocale,
+      hydratedTranslations,
+      legacy,
+    );
 
     return {
       id: row.id,

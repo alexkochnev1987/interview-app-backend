@@ -12,6 +12,7 @@ import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
 import { QuestionTranslationDto } from './question-translation.dto';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 export class QuestionDraftInputDto {
   @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
@@ -40,7 +41,7 @@ export class QuestionDraftInputDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Deprecated: use primaryLocale. Still accepted for legacy AI draft requests.',
+    description: OUTPUT_LANGUAGE_OPENAPI_NOTE,
   })
   @IsOptional()
   @IsString()

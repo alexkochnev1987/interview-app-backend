@@ -409,6 +409,7 @@
       "get": {
         "operationId": "QuestionController_findAll",
         "summary": "List questions (paginated, filterable, sortable)",
+        "description": "Filter by translation availability with `?locale=` (primaryLocale match or non-empty `translations[locale].questionText`); list items resolve rubric for that locale when set, otherwise for `X-Locale` (default `en`). Use `?primaryLocale=` for canonical locale only. Deprecated: `?outputLanguage=`. Pass `?includeTranslations=true` for the full map per item.",
         "parameters": [
           {
             "name": "q",
@@ -489,7 +490,7 @@
             "required": false,
             "in": "query",
             "deprecated": true,
-            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy labels (e.g. English) still match output_language.",
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input).",
             "schema": {
               "type": "string"
             }
@@ -498,7 +499,7 @@
             "name": "locale",
             "required": false,
             "in": "query",
-            "description": "Only questions with a non-empty translation for this locale (translations_json).",
+            "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
             "schema": {
               "enum": [
                 "en",
@@ -634,6 +635,7 @@
       "post": {
         "operationId": "QuestionController_create",
         "summary": "Create question",
+        "description": "Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block (questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). Metadata fields (role, category, tags, …) are stored flat on the question row.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -718,7 +720,7 @@
       "post": {
         "operationId": "QuestionController_draftQuestion",
         "summary": "Generate AI question draft",
-        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate` (or auto-detected by locale mismatch with seed `primaryLocale` and no rubric seed), always translates `questionText` from source locale to target locale for all non-equal pairs in `en|be|ru|pl` (12 directions). If `mode=generate`, builds a full rubric in target locale. Does not persist anything to the database.",
+        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1). If `mode=generate`, builds the primary locale content block (questionText + rubric) in the target locale; metadata fields on the seed are context only and are not returned. Does not persist anything to the database.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -736,6 +738,67 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DraftQuestionDto"
+              },
+              "examples": {
+                "polishGenerate": {
+                  "summary": "Generate full rubric in Polish",
+                  "value": {
+                    "locale": "pl",
+                    "mode": "generate",
+                    "question": {
+                      "questionText": "Wyjaśnij działanie hooków w React.",
+                      "category": "react"
+                    }
+                  }
+                },
+                "translateRuToPl": {
+                  "summary": "Translate full primary block ru → pl",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "pl",
+                    "question": {
+                      "primaryLocale": "ru",
+                      "questionText": "Объясните замыкания в JavaScript.",
+                      "followUpQuestions": [
+                        "Можете привести простой практический пример?",
+                        "Какую типичную ошибку вы бы избегали?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "цепочка областей видимости",
+                          "weight": 0.34,
+                          "description": "должна быть явно раскрыта"
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "лексическое окружение",
+                          "weight": 0.33,
+                          "description": "объяснить привязку"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практическое применение",
+                          "weight": 0.33,
+                          "description": "привести реальный пример"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Путает область видимости",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Нет примера",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильный ответ объясняет замыкания простыми словами и приводит один пример."
+                    }
+                  }
+                }
               }
             }
           }
@@ -746,7 +809,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
+                  "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
                 }
               }
             }
@@ -877,7 +940,7 @@
             "required": false,
             "in": "query",
             "deprecated": true,
-            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy labels (e.g. English) still match output_language.",
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input).",
             "schema": {
               "type": "string"
             }
@@ -886,7 +949,7 @@
             "name": "locale",
             "required": false,
             "in": "query",
-            "description": "Only questions with a non-empty translation for this locale (translations_json).",
+            "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
             "schema": {
               "enum": [
                 "en",
@@ -1024,7 +1087,7 @@
       "get": {
         "operationId": "QuestionController_findOne",
         "summary": "Get question by id",
-        "description": "Resolved single-locale shape for X-Locale (same as a list item). ?includeTranslations=true adds the full translations map for the editor. Non–super-admin callers receive 404 for soft-deleted questions.",
+        "description": "Nested editor shape: `primaryLocale`, flat metadata, resolved rubric for `X-Locale`, and `translations` map (omit with `?includeTranslations=false`). Legacy rows with only `outputLanguage` and flat columns map to `primaryLocale` and hydrate the primary translation block on read. Non–super-admin callers receive 404 for soft-deleted questions.",
         "parameters": [
           {
             "name": "id",
@@ -1038,7 +1101,7 @@
             "name": "includeTranslations",
             "required": false,
             "in": "query",
-            "description": "When true, include the full translations map. Default false.",
+            "description": "When false, omit the translations map. Default true for GET /questions/:id.",
             "schema": {
               "type": "boolean"
             }
@@ -1104,6 +1167,108 @@
       "put": {
         "operationId": "QuestionController_update",
         "summary": "Update question",
+        "description": "`primaryLocale` is immutable — changing it returns 400. Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "QuestionController_patchUpdate",
+        "summary": "Update question",
+        "description": "`primaryLocale` is immutable — changing it returns 400. Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.",
         "parameters": [
           {
             "name": "id",
@@ -1469,7 +1634,7 @@
             "name": "includeTranslations",
             "required": false,
             "in": "query",
-            "description": "When true, include the full translations map. Default false.",
+            "description": "When false, omit the translations map. Default true for GET /questions/:id.",
             "schema": {
               "type": "boolean"
             }
@@ -1695,7 +1860,7 @@
       "post": {
         "operationId": "AiController_draftQuestion",
         "summary": "Generate draft question with AI",
-        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (always translate seed `questionText` from `primaryLocale` to `locale` for any non-equal locale pair en|be|ru|pl: 12 directions) and `generate` (full rubric in target locale). When `mode` is omitted, locale mismatch with seed `primaryLocale` and no rubric seed triggers translate mode automatically.",
+        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1) and `generate` (primary locale content block only — questionText + rubric fields; seed metadata is context, not returned). When `mode` is omitted, locale mismatch with full primary content triggers translate mode automatically.",
         "deprecated": true,
         "parameters": [
           {
@@ -1736,36 +1901,147 @@
                   }
                 },
                 "translateRuToPl": {
-                  "summary": "Translate questionText ru -> pl",
-                  "description": "Explicit translate mode: always translates from primaryLocale to locale.",
+                  "summary": "Translate full primary block ru → pl",
+                  "description": "Requires complete primary rubric (follow-ups, concepts, red flags, sample answer).",
                   "value": {
                     "mode": "translate",
                     "locale": "pl",
                     "question": {
                       "primaryLocale": "ru",
-                      "questionText": "Объясните замыкания в JavaScript."
+                      "questionText": "Объясните замыкания в JavaScript.",
+                      "followUpQuestions": [
+                        "Можете привести простой практический пример?",
+                        "Какую типичную ошибку вы бы избегали?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "цепочка областей видимости",
+                          "weight": 0.34,
+                          "description": "должна быть явно раскрыта"
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "лексическое окружение",
+                          "weight": 0.33,
+                          "description": "объяснить привязку"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практическое применение",
+                          "weight": 0.33,
+                          "description": "привести реальный пример"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Путает область видимости",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Нет примера",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильный ответ объясняет замыкания простыми словами и приводит один пример."
                     }
                   }
                 },
                 "translateBeToEn": {
-                  "summary": "Translate questionText be -> en",
+                  "summary": "Translate full primary block be → en",
                   "value": {
                     "mode": "translate",
                     "locale": "en",
                     "question": {
                       "primaryLocale": "be",
-                      "questionText": "Растлумачце, як працуе віртуальны DOM у React."
+                      "questionText": "Растлумачце, як працуе віртуальны DOM у React.",
+                      "followUpQuestions": [
+                        "Can you walk through a simple practical example?",
+                        "What common pitfall would you avoid?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "virtual_dom",
+                          "label": "віртуальны DOM",
+                          "weight": 0.34,
+                          "description": "поясняе мадэль"
+                        },
+                        {
+                          "id": "reconciliation",
+                          "label": "рэкансіліяцыя",
+                          "weight": 0.33,
+                          "description": "змяненні і diff"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практыка",
+                          "weight": 0.33,
+                          "description": "рэальны прыклад"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_dom",
+                          "label": "Путае DOM",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Без прыкладу",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильны адказ тлумачыць віртуальны DOM і дае адзін канкрэтны прыклад."
                     }
                   }
                 },
                 "translateEnToRu": {
-                  "summary": "Translate questionText en -> ru",
+                  "summary": "Translate full primary block en → ru",
                   "value": {
                     "mode": "translate",
                     "locale": "ru",
                     "question": {
                       "primaryLocale": "en",
-                      "questionText": "Explain closures in JavaScript."
+                      "questionText": "Explain closures in JavaScript.",
+                      "followUpQuestions": [
+                        "Can you walk through a simple practical example?",
+                        "What common pitfall would you avoid?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "Scope chain",
+                          "weight": 0.34,
+                          "description": "Candidate explains lexical scope."
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "Lexical environment",
+                          "weight": 0.33,
+                          "description": "Binding and nesting."
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "Practical use",
+                          "weight": 0.33,
+                          "description": "Concrete example."
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Confuses scope",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "No example",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "A strong answer explains closures in plain language with one example."
                     }
                   }
                 }
@@ -1779,7 +2055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
+                  "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
                 }
               }
             }
@@ -4078,7 +4354,43 @@
           "severity"
         ]
       },
-      "ResolvedQuestionResponseDto": {
+      "QuestionTranslationDto": {
+        "type": "object",
+        "properties": {
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "description": "Optional for non-primary locales. Required for primaryLocale.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            },
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            },
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          },
+          "sampleGoodAnswer": {
+            "type": "string",
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          }
+        },
+        "required": [
+          "questionText"
+        ]
+      },
+      "QuestionResponseDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -4105,7 +4417,14 @@
           "outputLanguage": {
             "type": "string",
             "deprecated": true,
-            "description": "Legacy display label derived from primaryLocale (e.g. English). Prefer primaryLocale."
+            "description": "Legacy display label derived from primaryLocale. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses."
           },
           "category": {
             "type": "string"
@@ -4175,13 +4494,129 @@
           "usageCount": {
             "type": "number",
             "description": "Number of times this question has been used in an interview."
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata",
+          "createdAt",
+          "updatedAt",
+          "deleted",
+          "usageCount"
+        ]
+      },
+      "ResolvedQuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy display label derived from primaryLocale. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "translations": {
             "type": "object",
             "additionalProperties": {
               "$ref": "#/components/schemas/QuestionTranslationDto"
             },
-            "description": "Present when includeTranslations=true (GET) or on POST/PUT responses."
+            "description": "Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses."
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "usageCount": {
+            "type": "number",
+            "description": "Number of times this question has been used in an interview."
           },
           "resolvedLocale": {
             "type": "string",
@@ -4291,7 +4726,7 @@
           "outputLanguage": {
             "type": "string",
             "deprecated": true,
-            "description": "Deprecated: use primaryLocale. Still accepted for legacy AI draft requests."
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "role": {
             "type": "string"
@@ -4355,7 +4790,7 @@
               "translate",
               "generate"
             ],
-            "description": "Optional explicit mode. `translate` translates `question.questionText` from `question.primaryLocale` to `locale` for any non-equal pair in en|be|ru|pl (4x3 directions). `generate` builds a full draft in `locale`. If omitted, mode is auto-detected: locale mismatch + no rubric seed => translate, otherwise generate.",
+            "description": "Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns the primary locale content block only (questionText + rubric fields). If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.",
             "example": "translate"
           },
           "question": {
@@ -4363,18 +4798,9 @@
           }
         }
       },
-      "QuestionDraftResponseDto": {
+      "QuestionDraftContentResponseDto": {
         "type": "object",
         "properties": {
-          "externalId": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "focus": {
-            "type": "string"
-          },
           "primaryLocale": {
             "type": "string",
             "enum": [
@@ -4382,19 +4808,7 @@
               "be",
               "ru",
               "pl"
-            ],
-            "description": "Locale used for generation (body `locale` or `X-Locale`)."
-          },
-          "outputLanguage": {
-            "type": "string",
-            "deprecated": true,
-            "description": "Deprecated: use primaryLocale."
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
+            ]
           },
           "questionText": {
             "type": "string"
@@ -4417,44 +4831,17 @@
               "$ref": "#/components/schemas/QuestionRedFlagDto"
             }
           },
-          "difficulty": {
-            "type": "string",
-            "enum": [
-              "easy",
-              "medium",
-              "hard"
-            ]
-          },
-          "weight": {
-            "type": "number"
-          },
           "sampleGoodAnswer": {
             "type": "string"
-          },
-          "minimumPassScore": {
-            "type": "number"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
           }
         },
         "required": [
+          "primaryLocale",
           "questionText",
           "followUpQuestions",
           "expectedConcepts",
           "redFlags",
-          "difficulty",
-          "weight",
-          "minimumPassScore",
-          "tags",
-          "metadata"
+          "sampleGoodAnswer"
         ]
       },
       "FacetCountDto": {
@@ -4520,42 +4907,6 @@
           "tags"
         ]
       },
-      "QuestionTranslationDto": {
-        "type": "object",
-        "properties": {
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "description": "Optional for non-primary locales. Required for primaryLocale.",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expectedConcepts": {
-            "description": "Optional for non-primary locales. Required for primaryLocale.",
-            "type": "array",
-            "items": {
-              "type": "array"
-            }
-          },
-          "redFlags": {
-            "description": "Optional for non-primary locales. Required for primaryLocale.",
-            "type": "array",
-            "items": {
-              "type": "array"
-            }
-          },
-          "sampleGoodAnswer": {
-            "type": "string",
-            "description": "Optional for non-primary locales. Required for primaryLocale."
-          }
-        },
-        "required": [
-          "questionText"
-        ]
-      },
       "CreateQuestionDto": {
         "type": "object",
         "properties": {
@@ -4573,7 +4924,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/QuestionTranslationDto"
             },
-            "description": "Locale-keyed translation blocks. primaryLocale entry must be a full block (questionText + followUpQuestions + expectedConcepts + redFlags + sampleGoodAnswer). Other locales require questionText only; rubric fields are optional."
+            "description": "Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. Additional locales require questionText only; rubric fields are optional."
           },
           "externalId": {
             "type": "string"
@@ -4587,10 +4938,11 @@
           "outputLanguage": {
             "type": "string",
             "deprecated": true,
-            "description": "Derived from primaryLocale; ignored when translations are provided."
+            "description": "Ignored when translations are provided. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "Flat question metadata — stored on the question row, not inside translations."
           },
           "subcategory": {
             "type": "string"
@@ -4712,7 +5064,9 @@
               "be",
               "ru",
               "pl"
-            ]
+            ],
+            "deprecated": true,
+            "description": "Ignored on update — primaryLocale is immutable after creation. Update the primary locale block via `translations[primaryLocale]` instead."
           },
           "translationsMode": {
             "type": "string",
@@ -4721,7 +5075,7 @@
               "replace"
             ],
             "default": "merge",
-            "description": "How to apply `translations`: merge (default) upserts each locale key; replace sets the stored map to exactly the provided keys."
+            "description": "How to apply `translations`. Default `merge` upserts each locale key. Set to `replace` to replace the entire stored map (requires `translations`)."
           },
           "translations": {
             "type": "object",
@@ -4742,7 +5096,7 @@
           "outputLanguage": {
             "type": "string",
             "deprecated": true,
-            "description": "Ignored when primaryLocale or translations are set. Use primaryLocale instead."
+            "description": "Ignored when primaryLocale or translations are set. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "category": {
             "type": "string"

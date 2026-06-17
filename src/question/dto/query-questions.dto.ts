@@ -15,6 +15,7 @@ import {
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 export const QUESTION_SORT_FIELDS = [
   'createdAt',
@@ -116,8 +117,7 @@ export class QueryQuestionsDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description:
-      'Deprecated: use primaryLocale (en|be|ru|pl). Legacy labels (e.g. English) still match output_language.',
+    description: OUTPUT_LANGUAGE_OPENAPI_NOTE,
   })
   @IsOptional()
   @Transform(({ value }) => trimToUndefined(value))
@@ -128,7 +128,9 @@ export class QueryQuestionsDto {
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
     description:
-      'Only questions with a non-empty translation for this locale (translations_json).',
+      'Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. ' +
+      'When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). ' +
+      'When omitted, items follow `X-Locale` (default `en`).',
   })
   @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])

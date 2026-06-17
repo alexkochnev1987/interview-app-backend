@@ -25,8 +25,12 @@ import {
 } from './llm/interview-chat-llm';
 import {
   generateQuestionDraftWithNativeLlm,
-  translateQuestionTextWithNativeLlm,
+  QuestionGenerateLlmInput,
 } from './llm/question-draft-llm';
+import {
+  QuestionTranslateFullInput,
+  translateQuestionContentWithNativeLlm,
+} from './llm/question-draft-translate-llm';
 import {
   heuristicExpectedConcepts,
   heuristicFollowUps,
@@ -34,44 +38,17 @@ import {
   heuristicSampleAnswer,
 } from './question-draft-heuristic';
 import { draftRubricMatchesLocale } from './question-draft-rubric-locale';
+import { QuestionDraftContent } from './question-draft-content';
 
 interface ChatMessage {
   role: 'system' | 'assistant' | 'candidate';
   content: string;
 }
 
-interface LlmDraftAttempt {
-  draft?: QuestionDraft;
+interface LlmContentAttempt {
+  content?: QuestionDraftContent;
   localeMismatch: boolean;
 }
-
-const EXPLAIN_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
-  en: /^explain\s+(.+)$/i,
-  be: /^растлумач(?:це)?\s+(.+)$/i,
-  ru: /^объясни(?:те)?\s+(.+)$/i,
-  pl: /^(?:wyjaśnij|objaśnij)\s+(.+)$/i,
-};
-
-const WHAT_IS_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
-  en: /^(?:what is|what's)\s+(.+)$/i,
-  be: /^што такое\s+(.+)$/i,
-  ru: /^что такое\s+(.+)$/i,
-  pl: /^(?:co to jest|czym jest)\s+(.+)$/i,
-};
-
-const HOW_WORKS_PATTERN_BY_LOCALE: Record<Locale, RegExp> = {
-  en: /^how does\s+(.+)$/i,
-  be: /^як працуе\s+(.+)$/i,
-  ru: /^как работает\s+(.+)$/i,
-  pl: /^jak działa\s+(.+)$/i,
-};
-
-const ANY_EXPLAIN_PATTERN =
-  /^(?:explain|растлумач(?:це)?|объясни(?:те)?|wyjaśnij|objaśnij)\s+(.+)$/iu;
-const ANY_WHAT_IS_PATTERN =
-  /^(?:what is|what's|што такое|что такое|co to jest|czym jest)\s+(.+)$/iu;
-const ANY_HOW_WORKS_PATTERN =
-  /^(?:how does|як працуе|как работает|jak działa)\s+(.+)$/iu;
 
 function isAiDebugEnabled(): boolean {
   const v = process.env.AI_DEBUG?.trim().toLowerCase();
@@ -260,12 +237,53 @@ export class AiService {
       headerLocale: Locale;
       mode?: DraftQuestionMode;
     },
-  ): Promise<QuestionDraft> {
+  ): Promise<QuestionDraft | QuestionDraftContent> {
     const draftLocale = resolveDraftLocale(
       localeOptions.bodyLocale,
       localeOptions.headerLocale,
     );
     const aiUrl = process.env.AI_API_URL?.trim();
+    const sourceLocale = this.resolveSourceLocale(input, draftLocale);
+    const mode = this.resolveDraftMode(
+      localeOptions.mode,
+      input,
+      draftLocale,
+      sourceLocale,
+    );
+
+    if (mode === 'translate') {
+      if (!localeOptions.bodyLocale) {
+        throw apiBadRequest(
+          ApiErrorCode.VALIDATION_ERROR,
+          'locale is required for translate mode',
+          { field: 'locale', mode: 'translate' },
+        );
+      }
+      const translateSourceLocale = this.resolveTranslateSourceLocale(input);
+      if (translateSourceLocale === draftLocale) {
+        throw apiBadRequest(
+          ApiErrorCode.VALIDATION_ERROR,
+          'question.primaryLocale and locale must be different in translate mode',
+          {
+            field: 'question.primaryLocale',
+            sourceLocale: translateSourceLocale,
+            targetLocale: draftLocale,
+            mode: 'translate',
+          },
+        );
+      }
+      const primaryContent = this.extractTranslatePrimaryContent(
+        input,
+        translateSourceLocale,
+      );
+      if (isAiDebugEnabled()) {
+        this.logger.log(
+          `question-draft: translate mode (${translateSourceLocale} -> ${draftLocale})`,
+        );
+      }
+      return this.translateQuestionContent(primaryContent, draftLocale, aiUrl);
+    }
+
     const base = this.normalizeDraftRequest(input, draftLocale);
     if (!base.questionText) {
       throw apiBadRequest(
@@ -275,49 +293,20 @@ export class AiService {
       );
     }
 
-    const sourceLocale = this.resolveSourceLocale(input, draftLocale);
-    const mode = this.resolveDraftMode(
-      localeOptions.mode,
-      input,
-      draftLocale,
-      sourceLocale,
-    );
-    if (mode === 'translate') {
-      const sourceQuestionText = this.resolveTranslateSourceQuestionText(input);
-      const translateSourceLocale = this.resolveTranslateSourceLocale(input);
-      const translatedQuestionText = await this.translateQuestionText(
-        sourceQuestionText,
-        translateSourceLocale,
-        draftLocale,
-      );
-      const translatedBase = this.withLocaleFields(
-        { ...base, questionText: translatedQuestionText },
-        base.translations,
-        draftLocale,
-      );
-      if (isAiDebugEnabled()) {
-        this.logger.log(
-          `question-draft: translate mode (${translateSourceLocale} -> ${draftLocale})`,
-        );
-      }
-      return this.buildQuestionDraft(translatedBase, draftLocale);
-    }
-
-    const llmInput = this.stripAnchorFields(base);
+    const llmInput = this.buildGenerateLlmInput(base);
 
     if (aiUrl) {
       const proxyFirst = await this.generateProxyDraft(
         aiUrl,
         llmInput,
-        base,
         draftLocale,
         false,
       );
-      if (proxyFirst.draft && !proxyFirst.localeMismatch) {
+      if (proxyFirst.content && !proxyFirst.localeMismatch) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
         }
-        return proxyFirst.draft;
+        return proxyFirst.content;
       }
 
       if (proxyFirst.localeMismatch) {
@@ -329,15 +318,14 @@ export class AiService {
         const proxyRetry = await this.generateProxyDraft(
           aiUrl,
           llmInput,
-          base,
           draftLocale,
           true,
         );
-        if (proxyRetry.draft && !proxyRetry.localeMismatch) {
+        if (proxyRetry.content && !proxyRetry.localeMismatch) {
           if (isAiDebugEnabled()) {
             this.logger.log(`question-draft: legacy proxy ${aiUrl} (strict retry)`);
           }
-          return proxyRetry.draft;
+          return proxyRetry.content;
         }
       }
       if (isAiDebugEnabled()) {
@@ -356,14 +344,14 @@ export class AiService {
           draftLocale,
           { strictLocale: draftLocale !== 'en' },
         );
-        const firstAttempt = this.acceptLlmDraft(parsed, base, draftLocale);
-        if (firstAttempt.draft && !firstAttempt.localeMismatch) {
+        const firstAttempt = this.acceptGenerateContentDraft(parsed, draftLocale);
+        if (firstAttempt.content && !firstAttempt.localeMismatch) {
           if (isAiDebugEnabled()) {
             this.logger.log(
               `question-draft: model ${native.kind} (${native.model})`,
             );
           }
-          return firstAttempt.draft;
+          return firstAttempt.content;
         }
         if (firstAttempt.localeMismatch) {
           if (isAiDebugEnabled()) {
@@ -377,14 +365,17 @@ export class AiService {
             draftLocale,
             { strictLocale: true },
           );
-          const strictAttempt = this.acceptLlmDraft(strictParsed, base, draftLocale);
-          if (strictAttempt.draft && !strictAttempt.localeMismatch) {
+          const strictAttempt = this.acceptGenerateContentDraft(
+            strictParsed,
+            draftLocale,
+          );
+          if (strictAttempt.content && !strictAttempt.localeMismatch) {
             if (isAiDebugEnabled()) {
               this.logger.log(
                 `question-draft: model ${native.kind} (${native.model}) (strict retry)`,
               );
             }
-            return strictAttempt.draft;
+            return strictAttempt.content;
           }
         }
         if (isAiDebugEnabled()) {
@@ -408,7 +399,12 @@ export class AiService {
     if (isAiDebugEnabled()) {
       this.logger.log('question-draft: heuristic stub (no LLM)');
     }
-    return this.buildQuestionDraft(base, draftLocale);
+    return this.buildQuestionDraftContent(base.questionText, draftLocale, {
+      followUpQuestions: base.followUpQuestions,
+      expectedConcepts: base.expectedConcepts,
+      redFlags: base.redFlags,
+      sampleGoodAnswer: base.sampleGoodAnswer,
+    });
   }
 
   private resolveSourceLocale(
@@ -440,18 +436,74 @@ export class AiService {
     );
   }
 
-  private resolveTranslateSourceQuestionText(input: QuestionDraftInput): string {
-    if (typeof input.questionText === 'string' && input.questionText.trim()) {
-      return input.questionText.trim();
+  private extractTranslatePrimaryContent(
+    input: QuestionDraftInput,
+    sourceLocale: Locale,
+  ): QuestionDraftContent {
+    const block = input.translations?.[sourceLocale];
+    const questionText =
+      (typeof block?.questionText === 'string' ? block.questionText.trim() : '') ||
+      (typeof input.questionText === 'string' ? input.questionText.trim() : '');
+    if (!questionText) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.questionText is required for translate mode',
+        { field: 'question.questionText', mode: 'translate' },
+      );
     }
-    throw apiBadRequest(
-      ApiErrorCode.VALIDATION_ERROR,
-      'question.questionText is required for translate mode',
-      {
-        field: 'question.questionText',
-        mode: 'translate',
-      },
+
+    const followUpQuestions = Array.isArray(block?.followUpQuestions)
+      ? block.followUpQuestions.map((item) => item.trim()).filter(Boolean)
+      : Array.isArray(input.followUpQuestions)
+        ? input.followUpQuestions.map((item) => item.trim()).filter(Boolean)
+        : [];
+    if (followUpQuestions.length < 2) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.followUpQuestions (at least 2) is required for translate mode',
+        { field: 'question.followUpQuestions', mode: 'translate' },
+      );
+    }
+
+    const expectedConcepts = this.normalizeExpectedConcepts(
+      block?.expectedConcepts ?? input.expectedConcepts,
     );
+    if (expectedConcepts.length < 3) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.expectedConcepts (at least 3) is required for translate mode',
+        { field: 'question.expectedConcepts', mode: 'translate' },
+      );
+    }
+
+    const redFlags = this.normalizeRedFlags(block?.redFlags ?? input.redFlags);
+    if (redFlags.length < 2) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.redFlags (at least 2) is required for translate mode',
+        { field: 'question.redFlags', mode: 'translate' },
+      );
+    }
+
+    const sampleGoodAnswer =
+      (typeof block?.sampleGoodAnswer === 'string' ? block.sampleGoodAnswer.trim() : '') ||
+      (typeof input.sampleGoodAnswer === 'string' ? input.sampleGoodAnswer.trim() : '');
+    if (!sampleGoodAnswer) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'question.sampleGoodAnswer is required for translate mode',
+        { field: 'question.sampleGoodAnswer', mode: 'translate' },
+      );
+    }
+
+    return {
+      primaryLocale: sourceLocale,
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
+      sampleGoodAnswer,
+    };
   }
 
   private resolveDraftMode(
@@ -466,70 +518,90 @@ export class AiService {
     if (draftLocale === sourceLocale) {
       return 'generate';
     }
-    return this.hasAnyRubricSeed(input) ? 'generate' : 'translate';
+    return this.hasFullPrimaryContent(input, sourceLocale) ? 'translate' : 'generate';
   }
 
-  private hasAnyRubricSeed(input: QuestionDraftInput): boolean {
-    if (input.followUpQuestions !== undefined) return true;
-    if (input.expectedConcepts !== undefined) return true;
-    if (input.redFlags !== undefined) return true;
-    if (input.sampleGoodAnswer !== undefined) return true;
-    if (!input.translations) return false;
-    return Object.values(input.translations).some((translation) => {
-      if (!translation) return false;
-      return (
-        translation.followUpQuestions !== undefined ||
-        translation.expectedConcepts !== undefined ||
-        translation.redFlags !== undefined ||
-        translation.sampleGoodAnswer !== undefined
-      );
-    });
-  }
-
-  private async translateQuestionText(
-    questionText: string,
+  private hasFullPrimaryContent(
+    input: QuestionDraftInput,
     sourceLocale: Locale,
-    targetLocale: Locale,
-  ): Promise<string> {
-    const source = questionText.trim();
-    if (!source) {
-      return source;
+  ): boolean {
+    const block = input.translations?.[sourceLocale];
+    const questionText =
+      (typeof block?.questionText === 'string' ? block.questionText.trim() : '') ||
+      (typeof input.questionText === 'string' ? input.questionText.trim() : '');
+    if (!questionText) {
+      return false;
     }
-    if (sourceLocale === targetLocale) {
-      throw apiBadRequest(
-        ApiErrorCode.VALIDATION_ERROR,
-        'question.primaryLocale and locale must be different in translate mode',
-        {
-          field: 'question.primaryLocale',
-          sourceLocale,
-          targetLocale,
-          mode: 'translate',
-        },
-      );
+    const followUpQuestions = Array.isArray(block?.followUpQuestions)
+      ? block.followUpQuestions
+      : input.followUpQuestions;
+    if (!Array.isArray(followUpQuestions) || followUpQuestions.filter(Boolean).length < 2) {
+      return false;
     }
+    const expectedConcepts = block?.expectedConcepts ?? input.expectedConcepts;
+    if (!Array.isArray(expectedConcepts) || expectedConcepts.length < 3) {
+      return false;
+    }
+    const redFlags = block?.redFlags ?? input.redFlags;
+    if (!Array.isArray(redFlags) || redFlags.length < 2) {
+      return false;
+    }
+    const sampleGoodAnswer =
+      (typeof block?.sampleGoodAnswer === 'string' ? block.sampleGoodAnswer.trim() : '') ||
+      (typeof input.sampleGoodAnswer === 'string' ? input.sampleGoodAnswer.trim() : '');
+    return Boolean(sampleGoodAnswer);
+  }
 
-    const aiUrl = process.env.AI_API_URL?.trim();
+  private buildTranslateLlmInput(
+    primary: QuestionDraftContent,
+    targetLocale: Locale,
+  ): QuestionTranslateFullInput {
+    return {
+      sourceLocale: primary.primaryLocale,
+      targetLocale,
+      content: {
+        questionText: primary.questionText,
+        followUpQuestions: primary.followUpQuestions,
+        expectedConcepts: primary.expectedConcepts,
+        redFlags: primary.redFlags,
+        sampleGoodAnswer: primary.sampleGoodAnswer,
+      },
+    };
+  }
+
+  private async translateQuestionContent(
+    primary: QuestionDraftContent,
+    targetLocale: Locale,
+    aiUrl?: string,
+  ): Promise<QuestionDraftContent> {
+    const llmInput = this.buildTranslateLlmInput(primary, targetLocale);
     const native = resolveNativeProvider();
     const hasAiProvider = Boolean(aiUrl || native);
     let lastAiError: string | undefined;
 
     if (aiUrl) {
       try {
-        const res = await fetch(`${aiUrl}/interview`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'question-translate',
-            sourceLocale,
+        const proxyFirst = await this.translateProxyContent(
+          aiUrl,
+          primary,
+          targetLocale,
+          false,
+        );
+        if (proxyFirst.content && !proxyFirst.localeMismatch) {
+          if (isAiDebugEnabled()) {
+            this.logger.log(`question-draft: legacy proxy translate ${aiUrl}`);
+          }
+          return proxyFirst.content;
+        }
+        if (proxyFirst.localeMismatch) {
+          const proxyRetry = await this.translateProxyContent(
+            aiUrl,
+            primary,
             targetLocale,
-            questionText: source,
-          }),
-        });
-        const data = (await res.json()) as { questionText?: unknown };
-        if (typeof data.questionText === 'string' && data.questionText.trim()) {
-          const candidate = data.questionText.trim();
-          if (!this.isSameText(candidate, source)) {
-            return candidate;
+            true,
+          );
+          if (proxyRetry.content && !proxyRetry.localeMismatch) {
+            return proxyRetry.content;
           }
         }
       } catch (error) {
@@ -539,23 +611,39 @@ export class AiService {
 
     if (native) {
       try {
-        const translated = await translateQuestionTextWithNativeLlm(
-          native,
-          source,
-          sourceLocale,
+        const parsed = await translateQuestionContentWithNativeLlm(native, llmInput);
+        const firstAttempt = this.acceptTranslateContentDraft(
+          parsed,
+          primary,
           targetLocale,
         );
-        if (translated.trim()) {
-          const candidate = translated.trim();
-          if (!this.isSameText(candidate, source)) {
-            return candidate;
+        if (firstAttempt.content && !firstAttempt.localeMismatch) {
+          if (isAiDebugEnabled()) {
+            this.logger.log(
+              `question-draft: translate model ${native.kind} (${native.model})`,
+            );
+          }
+          return firstAttempt.content;
+        }
+        if (firstAttempt.localeMismatch) {
+          const strictParsed = await translateQuestionContentWithNativeLlm(
+            native,
+            llmInput,
+          );
+          const strictAttempt = this.acceptTranslateContentDraft(
+            strictParsed,
+            primary,
+            targetLocale,
+          );
+          if (strictAttempt.content && !strictAttempt.localeMismatch) {
+            return strictAttempt.content;
           }
         }
       } catch (error) {
         lastAiError = this.formatAiError(error);
         if (isAiDebugEnabled()) {
           this.logger.warn(
-            `question-draft: translate native LLM failed (${sourceLocale} -> ${targetLocale}): ${lastAiError}`,
+            `question-draft: translate native LLM failed (${primary.primaryLocale} -> ${targetLocale}): ${lastAiError}`,
           );
         }
       }
@@ -566,120 +654,125 @@ export class AiService {
         ApiErrorCode.SERVICE_UNAVAILABLE,
         'Question translation failed. The AI provider did not return a usable translation.',
         {
-          sourceLocale,
+          sourceLocale: primary.primaryLocale,
           targetLocale,
           ...(lastAiError ? { cause: lastAiError } : {}),
         },
       );
     }
 
-    const heuristic = this.heuristicTranslateQuestionText(
-      source,
-      sourceLocale,
-      targetLocale,
-    );
-    if (!this.isSameText(heuristic, source)) {
-      return heuristic;
-    }
-
     throw apiServiceUnavailable(
       ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
-      'Question translation requires an AI provider or a supported template question.',
-      { sourceLocale, targetLocale },
+      'Question translation requires an AI provider.',
+      { sourceLocale: primary.primaryLocale, targetLocale },
     );
   }
 
-  private heuristicTranslateQuestionText(
-    source: string,
-    sourceLocale: Locale,
+  private async translateProxyContent(
+    aiUrl: string,
+    primary: QuestionDraftContent,
     targetLocale: Locale,
-  ): string {
-    const normalized = source.trim().replace(/[.?!]+$/, '').trim();
-
-    const fromSourceLocale = this.matchQuestionPatternShell(
-      normalized,
-      EXPLAIN_PATTERN_BY_LOCALE[sourceLocale],
-      WHAT_IS_PATTERN_BY_LOCALE[sourceLocale],
-      HOW_WORKS_PATTERN_BY_LOCALE[sourceLocale],
-      targetLocale,
-    );
-    if (fromSourceLocale && !this.isSameText(fromSourceLocale, source)) {
-      return fromSourceLocale;
-    }
-
-    const fromAnyLocale = this.matchQuestionPatternShell(
-      normalized,
-      ANY_EXPLAIN_PATTERN,
-      ANY_WHAT_IS_PATTERN,
-      ANY_HOW_WORKS_PATTERN,
-      targetLocale,
-    );
-    if (fromAnyLocale && !this.isSameText(fromAnyLocale, source)) {
-      return fromAnyLocale;
-    }
-
-    return normalized;
+    strictLocaleRetry: boolean,
+  ): Promise<LlmContentAttempt> {
+    const res = await fetch(`${aiUrl}/interview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'question-draft',
+        mode: 'translate',
+        locale: targetLocale,
+        sourceLocale: primary.primaryLocale,
+        strictLocaleRetry,
+        question: {
+          questionText: primary.questionText,
+          followUpQuestions: primary.followUpQuestions,
+          expectedConcepts: primary.expectedConcepts,
+          redFlags: primary.redFlags,
+          sampleGoodAnswer: primary.sampleGoodAnswer,
+        },
+      }),
+    });
+    const data = await this.readLegacyProxyJson(res, 'question-draft translate');
+    return this.acceptTranslateContentDraft(data, primary, targetLocale);
   }
 
-  private matchQuestionPatternShell(
-    normalized: string,
-    explainPattern: RegExp | undefined,
-    whatIsPattern: RegExp | undefined,
-    howWorksPattern: RegExp | undefined,
+  private acceptTranslateContentDraft(
+    payload: unknown,
+    primary: QuestionDraftContent,
     targetLocale: Locale,
-  ): string | undefined {
-    const explainMatch = explainPattern?.exec(normalized);
-    if (explainMatch) {
-      return this.renderExplainSentence(explainMatch[1].trim(), targetLocale);
+  ): LlmContentAttempt {
+    if (!this.llmGenerateHasContent(payload)) {
+      return { content: undefined, localeMismatch: false };
     }
-    const whatIsMatch = whatIsPattern?.exec(normalized);
-    if (whatIsMatch) {
-      return this.renderWhatIsSentence(whatIsMatch[1].trim(), targetLocale);
+    const normalized = this.normalizeGenerateContent(payload, targetLocale);
+    if (!normalized) {
+      return { content: undefined, localeMismatch: false };
     }
-    const howWorksMatch = howWorksPattern?.exec(normalized);
-    if (howWorksMatch) {
-      return this.renderHowWorksSentence(howWorksMatch[1].trim(), targetLocale);
+    const withIds = this.enforceTranslateIdParity(primary, normalized, targetLocale);
+    if (!withIds) {
+      return { content: undefined, localeMismatch: false };
     }
-    return undefined;
+    if (
+      this.isSameText(withIds.questionText, primary.questionText) &&
+      draftRubricMatchesLocale(withIds, primary.primaryLocale)
+    ) {
+      return { content: undefined, localeMismatch: false };
+    }
+    return {
+      content: withIds,
+      localeMismatch: !draftRubricMatchesLocale(withIds, targetLocale),
+    };
   }
 
-  private renderExplainSentence(subject: string, targetLocale: Locale): string {
-    switch (targetLocale) {
-      case 'ru':
-        return `Объясните ${subject}.`;
-      case 'be':
-        return `Растлумачце ${subject}.`;
-      case 'pl':
-        return `Wyjaśnij ${subject}.`;
-      default:
-        return `Explain ${subject}.`;
+  private enforceTranslateIdParity(
+    primary: QuestionDraftContent,
+    translated: QuestionDraftContent,
+    targetLocale: Locale,
+  ): QuestionDraftContent | undefined {
+    if (
+      translated.followUpQuestions.length !== primary.followUpQuestions.length ||
+      translated.expectedConcepts.length !== primary.expectedConcepts.length ||
+      translated.redFlags.length !== primary.redFlags.length
+    ) {
+      return undefined;
     }
-  }
 
-  private renderWhatIsSentence(subject: string, targetLocale: Locale): string {
-    switch (targetLocale) {
-      case 'ru':
-        return `Что такое ${subject}?`;
-      case 'be':
-        return `Што такое ${subject}?`;
-      case 'pl':
-        return `Co to jest ${subject}?`;
-      default:
-        return `What is ${subject}?`;
+    for (let index = 0; index < primary.expectedConcepts.length; index += 1) {
+      const llmId = translated.expectedConcepts[index]?.id?.trim();
+      if (llmId && llmId !== primary.expectedConcepts[index].id) {
+        return undefined;
+      }
     }
-  }
+    for (let index = 0; index < primary.redFlags.length; index += 1) {
+      const llmId = translated.redFlags[index]?.id?.trim();
+      if (llmId && llmId !== primary.redFlags[index].id) {
+        return undefined;
+      }
+    }
 
-  private renderHowWorksSentence(subject: string, targetLocale: Locale): string {
-    switch (targetLocale) {
-      case 'ru':
-        return `Как работает ${subject}?`;
-      case 'be':
-        return `Як працуе ${subject}?`;
-      case 'pl':
-        return `Jak działa ${subject}?`;
-      default:
-        return `How does ${subject} work?`;
-    }
+    return {
+      primaryLocale: targetLocale,
+      questionText: translated.questionText,
+      followUpQuestions: translated.followUpQuestions,
+      expectedConcepts: translated.expectedConcepts.map((concept, index) => {
+        const source = primary.expectedConcepts[index];
+        return {
+          id: source.id,
+          label: concept.label,
+          weight: source.weight,
+          description: concept.description,
+        };
+      }),
+      redFlags: translated.redFlags.map((flag, index) => {
+        const source = primary.redFlags[index];
+        return {
+          id: source.id,
+          label: flag.label,
+          severity: source.severity,
+        };
+      }),
+      sampleGoodAnswer: translated.sampleGoodAnswer,
+    };
   }
 
   private isSameText(left: string, right: string): boolean {
@@ -696,60 +789,57 @@ export class AiService {
     return err instanceof Error ? err.message : String(err);
   }
 
-  private acceptLlmDraft(
+  private async readLegacyProxyJson(res: Response, action: string): Promise<unknown> {
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(
+        `Legacy AI proxy ${action} failed: HTTP ${res.status}${
+          detail ? ` — ${detail.slice(0, 200)}` : ''
+        }`,
+      );
+    }
+    return res.json() as Promise<unknown>;
+  }
+
+  private acceptGenerateContentDraft(
     payload: unknown,
-    base: QuestionDraft,
     draftLocale: Locale,
-  ): LlmDraftAttempt {
-    if (!this.llmDraftHasContent(payload)) {
-      return { draft: undefined, localeMismatch: false };
+  ): LlmContentAttempt {
+    if (!this.llmGenerateHasContent(payload)) {
+      return { content: undefined, localeMismatch: false };
     }
-    const normalized = this.normalizeRemoteDraft(payload, base, draftLocale);
+    const normalized = this.normalizeGenerateContent(payload, draftLocale);
     if (!normalized) {
-      return { draft: undefined, localeMismatch: false };
-    }
-    if (
-      normalized.followUpQuestions.length < 2 ||
-      normalized.expectedConcepts.length < 3 ||
-      normalized.redFlags.length < 2 ||
-      (normalized.tags?.length ?? 0) < 3 ||
-      !normalized.sampleGoodAnswer ||
-      !normalized.sampleGoodAnswer.trim()
-    ) {
-      return { draft: undefined, localeMismatch: false };
+      return { content: undefined, localeMismatch: false };
     }
     return {
-      draft: normalized,
-      localeMismatch: this.hasLocaleMismatch(normalized, draftLocale),
+      content: normalized,
+      localeMismatch: !draftRubricMatchesLocale(normalized, draftLocale),
     };
   }
 
   private async generateProxyDraft(
     aiUrl: string,
-    llmInput: Partial<QuestionDraft>,
-    base: QuestionDraft,
+    llmInput: QuestionGenerateLlmInput,
     draftLocale: Locale,
     strictLocaleRetry: boolean,
-  ): Promise<LlmDraftAttempt> {
+  ): Promise<LlmContentAttempt> {
     const res = await fetch(`${aiUrl}/interview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'question-draft',
+        mode: 'generate',
         locale: draftLocale,
         strictLocaleRetry,
         question: llmInput,
       }),
     });
-    const data = await res.json();
-    return this.acceptLlmDraft(data, base, draftLocale);
+    const data = await this.readLegacyProxyJson(res, 'question-draft generate');
+    return this.acceptGenerateContentDraft(data, draftLocale);
   }
 
-  private hasLocaleMismatch(draft: QuestionDraft, locale: Locale): boolean {
-    return !draftRubricMatchesLocale(draft, locale);
-  }
-
-  private llmDraftHasContent(payload: unknown): boolean {
+  private llmGenerateHasContent(payload: unknown): boolean {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return false;
     }
@@ -763,27 +853,153 @@ export class AiService {
       return typeof value === 'string' && value.trim().length > 0;
     };
     return (
+      hasString('questionText', 'question_text') &&
       hasArray('followUpQuestions', 'follow_up_questions') &&
       hasArray('expectedConcepts', 'expected_concepts') &&
       hasArray('redFlags', 'red_flags') &&
-      Array.isArray(record.tags) &&
-      (record.tags as unknown[]).length > 0 &&
       hasString('sampleGoodAnswer', 'sample_good_answer')
     );
   }
 
-  private stripAnchorFields(base: QuestionDraft): Partial<QuestionDraft> {
-    const llmInput: Partial<QuestionDraft> = {
-      questionText: base.questionText,
+  private buildGenerateLlmInput(base: QuestionDraft): QuestionGenerateLlmInput {
+    const metadata: Record<string, unknown> = {
+      ...(base.metadata ?? {}),
     };
-    if (
-      base.metadata &&
-      typeof base.metadata === 'object' &&
-      Object.keys(base.metadata).length > 0
-    ) {
-      llmInput.metadata = base.metadata;
+    if (base.category) {
+      metadata.category = base.category;
     }
-    return llmInput;
+    if (base.subcategory) {
+      metadata.subcategory = base.subcategory;
+    }
+    if (base.role) {
+      metadata.role = base.role;
+    }
+    if (base.focus) {
+      metadata.focus = base.focus;
+    }
+    if (base.tags?.length) {
+      metadata.tags = base.tags;
+    }
+    if (base.difficulty) {
+      metadata.difficulty = base.difficulty;
+    }
+    if (base.weight) {
+      metadata.weight = base.weight;
+    }
+    if (base.minimumPassScore) {
+      metadata.minimumPassScore = base.minimumPassScore;
+    }
+    if (base.externalId) {
+      metadata.externalId = base.externalId;
+    }
+
+    return {
+      questionText: base.questionText,
+      ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+    };
+  }
+
+  private normalizeGenerateContent(
+    payload: unknown,
+    draftLocale: Locale,
+  ): QuestionDraftContent | undefined {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+
+    const record = payload as Record<string, unknown>;
+    const questionText =
+      typeof record.question_text === 'string' && record.question_text.trim()
+        ? record.question_text.trim()
+        : typeof record.questionText === 'string' && record.questionText.trim()
+          ? record.questionText.trim()
+          : '';
+    const followUpQuestions = Array.isArray(record.follow_up_questions)
+      ? (record.follow_up_questions as string[]).map((item) => item.trim()).filter(Boolean)
+      : Array.isArray(record.followUpQuestions)
+        ? (record.followUpQuestions as string[]).map((item) => item.trim()).filter(Boolean)
+        : [];
+    const expectedConcepts = this.normalizeExpectedConcepts(
+      Array.isArray(record.expected_concepts)
+        ? (record.expected_concepts as Array<string | Partial<QuestionExpectedConcept>>)
+        : Array.isArray(record.expectedConcepts)
+          ? (record.expectedConcepts as Array<string | Partial<QuestionExpectedConcept>>)
+          : [],
+    );
+    const redFlags = this.normalizeRedFlags(
+      Array.isArray(record.red_flags)
+        ? (record.red_flags as Array<string | Partial<QuestionRedFlag>>)
+        : Array.isArray(record.redFlags)
+          ? (record.redFlags as Array<string | Partial<QuestionRedFlag>>)
+          : [],
+    );
+    const sampleGoodAnswer =
+      typeof record.sample_good_answer === 'string'
+        ? record.sample_good_answer.trim()
+        : typeof record.sampleGoodAnswer === 'string'
+          ? record.sampleGoodAnswer.trim()
+          : '';
+
+    if (
+      !questionText ||
+      followUpQuestions.length < 2 ||
+      expectedConcepts.length < 3 ||
+      redFlags.length < 2 ||
+      !sampleGoodAnswer
+    ) {
+      return undefined;
+    }
+
+    return this.buildQuestionDraftContent(questionText, draftLocale, {
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
+      sampleGoodAnswer,
+    });
+  }
+
+  private buildQuestionDraftContent(
+    questionText: string,
+    draftLocale: Locale,
+    partial: {
+      followUpQuestions?: string[];
+      expectedConcepts?: QuestionExpectedConcept[];
+      redFlags?: QuestionRedFlag[];
+      sampleGoodAnswer?: string;
+    } = {},
+  ): QuestionDraftContent {
+    const source = questionText.toLowerCase();
+    const category = this.pickCategory(source);
+    const difficulty = this.pickDifficulty(source, 'medium');
+    const followUpQuestions =
+      partial.followUpQuestions && partial.followUpQuestions.length > 0
+        ? partial.followUpQuestions
+        : heuristicFollowUps(draftLocale, questionText, category);
+    const expectedConcepts =
+      partial.expectedConcepts && partial.expectedConcepts.length > 0
+        ? partial.expectedConcepts
+        : heuristicExpectedConcepts(
+            draftLocale,
+            category,
+            difficulty,
+            (value) => this.slugify(value),
+          );
+    const redFlags =
+      partial.redFlags && partial.redFlags.length > 0
+        ? partial.redFlags
+        : heuristicRedFlags(draftLocale, category, (value) => this.slugify(value));
+    const sampleGoodAnswer =
+      partial.sampleGoodAnswer?.trim() ||
+      heuristicSampleAnswer(draftLocale, category, questionText);
+
+    return {
+      primaryLocale: draftLocale,
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
+      sampleGoodAnswer,
+    };
   }
 
   private normalizeDraftRequest(
@@ -851,96 +1067,6 @@ export class AiService {
     }, input.translations, draftLocale);
   }
 
-  private normalizeRemoteDraft(
-    payload: unknown,
-    base: QuestionDraft,
-    draftLocale: Locale,
-  ): QuestionDraft | undefined {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      return undefined;
-    }
-
-    const record = payload as Record<string, unknown>;
-    const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
-    const questionText =
-      typeof record.question_text === 'string'
-        ? record.question_text
-        : typeof record.questionText === 'string'
-          ? record.questionText
-          : base.questionText;
-    const followUpQuestions = Array.isArray(record.follow_up_questions)
-      ? (record.follow_up_questions as string[]).map((item) => item.trim()).filter(Boolean)
-      : Array.isArray(record.followUpQuestions)
-        ? (record.followUpQuestions as string[]).map((item) => item.trim()).filter(Boolean)
-        : base.followUpQuestions;
-    const expectedConcepts = this.normalizeExpectedConcepts(
-      Array.isArray(record.expected_concepts)
-        ? (record.expected_concepts as Array<string | Partial<QuestionExpectedConcept>>)
-        : Array.isArray(record.expectedConcepts)
-          ? (record.expectedConcepts as Array<string | Partial<QuestionExpectedConcept>>)
-          : base.expectedConcepts,
-    );
-    const redFlags = this.normalizeRedFlags(
-      Array.isArray(record.red_flags)
-        ? (record.red_flags as Array<string | Partial<QuestionRedFlag>>)
-        : Array.isArray(record.redFlags)
-          ? (record.redFlags as Array<string | Partial<QuestionRedFlag>>)
-          : base.redFlags,
-    );
-    const sampleGoodAnswer =
-      typeof record.sample_good_answer === 'string'
-        ? record.sample_good_answer
-        : typeof record.sampleGoodAnswer === 'string'
-          ? record.sampleGoodAnswer
-          : base.sampleGoodAnswer;
-
-    return this.withLocaleFields({
-      externalId:
-        typeof record.external_id === 'string'
-          ? record.external_id
-          : typeof record.externalId === 'string'
-            ? record.externalId
-            : base.externalId,
-      role:
-        typeof record.role === 'string'
-          ? record.role
-          : base.role,
-      focus:
-        typeof record.focus === 'string'
-          ? record.focus
-          : base.focus,
-      outputLanguage,
-      category:
-        typeof record.category === 'string'
-          ? record.category
-          : base.category,
-      subcategory:
-        typeof record.subcategory === 'string'
-          ? record.subcategory
-          : base.subcategory,
-      questionText,
-      followUpQuestions,
-      expectedConcepts,
-      redFlags,
-      difficulty: this.normalizeDifficulty(
-        record.difficulty as QuestionDifficulty,
-        base.difficulty,
-      ),
-      weight: this.normalizeWeight(record.weight, base.weight),
-      sampleGoodAnswer,
-      minimumPassScore: this.normalizeMinimumPassScore(
-        record.minimum_pass_score ?? record.minimumPassScore ?? base.minimumPassScore,
-      ),
-      tags: Array.isArray(record.tags)
-        ? (record.tags as string[]).map((item) => item.trim()).filter(Boolean)
-        : base.tags,
-      metadata:
-        record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
-          ? (record.metadata as Record<string, unknown>)
-          : base.metadata,
-    }, base.translations, draftLocale);
-  }
-
   private withLocaleFields(
     draft: Omit<QuestionDraft, 'primaryLocale' | 'translations'>,
     existingTranslations?: QuestionDraft['translations'],
@@ -966,108 +1092,6 @@ export class AiService {
       translations,
       outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
     };
-  }
-
-  private buildQuestionDraft(base: QuestionDraft, draftLocale: Locale): QuestionDraft {
-    const source = [
-      base.questionText,
-      base.role,
-      base.focus,
-      base.category,
-      base.subcategory,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-
-    const category = base.category ?? this.pickCategory(source);
-    const subcategory = base.subcategory ?? this.pickSubcategory(source, category);
-    const difficulty = this.pickDifficulty(source, base.difficulty);
-    const expectedConcepts =
-      base.expectedConcepts.length > 0
-        ? base.expectedConcepts
-        : heuristicExpectedConcepts(
-            draftLocale,
-            category,
-            difficulty,
-            (value) => this.slugify(value),
-          );
-    const redFlags =
-      base.redFlags.length > 0
-        ? base.redFlags
-        : heuristicRedFlags(draftLocale, category, (value) => this.slugify(value));
-    const followUpQuestions =
-      base.followUpQuestions.length > 0
-        ? base.followUpQuestions
-        : heuristicFollowUps(draftLocale, base.questionText, category);
-    const tags = Array.from(
-      new Set([
-        ...(base.tags ?? []),
-        category,
-        subcategory,
-        ...(base.role ? [this.slugify(base.role)] : []),
-        ...(base.focus ? base.focus.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean) : []),
-      ].filter(Boolean)),
-    );
-
-    const role = base.role ?? 'frontend intern';
-    const focus = base.focus ?? this.pickFocus(source, category);
-    const externalId =
-      base.externalId ??
-      this.buildExternalId(category, subcategory, base.questionText);
-
-    return this.withLocaleFields(
-      {
-        ...base,
-        externalId,
-        role,
-        focus,
-        category,
-        subcategory,
-        difficulty,
-        outputLanguage: primaryLocaleToOutputLanguage(draftLocale),
-        weight: Math.max(base.weight, difficulty === 'hard' ? 3 : difficulty === 'medium' ? 2 : 1),
-        followUpQuestions,
-        expectedConcepts,
-        redFlags,
-        sampleGoodAnswer:
-          base.sampleGoodAnswer ??
-          heuristicSampleAnswer(draftLocale, category, base.questionText),
-        minimumPassScore:
-          base.minimumPassScore > 0
-            ? base.minimumPassScore
-            : difficulty === 'hard'
-              ? 3.5
-              : difficulty === 'medium'
-                ? 3
-                : 2.5,
-        tags,
-      },
-      base.translations,
-      draftLocale,
-    );
-  }
-
-  private pickFocus(source: string, category: string): string {
-    if (/system design|architecture|scalab/.test(source)) return 'system design';
-    if (/algorithm|complexity|data structure/.test(source)) return 'algorithms';
-    if (/performance|optimi[sz]/.test(source)) return 'performance';
-    if (/testing|test\s/.test(source)) return 'testing';
-    if (category === 'soft_skills' || category === 'processes') return 'collaboration';
-    return 'fundamentals';
-  }
-
-  private buildExternalId(
-    category: string,
-    subcategory: string,
-    questionText: string,
-  ): string {
-    const hint = this.slugify(questionText).split('_').slice(0, 3).join('_');
-    const base = [category, subcategory, hint]
-      .map((part) => this.slugify(part))
-      .filter(Boolean)
-      .join('_');
-    return base ? base.slice(0, 60) : `question_${Date.now()}`;
   }
 
   private pickCategory(source: string): string {

@@ -61,12 +61,12 @@ describe('resolveTakeLocale', () => {
     interviewLocale: 'pl',
   } as Interview;
 
-  it('uses X-Locale header when present', () => {
+  it('uses interviewLocale and ignores X-Locale header', () => {
     const locale = resolveTakeLocale(
       { headers: { 'x-locale': 'ru' } } as unknown as Request,
       interview,
     );
-    expect(locale).toBe('ru');
+    expect(locale).toBe('pl');
   });
 
   it('uses interviewLocale when header omitted', () => {

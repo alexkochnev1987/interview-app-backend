@@ -8,6 +8,7 @@ import { RegisterThrottlerGuard } from '../../src/auth/guards/register-throttler
 import { DatabaseService } from '../../src/database/database.service';
 import { QuestionService } from '../../src/question/question.service';
 import { UserService } from '../../src/user/user.service';
+import { buildCreateQuestionPayload } from './create-question-payload';
 import { truncateIntegrationTables } from './integration-db';
 
 export type IntegrationAgent = ReturnType<typeof supertest.agent>;
@@ -114,12 +115,12 @@ export async function seedIntegrationFixtures(
     ...INTEGRATION_USERS.hr,
   });
 
-  const seedQuestion = await questionService.create({
-    questionText: 'Describe how you would debug a production API outage.',
-    difficulty: 'medium',
-    weight: 1,
-    tags: ['integration-seed'],
-  });
+  const seedQuestion = await questionService.create(
+    buildCreateQuestionPayload(
+      'Describe how you would debug a production API outage.',
+      { tags: ['integration-seed'] },
+    ),
+  );
 
   return {
     superAdmin: {

@@ -31,9 +31,10 @@ export class QuestionTranslationsMapConstraint implements ValidatorConstraintInt
 
   defaultMessage(): string {
     return (
-      `translations must include a complete block for primaryLocale. ` +
-      `Each locale key (${supportedLocaleListHint()}) must include ` +
-      `questionText; for primaryLocale also followUpQuestions, expectedConcepts, redFlags, and sampleGoodAnswer are required.`
+      `translations[primaryLocale] must include all five rubric fields: ` +
+      `questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. ` +
+      `Locale keys must be one of: ${supportedLocaleListHint()}. ` +
+      `Non-primary locales require questionText only.`
     );
   }
 }
@@ -66,9 +67,10 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
 
   defaultMessage(args: ValidationArguments): string {
     const dto = args.object as UpdateQuestionDto;
-    if (dto.translationsMode === 'replace' && dto.primaryLocale) {
+    if (dto.translationsMode === 'replace') {
       return (
-        `translations replace mode requires a complete block for primaryLocale (${dto.primaryLocale}). ` +
+        `translations replace mode requires a complete primaryLocale block in translations ` +
+        `(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). ` +
         `Non-primary locales must provide at least questionText.`
       );
     }

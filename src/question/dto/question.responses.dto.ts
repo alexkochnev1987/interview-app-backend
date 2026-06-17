@@ -1,34 +1,20 @@
-import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionTranslations } from '../interfaces/question.interface';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 import { QuestionTranslationDto } from './question-translation.dto';
+import {
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question-rubric.dto';
 
-export class QuestionExpectedConceptDto {
-  @ApiProperty()
-  id: string;
+export {
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question-rubric.dto';
 
-  @ApiProperty()
-  label: string;
-
-  @ApiProperty()
-  weight: number;
-
-  @ApiProperty()
-  description: string;
-}
-
-export class QuestionRedFlagDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  label: string;
-
-  @ApiProperty({ enum: ['low', 'medium', 'high'] })
-  severity: 'low' | 'medium' | 'high';
-}
-
+@ApiExtraModels(QuestionTranslationDto)
 export class QuestionResponseDto {
   @ApiProperty()
   id: string;
@@ -47,9 +33,18 @@ export class QuestionResponseDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Legacy display label derived from primaryLocale (e.g. English). Prefer primaryLocale.',
+    description: `Legacy display label derived from primaryLocale. ${OUTPUT_LANGUAGE_OPENAPI_NOTE}`,
   })
   outputLanguage?: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    description:
+      'Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). ' +
+      'Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses.',
+  })
+  translations?: QuestionTranslations;
 
   @ApiPropertyOptional()
   category?: string;
@@ -104,14 +99,6 @@ export class ResolvedQuestionResponseDto extends QuestionResponseDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   declare primaryLocale: Locale;
 
-  @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
-    description:
-      'Present when includeTranslations=true (GET) or on POST/PUT responses.',
-  })
-  translations?: QuestionTranslations;
-
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   resolvedLocale: Locale;
 
@@ -139,6 +126,26 @@ export class PaginatedQuestionsResponseDto {
   limit: number;
 }
 
+export class QuestionDraftContentResponseDto {
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  primaryLocale: Locale;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({ type: [QuestionExpectedConceptDto] })
+  expectedConcepts: QuestionExpectedConceptDto[];
+
+  @ApiProperty({ type: [QuestionRedFlagDto] })
+  redFlags: QuestionRedFlagDto[];
+
+  @ApiProperty()
+  sampleGoodAnswer: string;
+}
+
 export class QuestionDraftResponseDto {
   @ApiPropertyOptional()
   externalId?: string;
@@ -157,7 +164,7 @@ export class QuestionDraftResponseDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Deprecated: use primaryLocale.',
+    description: OUTPUT_LANGUAGE_OPENAPI_NOTE,
   })
   outputLanguage?: string;
 

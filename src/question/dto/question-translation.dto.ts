@@ -1,4 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -10,8 +15,9 @@ import {
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
-} from './question.responses.dto';
+} from './question-rubric.dto';
 
+@ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto)
 export class QuestionTranslationDto {
   @ApiProperty()
   @IsString()
@@ -28,7 +34,8 @@ export class QuestionTranslationDto {
   followUpQuestions?: string[];
 
   @ApiPropertyOptional({
-    type: [QuestionExpectedConceptDto],
+    type: 'array',
+    items: { $ref: getSchemaPath(QuestionExpectedConceptDto) },
     description: 'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()
@@ -38,7 +45,8 @@ export class QuestionTranslationDto {
   expectedConcepts?: QuestionExpectedConceptDto[];
 
   @ApiPropertyOptional({
-    type: [QuestionRedFlagDto],
+    type: 'array',
+    items: { $ref: getSchemaPath(QuestionRedFlagDto) },
     description: 'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()

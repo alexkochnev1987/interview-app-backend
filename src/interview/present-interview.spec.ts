@@ -2,7 +2,7 @@ import { presentInterview } from './present-interview';
 import { Interview } from './interfaces/interview.interface';
 
 describe('presentInterview', () => {
-  it('sets questionsDisplayLocale and resolves question text', () => {
+  it('resolves questions in interviewLocale (not X-Locale)', () => {
     const interview: Interview = {
       id: 'i1',
       candidateName: 'Test',
@@ -44,11 +44,11 @@ describe('presentInterview', () => {
       updatedAt: new Date(),
     };
 
-    const presented = presentInterview(interview, 'pl');
+    const presented = presentInterview(interview);
 
-    expect(presented.questionsDisplayLocale).toBe('pl');
+    expect(presented.questionsDisplayLocale).toBe('en');
     expect(presented.interviewLocale).toBe('en');
-    expect(presented.questions[0]?.questionText).toBe('Polski');
-    expect(presented.questions[0]?.resolvedLocale).toBe('pl');
+    expect(presented.questions[0]?.questionText).toBe('English');
+    expect(presented.questions[0]?.resolvedLocale).toBe('en');
   });
 });

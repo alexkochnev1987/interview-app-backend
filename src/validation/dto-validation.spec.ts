@@ -12,12 +12,12 @@ async function validateDto<T extends object>(
 }
 
 describe('DTO validation', () => {
-  it('rejects CreateQuestionDto without questionText', async () => {
+  it('rejects CreateQuestionDto without primary translations block', async () => {
     const errors = await validateDto(CreateQuestionDto, {
       difficulty: 'medium',
       weight: 1,
     });
-    expect(errors.some((error) => error.property === 'questionText')).toBe(
+    expect(errors.some((error) => error.property === 'translations')).toBe(
       true,
     );
   });

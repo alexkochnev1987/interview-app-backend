@@ -3,12 +3,13 @@ import { Locale } from '../../../locale/locale.constants';
 import { CreateQuestionDto } from '../create-question.dto';
 import { UpdateQuestionDto } from '../update-question.dto';
 
-function validBlock(questionText: string) {
+function validPrimaryBlock(questionText: string) {
   return {
     questionText,
     followUpQuestions: [],
     expectedConcepts: [],
     redFlags: [],
+    sampleGoodAnswer: 'Sample answer.',
   };
 }
 
@@ -17,8 +18,8 @@ describe('QuestionTranslationsMapConstraint', () => {
     const dto = new CreateQuestionDto();
     dto.primaryLocale = 'en';
     dto.translations = {
-      en: validBlock('English'),
-      ru: validBlock('Russian'),
+      en: validPrimaryBlock('English'),
+      ru: { questionText: 'Russian' },
     };
 
     const errors = await validate(dto);
@@ -29,19 +30,19 @@ describe('QuestionTranslationsMapConstraint', () => {
     const dto = new CreateQuestionDto();
     dto.primaryLocale = 'en';
     dto.translations = {
-      ru: validBlock('Russian only'),
+      ru: { questionText: 'Russian only' },
     };
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('rejects partial locale blocks', async () => {
+  it('rejects incomplete primary locale block', async () => {
     const dto = new CreateQuestionDto();
     dto.primaryLocale = 'en';
     dto.translations = {
-      en: validBlock('English'),
-      ru: { questionText: 'partial only' } as CreateQuestionDto['translations'][Locale],
+      en: { questionText: 'partial only' } as CreateQuestionDto['translations'][Locale],
+      ru: { questionText: 'Russian' },
     };
 
     const errors = await validate(dto);
@@ -52,7 +53,7 @@ describe('QuestionTranslationsMapConstraint', () => {
 describe('QuestionTranslationsUpdateMapConstraint', () => {
   it('allows merge patch with a single locale block', async () => {
     const dto = new UpdateQuestionDto();
-    dto.translations = { pl: validBlock('Polish') };
+    dto.translations = { pl: { questionText: 'Polish' } };
 
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
@@ -61,7 +62,7 @@ describe('QuestionTranslationsUpdateMapConstraint', () => {
   it('requires primary block when primaryLocale is set', async () => {
     const dto = new UpdateQuestionDto();
     dto.primaryLocale = 'en';
-    dto.translations = { ru: validBlock('Russian') };
+    dto.translations = { ru: { questionText: 'Russian' } };
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);

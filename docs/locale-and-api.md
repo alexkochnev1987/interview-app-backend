@@ -21,7 +21,7 @@ Controls locale resolution for question text on read/write responses. Rubric fie
 
 `GET /questions?q=` searches denormalized `search_text` (all locale question titles), plus role/category/tags.
 
-**Not the same as** `GET /questions?locale=pl` — that query only **filters** the list to questions with a Polish block; you still need `X-Locale` for resolved text in items.
+**Not the same as** `GET /questions?locale=pl` — that query **filters** to questions with Polish (`primaryLocale === pl` or non-empty `translations.pl.questionText`) and **resolves** each item's rubric for `pl`. Without `?locale=`, list items follow `X-Locale` only.
 
 ---
 
@@ -62,7 +62,7 @@ Interview responses include `questionsDisplayLocale` (always `interviewLocale`) 
 | `GET /questions/facets` | yes (filters only; no rubric text) |
 | `GET/POST/PATCH` `/interviews…` (incl. `questions[]` in body) | no (resolved by `interviewLocale`) |
 | `GET /take/:id` | no (resolved by `interviewLocale`) |
-| `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate` (auto: locale mismatch + no rubric seed → translate). Translate supports all non-equal locale pairs from en|be|ru|pl (12 directions). |
+| `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate`. **Translate** requires body `locale`, `question.primaryLocale`, and full primary rubric; returns target-locale content block with 1:1 concept/red-flag ids. **Generate** returns content block only; seed metadata is LLM context, not echoed. Auto: locale mismatch + full primary content → translate. |
 | `POST /ai/question-draft` | same as above, **deprecated compatibility endpoint** |
 | `GET /feedback/:id` | exempt — use `interviewLocale` in response |
 | `POST /ai/chat`, `POST /ai/greet` | exempt |
@@ -94,15 +94,15 @@ curl -s -X POST "http://localhost:3000/questions/ai/draft" \
   -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
   -d '{"locale":"pl","question":{"questionText":"Wyjaśnij hooki w React."}}'
 
-# Translate only (ru -> pl): questionText translated, rubric may be heuristic
+# Translate only (ru -> pl): full primary block → Polish content with same ids
 curl -s -X POST "http://localhost:3000/questions/ai/draft" \
   -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
-  -d '{"mode":"translate","locale":"pl","question":{"primaryLocale":"ru","questionText":"Объясните замыкания в JavaScript."}}'
+  -d '{"mode":"translate","locale":"pl","question":{"primaryLocale":"ru","questionText":"Объясните замыкания в JavaScript.","followUpQuestions":["Можете привести пример?","Какую ошибку избегаете?"],"expectedConcepts":[{"id":"scope_chain","label":"цепочка областей видимости","weight":0.34,"description":"явно раскрыта"},{"id":"lexical_env","label":"лексическое окружение","weight":0.33,"description":"привязка переменных"},{"id":"practical_use","label":"практика","weight":0.33,"description":"реальный пример"}],"redFlags":[{"id":"confuses_scope","label":"Путает scope","severity":"medium"},{"id":"no_example","label":"Нет примера","severity":"high"}],"sampleGoodAnswer":"Замыкание — функция с доступом к внешним переменным."}}'
 
-# Translate only (be -> en)
+# Translate only (be -> en): full primary block required
 curl -s -X POST "http://localhost:3000/questions/ai/draft" \
   -H "Cookie: session=SESSION" -H "Content-Type: application/json" \
-  -d '{"mode":"translate","locale":"en","question":{"primaryLocale":"be","questionText":"Растлумачце, як працуе віртуальны DOM у React."}}'
+  -d '{"mode":"translate","locale":"en","question":{"primaryLocale":"be","questionText":"Растлумачце, як працуе віртуальны DOM у React.","followUpQuestions":["Можа прыклад?","Якую памылку збягаеце?"],"expectedConcepts":[{"id":"virtual_dom","label":"віртуальны DOM","weight":0.34,"description":"мадэль"},{"id":"reconciliation","label":"рэкансіліяцыя","weight":0.33,"description":"diff"},{"id":"practical_use","label":"практыка","weight":0.33,"description":"прыклад"}],"redFlags":[{"id":"confuses_dom","label":"Путае DOM","severity":"medium"},{"id":"no_example","label":"Без прыкладу","severity":"high"}],"sampleGoodAnswer":"Канкрэтны прыклад з React."}}'
 ```
 
 ---
