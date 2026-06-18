@@ -2,6 +2,23 @@
 
 NestJS API. **Docker Compose** in this repo runs PostgreSQL and MinIO for local development.
 
+## Deployments
+
+| Environment | Branch | Frontend | Backend API |
+|-------------|--------|----------|-------------|
+| Dev | `develop` | https://develop.d1z0clbcev0y8a.amplifyapp.com | https://pjz9l12wad.execute-api.us-east-1.amazonaws.com |
+| Prod | `main` | https://main.d2k50usvcss92k.amplifyapp.com | Not public until prod backend is started |
+
+Only public application URLs are documented here. Keep secrets, raw infrastructure IPs, private hostnames, tokens, and environment values out of README files.
+
+## Branch and merge workflow
+
+- Create feature branches from `main`.
+- Open a PR into `develop` to deploy and test in dev. Merge requires 1 approving review and passing required checks.
+- After dev testing, open a PR from `develop` into `main`. Merge requires 2 approving reviews and passing required checks.
+- The repository owner/code-owner approval is not required specifically; any eligible reviewer approvals can satisfy the rule.
+- Do not push directly to `develop` or `main`.
+
 ## Local setup
 
 **Requirements:** Node.js 22, Docker.
