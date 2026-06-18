@@ -440,7 +440,9 @@ export class QuestionService {
       ? 'active'
       : (query.status ?? 'active');
     if (status === 'active') {
-      whereClauses.push('deleted = FALSE');
+      whereClauses.push('deleted = FALSE AND pending_deletion = FALSE');
+    }else if (status === 'scheduled') {
+      whereClauses.push('deleted = FALSE AND pending_deletion = TRUE');
     } else if (status === 'inactive') {
       whereClauses.push('deleted = TRUE');
     }

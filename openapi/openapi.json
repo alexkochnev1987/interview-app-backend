@@ -353,7 +353,8 @@
               "enum": [
                 "active",
                 "inactive",
-                "all"
+                "all",
+                "scheduled"
               ],
               "type": "string"
             }
@@ -589,7 +590,8 @@
               "enum": [
                 "active",
                 "inactive",
-                "all"
+                "all",
+                "scheduled"
               ],
               "type": "string"
             }
