@@ -1,3 +1,8 @@
+output "api_gateway_url" {
+  description = "API Gateway URL — permanent backend URL"
+  value       = module.api_gateway.api_url
+}
+
 output "vpc_id" {
   value = module.vpc.vpc_id
 }

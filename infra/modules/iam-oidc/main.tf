@@ -54,6 +54,7 @@ resource "aws_iam_role_policy" "github_backend" {
       {
         Effect = "Allow"
         Action = [
+          "ecs:RunTask",
           "ecs:UpdateService",
           "ecs:DescribeServices",
           "ecs:DescribeTaskDefinition",
@@ -73,6 +74,43 @@ resource "aws_iam_role_policy" "github_backend" {
             "iam:PassedToService" = "ecs-tasks.amazonaws.com"
           }
         }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListTasks",
+          "ecs:DescribeTasks"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/terraform-secrets*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "amplify:UpdateApp",
+          "amplify:StartJob"
+        ]
+        Resource = "*"
       }
     ]
   })

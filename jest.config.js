@@ -5,7 +5,7 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-  collectCoverageFrom: ['**/*.(t|j)s'],
+  collectCoverageFrom: ['**/*.(t|j)s', '!test/**'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
 };

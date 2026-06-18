@@ -102,8 +102,14 @@ resource "aws_ecs_task_definition" "backend" {
     environment = [
       { name = "NODE_ENV", value = var.environment == "prod" ? "production" : "development" },
       { name = "PORT", value = tostring(var.app_port) },
+      { name = "DATABASE_URL", value = var.database_url },
       { name = "S3_PREFIX", value = "${var.environment}/" },
-      { name = "AWS_S3_BUCKET", value = var.s3_bucket_name }
+      { name = "AWS_S3_BUCKET", value = var.s3_bucket_name },
+      { name = "JWT_SECRET", value = var.jwt_secret },
+      { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
+      { name = "GOOGLE_CLIENT_SECRET", value = var.google_client_secret },
+      { name = "GOOGLE_CALLBACK_URL", value = var.google_callback_url },
+      { name = "FRONTEND_URL", value = var.frontend_url }
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -127,7 +133,17 @@ resource "aws_ecs_service" "backend" {
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = [var.security_group_id]
-    assign_public_ip = true  # Required when using public subnets without NAT
+    assign_public_ip = var.assign_public_ip
+  }
+
+  # Register with Cloud Map for service discovery
+  dynamic "service_registries" {
+    for_each = var.service_discovery_arn != "" ? [1] : []
+    content {
+      registry_arn   = var.service_discovery_arn
+      container_name = "backend"
+      container_port = var.app_port
+    }
   }
 
   # Allow external changes to desired_count without Terraform reverting them

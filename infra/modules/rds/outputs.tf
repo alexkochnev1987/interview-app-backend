@@ -1,15 +1,15 @@
 output "endpoint" {
-  value = aws_db_instance.main.endpoint
+  value = try(aws_db_instance.main[0].endpoint, null)
 }
 
 output "address" {
-  value = aws_db_instance.main.address
+  value = try(aws_db_instance.main[0].address, null)
 }
 
 output "port" {
-  value = aws_db_instance.main.port
+  value = try(aws_db_instance.main[0].port, null)
 }
 
 output "db_name" {
-  value = aws_db_instance.main.db_name
+  value = try(aws_db_instance.main[0].db_name, null)
 }
