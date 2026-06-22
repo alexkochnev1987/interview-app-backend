@@ -84,6 +84,19 @@ export class UserService implements OnModuleInit {
     return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
   }
 
+  async findDemoUser(): Promise<User | undefined> {
+    const result = await this.databaseService.query<UserRow>(
+      `
+        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        FROM users
+        WHERE demo = TRUE
+        ORDER BY created_at ASC
+        LIMIT 1
+      `,
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
+  }
+
   async findById(id: string): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `

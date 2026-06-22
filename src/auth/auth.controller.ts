@@ -14,6 +14,7 @@ import {
   ApiFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiServiceUnavailableResponse,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
   ApiTags,
@@ -38,7 +39,6 @@ import {
   STAFF_SESSION_COOKIE,
 } from './staff-session';
 
-// Frontend URL to redirect after Google login
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 
 @ApiTags('auth')
@@ -71,6 +71,26 @@ export class AuthController {
     return user;
   }
 
+  @Post('demo')
+  @HttpCode(200)
+  @UseGuards(LoginThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 10,
+      ttl: minutes(1),
+    },
+  })
+  @ApiOperation({ summary: 'Sign in to the read-only demo account' })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiServiceUnavailableResponse({ description: 'Demo access is not available' })
+  @ApiTooManyRequestsResponse({ description: 'Too many demo sign-in attempts' })
+  async demo(@Res({ passthrough: true }) res: Response) {
+    const user = await this.authService.demoLogin();
+    const token = this.authService.login(user);
+    res.cookie(STAFF_SESSION_COOKIE, token, getStaffSessionCookieOptions());
+    return user;
+  }
+
   @Post('register')
   @HttpCode(201)
   @UseGuards(RegisterThrottlerGuard)
@@ -94,7 +114,6 @@ export class AuthController {
     return user;
   }
 
-  // Step 1: Redirect to Google
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Start Google OAuth sign-in flow' })
@@ -103,7 +122,6 @@ export class AuthController {
     // Guard redirects to Google automatically
   }
 
-  // Step 2: Google redirects back here
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback endpoint' })
