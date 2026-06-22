@@ -1,5 +1,4 @@
 import { DatabaseService } from '../../src/database/database.service';
-import { CANCELED_INTERVIEW_TAKE_BLOCKED_MESSAGE } from '../../src/interview/interview-management-rules';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { updateInterviewStatus } from '../helpers/integration-db';
@@ -68,10 +67,15 @@ describe('Interview management (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
-    expect(response.body.status).toBe('canceled');
+    expect(response.body.status).toBe('pending');
+
+    await agent
+      .get(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(404);
   });
 
-  it('rejects cancel when interview is not pending', async () => {
+  it('rejects cancel when interview no longer exists', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
     const questionId = await createQuestion(
@@ -93,7 +97,7 @@ describe('Interview management (integration)', () => {
     await agent
       .patch(`/interviews/${interviewId}/cancel`)
       .set(authCookie(session))
-      .expect(409);
+      .expect(404);
   });
 
   it('updates a pending interview', async () => {
@@ -181,7 +185,7 @@ describe('Interview management (integration)', () => {
     expect(row.rows[0]?.pending_deletion).toBe(false);
   });
 
-  it('blocks candidate take endpoints for canceled interviews', async () => {
+  it('blocks candidate take endpoints after interview is canceled', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
     const questionId = await createQuestion(
@@ -202,16 +206,14 @@ describe('Interview management (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
-    const blocked = await agent
+    await agent
       .get(`/take/${interviewId}`)
       .query({ token })
-      .expect(400);
-
-    expect(blocked.body.message).toBe(CANCELED_INTERVIEW_TAKE_BLOCKED_MESSAGE);
+      .expect(404);
 
     await agent
       .post(`/take/${interviewId}/answer`)
       .send(buildSubmitAnswerPayload(interviewId, 0, 1))
-      .expect(400);
+      .expect(404);
   });
 });
