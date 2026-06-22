@@ -217,17 +217,15 @@ export class InterviewService {
         throw new ConflictException(blockReason);
       }
 
-      const now = new Date();
-      const canceled: Interview = {
-        ...interview,
-        status: 'canceled',
-        workflow: this.buildWorkflow('idle', now, { completedAt: now }),
-        updatedAt: now,
-      };
+      const questionIds = interview.questions.map(question => question.id);
+      await client.query(`DELETE FROM interviews WHERE id=$1`, [id]);
+      if(questionIds.length > 0){
+        await client.query(`UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+            [questionIds])
+      }
 
-      const saved = await this.saveInterviewInTransaction(client, canceled);
       await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
-      return saved;
+      return interview;
     });
   }
 
