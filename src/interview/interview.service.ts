@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { demoScopeClause } from '../common/demo-scope';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
@@ -34,6 +35,7 @@ import {
 } from './interview-completion-rules';
 import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import {
+  getDemoScopeDenialReason,
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
@@ -49,6 +51,7 @@ interface InterviewRow {
   result_json: Record<string, unknown> | null;
   workflow_json: Record<string, unknown> | null;
   created_by_id: string | null;
+  demo: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -180,6 +183,7 @@ export class InterviewService {
             result_json,
             workflow_json,
             created_by_id,
+            demo,
             created_at,
             updated_at
         `,
@@ -219,6 +223,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -243,6 +248,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -261,8 +267,8 @@ export class InterviewService {
 
   async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
     // Demo isolation: demo users see only demo interviews, real users only real ones.
-    const whereClauses = ['demo = $1'];
-    const params: unknown[] = [actor.demo === true];
+    const params: unknown[] = [];
+    const whereClauses = [demoScopeClause(params, actor.demo === true)];
 
     if (actor.role === 'hr') {
       params.push(actor.id);
@@ -284,6 +290,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -298,16 +305,16 @@ export class InterviewService {
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
     const interview = await this.findOne(id);
     this.assertActorCanAccess(interview, actor);
-    await this.assertDemoScope(id, actor.demo === true);
+    this.assertActorDemoScope(interview, actor);
     return interview;
   }
 
-  private async assertDemoScope(id: string, demo: boolean): Promise<void> {
-    const result = await this.databaseService.query(
-      `SELECT 1 FROM interviews WHERE id = $1 AND demo = $2 LIMIT 1`,
-      [id, demo],
-    );
-    if (result.rows.length === 0) {
+  private assertActorDemoScope(
+    interview: Interview,
+    actor: InterviewActor,
+  ): void {
+    const denial = getDemoScopeDenialReason(interview, actor);
+    if (denial) {
       throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
     }
   }
@@ -810,6 +817,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
       `,
@@ -1027,6 +1035,7 @@ export class InterviewService {
         row.updated_at,
       ),
       createdById: row.created_by_id ?? undefined,
+      demo: Boolean(row.demo),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

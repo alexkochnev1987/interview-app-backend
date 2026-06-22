@@ -8,6 +8,7 @@ import {
 import * as crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
+import { demoScopeClause } from '../common/demo-scope';
 import { DatabaseService } from '../database/database.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -408,8 +409,7 @@ export class QuestionService {
     const params: unknown[] = [];
 
     // Demo isolation: demo users see only demo rows, everyone else only real rows.
-    params.push(options.demo === true);
-    whereClauses.push(`demo = $${params.length}`);
+    whereClauses.push(demoScopeClause(params, options.demo === true));
 
     const status: QuestionStatusFilter = options.forceActive
       ? 'active'
@@ -553,13 +553,15 @@ export class QuestionService {
     id: string,
     options: { includeDeleted?: boolean; demo?: boolean } = {},
   ): Promise<Question> {
+    const params: unknown[] = [id];
+    const demoClause = demoScopeClause(params, options.demo === true);
     const result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1 AND demo = $2${options.includeDeleted ? '' : ' AND deleted = FALSE'}
+        WHERE id = $1 AND ${demoClause}${options.includeDeleted ? '' : ' AND deleted = FALSE'}
         LIMIT 1
       `,
-      [id, options.demo === true],
+      params,
     );
 
     if (!result.rows[0]) {
@@ -856,6 +858,15 @@ export class QuestionService {
     const vector = await this.embeddingsService.generate(text);
     const literal = `[${vector.join(',')}]`;
 
+    const params: unknown[] = [
+      literal,
+      this.embeddingsService.model,
+      excludeQuestionId ?? null,
+      SIMILARITY_DISTANCE_THRESHOLD,
+      limit,
+    ];
+    const demoClause = demoScopeClause(params, demo, 'q.demo');
+
     const result = await this.databaseService.query<QuestionRow & { distance: number }>(
       `
         SELECT
@@ -889,19 +900,12 @@ export class QuestionService {
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
           AND q.deleted = FALSE
-          AND q.demo = $6
+          AND ${demoClause}
           AND (e.embedding <=> $1::vector) <= $4::float
         ORDER BY distance ASC
         LIMIT $5
       `,
-      [
-        literal,
-        this.embeddingsService.model,
-        excludeQuestionId ?? null,
-        SIMILARITY_DISTANCE_THRESHOLD,
-        limit,
-        demo,
-      ],
+      params,
     );
 
     return result.rows.map((row) => {
