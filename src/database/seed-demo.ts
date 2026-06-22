@@ -140,7 +140,26 @@ async function upsertDemoInterviews(db: Executor): Promise<void> {
   }
 }
 
+function assertSeedAllowed(): void {
+  if (process.env.NODE_ENV !== 'production') {
+    return;
+  }
+  const optIn = (process.env.ALLOW_DEMO_SEED ?? '').toLowerCase();
+  if (optIn === 'true' || optIn === 'yes') {
+    return;
+  }
+  // Refuse by default in production: the seed creates a credential-free demo
+  // account that must never run against prod (override with ALLOW_DEMO_SEED).
+  throw new Error(
+    'Refusing to seed demo data: NODE_ENV=production. The demo seed creates a ' +
+      'credential-free demo account and must never run against production. Set ' +
+      'ALLOW_DEMO_SEED=true to override if you are certain this is intended.',
+  );
+}
+
 async function main(): Promise<void> {
+  // Guard before any DB connection or write so a blocked run touches nothing.
+  assertSeedAllowed();
   const databaseService = new DatabaseService();
   try {
     await runMigrations(databaseService);

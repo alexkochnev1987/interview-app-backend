@@ -1,11 +1,8 @@
 /**
- * Static demo content (no secrets): 10 questions + two completed interviews.
- * The Phase 2 seed runner upserts these by their stable ids (idempotent) and
- * stamps the `demo` column so the read paths isolate them to demo users.
- *
- * Identity only — no role/flag/password. The seed runner creates the demo DB
- * user (role `hr`, `demo = true`, generated password); login authorizes purely
- * on the DB `demo` flag, never on this file.
+ * Static demo content (no secrets). The seed runner upserts these by stable id
+ * and stamps the `demo` column so read paths isolate them to demo users.
+ * Identity only here — no role/flag/password: login authorizes on the DB `demo`
+ * flag, never on this file.
  */
 import type {
   QuestionCore,
@@ -41,7 +38,6 @@ type DemoQuestion = QuestionCore & {
   usageCount: number;
 };
 
-// `demo` tag + metadata let the question read path scope demo users to these rows.
 const demoQuestionBase = {
   outputLanguage: 'English',
   role: 'Frontend Engineer',
@@ -281,8 +277,20 @@ interface DemoInterviewInput {
   candidateEmail: string;
   position: string;
   resultSummary: string;
+  categoryScores: Record<string, number>;
   answers: DemoAnswerInput[];
 }
+
+interface PendingDemoInterviewInput {
+  id: string;
+  candidateName: string;
+  candidateEmail: string;
+  position: string;
+  questionIds: string[];
+}
+
+// Scores use the same 0-100 integer scale as real evaluations.
+const PASS_SCORE = 70;
 
 function questionById(id: string): DemoQuestion {
   const question = DEMO_QUESTIONS.find((q) => q.id === id);
@@ -298,7 +306,7 @@ function buildDemoAnswer(
   index: number,
 ): Answer {
   const question = questionById(input.questionId);
-  const passed = input.score >= 0.7;
+  const passed = input.score >= PASS_SCORE;
   const decisionHint: AnswerDecisionHint = passed ? 'pass' : 'review';
   const media = (kind: 'camera' | 'screen') =>
     `demo/interviews/${interviewId}/q${index}/${kind}.webm`;
@@ -357,17 +365,20 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
     buildDemoAnswer(input.id, answer, index),
   );
   const scored = answers.filter((a) => typeof a.evaluation?.overallScore === 'number');
-  const overallScore =
+  const overallScore = Math.round(
     scored.reduce((sum, a) => sum + (a.evaluation?.overallScore ?? 0), 0) /
-    Math.max(scored.length, 1);
+      Math.max(scored.length, 1),
+  );
+  const decision =
+    overallScore < 50 ? 'reject' : overallScore < PASS_SCORE ? 'review' : 'proceed';
 
   const result: InterviewResult = {
     overallScore,
     summary: input.resultSummary,
-    categoryScores: {},
+    categoryScores: input.categoryScores,
     rubricVersion: 'demo-v1',
-    decision: overallScore >= 0.7 ? 'proceed' : 'review',
-    trustScore: 0.98,
+    decision,
+    trustScore: 100,
     trustFlags: [],
     behaviorSummary: {
       riskLevel: 'low',
@@ -393,13 +404,30 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
     status: 'completed',
     result,
     createdById: DEMO_USER_ID,
+    demo: true,
     createdAt: STARTED_AT,
     updatedAt: COMPLETED_AT,
   };
 }
 
-// Both owned by the demo user; the seed runner stamps the `demo` column so the
-// read paths show them only to demo users.
+// A not-started interview (questions only) so the demo can show the take flow.
+function buildPendingDemoInterview(input: PendingDemoInterviewInput): Interview {
+  return {
+    id: input.id,
+    candidateName: input.candidateName,
+    candidateEmail: input.candidateEmail,
+    position: input.position,
+    questions: input.questionIds.map(questionById),
+    answers: [],
+    status: 'pending',
+    result: undefined,
+    createdById: DEMO_USER_ID,
+    demo: true,
+    createdAt: STARTED_AT,
+    updatedAt: STARTED_AT,
+  };
+}
+
 export const DEMO_INTERVIEWS: Interview[] = [
   buildDemoInterview({
     id: '00000000-0000-4000-8000-0000000000a1',
@@ -408,17 +436,18 @@ export const DEMO_INTERVIEWS: Interview[] = [
     position: 'Frontend Engineer',
     resultSummary:
       'Strong frontend fundamentals. Confident on closures, React state and layout; event-loop and hooks answers were correct but could go deeper. Recommend proceeding to a technical round.',
+    categoryScores: { JavaScript: 80, React: 73, CSS: 85 },
     answers: [
       {
         questionId: '00000000-0000-4000-8000-000000000001',
-        score: 0.9,
+        score: 90,
         transcript:
           'A closure is a function that keeps access to the variables from where it was defined. I use them for private state and factory functions.',
         summary: 'Clear, correct definition with a practical use case.',
       },
       {
         questionId: '00000000-0000-4000-8000-000000000002',
-        score: 0.8,
+        score: 80,
         transcript:
           'Props come from the parent and are read-only; state is local and I update it with the setter, which triggers a re-render.',
         summary:
@@ -426,7 +455,7 @@ export const DEMO_INTERVIEWS: Interview[] = [
       },
       {
         questionId: '00000000-0000-4000-8000-000000000003',
-        score: 0.7,
+        score: 70,
         transcript:
           'The stack runs first, then microtasks like promise callbacks, then macrotasks like timers. So a resolved promise runs before a setTimeout zero.',
         summary:
@@ -434,63 +463,29 @@ export const DEMO_INTERVIEWS: Interview[] = [
       },
       {
         questionId: '00000000-0000-4000-8000-000000000004',
-        score: 0.85,
+        score: 85,
         transcript:
           'Flexbox is one-dimensional, great for a row or column of items; I use grid when I need both rows and columns at once.',
         summary: 'Good one-vs-two-dimensional distinction and when to pick grid.',
       },
       {
         questionId: '00000000-0000-4000-8000-000000000005',
-        score: 0.6,
+        score: 60,
         transcript:
           'Cleanup runs before the next effect and on unmount. The dependency array decides when the effect re-runs, so I list everything it reads.',
         summary: 'Mostly correct; dependency-array reasoning was slightly hand-wavy.',
       },
     ],
   }),
-  buildDemoInterview({
+  buildPendingDemoInterview({
     id: '00000000-0000-4000-8000-0000000000a2',
     candidateName: 'Sam Rivera',
     candidateEmail: 'sam.rivera@example.com',
     position: 'Frontend Engineer',
-    resultSummary:
-      'Reasonable breadth but uneven depth. Solid on caching and accessibility; generics and Core Web Vitals answers were thin. Suggest a follow-up technical screen before deciding.',
-    answers: [
-      {
-        questionId: '00000000-0000-4000-8000-000000000006',
-        score: 0.75,
-        transcript:
-          'Cache-Control sets how long something is fresh, and ETag lets the browser revalidate with If-None-Match to get a 304 when nothing changed.',
-        summary: 'Accurate on freshness vs revalidation.',
-      },
-      {
-        questionId: '00000000-0000-4000-8000-000000000007',
-        score: 0.8,
-        transcript:
-          'Use real labels tied to inputs, native elements, keyboard support, and link error messages to the field so screen readers announce them.',
-        summary: 'Good coverage of labels, semantics and keyboard.',
-      },
-      {
-        questionId: '00000000-0000-4000-8000-000000000008',
-        score: 0.65,
-        transcript:
-          'Debounce waits until you stop, throttle runs every so often. I use debounce for search and throttle for scroll.',
-        summary: 'Correct distinction but light on detail.',
-      },
-      {
-        questionId: '00000000-0000-4000-8000-000000000009',
-        score: 0.5,
-        transcript:
-          'Generics let you reuse types. Like an array of T. I usually just use them when the editor suggests it.',
-        summary: 'Surface-level; no constraint example, leaned toward guessing.',
-      },
-      {
-        questionId: '00000000-0000-4000-8000-000000000010',
-        score: 0.55,
-        transcript:
-          'Core Web Vitals are the Google scores. For LCP I would make images smaller and check Lighthouse.',
-        summary: 'Named the goal but missed INP/CLS and concrete LCP levers.',
-      },
+    questionIds: [
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000002',
+      '00000000-0000-4000-8000-000000000004',
     ],
   }),
 ];
