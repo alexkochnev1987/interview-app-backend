@@ -49,12 +49,20 @@ export class PermissionsGuard implements CanActivate {
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
     );
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
     if (!required || required.length === 0) {
+      // Fail CLOSED for demo accounts: a route with no explicit permission must
+      // not become an accidental write path for a read-only demo user. Non-demo
+      // users keep the documented fail-open behavior.
+      if (request.user?.demo === true) {
+        throw new ForbiddenException('Demo accounts are read-only');
+      }
       this.warnMissingDecorator(context);
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const role = request.user?.role;
     if (!role) {
       throw new UnauthorizedException('Authentication required');

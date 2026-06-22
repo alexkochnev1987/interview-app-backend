@@ -45,12 +45,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
 };
 
 // Permissions a read-only demo account keeps; every other permission is denied.
-// Intentionally excludes users:read — the demo never lists accounts, and leaving
-// it out keeps demo safe regardless of the underlying role.
+// Intentionally excludes users:read (see EXCLUDED_FROM_DEMO_READ below).
 export const READ_ONLY_PERMISSIONS: readonly Permission[] = [
   'questions:read',
   'interviews:read_own',
 ];
+
+// Read-style permissions deliberately withheld from demo accounts. Every
+// read-style permission must appear in either READ_ONLY_PERMISSIONS or this set
+// (the spec enforces it, preventing silent mis-classification).
+//   users:read — the demo never lists accounts; excluding it keeps the demo safe
+//   regardless of role (even a demo admin cannot read users).
+export const EXCLUDED_FROM_DEMO_READ: readonly Permission[] = ['users:read'];
 
 export function isReadOnlyPermission(permission: Permission): boolean {
   return READ_ONLY_PERMISSIONS.includes(permission);
