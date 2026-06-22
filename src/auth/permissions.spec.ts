@@ -1,5 +1,6 @@
 import {
   ALL_PERMISSIONS,
+  EXCLUDED_FROM_DEMO_READ,
   getEffectivePermissions,
   getPermissions,
   hasEffectivePermission,
@@ -67,9 +68,33 @@ describe('permissions', () => {
       expect(hasEffectivePermission('admin', true, 'users:assign_role')).toBe(false);
     });
 
+    it('classifies every read-style permission as either demo-read-only or explicitly excluded', () => {
+      const readStyle = ALL_PERMISSIONS.filter(
+        (p) => p.endsWith(':read') || p.endsWith(':read_own'),
+      );
+      for (const permission of readStyle) {
+        const inAllowlist = READ_ONLY_PERMISSIONS.includes(permission);
+        const inExcluded = EXCLUDED_FROM_DEMO_READ.includes(permission);
+        expect(inAllowlist || inExcluded).toBe(true);
+        expect(inAllowlist && inExcluded).toBe(false);
+      }
+    });
+
+    it('does not list any non-existent or non-read permission in the demo classification sets', () => {
+      for (const permission of [
+        ...READ_ONLY_PERMISSIONS,
+        ...EXCLUDED_FROM_DEMO_READ,
+      ]) {
+        expect(ALL_PERMISSIONS).toContain(permission);
+      }
+      for (const permission of EXCLUDED_FROM_DEMO_READ) {
+        expect(
+          permission.endsWith(':read') || permission.endsWith(':read_own'),
+        ).toBe(true);
+      }
+    });
+
     it('denies users:read to a demo account regardless of role', () => {
-      // The demo never lists accounts; keeping users:read out of the read-only
-      // set means even a demo admin cannot read the user list.
       expect(hasEffectivePermission('admin', true, 'users:read')).toBe(false);
       expect(hasEffectivePermission('super_admin', true, 'users:read')).toBe(false);
     });
