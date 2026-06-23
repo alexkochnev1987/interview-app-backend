@@ -10,6 +10,3 @@ export function getInterviewPendingOnlyBlockReason( status: InterviewStatus, ): 
 export function isTerminalInterviewStatus( status: InterviewStatus): boolean {
     return (TERMINAL_INTERVIEW_STATUSES as readonly string[]).includes(status);
 }
-
-export const CANCELED_INTERVIEW_TAKE_BLOCKED_MESSAGE =
-    'This interview has been canceled'

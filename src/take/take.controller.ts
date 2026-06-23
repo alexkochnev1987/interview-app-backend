@@ -29,7 +29,6 @@ import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
 import {
   CandidateQuestionView,
-  InterviewStatus,
 } from '../interview/interfaces/interview.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
@@ -47,7 +46,6 @@ import {
 } from './dto/take.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { getCandidateTokenMismatchReason } from './candidate-interview-access';
-import { getCanceledInterviewTakeBlockReason } from './candidate-interview-take-rules';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -96,7 +94,6 @@ export class TakeController {
     }
 
     const interview = await this.interviewService.findOne(id);
-    this.assertTakeAllowed(interview.status);
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -167,9 +164,6 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.findOne(id);
-    this.assertTakeAllowed(interview.status);
-
     const updated = await this.interviewService.addAnswer(id, body);
 
     const submittedCount = updated.answers.filter(
@@ -207,9 +201,6 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.findOne(id);
-    this.assertTakeAllowed(interview.status);
-
     const updated = await this.interviewService.saveAnswerProgress(id, body);
     const currentAnswer = updated.answers.find(
       (answer) => answer.questionIndex === body.questionIndex,
@@ -246,9 +237,6 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.findOne(id);
-    this.assertTakeAllowed(interview.status);
-
     const validation = await this.answerValidationWorkflowService.startValidation(
       id,
       questionIndex,
@@ -260,10 +248,4 @@ export class TakeController {
     };
   }
 
-  private assertTakeAllowed(status: InterviewStatus): void {
-    const blockReason = getCanceledInterviewTakeBlockReason(status);
-    if (blockReason) {
-      throw new BadRequestException(blockReason);
-    }
-  }
 }

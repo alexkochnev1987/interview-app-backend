@@ -4296,8 +4296,7 @@
               "in_progress",
               "processing",
               "completed",
-              "failed",
-              "canceled"
+              "failed"
             ]
           },
           "result": {
@@ -4364,8 +4363,7 @@
               "in_progress",
               "processing",
               "completed",
-              "failed",
-              "canceled"
+              "failed"
             ]
           },
           "result": {

@@ -7,7 +7,6 @@ export const INTERVIEW_STATUSES = [
   'processing',
   'completed',
   'failed',
-  'canceled',
 ] as const;
 
 export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
@@ -21,7 +20,6 @@ export const ACTIVE_INTERVIEW_STATUSES = [
 export const TERMINAL_INTERVIEW_STATUSES = [
   'completed',
   'failed',
-  'canceled',
 ] as const satisfies readonly InterviewStatus[];
 
 export type ActiveInterviewStatus = (typeof ACTIVE_INTERVIEW_STATUSES)[number];

@@ -1,5 +1,4 @@
 import {
-  CANCELED_INTERVIEW_TAKE_BLOCKED_MESSAGE,
   getInterviewPendingOnlyBlockReason,
   INTERVIEW_PENDING_ONLY_MESSAGE,
   isTerminalInterviewStatus,
@@ -17,7 +16,6 @@ describe('interview-management-rules', () => {
         'processing',
         'completed',
         'failed',
-        'canceled',
       ] as const) {
         expect(getInterviewPendingOnlyBlockReason(status)).toBe(
           INTERVIEW_PENDING_ONLY_MESSAGE,
@@ -30,7 +28,6 @@ describe('interview-management-rules', () => {
     it('recognizes terminal statuses', () => {
       expect(isTerminalInterviewStatus('completed')).toBe(true);
       expect(isTerminalInterviewStatus('failed')).toBe(true);
-      expect(isTerminalInterviewStatus('canceled')).toBe(true);
     });
 
     it('rejects active statuses', () => {
@@ -40,9 +37,4 @@ describe('interview-management-rules', () => {
     });
   });
 
-  it('exports canceled take message', () => {
-    expect(CANCELED_INTERVIEW_TAKE_BLOCKED_MESSAGE).toBe(
-      'This interview has been canceled',
-    );
-  });
 });
