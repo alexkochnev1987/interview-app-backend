@@ -73,9 +73,15 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<PaginatedQuestions> {
     const isSuperAdmin = user.role === 'super_admin';
+    const interviewEligible = query.eligibleForInterview === true;
+
     const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
+        isSuperAdmin && !query.status && !interviewEligible
+            ? { ...query, status: 'all' as const }
+            : query;
+
+    const forceActive = interviewEligible || !isSuperAdmin;
+    return this.questionService.findAll(effectiveQuery, { forceActive });
   }
 
   @Get('facets')
@@ -92,10 +98,15 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
     const isSuperAdmin = user.role === 'super_admin';
+    const interviewEligible = query.eligibleForInterview === true;
+
     const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
-  }
+        isSuperAdmin && !query.status && !interviewEligible
+            ? { ...query, status: 'all' as const }
+            : query;
+    const forceActive = interviewEligible || !isSuperAdmin;
+
+    return this.questionService.getFacets(effectiveQuery, { forceActive }); }
 
   @Get(':id')
   @RequirePermissions('questions:read')

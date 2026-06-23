@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
-  IsArray,
+  IsArray, IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -126,4 +126,14 @@ export class QueryQuestionsDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description:
+        'When true, only interview-eligible (active) questions are returned',  })
+  @IsOptional()
+  @Transform(({value})=> value === true || value === 'true')
+  @IsBoolean()
+  eligibleForInterview?: boolean;
 }
