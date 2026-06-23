@@ -89,7 +89,7 @@ export class DraftQuestionDto {
   @ApiPropertyOptional({
     enum: ['translate', 'generate'],
     description:
-      'Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns the primary locale content block only (questionText + rubric fields). If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.',
+      'Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1; returns content block only. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns identity fields plus the primary locale rubric content block. If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.',
     example: 'translate',
   })
   @IsOptional()

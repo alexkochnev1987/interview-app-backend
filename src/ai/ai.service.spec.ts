@@ -9,6 +9,19 @@ import {
   draftRubricMatchesLocale,
   rubricTextsMatchLocale,
 } from './question-draft-rubric-locale';
+import { QuestionDraftContent, QuestionDraftGenerate } from './question-draft-content';
+
+function assertGenerateDraft(
+  draft: QuestionDraftGenerate | QuestionDraftContent,
+): asserts draft is QuestionDraftGenerate {
+  expect('primaryLocale' in draft).toBe(false);
+}
+
+function assertTranslateDraft(
+  draft: QuestionDraftGenerate | QuestionDraftContent,
+): asserts draft is QuestionDraftContent {
+  expect('primaryLocale' in draft).toBe(true);
+}
 
 describe('draftRubricMatchesLocale', () => {
   it('does not treat Russian questionText alone as matching ru rubric', () => {
@@ -83,7 +96,9 @@ describe('AiService.draftQuestion', () => {
       { bodyLocale: 'ru', headerLocale: 'en' },
     );
 
-    expect(draft.primaryLocale).toBe('ru');
+    assertGenerateDraft(draft);
+    expect(draft.category).toBeTruthy();
+    expect(draft.externalId).toBeTruthy();
     expect(draftRubricMatchesLocale(draft, 'ru')).toBe(true);
     expect(draft.followUpQuestions.length).toBeGreaterThanOrEqual(2);
     expect(draft.followUpQuestions[0]).toMatch(/[А-Яа-яЁё]/);
@@ -152,9 +167,73 @@ describe('AiService.draftQuestion', () => {
     );
 
     expect(generate).toHaveBeenCalled();
+    assertGenerateDraft(draft);
     expect(draftRubricMatchesLocale(draft, 'ru')).toBe(true);
     expect(draft.followUpQuestions[0]).toMatch(/[А-Яа-яЁё]/);
     expect(draft.expectedConcepts[0].label).toMatch(/[А-Яа-яЁё]/);
+  });
+
+  it('generate mode returns identity fields from LLM when rubric locale matches', async () => {
+    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+      kind: 'openai',
+      apiKey: 'test-key',
+      model: 'gpt-4o-mini',
+    });
+    jest.spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm').mockResolvedValue({
+      externalId: 'javascript_closures_v1',
+      role: 'junior engineer',
+      focus: 'fundamentals',
+      category: 'javascript',
+      subcategory: 'closures',
+      questionText: 'Объясните замыкания в JavaScript.',
+      followUpQuestions: [
+        'Можете привести простой практический пример?',
+        'Какую типичную ошибку вы бы избегали?',
+      ],
+      expectedConcepts: [
+        {
+          id: 'scope_chain',
+          label: 'цепочка областей видимости',
+          weight: 0.34,
+          description: 'должна быть явно раскрыта',
+        },
+        {
+          id: 'lexical_env',
+          label: 'лексическое окружение',
+          weight: 0.33,
+          description: 'объяснить привязку',
+        },
+        {
+          id: 'practical_use',
+          label: 'практическое применение',
+          weight: 0.33,
+          description: 'привести реальный пример',
+        },
+      ],
+      redFlags: [
+        { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+        { id: 'no_example', label: 'Нет примера', severity: 'high' },
+      ],
+      difficulty: 'easy',
+      weight: 1,
+      sampleGoodAnswer:
+        'Сильный ответ объясняет замыкания простыми словами и приводит один пример.',
+      minimumPassScore: 2.5,
+      tags: ['javascript', 'closures', 'fundamentals'],
+    });
+
+    const draft = await service.draftQuestion(
+      { questionText: 'замыкание', primaryLocale: 'ru' },
+      { bodyLocale: 'ru', headerLocale: 'ru', mode: 'generate' },
+    );
+
+    assertGenerateDraft(draft);
+    expect(draft.externalId).toBe('javascript_closures_v1');
+    expect(draft.role).toBe('junior engineer');
+    expect(draft.category).toBe('javascript');
+    expect(draft.difficulty).toBe('easy');
+    expect(draft.tags).toEqual(['javascript', 'closures', 'fundamentals']);
+    expect(draft.questionText).toContain('замыкания');
   });
 
   it('translate mode uses native LLM for full content block', async () => {
@@ -188,6 +267,7 @@ describe('AiService.draftQuestion', () => {
 
     expect(draft.questionText).toBe('Co to jest DOM?');
     expect(translate).toHaveBeenCalled();
+    assertTranslateDraft(draft);
     expect(draft.primaryLocale).toBe('pl');
   });
 

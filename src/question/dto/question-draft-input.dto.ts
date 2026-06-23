@@ -1,4 +1,5 @@
-import { ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { ApiExtraModels, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
@@ -7,13 +8,19 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
 import { QuestionTranslationDto } from './question-translation.dto';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
+import {
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question-rubric.dto';
 
+@ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto)
 export class QuestionDraftInputDto {
   @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
   @IsOptional()
@@ -38,6 +45,26 @@ export class QuestionDraftInputDto {
   @IsArray()
   @IsString({ each: true })
   followUpQuestions?: string[];
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { $ref: getSchemaPath(QuestionExpectedConceptDto) },
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionExpectedConceptDto)
+  expectedConcepts?: QuestionExpectedConceptDto[];
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { $ref: getSchemaPath(QuestionRedFlagDto) },
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionRedFlagDto)
+  redFlags?: QuestionRedFlagDto[];
 
   @ApiPropertyOptional({
     deprecated: true,

@@ -720,7 +720,7 @@
       "post": {
         "operationId": "QuestionController_draftQuestion",
         "summary": "Generate AI question draft",
-        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1). If `mode=generate`, builds the primary locale content block (questionText + rubric) in the target locale; metadata fields on the seed are context only and are not returned. Does not persist anything to the database.",
+        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1) and returns the content block only. If `mode=generate`, returns identity fields (externalId, role, focus, category, subcategory, difficulty, weight, minimumPassScore, tags) plus the full rubric content block in the target locale; seed metadata is context only and is not returned. Does not persist anything to the database.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -805,11 +805,18 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "mode=generate: identity + rubric (QuestionDraftGenerateResponseDto). mode=translate: content block only (QuestionDraftContentResponseDto).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftGenerateResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                    }
+                  ]
                 }
               }
             }
@@ -1860,7 +1867,7 @@
       "post": {
         "operationId": "AiController_draftQuestion",
         "summary": "Generate draft question with AI",
-        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1) and `generate` (primary locale content block only — questionText + rubric fields; seed metadata is context, not returned). When `mode` is omitted, locale mismatch with full primary content triggers translate mode automatically.",
+        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1; content-only response) and `generate` (identity + full rubric content block; seed metadata is context, not returned). When `mode` is omitted, locale mismatch with full primary content triggers translate mode automatically.",
         "deprecated": true,
         "parameters": [
           {
@@ -2051,11 +2058,18 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "mode=generate: identity + rubric. mode=translate: content block only.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftGenerateResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                    }
+                  ]
                 }
               }
             }
@@ -4696,6 +4710,127 @@
           "limit"
         ]
       },
+      "QuestionDraftGenerateResponseDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "sampleGoodAnswer",
+          "minimumPassScore",
+          "tags"
+        ]
+      },
+      "QuestionDraftContentResponseDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "primaryLocale",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "sampleGoodAnswer"
+        ]
+      },
       "QuestionDraftInputDto": {
         "type": "object",
         "properties": {
@@ -4721,6 +4856,18 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
             }
           },
           "outputLanguage": {
@@ -4790,59 +4937,13 @@
               "translate",
               "generate"
             ],
-            "description": "Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns the primary locale content block only (questionText + rubric fields). If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.",
+            "description": "Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1; returns content block only. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns identity fields plus the primary locale rubric content block. If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.",
             "example": "translate"
           },
           "question": {
             "$ref": "#/components/schemas/QuestionDraftInputDto"
           }
         }
-      },
-      "QuestionDraftContentResponseDto": {
-        "type": "object",
-        "properties": {
-          "primaryLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expectedConcepts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-            }
-          },
-          "redFlags": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionRedFlagDto"
-            }
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "primaryLocale",
-          "questionText",
-          "followUpQuestions",
-          "expectedConcepts",
-          "redFlags",
-          "sampleGoodAnswer"
-        ]
       },
       "FacetCountDto": {
         "type": "object",

@@ -62,7 +62,7 @@ Interview responses include `questionsDisplayLocale` (always `interviewLocale`) 
 | `GET /questions/facets` | yes (filters only; no rubric text) |
 | `GET/POST/PATCH` `/interviews…` (incl. `questions[]` in body) | no (resolved by `interviewLocale`) |
 | `GET /take/:id` | no (resolved by `interviewLocale`) |
-| `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate`. **Translate** requires body `locale`, `question.primaryLocale`, and full primary rubric; returns target-locale content block with 1:1 concept/red-flag ids. **Generate** returns content block only; seed metadata is LLM context, not echoed. Auto: locale mismatch + full primary content → translate. |
+| `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate`. **Translate** requires body `locale`, `question.primaryLocale`, and full primary rubric; returns target-locale content block with 1:1 concept/red-flag ids. **Generate** returns identity fields (`externalId`, `role`, `focus`, `category`, `subcategory`, `difficulty`, `weight`, `minimumPassScore`, `tags`) plus full rubric content; seed metadata is LLM context, not echoed. Auto: locale mismatch + full primary content → translate. |
 | `POST /ai/question-draft` | same as above, **deprecated compatibility endpoint** |
 | `GET /feedback/:id` | exempt — use `interviewLocale` in response |
 | `POST /ai/chat`, `POST /ai/greet` | exempt |

@@ -3,6 +3,7 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiHeader,
   ApiOkResponse,
@@ -17,8 +18,7 @@ import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { QuestionDraft } from '../question/interfaces/question.interface';
-import { QuestionDraftContent } from './question-draft-content';
+import { QuestionDraftGenerate, QuestionDraftContent } from './question-draft-content';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { CandidateAiThrottlerGuard } from './guards/candidate-ai-throttler.guard';
 import { StaffAiThrottlerGuard } from './guards/staff-ai-throttler.guard';
@@ -30,8 +30,8 @@ import {
 } from './dto/ai.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import {
-  QuestionDraftResponseDto,
   QuestionDraftContentResponseDto,
+  QuestionDraftGenerateResponseDto,
 } from '../question/dto/question.responses.dto';
 
 @ApiTags('ai')
@@ -103,7 +103,7 @@ export class AiController {
     summary: 'Generate draft question with AI',
     description:
       'Deprecated compatibility endpoint. Use POST /questions/ai/draft. ' +
-      'Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1) and `generate` (primary locale content block only — questionText + rubric fields; seed metadata is context, not returned). ' +
+      'Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1; content-only response) and `generate` (identity + full rubric content block; seed metadata is context, not returned). ' +
       'When `mode` is omitted, locale mismatch with full primary content triggers translate mode automatically.',
     deprecated: true,
   })
@@ -262,14 +262,24 @@ export class AiController {
       },
     },
   })
-  @ApiOkResponse({ type: QuestionDraftContentResponseDto })
+  @ApiExtraModels(QuestionDraftGenerateResponseDto, QuestionDraftContentResponseDto)
+  @ApiOkResponse({
+    description:
+      'mode=generate: identity + rubric. mode=translate: content block only.',
+    schema: {
+      oneOf: [
+        { $ref: '#/components/schemas/QuestionDraftGenerateResponseDto' },
+        { $ref: '#/components/schemas/QuestionDraftContentResponseDto' },
+      ],
+    },
+  })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   draftQuestion(
     @Body() dto: DraftQuestionDto,
     @CurrentLocale() headerLocale: Locale,
-  ): Promise<QuestionDraft | QuestionDraftContent> {
+  ): Promise<QuestionDraftGenerate | QuestionDraftContent> {
     return this.aiService.draftQuestion(dto.question ?? {}, {
       bodyLocale: dto.locale,
       headerLocale,

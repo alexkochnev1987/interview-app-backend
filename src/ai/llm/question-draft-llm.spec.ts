@@ -13,6 +13,9 @@ describe('buildQuestionDraftUserPrompt', () => {
     expect(prompt).toContain('match the rubric language to the requested locale (pl)');
     expect(prompt).toContain('Do not use English boilerplate templates');
     expect(prompt).toContain('label and description in Polish');
+    expect(prompt).toContain('externalId');
+    expect(prompt).toContain('minimumPassScore');
+    expect(prompt).toContain('Do not output primaryLocale, outputLanguage, or metadata');
   });
 
   it('omits English-boilerplate warning for en locale', () => {

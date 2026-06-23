@@ -64,20 +64,32 @@ export function buildQuestionGenerateUserPrompt(
   const outputLanguage = primaryLocaleToOutputLanguage(draftLocale);
   const localeBlock = buildQuestionDraftLocaleBlock(draftLocale, options);
 
-  return `Generate the primary locale content block for this interview question.
-Use optional metadata only as context — do not echo metadata keys in the output.
+  return `Generate a complete interview question draft (identity + primary locale rubric).
+Use optional metadata only as context — do not echo a metadata object in the output.
 
 ${localeBlock}
 
 Input JSON:
 ${JSON.stringify(base)}
 
-Output a single JSON object with ONLY these camelCase keys (no metadata, taxonomy, or scoring fields):
+Output a single JSON object with these camelCase keys:
+
+Identity (infer from questionText and metadata hints):
+- externalId (string, snake_case slug)
+- role, focus, category, subcategory (strings)
+- difficulty (easy|medium|hard)
+- weight (number)
+- minimumPassScore (number, 0–5)
+- tags (string[])
+
+Rubric content (human-readable text in ${outputLanguage}):
 - questionText (string)
 - followUpQuestions (string[])
 - expectedConcepts: array of { "id", "label", "weight", "description" } — id in snake_case Latin; label and description in ${outputLanguage}
 - redFlags: array of { "id", "label", "severity" } — id in snake_case Latin; label in ${outputLanguage}; severity low|medium|high
-- sampleGoodAnswer (string)`;
+- sampleGoodAnswer (string)
+
+Do not output primaryLocale, outputLanguage, or metadata.`;
 }
 
 /** @deprecated Legacy full-draft prompt — kept for reference; generate mode uses generate.md */

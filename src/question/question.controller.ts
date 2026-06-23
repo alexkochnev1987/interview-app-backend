@@ -58,13 +58,14 @@ import {
   QuestionFacetsResponseDto,
   QuestionDraftResponseDto,
   QuestionDraftContentResponseDto,
+  QuestionDraftGenerateResponseDto,
   QuestionResponseDto,
   ResolvedQuestionResponseDto,
 } from './dto/question.responses.dto';
 import { QuestionTranslationDto } from './dto/question-translation.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AiService } from '../ai/ai.service';
-import { QuestionDraftContent } from '../ai/question-draft-content';
+import { QuestionDraftGenerate, QuestionDraftContent } from '../ai/question-draft-content';
 import { DraftQuestionDto } from '../ai/dto/ai.dto';
 
 const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
@@ -143,7 +144,8 @@ export class QuestionController {
     summary: 'Generate AI question draft',
     description:
       'Generates a question draft in locale from body `locale` or X-Locale header. ' +
-      'If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1). If `mode=generate`, builds the primary locale content block (questionText + rubric) in the target locale; metadata fields on the seed are context only and are not returned. Does not persist anything to the database.',
+      'If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1) and returns the content block only. ' +
+      'If `mode=generate`, returns identity fields (externalId, role, focus, category, subcategory, difficulty, weight, minimumPassScore, tags) plus the full rubric content block in the target locale; seed metadata is context only and is not returned. Does not persist anything to the database.',
   })
   @ApiHeader({
     name: 'X-Locale',
@@ -207,14 +209,25 @@ export class QuestionController {
       },
     },
   })
-  @ApiOkResponse({ type: QuestionDraftContentResponseDto })
+  @ApiExtraModels(QuestionDraftGenerateResponseDto, QuestionDraftContentResponseDto)
+  @ApiOkResponse({
+    description:
+      'mode=generate: identity + rubric (QuestionDraftGenerateResponseDto). ' +
+      'mode=translate: content block only (QuestionDraftContentResponseDto).',
+    schema: {
+      oneOf: [
+        { $ref: '#/components/schemas/QuestionDraftGenerateResponseDto' },
+        { $ref: '#/components/schemas/QuestionDraftContentResponseDto' },
+      ],
+    },
+  })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   draftQuestion(
     @Body() dto: DraftQuestionDto,
     @CurrentLocale() locale: Locale,
-  ): Promise<QuestionDraft | QuestionDraftContent> {
+  ): Promise<QuestionDraftGenerate | QuestionDraftContent> {
     return this.aiService.draftQuestion(dto.question ?? {}, {
       bodyLocale: dto.locale,
       headerLocale: locale,

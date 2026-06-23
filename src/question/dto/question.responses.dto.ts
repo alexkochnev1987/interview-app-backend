@@ -146,6 +146,51 @@ export class QuestionDraftContentResponseDto {
   sampleGoodAnswer: string;
 }
 
+/** `mode=generate` — identity + rubric; HR sets primaryLocale separately. */
+export class QuestionDraftGenerateResponseDto {
+  @ApiPropertyOptional()
+  externalId?: string;
+
+  @ApiPropertyOptional()
+  role?: string;
+
+  @ApiPropertyOptional()
+  focus?: string;
+
+  @ApiPropertyOptional()
+  category?: string;
+
+  @ApiPropertyOptional()
+  subcategory?: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({ type: [QuestionExpectedConceptDto] })
+  expectedConcepts: QuestionExpectedConceptDto[];
+
+  @ApiProperty({ type: [QuestionRedFlagDto] })
+  redFlags: QuestionRedFlagDto[];
+
+  @ApiProperty({ enum: ['easy', 'medium', 'hard'] })
+  difficulty: 'easy' | 'medium' | 'hard';
+
+  @ApiProperty()
+  weight: number;
+
+  @ApiProperty()
+  sampleGoodAnswer: string;
+
+  @ApiProperty()
+  minimumPassScore: number;
+
+  @ApiProperty({ type: [String] })
+  tags: string[];
+}
+
 export class QuestionDraftResponseDto {
   @ApiPropertyOptional()
   externalId?: string;

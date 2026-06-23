@@ -38,7 +38,7 @@ import {
   heuristicSampleAnswer,
 } from './question-draft-heuristic';
 import { draftRubricMatchesLocale } from './question-draft-rubric-locale';
-import { QuestionDraftContent } from './question-draft-content';
+import { QuestionDraftContent, QuestionDraftGenerate } from './question-draft-content';
 
 interface ChatMessage {
   role: 'system' | 'assistant' | 'candidate';
@@ -47,6 +47,11 @@ interface ChatMessage {
 
 interface LlmContentAttempt {
   content?: QuestionDraftContent;
+  localeMismatch: boolean;
+}
+
+interface LlmGenerateAttempt {
+  draft?: QuestionDraftGenerate;
   localeMismatch: boolean;
 }
 
@@ -237,7 +242,7 @@ export class AiService {
       headerLocale: Locale;
       mode?: DraftQuestionMode;
     },
-  ): Promise<QuestionDraft | QuestionDraftContent> {
+  ): Promise<QuestionDraftGenerate | QuestionDraftContent> {
     const draftLocale = resolveDraftLocale(
       localeOptions.bodyLocale,
       localeOptions.headerLocale,
@@ -300,13 +305,14 @@ export class AiService {
         aiUrl,
         llmInput,
         draftLocale,
+        base,
         false,
       );
-      if (proxyFirst.content && !proxyFirst.localeMismatch) {
+      if (proxyFirst.draft && !proxyFirst.localeMismatch) {
         if (isAiDebugEnabled()) {
           this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
         }
-        return proxyFirst.content;
+        return proxyFirst.draft;
       }
 
       if (proxyFirst.localeMismatch) {
@@ -319,13 +325,14 @@ export class AiService {
           aiUrl,
           llmInput,
           draftLocale,
+          base,
           true,
         );
-        if (proxyRetry.content && !proxyRetry.localeMismatch) {
+        if (proxyRetry.draft && !proxyRetry.localeMismatch) {
           if (isAiDebugEnabled()) {
             this.logger.log(`question-draft: legacy proxy ${aiUrl} (strict retry)`);
           }
-          return proxyRetry.content;
+          return proxyRetry.draft;
         }
       }
       if (isAiDebugEnabled()) {
@@ -344,14 +351,14 @@ export class AiService {
           draftLocale,
           { strictLocale: draftLocale !== 'en' },
         );
-        const firstAttempt = this.acceptGenerateContentDraft(parsed, draftLocale);
-        if (firstAttempt.content && !firstAttempt.localeMismatch) {
+        const firstAttempt = this.acceptGenerateDraft(parsed, draftLocale, base);
+        if (firstAttempt.draft && !firstAttempt.localeMismatch) {
           if (isAiDebugEnabled()) {
             this.logger.log(
               `question-draft: model ${native.kind} (${native.model})`,
             );
           }
-          return firstAttempt.content;
+          return firstAttempt.draft;
         }
         if (firstAttempt.localeMismatch) {
           if (isAiDebugEnabled()) {
@@ -365,17 +372,18 @@ export class AiService {
             draftLocale,
             { strictLocale: true },
           );
-          const strictAttempt = this.acceptGenerateContentDraft(
+          const strictAttempt = this.acceptGenerateDraft(
             strictParsed,
             draftLocale,
+            base,
           );
-          if (strictAttempt.content && !strictAttempt.localeMismatch) {
+          if (strictAttempt.draft && !strictAttempt.localeMismatch) {
             if (isAiDebugEnabled()) {
               this.logger.log(
                 `question-draft: model ${native.kind} (${native.model}) (strict retry)`,
               );
             }
-            return strictAttempt.content;
+            return strictAttempt.draft;
           }
         }
         if (isAiDebugEnabled()) {
@@ -399,12 +407,13 @@ export class AiService {
     if (isAiDebugEnabled()) {
       this.logger.log('question-draft: heuristic stub (no LLM)');
     }
-    return this.buildQuestionDraftContent(base.questionText, draftLocale, {
+    const content = this.buildQuestionDraftContent(base.questionText, draftLocale, {
       followUpQuestions: base.followUpQuestions,
       expectedConcepts: base.expectedConcepts,
       redFlags: base.redFlags,
       sampleGoodAnswer: base.sampleGoodAnswer,
     });
+    return this.buildQuestionDraftGenerateFromBase(base, content);
   }
 
   private resolveSourceLocale(
@@ -801,20 +810,22 @@ export class AiService {
     return res.json() as Promise<unknown>;
   }
 
-  private acceptGenerateContentDraft(
+  private acceptGenerateDraft(
     payload: unknown,
     draftLocale: Locale,
-  ): LlmContentAttempt {
+    base: QuestionDraft,
+  ): LlmGenerateAttempt {
     if (!this.llmGenerateHasContent(payload)) {
-      return { content: undefined, localeMismatch: false };
+      return { draft: undefined, localeMismatch: false };
     }
-    const normalized = this.normalizeGenerateContent(payload, draftLocale);
-    if (!normalized) {
-      return { content: undefined, localeMismatch: false };
+    const content = this.normalizeGenerateContent(payload, draftLocale);
+    if (!content) {
+      return { draft: undefined, localeMismatch: false };
     }
+    const draft = this.buildQuestionDraftGenerateFromBase(base, content, payload);
     return {
-      content: normalized,
-      localeMismatch: !draftRubricMatchesLocale(normalized, draftLocale),
+      draft,
+      localeMismatch: !draftRubricMatchesLocale(content, draftLocale),
     };
   }
 
@@ -822,8 +833,9 @@ export class AiService {
     aiUrl: string,
     llmInput: QuestionGenerateLlmInput,
     draftLocale: Locale,
+    base: QuestionDraft,
     strictLocaleRetry: boolean,
-  ): Promise<LlmContentAttempt> {
+  ): Promise<LlmGenerateAttempt> {
     const res = await fetch(`${aiUrl}/interview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -836,7 +848,7 @@ export class AiService {
       }),
     });
     const data = await this.readLegacyProxyJson(res, 'question-draft generate');
-    return this.acceptGenerateContentDraft(data, draftLocale);
+    return this.acceptGenerateDraft(data, draftLocale, base);
   }
 
   private llmGenerateHasContent(payload: unknown): boolean {
@@ -999,6 +1011,104 @@ export class AiService {
       expectedConcepts,
       redFlags,
       sampleGoodAnswer,
+    };
+  }
+
+  private buildQuestionDraftGenerateFromBase(
+    base: QuestionDraft,
+    content: QuestionDraftContent,
+    identityPayload?: unknown,
+  ): QuestionDraftGenerate {
+    const source = content.questionText.toLowerCase();
+    const identity = this.normalizeGenerateIdentity(identityPayload, base, source);
+
+    return {
+      ...identity,
+      questionText: content.questionText,
+      followUpQuestions: content.followUpQuestions,
+      expectedConcepts: content.expectedConcepts,
+      redFlags: content.redFlags,
+      sampleGoodAnswer: content.sampleGoodAnswer,
+    };
+  }
+
+  private normalizeGenerateIdentity(
+    payload: unknown,
+    base: QuestionDraft,
+    questionSource: string,
+  ): Omit<
+    QuestionDraftGenerate,
+    | 'questionText'
+    | 'followUpQuestions'
+    | 'expectedConcepts'
+    | 'redFlags'
+    | 'sampleGoodAnswer'
+  > {
+    const record =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+
+    const readString = (camel: string, snake: string): string | undefined => {
+      const value = record[camel] ?? record[snake];
+      return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+    };
+
+    const category =
+      readString('category', 'category') ??
+      (typeof base.category === 'string' && base.category.trim()
+        ? base.category.trim()
+        : this.pickCategory(questionSource));
+    const subcategory =
+      readString('subcategory', 'subcategory') ??
+      (typeof base.subcategory === 'string' && base.subcategory.trim()
+        ? base.subcategory.trim()
+        : this.pickSubcategory(questionSource, category));
+    const difficulty = this.normalizeDifficulty(
+      (readString('difficulty', 'difficulty') as QuestionDifficulty | undefined) ??
+        base.difficulty,
+      this.pickDifficulty(questionSource, base.difficulty ?? 'medium'),
+    );
+    const weight = this.normalizeWeight(record.weight, base.weight);
+    const minimumPassScore = this.normalizeMinimumPassScore(
+      record.minimumPassScore ?? record.minimum_pass_score ?? base.minimumPassScore,
+    );
+    const tagsFromPayload = Array.isArray(record.tags)
+      ? (record.tags as unknown[])
+          .map((item) => (typeof item === 'string' ? item.trim() : ''))
+          .filter(Boolean)
+      : [];
+    const tags =
+      tagsFromPayload.length > 0
+        ? tagsFromPayload
+        : base.tags?.length
+          ? base.tags
+          : [category, subcategory].filter(Boolean);
+
+    const externalId =
+      readString('externalId', 'external_id') ??
+      (typeof base.externalId === 'string' && base.externalId.trim()
+        ? base.externalId.trim()
+        : `${category}_${this.slugify(questionSource.slice(0, 60) || category)}_v1`);
+    const role =
+      readString('role', 'role') ??
+      (typeof base.role === 'string' && base.role.trim() ? base.role.trim() : undefined);
+    const focus =
+      readString('focus', 'focus') ??
+      (typeof base.focus === 'string' && base.focus.trim()
+        ? base.focus.trim()
+        : subcategory);
+
+    return {
+      externalId,
+      role,
+      focus,
+      category,
+      subcategory,
+      difficulty,
+      weight,
+      minimumPassScore,
+      tags,
     };
   }
 
