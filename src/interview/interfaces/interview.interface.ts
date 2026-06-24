@@ -202,3 +202,8 @@ export interface InterviewWorkflow {
   lastUpdatedAt: Date;
   errorMessage?: string;
 }
+
+export interface InterviewCancelResult {
+  id: string;
+  canceled: true;
+}

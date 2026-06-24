@@ -28,6 +28,7 @@ import {
   InterviewQuestionResult,
   InterviewWorkflow,
   MediaArtifact,
+  InterviewCancelResult
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -55,6 +56,34 @@ interface InterviewRow {
   created_at: Date;
   updated_at: Date;
 }
+
+const INTERVIEW_UPDATE_SQL = `
+  UPDATE interviews
+  SET
+    candidate_name = $2,
+    candidate_email = $3,
+    position = $4,
+    questions_json = $5::jsonb,
+    answers_json = $6::jsonb,
+    status = $7,
+    result_json = $8::jsonb,
+    workflow_json = $9::jsonb,
+    updated_at = NOW()
+  WHERE id = $1
+  RETURNING
+    id,
+    candidate_name,
+    candidate_email,
+    position,
+    questions_json,
+    answers_json,
+    status,
+    result_json,
+    workflow_json,
+    created_by_id,
+    created_at,
+    updated_at
+`;
 
 export interface InterviewActor {
   id: string;
@@ -151,12 +180,6 @@ export class InterviewService {
         questionIds,
       );
 
-      if (questions.length !== questionIds.length) {
-        throw new BadRequestException(
-          `Resolved ${questions.length} questions for ${questionIds.length} requested ids; interview cannot be created.`,
-        );
-      }
-
       const result = await client.query<InterviewRow>(
         `
           INSERT INTO interviews (
@@ -207,7 +230,7 @@ export class InterviewService {
     });
   }
 
-  async cancel(id: string): Promise<Interview> {
+  async cancel(id: string): Promise<InterviewCancelResult> {
     return this.databaseService.withTransaction(async (client) => {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
@@ -224,8 +247,11 @@ export class InterviewService {
             [questionIds])
       }
 
-      await this.questionService.processPendingDeletionsAfterTerminalInterview(client);
-      return interview;
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(
+        client,
+        questionIds,
+      );
+      return { id, canceled: true };
     });
   }
 
@@ -285,12 +311,6 @@ export class InterviewService {
           client,
           questionIds,
         );
-
-        if (nextQuestions.length !== questionIds.length) {
-          throw new BadRequestException(
-            `Resolved ${nextQuestions.length} questions for ${questionIds.length} requested ids; interview cannot be updated.`,
-          );
-        }
 
         const oldIds = interview.questions.map((question) => question.id);
         const added = questionIds.filter((questionId) => !oldIds.includes(questionId));
@@ -666,7 +686,6 @@ export class InterviewService {
       submittedAtFallback: 'now' | 'keep';
     },
   ): Promise<Interview> {
-    const interview = await this.findOne(id);
     const {
       questionIndex,
       versionNumber,
@@ -683,7 +702,11 @@ export class InterviewService {
       clientTranscript,
     } = input;
 
-    const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
     if (questionIndex !== currentQuestionIndex) {
       throw new BadRequestException(
         'Invalid question index — must answer in order',
@@ -864,7 +887,7 @@ export class InterviewService {
         );
 
     const now = new Date();
-    return this.saveInterview({
+    return this.saveInterviewInTransaction(client, {
       ...interview,
       answers: nextAnswers,
       status: 'in_progress',
@@ -872,6 +895,7 @@ export class InterviewService {
         startedAt: interview.workflow?.startedAt,
       }),
       updatedAt: now,
+    });
     });
   }
 
@@ -922,49 +946,27 @@ export class InterviewService {
     return result.rows[0];
   }
 
+  private interviewUpdateParams(interview: Interview): unknown[] {
+    return [
+      interview.id,
+      interview.candidateName,
+      interview.candidateEmail ?? null,
+      interview.position,
+      JSON.stringify(interview.questions),
+      JSON.stringify(interview.answers),
+      interview.status,
+      interview.result ? JSON.stringify(interview.result) : null,
+      interview.workflow ? JSON.stringify(interview.workflow) : null,
+    ];
+  }
+
   private async saveInterviewInTransaction(
     client: PoolClient,
     interview: Interview,
   ): Promise<Interview> {
     const result = await client.query<InterviewRow>(
-      `
-        UPDATE interviews
-        SET
-          candidate_name = $2,
-          candidate_email = $3,
-          position = $4,
-          questions_json = $5::jsonb,
-          answers_json = $6::jsonb,
-          status = $7,
-          result_json = $8::jsonb,
-          workflow_json = $9::jsonb,
-          updated_at = NOW()
-        WHERE id = $1
-        RETURNING
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          created_at,
-          updated_at
-      `,
-      [
-        interview.id,
-        interview.candidateName,
-        interview.candidateEmail ?? null,
-        interview.position,
-        JSON.stringify(interview.questions),
-        JSON.stringify(interview.answers),
-        interview.status,
-        interview.result ? JSON.stringify(interview.result) : null,
-        interview.workflow ? JSON.stringify(interview.workflow) : null,
-      ],
+      INTERVIEW_UPDATE_SQL,
+      this.interviewUpdateParams(interview),
     );
 
     return this.mapRow(result.rows[0]);
@@ -973,65 +975,34 @@ export class InterviewService {
   private async saveInterviewWithTerminalSideEffects(
     previousStatus: Interview['status'],
     interview: Interview,
+    client?: PoolClient,
   ): Promise<Interview> {
     const becameTerminal =
       !isTerminalInterviewStatus(previousStatus) &&
       isTerminalInterviewStatus(interview.status);
 
-    if (!becameTerminal) {
-      return this.saveInterview(interview);
-    }
+    const persist = async (tx: PoolClient): Promise<Interview> => {
+      if (becameTerminal) {
+        await this.lockInterviewForUpdate(tx, interview.id);
+        const saved = await this.saveInterviewInTransaction(tx, interview);
+        await this.questionService.processPendingDeletionsAfterTerminalInterview(
+          tx,
+          interview.questions.map((question) => question.id),
+        );
+        return saved;
+      }
+      return this.saveInterviewInTransaction(tx, interview);
+    };
 
-    return this.databaseService.withTransaction(async (client) => {
-      await this.lockInterviewForUpdate(client, interview.id);
-      const saved = await this.saveInterviewInTransaction(client, interview);
-      await this.questionService.processPendingDeletionsAfterTerminalInterview(
-        client,
-      );
-      return saved;
-    });
+    return client
+      ? persist(client)
+      : this.databaseService.withTransaction(persist);
   }
 
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
-      `
-        UPDATE interviews
-        SET
-          candidate_name = $2,
-          candidate_email = $3,
-          position = $4,
-          questions_json = $5::jsonb,
-          answers_json = $6::jsonb,
-          status = $7,
-          result_json = $8::jsonb,
-          workflow_json = $9::jsonb,
-          updated_at = NOW()
-        WHERE id = $1
-        RETURNING
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          created_at,
-          updated_at
-      `,
-      [
-        interview.id,
-        interview.candidateName,
-        interview.candidateEmail ?? null,
-        interview.position,
-        JSON.stringify(interview.questions),
-        JSON.stringify(interview.answers),
-        interview.status,
-        interview.result ? JSON.stringify(interview.result) : null,
-        interview.workflow ? JSON.stringify(interview.workflow) : null,
-      ],
+      INTERVIEW_UPDATE_SQL,
+      this.interviewUpdateParams(interview),
     );
 
     return this.mapRow(result.rows[0]);

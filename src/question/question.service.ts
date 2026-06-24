@@ -696,6 +696,15 @@ export class QuestionService {
       );
     }
 
+    const pendingDeletionIds = uniqueIds.filter(
+      (id) => byId.get(id)?.pending_deletion,
+    );
+    if (pendingDeletionIds.length > 0) {
+      throw new BadRequestException(
+        `Cannot create an interview with questions scheduled for deletion. Refresh the question list and remove ${pendingDeletionIds.length === 1 ? 'this id' : 'these ids'} from your selection: ${pendingDeletionIds.join(', ')}`,
+      );
+    }
+
     return uniqueIds.map((id) =>
       this.toQuestionCore(this.mapRow(byId.get(id)!)),
     );
@@ -723,15 +732,22 @@ export class QuestionService {
 
   async processPendingDeletionsAfterTerminalInterview(
     client: PoolClient,
+    questionIds: string[],
   ): Promise<void> {
+    if (questionIds.length === 0) {
+      return;
+    }
+
     const pending = await client.query<{ id: string }>(
       `
         SELECT id
         FROM questions
-        WHERE pending_deletion = TRUE
+        WHERE id = ANY($1::uuid[])
+          AND pending_deletion = TRUE
           AND deleted = FALSE
         FOR UPDATE
       `,
+      [questionIds],
     );
 
     for (const row of pending.rows) {

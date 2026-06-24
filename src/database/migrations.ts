@@ -441,10 +441,20 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0018',
-    name: 'add_interview_canceled_and_questions_pending_deletion',
+    version: '0020',
+    name: 'add_questions_pending_deletion',
     statements: [
       `ALTER TABLE questions ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN NOT NULL DEFAULT FALSE;`,
+    ],
+  },
+  {
+    version: '0021',
+    name: 'add_interviews_questions_json_gin_index',
+    statements: [
+      `
+        CREATE INDEX IF NOT EXISTS interviews_questions_json_gin_idx
+        ON interviews USING GIN (questions_json jsonb_path_ops);
+      `,
     ],
   },
 ];

@@ -67,7 +67,7 @@ describe('Interview management (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
-    expect(response.body.status).toBe('pending');
+    expect(response.body).toEqual({ id: interviewId, canceled: true });
 
     await agent
       .get(`/interviews/${interviewId}`)
