@@ -7,3 +7,10 @@ export function invalidLocaleException() {
     'Invalid X-Locale header. Supported values: en, be, ru, pl',
   );
 }
+
+export function invalidContentLocaleException() {
+  return apiBadRequest(
+    ApiErrorCode.INVALID_LOCALE,
+    'Invalid contentLocale query. Supported values: en, be, ru, pl',
+  );
+}

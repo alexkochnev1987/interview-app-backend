@@ -3582,7 +3582,7 @@
       "get": {
         "operationId": "TakeController_getInterview",
         "summary": "Get candidate interview state",
-        "description": "Resolves currentQuestion using interviewLocale only (X-Locale is ignored on take). Includes resolvedLocale and optional fallbackFromLocale.",
+        "description": "Resolves currentQuestion using optional contentLocale (UI language), then interviewLocale, primaryLocale, and any available translation. X-Locale is ignored on take. Includes resolvedLocale and optional fallbackFromLocale.",
         "parameters": [
           {
             "name": "id",
@@ -3597,6 +3597,21 @@
             "required": false,
             "in": "query",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contentLocale",
+            "required": false,
+            "in": "query",
+            "description": "Candidate UI language for currentQuestion. Omit to use interviewLocale.",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -6702,7 +6717,7 @@
               "ru",
               "pl"
             ],
-            "description": "Present when resolvedLocale differs from the requested take locale."
+            "description": "Present when resolvedLocale differs from the requested content locale (contentLocale query or interviewLocale)."
           }
         },
         "required": [

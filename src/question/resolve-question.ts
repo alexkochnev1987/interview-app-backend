@@ -58,12 +58,10 @@ function effectiveTranslations(question: ResolveQuestionInput): QuestionTranslat
   );
 }
 
-function pickResolvedLocale(
+function pickResolvedLocaleFromChain(
   translations: QuestionTranslations,
-  requestedLocale: Locale,
-  primaryLocale: Locale,
+  chain: Locale[],
 ): Locale | undefined {
-  const chain: Locale[] = [requestedLocale, primaryLocale];
   const seen = new Set<Locale>();
   for (const locale of chain) {
     if (seen.has(locale)) {
@@ -75,6 +73,14 @@ function pickResolvedLocale(
     }
   }
   return listAvailableLocales(translations)[0];
+}
+
+function pickResolvedLocale(
+  translations: QuestionTranslations,
+  requestedLocale: Locale,
+  primaryLocale: Locale,
+): Locale | undefined {
+  return pickResolvedLocaleFromChain(translations, [requestedLocale, primaryLocale]);
 }
 
 function toLocalizedFields(
@@ -93,14 +99,24 @@ function toLocalizedFields(
   };
 }
 
+export interface ResolveQuestionOptions {
+  localeFallbackChain?: Locale[];
+}
+
 export function resolveQuestion(
   question: ResolveQuestionInput,
   requestedLocale: Locale,
+  options?: ResolveQuestionOptions,
 ): ResolvedQuestion {
   const translations = effectiveTranslations(question);
   const availableLocales = listAvailableLocales(translations);
   const resolvedLocale =
-    pickResolvedLocale(translations, requestedLocale, question.primaryLocale) ??
+    (options?.localeFallbackChain
+      ? pickResolvedLocaleFromChain(translations, [
+          ...options.localeFallbackChain,
+          question.primaryLocale,
+        ])
+      : pickResolvedLocale(translations, requestedLocale, question.primaryLocale)) ??
     question.primaryLocale;
   const resolvedTranslation = translations[resolvedLocale];
   const primaryTranslation = translations[question.primaryLocale];

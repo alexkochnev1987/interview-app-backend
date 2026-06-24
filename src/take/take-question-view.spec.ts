@@ -1,8 +1,7 @@
-import { Request } from 'express';
 import { DEFAULT_LOCALE } from '../locale/locale.constants';
 import { InterviewQuestion } from '../interview/interfaces/interview.interface';
 import { buildCandidateQuestionView } from './take-question-view';
-import { resolveTakeLocale } from './take-locale';
+import { resolveTakeContentLocale } from './take-locale';
 import { Interview } from '../interview/interfaces/interview.interface';
 
 function question(overrides: Partial<InterviewQuestion> = {}): InterviewQuestion {
@@ -37,9 +36,19 @@ function question(overrides: Partial<InterviewQuestion> = {}): InterviewQuestion
   };
 }
 
+function interview(overrides: Partial<Interview> = {}): Interview {
+  return {
+    interviewLocale: 'pl',
+    ...overrides,
+  } as Interview;
+}
+
 describe('buildCandidateQuestionView', () => {
   it('resolves text for requested locale', () => {
-    const view = buildCandidateQuestionView(question(), 'pl');
+    const view = buildCandidateQuestionView(
+      question(),
+      resolveTakeContentLocale('pl', interview()),
+    );
     expect(view.text).toBe('Polish question');
     expect(view.followUpQuestions).toEqual(['PL follow-up']);
     expect(view.resolvedLocale).toBe('pl');
@@ -49,36 +58,47 @@ describe('buildCandidateQuestionView', () => {
   it('sets fallbackFromLocale when falling back', () => {
     const view = buildCandidateQuestionView(
       question({ translations: { en: question().translations!.en! } }),
-      'pl',
+      resolveTakeContentLocale('pl', interview({ interviewLocale: 'en' })),
     );
     expect(view.resolvedLocale).toBe('en');
     expect(view.fallbackFromLocale).toBe('pl');
   });
+
+  it('falls back to interviewLocale when contentLocale translation is missing', () => {
+    const view = buildCandidateQuestionView(
+      question(),
+      resolveTakeContentLocale('ru', interview({ interviewLocale: 'pl' })),
+    );
+    expect(view.text).toBe('Polish question');
+    expect(view.resolvedLocale).toBe('pl');
+    expect(view.fallbackFromLocale).toBe('ru');
+  });
 });
 
-describe('resolveTakeLocale', () => {
-  const interview = {
-    interviewLocale: 'pl',
-  } as Interview;
-
-  it('uses interviewLocale and ignores X-Locale header', () => {
-    const locale = resolveTakeLocale(
-      { headers: { 'x-locale': 'ru' } } as unknown as Request,
-      interview,
-    );
-    expect(locale).toBe('pl');
+describe('resolveTakeContentLocale', () => {
+  it('uses interviewLocale when contentLocale is omitted', () => {
+    const resolution = resolveTakeContentLocale(undefined, interview());
+    expect(resolution.requestedLocale).toBe('pl');
+    expect(resolution.localeFallbackChain).toEqual(['pl']);
   });
 
-  it('uses interviewLocale when header omitted', () => {
-    const locale = resolveTakeLocale({ headers: {} } as unknown as Request, interview);
-    expect(locale).toBe('pl');
+  it('uses contentLocale when provided', () => {
+    const resolution = resolveTakeContentLocale('ru', interview());
+    expect(resolution.requestedLocale).toBe('ru');
+    expect(resolution.localeFallbackChain).toEqual(['ru', 'pl']);
   });
 
   it('defaults interview locale to en when missing', () => {
-    const locale = resolveTakeLocale(
-      { headers: {} } as unknown as Request,
-      { interviewLocale: undefined } as unknown as Interview,
+    const resolution = resolveTakeContentLocale(
+      undefined,
+      interview({ interviewLocale: undefined }),
     );
-    expect(locale).toBe(DEFAULT_LOCALE);
+    expect(resolution.requestedLocale).toBe(DEFAULT_LOCALE);
+  });
+
+  it('rejects invalid contentLocale', () => {
+    expect(() =>
+      resolveTakeContentLocale('de', interview()),
+    ).toThrow('Invalid contentLocale query');
   });
 });

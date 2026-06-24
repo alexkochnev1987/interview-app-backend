@@ -266,7 +266,8 @@ export class CandidateQuestionViewDto {
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
-    description: 'Present when resolvedLocale differs from the requested take locale.',
+    description:
+      'Present when resolvedLocale differs from the requested content locale (contentLocale query or interviewLocale).',
   })
   fallbackFromLocale?: Locale;
 }

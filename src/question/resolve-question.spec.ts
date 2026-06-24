@@ -154,4 +154,21 @@ describe('resolveQuestion', () => {
     expect(result.resolvedLocale).toBe('be');
     expect(result.questionText).toBe('be text');
   });
+
+  it('uses custom locale fallback chain when provided', () => {
+    const question = makeQuestion({
+      primaryLocale: 'en',
+      translations: {
+        ...translation('en', 'en text'),
+        ...translation('pl', 'pl text'),
+      },
+    });
+
+    const result = resolveQuestion(question, 'ru', {
+      localeFallbackChain: ['ru', 'pl'],
+    });
+
+    expect(result.resolvedLocale).toBe('pl');
+    expect(result.fallbackFromLocale).toBe('ru');
+  });
 });

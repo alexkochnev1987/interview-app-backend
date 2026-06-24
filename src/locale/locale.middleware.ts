@@ -37,7 +37,7 @@ export class LocaleMiddleware implements NestMiddleware {
 
     if (!isLocale(value)) {
       if (isLenientLocalePath(path)) {
-        // Take resolves locale in resolveTakeLocale; do not force req.locale to en.
+        // Take resolves contentLocale in resolveTakeContentLocale; do not force req.locale to en.
         next();
         return;
       }
