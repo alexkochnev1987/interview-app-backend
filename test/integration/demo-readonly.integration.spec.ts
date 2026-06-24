@@ -39,14 +39,14 @@ describe('Demo read-only account (integration)', () => {
     });
     await db.query('UPDATE users SET demo = TRUE WHERE id = $1', [demoUser.id]);
 
+    // Stamped demo further down: create() refuses to fold a demo question into a
+    // non-demo actor's interview, so the demo interview fixture must reference it
+    // while it is still a real row, then both get flipped together.
     const demoQuestion = await questionService.create({
       questionText: 'Demo-only question for the integration test.',
       difficulty: 'easy',
       weight: 1,
     });
-    await db.query('UPDATE questions SET demo = TRUE WHERE id = $1', [
-      demoQuestion.id,
-    ]);
 
     // A real interview owned by the super admin, plus a demo interview.
     const adminAgent = supertest.agent(app.getHttpServer());
@@ -77,6 +77,9 @@ describe('Demo read-only account (integration)', () => {
       'UPDATE interviews SET demo = TRUE, created_by_id = $2 WHERE id = $1',
       [demoInterviewId, demoUser.id],
     );
+    await db.query('UPDATE questions SET demo = TRUE WHERE id = $1', [
+      demoQuestion.id,
+    ]);
 
     // Demo login (no credentials in the request).
     const demo = supertest.agent(app.getHttpServer());
