@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import * as cookieParser from 'cookie-parser';
 import supertest = require('supertest');
 import { AppModule } from '../../src/app.module';
+import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
 import { LoginThrottlerGuard } from '../../src/auth/guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from '../../src/auth/guards/register-throttler.guard';
 import { DatabaseService } from '../../src/database/database.service';
@@ -62,6 +63,7 @@ export async function getIntegrationApp(): Promise<{
 
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
+    app.useGlobalFilters(new ApiExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
