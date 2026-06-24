@@ -380,6 +380,20 @@ export class InterviewResponseDto {
   workflow?: InterviewWorkflowDto;
 }
 
+export class PaginatedInterviewsResponseDto {
+  @ApiProperty({type: [InterviewResponseDto]})
+  items: InterviewResponseDto[];
+
+  @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
+}
+
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {
   @ApiProperty()
   candidateLink: string;
