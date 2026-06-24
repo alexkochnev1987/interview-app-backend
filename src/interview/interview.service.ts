@@ -130,7 +130,7 @@ export class InterviewService {
 
   async create(
     dto: CreateInterviewDto,
-    context: { createdById?: string } = {},
+    context: { createdById?: string; demo?: boolean } = {},
   ): Promise<Interview> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
@@ -150,6 +150,7 @@ export class InterviewService {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
+        context.demo === true,
       );
 
       if (questions.length !== questionIds.length) {
@@ -209,6 +210,9 @@ export class InterviewService {
     });
   }
 
+  // Unscoped: returns both demo and real interviews. Reserved for internal
+  // background work such as validation recovery on boot. Do not expose through
+  // an actor-facing route; use findAllForActor so demo isolation is preserved.
   async findAll(): Promise<Interview[]> {
     const result = await this.databaseService.query<InterviewRow>(
       `

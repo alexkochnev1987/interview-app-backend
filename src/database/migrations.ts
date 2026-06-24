@@ -457,4 +457,13 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE interviews ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
     ],
   },
+  {
+    version: '0020',
+    name: 'enforce_single_demo_user',
+    statements: [
+      // At most one demo account may exist, so the demo login resolves to a
+      // single deterministic user instead of an arbitrary earliest row.
+      `CREATE UNIQUE INDEX IF NOT EXISTS users_single_demo_idx ON users (demo) WHERE demo = TRUE;`,
+    ],
+  },
 ];

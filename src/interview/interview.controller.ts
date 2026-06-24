@@ -73,6 +73,7 @@ export class InterviewController {
   ): Promise<Interview & { candidateLink: string }> {
     const interview = await this.interviewService.create(dto, {
       createdById: user.id,
+      demo: user.demo,
     });
     const token = this.authService.generateCandidateToken(interview.id);
     return {

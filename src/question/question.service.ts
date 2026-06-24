@@ -621,19 +621,25 @@ export class QuestionService {
   async findManyByIdsForUpdate(
     client: PoolClient,
     ids: string[],
+    demo = false,
   ): Promise<QuestionCore[]> {
     if (ids.length === 0) {
       return [];
     }
 
     const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
+    const params: unknown[] = [uniqueIds];
+    // Demo isolation: an actor may only build interviews from questions on its
+    // own side of the demo boundary. Out-of-scope ids fall through to the
+    // not-found check below rather than being silently mixed into the row.
+    const demoClause = demoScopeClause(params, demo);
     const result = await client.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[])
+        WHERE id = ANY($1::uuid[]) AND ${demoClause}
         FOR UPDATE
       `,
-      [uniqueIds],
+      params,
     );
 
     const byId = new Map(
