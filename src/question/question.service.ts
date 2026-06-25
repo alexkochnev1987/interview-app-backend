@@ -617,7 +617,25 @@ export class QuestionService {
       }
     }
 
-    return this.mapRow(result.rows[0]);
+    const question = this.mapRow(result.rows[0]);
+
+    if (!question.pendingDeletion) {
+      return question;
+    }
+
+    return {
+      ...question,
+      blockingInterviews: await this.listBlockingInterviewsForQuestion(id),
+    };
+  }
+
+  private async listBlockingInterviewsForQuestion(
+    questionId: string,
+  ): Promise<QuestionDeleteBlockingInterview[]> {
+    return this.databaseService.withClient(async (client) => {
+      const rows = await this.findActiveInterviewsUsingQuestion(client, questionId);
+      return mapBlockingInterviews(rows);
+    });
   }
 
   async softDelete(id: string): Promise<SoftDeleteQuestionResult> {

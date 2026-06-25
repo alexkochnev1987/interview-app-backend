@@ -112,6 +112,41 @@ describe('Question delete contracts (integration)', () => {
     expect(row.rows[0]?.pending_deletion).toBe(true);
   });
 
+  it('returns blocking interviews when getting a scheduled-deletion question', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question with blocking interviews on GET.',
+    );
+    const interviewId = await createInterviewWithQuestion(
+      agent,
+      session,
+      questionId,
+    );
+
+    await agent
+      .delete(`/questions/${questionId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    const response = await agent
+      .get(`/questions/${questionId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(response.body.pendingDeletion).toBe(true);
+    expect(response.body.blockingInterviews).toEqual([
+      {
+        id: interviewId,
+        candidateName: 'Delete Contract Candidate',
+        href: `/interviews/${interviewId}`,
+      },
+    ]);
+  });
+
   it('deletes a question used only in a completed interview', async () => {
     const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);

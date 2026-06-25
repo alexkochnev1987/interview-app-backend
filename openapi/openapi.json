@@ -3191,6 +3191,27 @@
           "severity"
         ]
       },
+      "QuestionDeleteBlockingInterviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string",
+            "description": "Staff app path to open the blocking interview.",
+            "example": "/interviews/550e8400-e29b-41d4-a716-446655440000"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "href"
+        ]
+      },
       "QuestionResponseDto": {
         "type": "object",
         "properties": {
@@ -3277,6 +3298,13 @@
           "pendingDeletion": {
             "type": "boolean",
             "description": "True when deletion is scheduled because the question is still used by active interviews."
+          },
+          "blockingInterviews": {
+            "description": "Present when pendingDeletion is true — active interviews still using this question.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDeleteBlockingInterviewDto"
+            }
           },
           "usageCount": {
             "type": "number",
@@ -3641,27 +3669,6 @@
             "additionalProperties": true
           }
         }
-      },
-      "QuestionDeleteBlockingInterviewDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "href": {
-            "type": "string",
-            "description": "Staff app path to open the blocking interview.",
-            "example": "/interviews/550e8400-e29b-41d4-a716-446655440000"
-          }
-        },
-        "required": [
-          "id",
-          "candidateName",
-          "href"
-        ]
       },
       "DeleteQuestionResponseDto": {
         "type": "object",

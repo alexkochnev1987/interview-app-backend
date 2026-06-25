@@ -40,6 +40,7 @@ export interface Question extends QuestionCore {
   deleted: boolean;
   usageCount: number;
   pendingDeletion: boolean;
+  blockingInterviews?: QuestionDeleteBlockingInterview[];
 }
 
 export interface QuestionDeleteBlockingInterview {
