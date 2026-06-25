@@ -46,6 +46,7 @@ import {
   InterviewResponseDto,
   InterviewResultResponseDto,
   InterviewWithCandidateLinkResponseDto,
+  PaginatedInterviewsResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
@@ -54,7 +55,11 @@ import {
   InterviewCancelResult,
   InterviewResult,
 } from './interfaces/interview.interface';
-import { InterviewFacets, InterviewService } from './interview.service';
+import {
+  InterviewFacets,
+  InterviewService,
+  PaginatedInterviews,
+} from './interview.service';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -101,11 +106,14 @@ export class InterviewController {
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'List interviews' })
-  @ApiOkResponse({ type: [InterviewResponseDto] })
+  @ApiOperation({ summary: 'List interviews (paginated, filterable, sortable)' })
+  @ApiOkResponse({ type: PaginatedInterviewsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
-    return this.interviewService.findAllForActor(user);
+  findAll(
+      @Query(INTERVIEW_QUERY_VALIDATION_PIPE) query: QueryInterviewsDto,
+      @CurrentUser() user: ActingUser,
+  ): Promise<PaginatedInterviews> {
+    return this.interviewService.findAllPaginated(query, user);
   }
 
   @Get('facets')
