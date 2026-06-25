@@ -26,7 +26,7 @@ export type QuestionSortField = (typeof QUESTION_SORT_FIELDS)[number];
 export const QUESTION_SORT_ORDERS = ['asc', 'desc'] as const;
 export type QuestionSortOrder = (typeof QUESTION_SORT_ORDERS)[number];
 
-export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all' , 'scheduled'] as const;
+export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all', 'scheduled'] as const;
 export type QuestionStatusFilter = (typeof QUESTION_STATUS_VALUES)[number];
 
 function trimToUndefined(value: unknown): string | undefined {

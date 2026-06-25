@@ -772,6 +772,10 @@ export class QuestionService {
         return;
       }
 
+      for (const row of pending.rows) {
+        await this.purgeAbandonedPendingInterviewsBlockingQuestion(client, row.id);
+      }
+
       await this.processPendingDeletionsAfterTerminalInterview(
         client,
         pending.rows.map((row) => row.id),
@@ -805,6 +809,39 @@ export class QuestionService {
       }
 
       await this.markDeleted(client, row.id);
+    }
+  }
+
+  private async purgeAbandonedPendingInterviewsBlockingQuestion(
+    client: PoolClient,
+    questionId: string,
+  ): Promise<void> {
+    const abandoned = await client.query<{
+      id: string;
+      questions_json: Array<{ id: string }> | null;
+    }>(
+      `
+        SELECT id, questions_json
+        FROM interviews
+        WHERE status = 'pending'
+          AND COALESCE(jsonb_array_length(answers_json), 0) = 0
+          AND questions_json @> $1::jsonb
+        FOR UPDATE
+      `,
+      [JSON.stringify([{ id: questionId }])],
+    );
+
+    for (const row of abandoned.rows) {
+      const interviewQuestionIds = (row.questions_json ?? []).map(
+        (question) => question.id,
+      );
+      await client.query(`DELETE FROM interviews WHERE id = $1`, [row.id]);
+      if (interviewQuestionIds.length > 0) {
+        await client.query(
+          `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+          [interviewQuestionIds],
+        );
+      }
     }
   }
 
