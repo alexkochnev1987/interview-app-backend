@@ -7,12 +7,7 @@ import {
 } from '../common/errors/api-error';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../database/database.service';
-import {
-  DEFAULT_LOCALE,
-  isLocale,
-  Locale,
-  SUPPORTED_LOCALES,
-} from '../locale/locale.constants';
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UserRole } from '../user/interfaces/user.interface';
@@ -46,6 +41,10 @@ import {
 } from './interview-access-rules';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
+import {
+  collectInterviewLocaleWarnings,
+  InterviewLocaleWarning,
+} from './interview-locale-warnings';
 
 const DEFAULT_INTERVIEW_LIST_LIMIT = 50;
 const MAX_INTERVIEW_LIST_LIMIT = 100;
@@ -57,10 +56,7 @@ export interface PaginatedInterviews {
   limit: number;
 }
 
-export interface InterviewLocaleWarning {
-  questionId: string;
-  availableLocales: Locale[];
-}
+export type { InterviewLocaleWarning } from './interview-locale-warnings';
 
 export interface CreateInterviewResult {
   interview: Interview;
@@ -210,7 +206,7 @@ export class InterviewService {
         );
       }
 
-      const localeWarnings = this.collectInterviewLocaleWarnings(
+      const localeWarnings = collectInterviewLocaleWarnings(
         questions,
         interviewLocale,
       );
@@ -384,35 +380,6 @@ export class InterviewService {
       ...interview.result!,
       interviewLocale: interview.interviewLocale,
     };
-  }
-
-  private collectInterviewLocaleWarnings(
-    questions: InterviewQuestion[],
-    interviewLocale: Locale,
-  ): InterviewLocaleWarning[] {
-    return questions
-      .filter((question) => !this.questionHasLocale(question, interviewLocale))
-      .map((question) => ({
-        questionId: question.id,
-        availableLocales: this.listQuestionAvailableLocales(question),
-      }));
-  }
-
-  private listQuestionAvailableLocales(question: InterviewQuestion): Locale[] {
-    return SUPPORTED_LOCALES.filter((locale) =>
-      this.questionHasLocale(question, locale),
-    );
-  }
-
-  private questionHasLocale(
-    question: InterviewQuestion,
-    locale: Locale,
-  ): boolean {
-    const translated = question.translations[locale]?.questionText?.trim();
-    if (translated) {
-      return true;
-    }
-    return locale === question.primaryLocale && Boolean(question.questionText.trim());
   }
 
   private assertActorCanAccess(

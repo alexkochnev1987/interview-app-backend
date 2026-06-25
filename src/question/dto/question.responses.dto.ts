@@ -99,7 +99,10 @@ export class ResolvedQuestionResponseDto extends QuestionResponseDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   declare primaryLocale: Locale;
 
-  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale of returned questionText and rubric fields.',
+  })
   resolvedLocale: Locale;
 
   @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
@@ -107,7 +110,8 @@ export class ResolvedQuestionResponseDto extends QuestionResponseDto {
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
-    description: 'Present when resolvedLocale differs from the requested X-Locale.',
+    description:
+      'Requested X-Locale (or ?locale= on list). Omitted when resolvedLocale matches. Also set when rubric fields partially fall back to primaryLocale while questionText matches the request.',
   })
   fallbackFromLocale?: Locale;
 }

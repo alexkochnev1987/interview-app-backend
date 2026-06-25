@@ -144,7 +144,7 @@ export class InterviewController {
   @RequirePermissions('interviews:read_own')
   @ApiOperation({
     summary: 'Get interview by id',
-    description: 'questions[] resolved for interviewLocale (single-language interview content).',
+    description: 'questions[] resolved for interviewLocale.',
   })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })

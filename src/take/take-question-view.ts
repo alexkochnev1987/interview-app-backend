@@ -1,6 +1,9 @@
 import { CandidateQuestionView } from '../interview/interfaces/interview.interface';
 import { InterviewQuestion } from '../interview/interfaces/interview.interface';
-import { resolveQuestion } from '../question/resolve-question';
+import {
+  contentFallbackFromLocale,
+  resolveQuestion,
+} from '../question/resolve-question';
 import { toResolveQuestionInput } from '../question/to-resolve-question-input';
 import { TakeContentLocaleResolution } from './take-locale';
 
@@ -13,13 +16,14 @@ export function buildCandidateQuestionView(
     contentLocale.requestedLocale,
     { localeFallbackChain: contentLocale.localeFallbackChain },
   );
-  const view: CandidateQuestionView = {
+  const fallbackFromLocale = contentFallbackFromLocale(
+    resolved.resolvedLocale,
+    contentLocale.requestedLocale,
+  );
+  return {
     text: resolved.questionText,
     followUpQuestions: resolved.followUpQuestions,
     resolvedLocale: resolved.resolvedLocale,
+    ...(fallbackFromLocale ? { fallbackFromLocale } : {}),
   };
-  if (resolved.resolvedLocale !== contentLocale.requestedLocale) {
-    view.fallbackFromLocale = contentLocale.requestedLocale;
-  }
-  return view;
 }

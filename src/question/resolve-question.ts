@@ -34,6 +34,25 @@ function hasTranslation(
   return Boolean(translations[locale]?.questionText?.trim());
 }
 
+export function hasLocaleContent(
+  question: ResolveQuestionInput,
+  locale: Locale,
+): boolean {
+  return hasTranslation(effectiveTranslations(question), locale);
+}
+
+export function listContentLocales(question: ResolveQuestionInput): Locale[] {
+  return listAvailableLocales(effectiveTranslations(question));
+}
+
+/** Requested locale when returned text came from a different locale in the chain. */
+export function contentFallbackFromLocale(
+  resolvedLocale: Locale,
+  requestedLocale: Locale,
+): Locale | undefined {
+  return resolvedLocale !== requestedLocale ? requestedLocale : undefined;
+}
+
 export function listAvailableLocales(translations: QuestionTranslations): Locale[] {
   return SUPPORTED_LOCALES.filter((locale) => hasTranslation(translations, locale));
 }
@@ -167,7 +186,10 @@ export function resolveQuestion(
     resolvedLocale,
     availableLocales,
   };
-  if (resolvedLocale !== requestedLocale || rubricFallbackFromPrimary) {
+  const textFallback = contentFallbackFromLocale(resolvedLocale, requestedLocale);
+  if (textFallback) {
+    resolved.fallbackFromLocale = textFallback;
+  } else if (rubricFallbackFromPrimary) {
     resolved.fallbackFromLocale = requestedLocale;
   }
   return resolved;

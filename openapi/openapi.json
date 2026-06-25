@@ -2298,7 +2298,7 @@
       "get": {
         "operationId": "InterviewController_findOne",
         "summary": "Get interview by id",
-        "description": "questions[] resolved for interviewLocale (single-language interview content).",
+        "description": "questions[] resolved for interviewLocale.",
         "parameters": [
           {
             "name": "id",
@@ -4654,7 +4654,8 @@
               "be",
               "ru",
               "pl"
-            ]
+            ],
+            "description": "Locale of returned questionText and rubric fields."
           },
           "availableLocales": {
             "type": "array",
@@ -4676,7 +4677,7 @@
               "ru",
               "pl"
             ],
-            "description": "Present when resolvedLocale differs from the requested X-Locale."
+            "description": "Requested X-Locale (or ?locale= on list). Omitted when resolvedLocale matches. Also set when rubric fields partially fall back to primaryLocale while questionText matches the request."
           }
         },
         "required": [
@@ -6707,7 +6708,8 @@
               "be",
               "ru",
               "pl"
-            ]
+            ],
+            "description": "Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation."
           },
           "fallbackFromLocale": {
             "type": "string",
@@ -6717,7 +6719,7 @@
               "ru",
               "pl"
             ],
-            "description": "Present when resolvedLocale differs from the requested content locale (contentLocale query or interviewLocale)."
+            "description": "Locale the candidate asked for: contentLocale query param, or interviewLocale when contentLocale is omitted. Omitted when resolvedLocale equals that requested locale."
           }
         },
         "required": [

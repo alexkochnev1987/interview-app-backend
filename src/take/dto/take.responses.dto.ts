@@ -261,13 +261,17 @@ export class CandidateQuestionViewDto {
   @ApiProperty({ type: [String] })
   followUpQuestions: string[];
 
-  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation.',
+  })
   resolvedLocale: Locale;
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
     description:
-      'Present when resolvedLocale differs from the requested content locale (contentLocale query or interviewLocale).',
+      'Locale the candidate asked for: contentLocale query param, or interviewLocale when contentLocale is omitted. Omitted when resolvedLocale equals that requested locale.',
   })
   fallbackFromLocale?: Locale;
 }

@@ -31,7 +31,14 @@ Controls locale resolution for question text on read/write responses. Rubric fie
 
 `questionText`, `followUpQuestions`, `expectedConcepts`, `redFlags`, `sampleGoodAnswer` — on question CRUD/list/similar, interview `questions[]`, take `currentQuestion`.
 
-**Metadata:** `resolvedLocale`, `availableLocales`; on take, `fallbackFromLocale` when fallback was used.
+**Metadata:** `resolvedLocale`, `availableLocales`; on take, `fallbackFromLocale` when text locale differs from the requested locale.
+
+### `resolvedLocale` vs `fallbackFromLocale`
+
+| Field | Meaning |
+|-------|---------|
+| `resolvedLocale` | Locale of the returned `questionText` / `text` (and matching `followUpQuestions`). After the chain: take `contentLocale` → `interviewLocale` → `primaryLocale` → any available translation; questions use `X-Locale` (or `?locale=` on list). |
+| `fallbackFromLocale` | **Take:** locale the candidate asked for (`contentLocale` query, or `interviewLocale` when omitted). Omitted when `resolvedLocale` equals that request. **Questions:** requested `X-Locale`; also set when rubric fields partially fall back to `primaryLocale` while `questionText` matches the request. |
 
 **Non-localized:** `id`, `category`, `role`, `difficulty`, `tags`, `primaryLocale`, scores, media, workflow. Deprecated: `outputLanguage` (use `primaryLocale`).
 
