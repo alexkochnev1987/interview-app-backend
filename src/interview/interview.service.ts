@@ -11,6 +11,11 @@ import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import {
+  QueryInterviewsDto,
+  InterviewSortField,
+  InterviewSortOrder,
+} from './dto/query-interviews.dto';
 import { UserRole } from '../user/interfaces/user.interface';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
@@ -48,6 +53,27 @@ import {
   DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_USER_ID,
 } from '../database/demo-seed-data';
+
+export const DEFAULT_INTERVIEWS_PAGE = 1;
+export const DEFAULT_INTERVIEWS_LIMIT = 20;
+export const MAX_INTERVIEWS_LIMIT = 100;
+export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
+export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
+
+const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
+  candidateName: 'lower(candidate_name)',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+
+export interface PaginatedInterviews {
+  items: Interview[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type InterviewFacetFields = 'position' | 'status';
 
 interface InterviewRow {
   id: string;
@@ -454,6 +480,44 @@ export class InterviewService {
       params,
     );
     return result.rows.map((row) => this.mapRow(row));
+  }
+
+  private escapeLike(value: string): string {
+    return value.replace(/[\\%_]/g, '\\$&');
+  }
+
+  private buildInterviewFilterClauses(
+      query: QueryInterviewsDto,
+      actor: InterviewActor,
+      options: { excludeField?: 'position' | 'status' } = {},
+  ): { whereSql: string; params: unknown[] }{
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (actor.role === 'hr') {
+      params.push(actor.id);
+      whereClauses.push(`created_by_id = $${params.length}`);
+    }
+
+    if (query.q) {
+      params.push(`%${this.escapeLike(query.q)}%`);
+      const i = params.length;
+      whereClauses.push(`candidate_name ILIKE $${i}`);
+    }
+
+    if (query.position && options.excludeField !== 'position') {
+      params.push(query.position.toLowerCase());
+      whereClauses.push(`lower(position) = $${params.length}`);
+    }
+
+    if (query.status && options.excludeField !== 'status') {
+      params.push(query.status);
+      whereClauses.push(`status = $${params.length}`);
+    }
+
+    const whereSql =
+        whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    return { whereSql, params };
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
