@@ -384,3 +384,11 @@ export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto 
   @ApiProperty()
   candidateLink: string;
 }
+
+export class InterviewCancelResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example:true })
+  canceled: true;
+}

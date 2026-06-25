@@ -27,7 +27,9 @@ import { Response } from 'express';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
-import { CandidateQuestionView } from '../interview/interfaces/interview.interface';
+import {
+  CandidateQuestionView,
+} from '../interview/interfaces/interview.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
@@ -162,16 +164,16 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.addAnswer(id, body);
+    const updated = await this.interviewService.addAnswer(id, body);
 
-    const submittedCount = interview.answers.filter(
+    const submittedCount = updated.answers.filter(
       (answer) => answer.status === 'submitted',
     ).length;
-    const isLast = submittedCount >= interview.questions.length;
+    const isLast = submittedCount >= updated.questions.length;
     return {
       ok: true,
       answeredCount: submittedCount,
-      totalQuestions: interview.questions.length,
+      totalQuestions: updated.questions.length,
       completed: isLast,
     };
   }
@@ -199,8 +201,8 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.saveAnswerProgress(id, body);
-    const currentAnswer = interview.answers.find(
+    const updated = await this.interviewService.saveAnswerProgress(id, body);
+    const currentAnswer = updated.answers.find(
       (answer) => answer.questionIndex === body.questionIndex,
     );
 
@@ -245,4 +247,5 @@ export class TakeController {
       ...validation,
     };
   }
+
 }

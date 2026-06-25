@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
-  IsArray,
+  IsArray, IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -26,7 +26,7 @@ export type QuestionSortField = (typeof QUESTION_SORT_FIELDS)[number];
 export const QUESTION_SORT_ORDERS = ['asc', 'desc'] as const;
 export type QuestionSortOrder = (typeof QUESTION_SORT_ORDERS)[number];
 
-export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all'] as const;
+export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all', 'scheduled'] as const;
 export type QuestionStatusFilter = (typeof QUESTION_STATUS_VALUES)[number];
 
 function trimToUndefined(value: unknown): string | undefined {
@@ -126,4 +126,14 @@ export class QueryQuestionsDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description:
+        'When true, only interview-eligible (active) questions are returned',  })
+  @IsOptional()
+  @Transform(({value})=> value === true || value === 'true')
+  @IsBoolean()
+  eligibleForInterview?: boolean;
 }
