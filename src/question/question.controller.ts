@@ -41,7 +41,6 @@ import { GetQuestionQueryDto } from './dto/get-question-query.dto';
 import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
-  QuestionDraft,
   SimilarQuestionMatch,
 } from './interfaces/question.interface';
 import {
@@ -56,7 +55,6 @@ import {
   FindSimilarResponseDto,
   PaginatedQuestionsResponseDto,
   QuestionFacetsResponseDto,
-  QuestionDraftResponseDto,
   QuestionDraftContentResponseDto,
   QuestionDraftGenerateResponseDto,
   QuestionResponseDto,

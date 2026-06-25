@@ -32,7 +32,7 @@ import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
-import { Interview, InterviewResult } from './interfaces/interview.interface';
+import { InterviewResult } from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
 import { presentInterviewListItem } from './present-interview-list';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -47,7 +47,6 @@ import {
   CandidateLinkResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
-  InterviewWithCandidateLinkResponseDto,
   PaginatedInterviewListResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,

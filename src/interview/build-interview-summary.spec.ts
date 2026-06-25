@@ -1,5 +1,4 @@
 import { buildInterviewSummary } from './build-interview-summary';
-import { InterviewQuestionResult } from './interfaces/interview.interface';
 
 describe('buildInterviewSummary', () => {
   it('uses locale-specific labels when aggregating per-question summaries', () => {
