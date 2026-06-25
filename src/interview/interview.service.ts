@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { demoScopeClause } from '../common/demo-scope';
 import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
@@ -16,7 +15,6 @@ import {
   InterviewSortField,
   InterviewSortOrder,
 } from './dto/query-interviews.dto';
-import { UserRole } from '../user/interfaces/user.interface';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
   Answer,
@@ -36,6 +34,7 @@ import {
   MediaArtifact,
   InterviewCancelResult,
   InterviewListItem,
+  InterviewActor,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -54,6 +53,8 @@ import {
   DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_USER_ID,
 } from '../database/demo-seed-data';
+import { buildInterviewFilterClauses } from './interview-list-filters';
+import { toInterviewListItem } from './interview-list-item';
 
 export const DEFAULT_INTERVIEWS_PAGE = 1;
 export const DEFAULT_INTERVIEWS_LIMIT = 20;
@@ -100,7 +101,7 @@ export interface InterviewFacets {
   statuses: FacetCount[];
 }
 
-export type InterviewFacetFields = 'position' | 'status';
+export type { InterviewFacetFields } from './interview-list-filters';
 
 interface InterviewRow {
   id: string;
@@ -145,12 +146,6 @@ const INTERVIEW_UPDATE_SQL = `
     created_at,
     updated_at
 `;
-
-export interface InterviewActor {
-  id: string;
-  role: UserRole;
-  demo: boolean;
-}
 
 interface AddAnswerInput {
   questionIndex: number;
@@ -469,46 +464,6 @@ export class InterviewService {
     }
   }
 
-  private escapeLike(value: string): string {
-    return value.replace(/[\\%_]/g, '\\$&');
-  }
-
-  private buildInterviewFilterClauses(
-    query: QueryInterviewsDto,
-    actor: InterviewActor,
-    options: { excludeField?: InterviewFacetFields } = {},
-  ): { whereSql: string; params: unknown[] } {
-    const whereClauses: string[] = [];
-    const params: unknown[] = [];
-
-    whereClauses.push(demoScopeClause(params, actor.demo === true));
-
-    if (actor.role === 'hr') {
-      params.push(actor.id);
-      whereClauses.push(`created_by_id = $${params.length}`);
-    }
-
-    if (query.q) {
-      params.push(`%${this.escapeLike(query.q)}%`);
-      const i = params.length;
-      whereClauses.push(`candidate_name ILIKE $${i}`);
-    }
-
-    if (query.position && options.excludeField !== 'position') {
-      params.push(query.position.toLowerCase());
-      whereClauses.push(`lower(position) = $${params.length}`);
-    }
-
-    if (query.status && options.excludeField !== 'status') {
-      params.push(query.status);
-      whereClauses.push(`status = $${params.length}`);
-    }
-
-    const whereSql =
-      whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    return { whereSql, params };
-  }
-
   async findAllPaginated(
     query: QueryInterviewsDto = {},
     actor: InterviewActor,
@@ -529,7 +484,7 @@ export class InterviewService {
         : 'DESC';
     const sortExpression = SORT_FIELD_TO_SQL[sortBy];
 
-    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor);
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor);
 
     params.push(limit);
     const limitParam = params.length;
@@ -550,7 +505,9 @@ export class InterviewService {
 
     const total =
       result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-    const items = result.rows.map((row) => this.toListItem(this.mapRow(row)));
+    const items = result.rows.map((row) =>
+      toInterviewListItem(this.mapRow(row)),
+    );
 
     return { items, total, page, limit };
   }
@@ -573,7 +530,7 @@ export class InterviewService {
     query: QueryInterviewsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
-    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor, {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
       excludeField: 'position',
     });
 
@@ -602,7 +559,7 @@ export class InterviewService {
     query: QueryInterviewsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
-    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor, {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
       excludeField: 'status',
     });
 
@@ -1399,22 +1356,6 @@ export class InterviewService {
             startedAt: interview.workflow?.startedAt ?? completedAt,
           }),
       updatedAt: completedAt,
-    };
-  }
-
-  private toListItem(interview: Interview): InterviewListItem {
-    return {
-      id: interview.id,
-      candidateName: interview.candidateName,
-      candidateEmail: interview.candidateEmail,
-      position: interview.position,
-      status: interview.status,
-      questionCount: interview.questions.length,
-      submittedAnswerCount: countSubmittedAnswers(interview),
-      overallScore: interview.result?.overallScore,
-      decision: interview.result?.decision,
-      createdAt: interview.createdAt,
-      updatedAt: interview.updatedAt,
     };
   }
 

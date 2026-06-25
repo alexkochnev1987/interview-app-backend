@@ -1,4 +1,5 @@
 import { QuestionCore } from '../../question/interfaces/question.interface';
+import { UserRole } from '../../user/interfaces/user.interface';
 
 /** Keep in sync with interviews.status CHECK in src/database/migrations.ts */
 export const INTERVIEW_STATUSES = [
@@ -72,10 +73,16 @@ export interface Interview {
   updatedAt: Date;
 }
 
+export interface InterviewActor {
+  id: string;
+  role: UserRole;
+  demo: boolean;
+}
+
 export interface InterviewListItem {
   id: string;
   candidateName: string;
-  candidateEmail?: string;  //optional for now
+  candidateEmail?: string;
   position: string;
   status: InterviewStatus;
   questionCount: number;
