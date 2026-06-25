@@ -31,31 +31,11 @@ import {
   SimilarQuestionMatch,
   SoftDeleteQuestionResult,
 } from './interfaces/question.interface';
-
-function buildInterviewHref(interviewId: string): string {
-  return `/interviews/${interviewId}`;
-}
-
-function mapBlockingInterviews(
-  rows: Array<{ id: string; candidate_name: string }>,
-): QuestionDeleteBlockingInterview[] {
-  return rows.map((row) => ({
-    id: row.id,
-    candidateName: row.candidate_name,
-    href: buildInterviewHref(row.id),
-  }));
-}
-
-function buildScheduledDeleteReason(
-  blockingInterviews: QuestionDeleteBlockingInterview[],
-): string {
-  if (blockingInterviews.length === 0) {
-    return 'Question is scheduled for deletion when related active interviews finish.';
-  }
-
-  const links = blockingInterviews.map((interview) => interview.href).join(', ');
-  return `Question is scheduled for deletion when these active interviews finish: ${links}`;
-}
+import {
+  buildScheduledDeleteReason,
+  collectPendingDeletionAttachRejectIds,
+  mapBlockingInterviews,
+} from './question-scheduled-deletion.helpers';
 
 export const DEFAULT_QUESTIONS_PAGE = 1;
 export const DEFAULT_QUESTIONS_LIMIT = 20;
@@ -741,8 +721,9 @@ export class QuestionService {
       );
     }
 
-    const pendingDeletionIds = (options.rejectPendingDeletionFor ?? []).filter(
-      (id) => byId.get(id)?.pending_deletion,
+    const pendingDeletionIds = collectPendingDeletionAttachRejectIds(
+      options.rejectPendingDeletionFor ?? [],
+      (id) => Boolean(byId.get(id)?.pending_deletion),
     );
     if (pendingDeletionIds.length > 0) {
       throw new BadRequestException(
