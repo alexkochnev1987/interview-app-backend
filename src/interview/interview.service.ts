@@ -66,6 +66,22 @@ const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
   updatedAt: 'updated_at',
 };
 
+const INTERVIEW_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  questions_json,
+  answers_json,
+  status,
+  result_json,
+  workflow_json,
+  created_by_id,
+  demo,
+  created_at,
+  updated_at
+`;
+
 export interface PaginatedInterviews {
   items: Interview[];
   total: number;
@@ -388,24 +404,11 @@ export class InterviewService {
 
   // Unscoped: returns both demo and real interviews. Reserved for internal
   // background work such as validation recovery on boot. Do not expose through
-  // an actor-facing route; use findAllForActor so demo isolation is preserved.
+  // an actor-facing route; use findAllPaginated so demo isolation is preserved.
   async findAll(): Promise<Interview[]> {
     const result = await this.databaseService.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_COLUMNS}
         FROM interviews
         ORDER BY created_at DESC
       `,
@@ -445,41 +448,14 @@ export class InterviewService {
     return this.mapRow(result.rows[0]);
   }
 
-  async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
-    // Demo isolation: demo users see only demo interviews, real users only real ones.
-    const params: unknown[] = [];
-    const whereClauses = [demoScopeClause(params, actor.demo === true)];
-
-    if (actor.role === 'hr') {
-      params.push(actor.id);
-      whereClauses.push(`created_by_id = $${params.length}`);
-    } else if (actor.role !== 'super_admin' && actor.role !== 'admin') {
+  private assertActorCanList(actor: InterviewActor): void {
+    if (
+      actor.role !== 'super_admin' &&
+      actor.role !== 'admin' &&
+      actor.role !== 'hr'
+    ) {
       throw new ForbiddenException('You do not have access to interviews');
     }
-
-    const result = await this.databaseService.query<InterviewRow>(
-      `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
-        FROM interviews
-        WHERE ${whereClauses.join(' AND ')}
-        ORDER BY created_at DESC
-      `,
-      params,
-    );
-    return result.rows.map((row) => this.mapRow(row));
   }
 
   private escapeLike(value: string): string {
@@ -487,12 +463,14 @@ export class InterviewService {
   }
 
   private buildInterviewFilterClauses(
-      query: QueryInterviewsDto,
-      actor: InterviewActor,
-      options: { excludeField?: 'position' | 'status' } = {},
-  ): { whereSql: string; params: unknown[] }{
+    query: QueryInterviewsDto,
+    actor: InterviewActor,
+    options: { excludeField?: InterviewFacetFields } = {},
+  ): { whereSql: string; params: unknown[] } {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
+
+    whereClauses.push(demoScopeClause(params, actor.demo === true));
 
     if (actor.role === 'hr') {
       params.push(actor.id);
@@ -516,8 +494,54 @@ export class InterviewService {
     }
 
     const whereSql =
-        whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+      whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     return { whereSql, params };
+  }
+
+  async findAllPaginated(
+    query: QueryInterviewsDto = {},
+    actor: InterviewActor,
+  ): Promise<PaginatedInterviews> {
+    this.assertActorCanList(actor);
+
+    const page = Math.max(1, query.page ?? DEFAULT_INTERVIEWS_PAGE);
+    const limit = Math.min(
+      MAX_INTERVIEWS_LIMIT,
+      Math.max(1, query.limit ?? DEFAULT_INTERVIEWS_LIMIT),
+    );
+    const offset = (page - 1) * limit;
+
+    const sortBy = query.sortBy ?? DEFAULT_INTERVIEWS_SORT_BY;
+    const sortOrder =
+      (query.sortOrder ?? DEFAULT_INTERVIEWS_SORT_ORDER) === 'asc'
+        ? 'ASC'
+        : 'DESC';
+    const sortExpression = SORT_FIELD_TO_SQL[sortBy];
+
+    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor);
+
+    params.push(limit);
+    const limitParam = params.length;
+    params.push(offset);
+    const offsetParam = params.length;
+
+    const sql = `
+      SELECT ${INTERVIEW_COLUMNS}, COUNT(*) OVER() AS __total
+      FROM interviews
+      ${whereSql}
+      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
+
+    const result = await this.databaseService.query<
+      InterviewRow & { __total: string }
+    >(sql, params);
+
+    const total =
+      result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const items = result.rows.map((row) => this.mapRow(row));
+
+    return { items, total, page, limit };
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
