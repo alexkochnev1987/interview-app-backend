@@ -34,7 +34,8 @@ import {
   InterviewQuestionResult,
   InterviewWorkflow,
   MediaArtifact,
-  InterviewCancelResult
+  InterviewCancelResult,
+  InterviewListItem,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -83,7 +84,7 @@ const INTERVIEW_COLUMNS = `
 `;
 
 export interface PaginatedInterviews {
-  items: Interview[];
+  items: InterviewListItem[];
   total: number;
   page: number;
   limit: number;
@@ -549,7 +550,7 @@ export class InterviewService {
 
     const total =
       result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-    const items = result.rows.map((row) => this.mapRow(row));
+    const items = result.rows.map((row) => this.toListItem(this.mapRow(row)));
 
     return { items, total, page, limit };
   }
@@ -1398,6 +1399,22 @@ export class InterviewService {
             startedAt: interview.workflow?.startedAt ?? completedAt,
           }),
       updatedAt: completedAt,
+    };
+  }
+
+  private toListItem(interview: Interview): InterviewListItem {
+    return {
+      id: interview.id,
+      candidateName: interview.candidateName,
+      candidateEmail: interview.candidateEmail,
+      position: interview.position,
+      status: interview.status,
+      questionCount: interview.questions.length,
+      submittedAnswerCount: countSubmittedAnswers(interview),
+      overallScore: interview.result?.overallScore,
+      decision: interview.result?.decision,
+      createdAt: interview.createdAt,
+      updatedAt: interview.updatedAt,
     };
   }
 

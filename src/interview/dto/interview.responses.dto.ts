@@ -380,9 +380,44 @@ export class InterviewResponseDto {
   workflow?: InterviewWorkflowDto;
 }
 
+export class InterviewListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  candidateName: string;
+
+  @ApiPropertyOptional()
+  candidateEmail?: string;
+
+  @ApiProperty()
+  position: string;
+
+  @ApiProperty({ enum: INTERVIEW_STATUSES })
+  status: string;
+
+  @ApiProperty({ description: 'Total questions in this interview.' })
+  questionCount: number;
+
+  @ApiProperty({ description: 'Number of submitted answers.' })
+  submittedAnswerCount: number;
+
+  @ApiPropertyOptional({ description: 'Present when a result has been computed.' })
+  overallScore?: number;
+
+  @ApiPropertyOptional({ enum: ['proceed', 'review', 'reject'] })
+  decision?: string;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
 export class PaginatedInterviewsResponseDto {
-  @ApiProperty({type: [InterviewResponseDto]})
-  items: InterviewResponseDto[];
+  @ApiProperty({ type: [InterviewListItemDto] })
+  items: InterviewListItemDto[];
 
   @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
   total: number;

@@ -1237,18 +1237,217 @@
       },
       "get": {
         "operationId": "InterviewController_findAll",
-        "summary": "List interviews",
-        "parameters": [],
+        "summary": "List interviews (paginated, filterable, sortable)",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search by candidates name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "position",
+            "required": false,
+            "in": "query",
+            "description": "Filter by position (exact match)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "in_progress",
+                "processing",
+                "completed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "enum": [
+                "candidateName",
+                "createdAt",
+                "updatedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InterviewResponseDto"
-                  }
+                  "$ref": "#/components/schemas/PaginatedInterviewsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/facets": {
+      "get": {
+        "operationId": "InterviewController_getFacets",
+        "summary": "Faceted counts for the interview list sidebar",
+        "description": "Returns position and status counts. Counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking.",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search by candidates name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "position",
+            "required": false,
+            "in": "query",
+            "description": "Filter by position (exact match)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "in_progress",
+                "processing",
+                "completed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "enum": [
+                "candidateName",
+                "createdAt",
+                "updatedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewFacetsResponseDto"
                 }
               }
             }
@@ -4520,6 +4719,137 @@
           "createdAt",
           "updatedAt",
           "candidateLink"
+        ]
+      },
+      "InterviewListItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "questionCount": {
+            "type": "number",
+            "description": "Total questions in this interview."
+          },
+          "submittedAnswerCount": {
+            "type": "number",
+            "description": "Number of submitted answers."
+          },
+          "overallScore": {
+            "type": "number",
+            "description": "Present when a result has been computed."
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "proceed",
+              "review",
+              "reject"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "status",
+          "questionCount",
+          "submittedAnswerCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedInterviewsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total rows matching the filter, ignoring page/limit."
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "InterviewFacetCountDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number",
+            "description": "Number of interviews with this value, given all OTHER current filters."
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ]
+      },
+      "InterviewFacetsResponseDto": {
+        "type": "object",
+        "properties": {
+          "positions": {
+            "description": "Position value + count, given all OTHER current filters (position itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewFacetCountDto"
+            }
+          },
+          "statuses": {
+            "description": "Status value + count, given all OTHER current filters (status itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewFacetCountDto"
+            }
+          }
+        },
+        "required": [
+          "positions",
+          "statuses"
         ]
       },
       "InterviewResponseDto": {

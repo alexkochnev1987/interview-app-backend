@@ -72,6 +72,20 @@ export interface Interview {
   updatedAt: Date;
 }
 
+export interface InterviewListItem {
+  id: string;
+  candidateName: string;
+  candidateEmail?: string;  //optional for now
+  position: string;
+  status: InterviewStatus;
+  questionCount: number;
+  submittedAnswerCount: number;
+  overallScore?: number;
+  decision?: InterviewDecision;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface MediaArtifact {
   mediaKey: string;
   contentType: string;
