@@ -394,6 +394,33 @@ export class PaginatedInterviewsResponseDto {
   limit: number;
 }
 
+export class InterviewFacetCountDto {
+  @ApiProperty()
+  value: string;
+
+  @ApiProperty({
+    description:
+        'Number of interviews with this value, given all OTHER current filters.',
+  })
+  count: number;
+}
+
+export class InterviewFacetsResponseDto {
+  @ApiProperty({
+    type: [InterviewFacetCountDto],
+    description:
+        'Position value + count, given all OTHER current filters (position itself is not applied).',
+  })
+  positions: InterviewFacetCountDto[];
+
+  @ApiProperty({
+    type: [InterviewFacetCountDto],
+    description:
+        'Status value + count, given all OTHER current filters (status itself is not applied).',
+  })
+  statuses: InterviewFacetCountDto[];
+}
+
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {
   @ApiProperty()
   candidateLink: string;

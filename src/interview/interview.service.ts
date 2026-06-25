@@ -89,6 +89,16 @@ export interface PaginatedInterviews {
   limit: number;
 }
 
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface InterviewFacets {
+  positions: FacetCount[];
+  statuses: FacetCount[];
+}
+
 export type InterviewFacetFields = 'position' | 'status';
 
 interface InterviewRow {
@@ -542,6 +552,78 @@ export class InterviewService {
     const items = result.rows.map((row) => this.mapRow(row));
 
     return { items, total, page, limit };
+  }
+
+  async getFacets(
+    query: QueryInterviewsDto = {},
+    actor: InterviewActor,
+  ): Promise<InterviewFacets> {
+    this.assertActorCanList(actor);
+
+    const [positions, statuses] = await Promise.all([
+      this.queryInterviewPositionFacet(query, actor),
+      this.queryInterviewStatusFacet(query, actor),
+    ]);
+
+    return { positions, statuses };
+  }
+
+  private async queryInterviewPositionFacet(
+    query: QueryInterviewsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor, {
+      excludeField: 'position',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT MIN(position) AS value, COUNT(*)::text AS count
+        FROM interviews
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} position IS NOT NULL AND trim(position) <> ''
+        GROUP BY lower(position)
+        ORDER BY COUNT(*) DESC, MIN(position) ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
+  }
+
+  private async queryInterviewStatusFacet(
+    query: QueryInterviewsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = this.buildInterviewFilterClauses(query, actor, {
+      excludeField: 'status',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT status AS value, COUNT(*)::text AS count
+        FROM interviews
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} status IS NOT NULL
+        GROUP BY status
+        ORDER BY COUNT(*) DESC, status ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
