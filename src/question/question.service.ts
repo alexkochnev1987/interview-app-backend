@@ -401,6 +401,13 @@ export class QuestionService {
     const sortOrder = (query.sortOrder ?? DEFAULT_QUESTIONS_SORT_ORDER) === 'asc' ? 'ASC' : 'DESC';
     const sortExpression = SORT_FIELD_TO_SQL[sortBy];
 
+    const status: QuestionStatusFilter = options.forceActive
+      ? 'active'
+      : (query.status ?? 'active');
+    if (status === 'scheduled') {
+      await this.flushEligiblePendingDeletions();
+    }
+
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
     });
@@ -578,7 +585,7 @@ export class QuestionService {
     id: string,
     options: { includeDeleted?: boolean } = {},
   ): Promise<Question> {
-    const result = await this.databaseService.query<QuestionRow>(
+    let result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
         WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
@@ -589,6 +596,25 @@ export class QuestionService {
 
     if (!result.rows[0]) {
       throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    if (result.rows[0].pending_deletion && !result.rows[0].deleted) {
+      await this.databaseService.withTransaction(async (client) => {
+        await this.processPendingDeletionsAfterTerminalInterview(client, [id]);
+      });
+
+      result = await this.databaseService.query<QuestionRow>(
+        `
+          ${QUESTION_SELECT}
+          WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
+          LIMIT 1
+        `,
+        [id],
+      );
+
+      if (!result.rows[0]) {
+        throw new NotFoundException(`Question with id "${id}" not found`);
+      }
     }
 
     return this.mapRow(result.rows[0]);
@@ -663,6 +689,7 @@ export class QuestionService {
   async findManyByIdsForUpdate(
     client: PoolClient,
     ids: string[],
+    options: { rejectPendingDeletionFor?: string[] } = {},
   ): Promise<QuestionCore[]> {
     if (ids.length === 0) {
       return [];
@@ -696,7 +723,7 @@ export class QuestionService {
       );
     }
 
-    const pendingDeletionIds = uniqueIds.filter(
+    const pendingDeletionIds = (options.rejectPendingDeletionFor ?? []).filter(
       (id) => byId.get(id)?.pending_deletion,
     );
     if (pendingDeletionIds.length > 0) {
@@ -728,6 +755,29 @@ export class QuestionService {
     }
 
     return this.mapRow(result.rows[0]);
+  }
+
+  async flushEligiblePendingDeletions(): Promise<void> {
+    await this.databaseService.withTransaction(async (client) => {
+      const pending = await client.query<{ id: string }>(
+        `
+          SELECT id
+          FROM questions
+          WHERE pending_deletion = TRUE
+            AND deleted = FALSE
+          FOR UPDATE
+        `,
+      );
+
+      if (pending.rows.length === 0) {
+        return;
+      }
+
+      await this.processPendingDeletionsAfterTerminalInterview(
+        client,
+        pending.rows.map((row) => row.id),
+      );
+    });
   }
 
   async processPendingDeletionsAfterTerminalInterview(

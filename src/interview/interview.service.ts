@@ -178,6 +178,7 @@ export class InterviewService {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
+        { rejectPendingDeletionFor: questionIds },
       );
 
       const result = await client.query<InterviewRow>(
@@ -307,14 +308,15 @@ export class InterviewService {
           throw new BadRequestException('At least one question must be selected');
         }
 
-        const nextQuestions = await this.questionService.findManyByIdsForUpdate(
-          client,
-          questionIds,
-        );
-
         const oldIds = interview.questions.map((question) => question.id);
         const added = questionIds.filter((questionId) => !oldIds.includes(questionId));
         const removed = oldIds.filter((questionId) => !questionIds.includes(questionId));
+
+        const nextQuestions = await this.questionService.findManyByIdsForUpdate(
+          client,
+          questionIds,
+          { rejectPendingDeletionFor: added },
+        );
 
         if (added.length > 0) {
           await client.query(

@@ -1,4 +1,5 @@
 import { DatabaseService } from '../../src/database/database.service';
+import { InterviewService } from '../../src/interview/interview.service';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { updateInterviewStatus } from '../helpers/integration-db';
@@ -7,6 +8,7 @@ import {
   buildSubmitAnswerPayload,
   createTakeInterview,
   openCandidateTakeSession,
+  submitCandidateAnswer,
 } from '../helpers/take-flow';
 
 async function createQuestion(
@@ -174,6 +176,90 @@ describe('Interview management (integration)', () => {
       .patch(`/interviews/${interviewId}/cancel`)
       .set(authCookie(session))
       .expect(200);
+
+    const databaseService = app.get(DatabaseService);
+    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
+      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
+      [questionId],
+    );
+
+    expect(row.rows[0]?.deleted).toBe(true);
+    expect(row.rows[0]?.pending_deletion).toBe(false);
+  });
+
+  it('rejects adding a scheduled-deletion question when updating a pending interview', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionA = await createQuestion(agent, session, 'Question A retained.');
+    const questionB = await createQuestion(agent, session, 'Question B scheduled.');
+    const blockingInterviewId = await createPendingInterview(
+      agent,
+      session,
+      questionB,
+    );
+    const interviewId = await createPendingInterview(agent, session, questionA);
+
+    await agent
+      .delete(`/questions/${questionB}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    await agent
+      .patch(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .send({ questionIds: [questionA, questionB] })
+      .expect(400);
+
+    await agent
+      .patch(`/interviews/${blockingInterviewId}/cancel`)
+      .set(authCookie(session))
+      .expect(200);
+  });
+
+  it('flushes pending question deletions when blocking interview completes through take flow', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question pending deletion on complete.',
+    );
+    const { interviewId, token } = await createTakeInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    await agent
+      .delete(`/questions/${questionId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    await submitCandidateAnswer(agent, interviewId, token);
+
+    const interviewService = app.get(InterviewService);
+    const completedAt = new Date();
+    const runId = 'integration-complete-flush';
+    await interviewService.queueAnswerValidation(interviewId, {
+      questionIndex: 0,
+      sourceVersionNumber: 1,
+      runId,
+      requestedAt: completedAt,
+    });
+    const interview = await interviewService.completeAnswerValidation(interviewId, {
+      questionIndex: 0,
+      sourceVersionNumber: 1,
+      runId,
+      requestedAt: completedAt,
+      completedAt,
+      evaluation: {
+        overallScore: 82,
+        summary: 'Solid answer.',
+        evaluatedAt: completedAt,
+      },
+    });
+
+    expect(interview.status).toBe('completed');
 
     const databaseService = app.get(DatabaseService);
     const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
