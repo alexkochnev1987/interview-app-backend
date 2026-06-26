@@ -102,7 +102,7 @@ jobs:
 
       - name: Build, migrate, and restart backend
         run: |
-          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' BACKEND_SERVICE='$BACKEND_SERVICE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' bash -s" <<'SH'
+          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' BACKEND_SERVICE='$BACKEND_SERVICE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' GIT_SHA='$GIT_SHA' bash -s" <<'SH'
           set -euo pipefail
           cd "$REMOTE_DIR"
           test -f .env.lightsail
