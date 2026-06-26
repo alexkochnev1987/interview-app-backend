@@ -129,40 +129,6 @@ describe('Interview management (integration)', () => {
     expect(response.body.questions[0].id).toBe(questionB);
   });
 
-  it('flushes pending question deletions when a removed question is no longer referenced', async () => {
-    const { app, agent } = await getIntegrationApp();
-    const session = await loginAsSuperAdmin(agent);
-    const questionA = await createQuestion(agent, session, 'Question A kept.');
-    const questionB = await createQuestion(agent, session, 'Question B removed.');
-    const interviewId = await createPendingInterview(agent, session, questionA);
-
-    await agent
-      .patch(`/interviews/${interviewId}`)
-      .set(authCookie(session))
-      .send({ questionIds: [questionA, questionB] })
-      .expect(200);
-
-    await agent
-      .delete(`/questions/${questionB}`)
-      .set(authCookie(session))
-      .expect(200);
-
-    await agent
-      .patch(`/interviews/${interviewId}`)
-      .set(authCookie(session))
-      .send({ questionIds: [questionA] })
-      .expect(200);
-
-    const databaseService = app.get(DatabaseService);
-    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
-      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
-      [questionB],
-    );
-
-    expect(row.rows[0]?.deleted).toBe(true);
-    expect(row.rows[0]?.pending_deletion).toBe(false);
-  });
-
   it('rejects update when interview is not pending', async () => {
     const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);

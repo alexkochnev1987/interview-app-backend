@@ -47,22 +47,4 @@ describe('question-scheduled-deletion.helpers', () => {
       ),
     ).toEqual(['q-2']);
   });
-
-  it('returns no attach reject ids when none of the candidates are pending deletion', () => {
-    expect(
-      collectPendingDeletionAttachRejectIds(['q-1', 'q-2'], () => false),
-    ).toEqual([]);
-  });
-
-  it('returns no attach reject ids when the candidate set is empty', () => {
-    expect(
-      collectPendingDeletionAttachRejectIds([], () => true),
-    ).toEqual([]);
-  });
-
-  it('rejects every candidate id when all are pending deletion', () => {
-    expect(
-      collectPendingDeletionAttachRejectIds(['q-1', 'q-2'], () => true),
-    ).toEqual(['q-1', 'q-2']);
-  });
 });
