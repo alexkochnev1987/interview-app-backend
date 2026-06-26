@@ -1,6 +1,6 @@
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
-import { HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
