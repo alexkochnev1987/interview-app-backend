@@ -381,7 +381,8 @@
               "enum": [
                 "active",
                 "inactive",
-                "all"
+                "all",
+                "scheduled"
               ],
               "type": "string"
             }
@@ -434,6 +435,16 @@
               "maximum": 100,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "eligibleForInterview",
+            "required": false,
+            "in": "query",
+            "description": "When true, only interview-eligible (active) questions are returned",
+            "schema": {
+              "default": false,
+              "type": "boolean"
             }
           }
         ],
@@ -617,7 +628,8 @@
               "enum": [
                 "active",
                 "inactive",
-                "all"
+                "all",
+                "scheduled"
               ],
               "type": "string"
             }
@@ -670,6 +682,16 @@
               "maximum": 100,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "eligibleForInterview",
+            "required": false,
+            "in": "query",
+            "description": "When true, only interview-eligible (active) questions are returned",
+            "schema": {
+              "default": false,
+              "type": "boolean"
             }
           }
         ],
@@ -889,16 +911,6 @@
             }
           },
           "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -1268,6 +1280,90 @@
             "sessionAuth": []
           }
         ]
+      },
+      "patch": {
+        "operationId": "InterviewController_update",
+        "summary": "Update pending interview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInterviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
       }
     },
     "/interviews/{id}/candidate-link": {
@@ -1306,6 +1402,72 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/{id}/cancel": {
+      "patch": {
+        "operationId": "InterviewController_cancel",
+        "summary": "Cancel pending interview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewCancelResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -3063,6 +3225,27 @@
           "severity"
         ]
       },
+      "QuestionDeleteBlockingInterviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string",
+            "description": "Staff app path to open the blocking interview.",
+            "example": "/interviews/550e8400-e29b-41d4-a716-446655440000"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "href"
+        ]
+      },
       "QuestionResponseDto": {
         "type": "object",
         "properties": {
@@ -3146,6 +3329,17 @@
           "deleted": {
             "type": "boolean"
           },
+          "pendingDeletion": {
+            "type": "boolean",
+            "description": "True when deletion is scheduled because the question is still used by active interviews."
+          },
+          "blockingInterviews": {
+            "description": "Present when pendingDeletion is true — active interviews still using this question.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDeleteBlockingInterviewDto"
+            }
+          },
           "usageCount": {
             "type": "number",
             "description": "Number of times this question has been used in an interview."
@@ -3166,6 +3360,7 @@
           "createdAt",
           "updatedAt",
           "deleted",
+          "pendingDeletion",
           "usageCount"
         ]
       },
@@ -3518,11 +3713,20 @@
           "deleted": {
             "type": "boolean",
             "example": true
+          },
+          "scheduled": {
+            "type": "boolean",
+            "example": true
+          },
+          "blockingInterviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDeleteBlockingInterviewDto"
+            }
           }
         },
         "required": [
-          "id",
-          "deleted"
+          "id"
         ]
       },
       "BulkDeleteQuestionsDto": {
@@ -3539,7 +3743,7 @@
           "ids"
         ]
       },
-      "BulkDeleteBlockedItemDto": {
+      "BulkDeleteScheduledItemDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -3550,12 +3754,19 @@
           },
           "reason": {
             "type": "string"
+          },
+          "blockingInterviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDeleteBlockingInterviewDto"
+            }
           }
         },
         "required": [
           "id",
           "questionText",
-          "reason"
+          "reason",
+          "blockingInterviews"
         ]
       },
       "BulkDeleteQuestionsResponseDto": {
@@ -3567,16 +3778,16 @@
               "type": "string"
             }
           },
-          "blocked": {
+          "scheduled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/BulkDeleteBlockedItemDto"
+              "$ref": "#/components/schemas/BulkDeleteScheduledItemDto"
             }
           }
         },
         "required": [
           "deleted",
-          "blocked"
+          "scheduled"
         ]
       },
       "CreateInterviewDto": {
@@ -4232,6 +4443,42 @@
         "required": [
           "candidateLink"
         ]
+      },
+      "InterviewCancelResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "canceled": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "canceled"
+        ]
+      },
+      "UpdateInterviewDto": {
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "questionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "StartAnswerValidationResultDto": {
         "type": "object",

@@ -441,14 +441,31 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0018',
+    version: '0020',
+    name: 'add_questions_pending_deletion',
+    statements: [
+      `ALTER TABLE questions ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN NOT NULL DEFAULT FALSE;`,
+    ],
+  },
+  {
+    version: '0021',
+    name: 'add_interviews_questions_json_gin_index',
+    statements: [
+      `
+        CREATE INDEX IF NOT EXISTS interviews_questions_json_gin_idx
+        ON interviews USING GIN (questions_json jsonb_path_ops);
+      `,
+    ],
+  },
+  {
+    version: '0022',
     name: 'add_users_demo_flag',
     statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
     ],
   },
   {
-    version: '0019',
+    version: '0023',
     name: 'add_demo_flag_to_content',
     statements: [
       // Demo content is isolated in both directions: demo users read only demo
@@ -458,7 +475,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0020',
+    version: '0024',
     name: 'enforce_single_demo_user',
     statements: [
       // At most one demo account may exist, so the demo login resolves to a
