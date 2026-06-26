@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { demoScopeClause } from '../common/demo-scope';
 import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
@@ -37,6 +38,7 @@ import {
 } from './interview-completion-rules';
 import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import {
+  getDemoScopeDenialReason,
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
@@ -53,6 +55,7 @@ interface InterviewRow {
   result_json: Record<string, unknown> | null;
   workflow_json: Record<string, unknown> | null;
   created_by_id: string | null;
+  demo: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -88,6 +91,7 @@ const INTERVIEW_UPDATE_SQL = `
 export interface InterviewActor {
   id: string;
   role: UserRole;
+  demo: boolean;
 }
 
 interface AddAnswerInput {
@@ -158,7 +162,7 @@ export class InterviewService {
 
   async create(
     dto: CreateInterviewDto,
-    context: { createdById?: string } = {},
+    context: { createdById?: string; demo?: boolean } = {},
   ): Promise<Interview> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
@@ -178,6 +182,7 @@ export class InterviewService {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
+        context.demo === true,
         { rejectPendingDeletionFor: questionIds },
       );
 
@@ -206,6 +211,7 @@ export class InterviewService {
             result_json,
             workflow_json,
             created_by_id,
+            demo,
             created_at,
             updated_at
         `,
@@ -315,6 +321,7 @@ export class InterviewService {
         const nextQuestions = await this.questionService.findManyByIdsForUpdate(
           client,
           questionIds,
+          interview.demo === true,
           { rejectPendingDeletionFor: added },
         );
 
@@ -348,6 +355,9 @@ export class InterviewService {
     });
   }
 
+  // Unscoped: returns both demo and real interviews. Reserved for internal
+  // background work such as validation recovery on boot. Do not expose through
+  // an actor-facing route; use findAllForActor so demo isolation is preserved.
   async findAll(): Promise<Interview[]> {
     const result = await this.databaseService.query<InterviewRow>(
       `
@@ -362,6 +372,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -386,6 +397,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -403,40 +415,57 @@ export class InterviewService {
   }
 
   async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
-    if (actor.role === 'super_admin' || actor.role === 'admin') {
-      return this.findAll();
-    }
+    // Demo isolation: demo users see only demo interviews, real users only real ones.
+    const params: unknown[] = [];
+    const whereClauses = [demoScopeClause(params, actor.demo === true)];
+
     if (actor.role === 'hr') {
-      const result = await this.databaseService.query<InterviewRow>(
-        `
-          SELECT
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            questions_json,
-            answers_json,
-            status,
-            result_json,
-            workflow_json,
-            created_by_id,
-            created_at,
-            updated_at
-          FROM interviews
-          WHERE created_by_id = $1
-          ORDER BY created_at DESC
-        `,
-        [actor.id],
-      );
-      return result.rows.map((row) => this.mapRow(row));
+      params.push(actor.id);
+      whereClauses.push(`created_by_id = $${params.length}`);
+    } else if (actor.role !== 'super_admin' && actor.role !== 'admin') {
+      throw new ForbiddenException('You do not have access to interviews');
     }
-    throw new ForbiddenException('You do not have access to interviews');
+
+    const result = await this.databaseService.query<InterviewRow>(
+      `
+        SELECT
+          id,
+          candidate_name,
+          candidate_email,
+          position,
+          questions_json,
+          answers_json,
+          status,
+          result_json,
+          workflow_json,
+          created_by_id,
+          demo,
+          created_at,
+          updated_at
+        FROM interviews
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY created_at DESC
+      `,
+      params,
+    );
+    return result.rows.map((row) => this.mapRow(row));
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
     const interview = await this.findOne(id);
     this.assertActorCanAccess(interview, actor);
+    this.assertActorDemoScope(interview, actor);
     return interview;
+  }
+
+  private assertActorDemoScope(
+    interview: Interview,
+    actor: InterviewActor,
+  ): void {
+    const denial = getDemoScopeDenialReason(interview, actor);
+    if (denial) {
+      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
+    }
   }
 
   async complete(id: string): Promise<Interview> {
@@ -932,6 +961,7 @@ export class InterviewService {
           result_json,
           workflow_json,
           created_by_id,
+          demo,
           created_at,
           updated_at
         FROM interviews
@@ -1208,6 +1238,7 @@ export class InterviewService {
         row.updated_at,
       ),
       createdById: row.created_by_id ?? undefined,
+      demo: Boolean(row.demo),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

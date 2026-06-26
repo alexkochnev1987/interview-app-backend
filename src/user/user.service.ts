@@ -20,6 +20,7 @@ interface UserRow {
   role: UserRole;
   organization_id: string | null;
   password_hash: string;
+  demo: boolean;
   created_at: Date;
 }
 
@@ -53,7 +54,7 @@ export class UserService implements OnModuleInit {
           password_hash
         )
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, email, name, role, organization_id, password_hash, created_at
+        RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
       `,
       [
         crypto.randomUUID(),
@@ -72,7 +73,7 @@ export class UserService implements OnModuleInit {
     const normalizedEmail = this.normalizeEmail(email);
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, created_at
+        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
         FROM users
         WHERE email = $1
         LIMIT 1
@@ -83,10 +84,23 @@ export class UserService implements OnModuleInit {
     return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
   }
 
+  async findDemoUser(): Promise<User | undefined> {
+    const result = await this.databaseService.query<UserRow>(
+      `
+        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        FROM users
+        WHERE demo = TRUE
+        ORDER BY created_at ASC
+        LIMIT 1
+      `,
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
+  }
+
   async findById(id: string): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, created_at
+        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -104,7 +118,7 @@ export class UserService implements OnModuleInit {
     const offset = options.offset ?? 0;
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, created_at
+        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
         FROM users
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
@@ -139,7 +153,7 @@ export class UserService implements OnModuleInit {
     return this.databaseService.withTransaction(async (client) => {
       const targetResult = await client.query<UserRow>(
         `
-          SELECT id, email, name, role, organization_id, password_hash, created_at
+          SELECT id, email, name, role, organization_id, password_hash, demo, created_at
           FROM users
           WHERE id = $1
           FOR UPDATE
@@ -168,7 +182,7 @@ export class UserService implements OnModuleInit {
           SET role = $2,
               updated_at = NOW()
           WHERE id = $1
-          RETURNING id, email, name, role, organization_id, password_hash, created_at
+          RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
         `,
         [targetId, newRole],
       );
@@ -191,6 +205,7 @@ export class UserService implements OnModuleInit {
       name: user.name,
       role: user.role,
       organizationId: user.organizationId,
+      demo: user.demo,
       createdAt: user.createdAt,
     };
   }
@@ -207,6 +222,7 @@ export class UserService implements OnModuleInit {
       role: row.role,
       organizationId: row.organization_id ?? undefined,
       passwordHash: row.password_hash,
+      demo: row.demo ?? false,
       createdAt: new Date(row.created_at),
     };
   }

@@ -67,6 +67,7 @@ export interface Interview {
   result?: InterviewResult;
   workflow?: InterviewWorkflow;
   createdById?: string;
+  demo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

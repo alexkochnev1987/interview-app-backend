@@ -39,6 +39,34 @@
         ]
       }
     },
+    "/auth/demo": {
+      "post": {
+        "operationId": "AuthController_demo",
+        "summary": "Sign in to the read-only demo account",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many demo sign-in attempts"
+          },
+          "503": {
+            "description": "Demo access is not available"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/register": {
       "post": {
         "operationId": "AuthController_register",
@@ -3046,6 +3074,11 @@
             "type": "string",
             "example": "org_123"
           },
+          "demo": {
+            "type": "boolean",
+            "example": false,
+            "description": "Read-only demo account."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -3057,6 +3090,7 @@
           "email",
           "name",
           "role",
+          "demo",
           "createdAt"
         ]
       },

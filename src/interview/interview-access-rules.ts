@@ -20,3 +20,14 @@ export function getInterviewAccessDenialReason(
   }
   return INTERVIEW_ACCESS_DENIED_MESSAGE;
 }
+
+/** Demo isolation: a demo actor may only access demo interviews, and a real
+ *  actor may only access real ones. */
+export function getDemoScopeDenialReason(
+  interview: { demo: boolean },
+  actor: { demo: boolean },
+): string | null {
+  return (interview.demo === true) === (actor.demo === true)
+    ? null
+    : INTERVIEW_ACCESS_DENIED_MESSAGE;
+}

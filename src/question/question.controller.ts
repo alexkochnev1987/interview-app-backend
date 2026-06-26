@@ -76,12 +76,15 @@ export class QuestionController {
     const interviewEligible = query.eligibleForInterview === true;
 
     const effectiveQuery =
-        isSuperAdmin && !query.status && !interviewEligible
-            ? { ...query, status: 'all' as const }
-            : query;
+      isSuperAdmin && !query.status && !interviewEligible
+        ? { ...query, status: 'all' as const }
+        : query;
 
     const forceActive = interviewEligible || !isSuperAdmin;
-    return this.questionService.findAll(effectiveQuery, { forceActive });
+    return this.questionService.findAll(effectiveQuery, {
+      forceActive,
+      demo: user.demo,
+    });
   }
 
   @Get('facets')
@@ -101,12 +104,16 @@ export class QuestionController {
     const interviewEligible = query.eligibleForInterview === true;
 
     const effectiveQuery =
-        isSuperAdmin && !query.status && !interviewEligible
-            ? { ...query, status: 'all' as const }
-            : query;
-    const forceActive = interviewEligible || !isSuperAdmin;
+      isSuperAdmin && !query.status && !interviewEligible
+        ? { ...query, status: 'all' as const }
+        : query;
 
-    return this.questionService.getFacets(effectiveQuery, { forceActive }); }
+    const forceActive = interviewEligible || !isSuperAdmin;
+    return this.questionService.getFacets(effectiveQuery, {
+      forceActive,
+      demo: user.demo,
+    });
+  }
 
   @Get(':id')
   @RequirePermissions('questions:read')
@@ -121,6 +128,7 @@ export class QuestionController {
   ): Promise<Question> {
     return this.questionService.findOne(id, {
       includeDeleted: user.role === 'super_admin',
+      demo: user.demo,
     });
   }
 
@@ -145,11 +153,13 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async findSimilar(
     @Body() dto: FindSimilarDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
     const matches = await this.questionService.findSimilar(
       dto.draft ?? {},
       dto.limit ?? 5,
       dto.excludeQuestionId,
+      user.demo,
     );
     return { matches };
   }
