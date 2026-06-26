@@ -5,11 +5,14 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -21,6 +24,7 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
 import { User } from './interfaces/user.interface';
 import { UserService } from './user.service';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
@@ -58,5 +62,21 @@ export class UserController {
       targetId,
       dto.role,
     );
+  }
+
+  @Post('demo')
+  @RequirePermissions('users:assign_role')
+  @ApiOperation({
+    summary: 'Provision the read-only demo account and demo content',
+    description:
+      'Idempotent admin-only setup for environments without direct database ' +
+      'access. Refused on production unless ALLOW_DEMO_SEED=true is set, so it ' +
+      'can never seed demo data into production by accident.',
+  })
+  @ApiCreatedResponse({ type: DemoProvisionResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  provisionDemo() {
+    return this.userService.provisionDemo();
   }
 }

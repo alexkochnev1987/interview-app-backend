@@ -11,6 +11,11 @@ import { User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from './interfaces/user.interface';
 import { DatabaseService } from '../database/database.service';
+import {
+  isDemoSeedAllowed,
+  seedDemoData,
+  type DemoSeedCounts,
+} from '../database/demo-seed-core';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 
 interface UserRow {
@@ -95,6 +100,32 @@ export class UserService implements OnModuleInit {
       `,
     );
     return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
+  }
+
+  /**
+   * Idempotently provisions the read-only demo account and demo content so the
+   * demo login works on an environment without direct database access. Gated by
+   * isDemoSeedAllowed so it can never seed production data by accident. Returns
+   * the public demo user (never the password hash).
+   */
+  async provisionDemo(): Promise<{
+    user: Omit<User, 'passwordHash'>;
+    counts: DemoSeedCounts;
+  }> {
+    if (!isDemoSeedAllowed()) {
+      throw new ForbiddenException(
+        'Demo provisioning is disabled in this environment. Set ' +
+          'ALLOW_DEMO_SEED=true on the backend to enable it (never on production).',
+      );
+    }
+    const counts = await seedDemoData(this.databaseService);
+    const user = await this.findDemoUser();
+    if (!user) {
+      throw new BadRequestException(
+        'Demo provisioning ran but no demo user was found.',
+      );
+    }
+    return { user: this.toPublicUser(user), counts };
   }
 
   async findById(id: string): Promise<User | undefined> {

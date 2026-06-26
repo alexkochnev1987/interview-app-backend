@@ -299,6 +299,54 @@
         ]
       }
     },
+    "/users/demo": {
+      "post": {
+        "operationId": "UserController_provisionDemo",
+        "summary": "Provision the read-only demo account and demo content",
+        "description": "Idempotent admin-only setup for environments without direct database access. Refused on production unless ALLOW_DEMO_SEED=true is set, so it can never seed demo data into production by accident.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoProvisionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/questions": {
       "get": {
         "operationId": "QuestionController_findAll",
@@ -3176,6 +3224,43 @@
         },
         "required": [
           "role"
+        ]
+      },
+      "DemoProvisionCountsDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "number",
+            "example": 1
+          },
+          "questions": {
+            "type": "number",
+            "example": 3
+          },
+          "interviews": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "users",
+          "questions",
+          "interviews"
+        ]
+      },
+      "DemoProvisionResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUserResponseDto"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/DemoProvisionCountsDto"
+          }
+        },
+        "required": [
+          "user",
+          "counts"
         ]
       },
       "QuestionExpectedConceptDto": {
