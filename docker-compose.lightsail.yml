@@ -21,6 +21,8 @@ services:
   backend-dev:
     build:
       context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     env_file:
       - path: .env.lightsail
@@ -40,6 +42,8 @@ services:
   backend-prod:
     build:
       context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     env_file:
       - path: .env.lightsail
@@ -59,6 +63,8 @@ services:
   migrate:
     build:
       context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     env_file:
       - path: .env.lightsail
         required: false
