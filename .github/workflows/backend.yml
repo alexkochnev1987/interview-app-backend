@@ -106,8 +106,8 @@ jobs:
           set -euo pipefail
           cd "$REMOTE_DIR"
           test -f .env.lightsail
-          sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --no-deps --build -T migrate < /dev/null
-          sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --no-deps --build "$BACKEND_SERVICE"
+          sudo GIT_SHA="$GIT_SHA" docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --no-deps --build -T migrate < /dev/null
+          sudo GIT_SHA="$GIT_SHA" docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --no-deps --build "$BACKEND_SERVICE"
           sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml ps "$BACKEND_SERVICE"
           SH
 
