@@ -4840,6 +4840,10 @@
             "type": "string",
             "example": "ok"
           },
+          "message": {
+            "type": "string",
+            "example": "Lightsail backend is serving the latest deploy."
+          },
           "timestamp": {
             "format": "date-time",
             "type": "string",
@@ -4848,6 +4852,7 @@
         },
         "required": [
           "status",
+          "message",
           "timestamp"
         ]
       },
