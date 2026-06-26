@@ -114,7 +114,14 @@ jobs:
       - name: Verify health
         run: |
           if [ "$BACKEND_SERVICE" = "backend-prod" ]; then
-            curl --fail --show-error --silent "http://$LIGHTSAIL_HOST/prod/health"
+            HEALTH_URL="http://$LIGHTSAIL_HOST/prod/health"
           else
-            curl --fail --show-error --silent "http://$LIGHTSAIL_HOST/health"
+            HEALTH_URL="http://$LIGHTSAIL_HOST/health"
           fi
+          for attempt in {1..30}; do
+            if curl --fail --show-error --silent "$HEALTH_URL"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          curl --fail --show-error "$HEALTH_URL"
