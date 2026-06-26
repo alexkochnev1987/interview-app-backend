@@ -62,8 +62,10 @@ jobs:
     env:
       LIGHTSAIL_HOST: ${{ vars.LIGHTSAIL_HOST }}
       LIGHTSAIL_USER: ${{ vars.LIGHTSAIL_USER || 'ubuntu' }}
-      REMOTE_DIR: /home/ubuntu/interview-app-backend
+      REMOTE_DIR: ${{ github.ref == 'refs/heads/main' && '/home/ubuntu/interview-app-backend-prod' || '/home/ubuntu/interview-app-backend-dev' }}
       BACKEND_SERVICE: ${{ github.ref == 'refs/heads/main' && 'backend-prod' || 'backend-dev' }}
+      COMPOSE_PROJECT_NAME: interview-app-backend
+      GIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +76,17 @@ jobs:
           printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail
           chmod 600 ~/.ssh/lightsail
           ssh-keyscan -H "$LIGHTSAIL_HOST" >> ~/.ssh/known_hosts
+
+      - name: Prepare Lightsail directory
+        run: |
+          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' bash -s" <<'SH'
+          set -euo pipefail
+          mkdir -p "$REMOTE_DIR"
+          if [ ! -f "$REMOTE_DIR/.env.lightsail" ] && [ -f /home/ubuntu/interview-app-backend/.env.lightsail ]; then
+            cp /home/ubuntu/interview-app-backend/.env.lightsail "$REMOTE_DIR/.env.lightsail"
+          fi
+          test -f "$REMOTE_DIR/.env.lightsail"
+          SH
 
       - name: Sync source to Lightsail
         run: |
@@ -89,13 +102,13 @@ jobs:
 
       - name: Build, migrate, and restart backend
         run: |
-          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "BACKEND_SERVICE='$BACKEND_SERVICE' bash -s" <<'SH'
+          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' BACKEND_SERVICE='$BACKEND_SERVICE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' bash -s" <<'SH'
           set -euo pipefail
-          cd /home/ubuntu/interview-app-backend
+          cd "$REMOTE_DIR"
           test -f .env.lightsail
-          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --build migrate
-          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --build "$BACKEND_SERVICE" caddy
-          sudo docker compose --env-file .env.lightsail -f docker-compose.lightsail.yml ps
+          sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --no-deps --build -T migrate < /dev/null
+          sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --no-deps --build "$BACKEND_SERVICE"
+          sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml ps "$BACKEND_SERVICE"
           SH
 
       - name: Verify health
