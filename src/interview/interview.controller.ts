@@ -32,7 +32,11 @@ import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
-import { InterviewResult } from './interfaces/interview.interface';
+import {
+  Interview,
+  InterviewCancelResult,
+  InterviewResult,
+} from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
 import { presentInterviewListItem } from './present-interview-list';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -45,6 +49,7 @@ import { AnswerValidationWorkflowService } from './answer-validation-workflow.se
 import {
   CreateInterviewResultDto,
   CandidateLinkResponseDto,
+  InterviewCancelResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
   PaginatedInterviewListResponseDto,
@@ -52,6 +57,7 @@ import {
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -177,6 +183,22 @@ export class InterviewController {
     };
   }
 
+  @Patch(':id/cancel')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Cancel pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewCancelResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewCancelResult> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.cancel(id);
+  }
+
   @Patch(':id/complete')
   @RequirePermissions('interviews:update_own')
   @ApiOperation({
@@ -194,6 +216,25 @@ export class InterviewController {
     await this.interviewService.findOneForActor(id, user);
     const interview = await this.interviewService.complete(id);
     return presentInterview(interview);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Update pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: UpdateInterviewDto })
+  @ApiOkResponse({ type: InterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateInterviewDto,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.update(id, dto);
   }
 
   @Post(':id/validate')

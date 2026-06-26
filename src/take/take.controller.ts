@@ -179,16 +179,16 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.addAnswer(id, body);
+    const updated = await this.interviewService.addAnswer(id, body);
 
-    const submittedCount = interview.answers.filter(
+    const submittedCount = updated.answers.filter(
       (answer) => answer.status === 'submitted',
     ).length;
-    const isLast = submittedCount >= interview.questions.length;
+    const isLast = submittedCount >= updated.questions.length;
     return {
       ok: true,
       answeredCount: submittedCount,
-      totalQuestions: interview.questions.length,
+      totalQuestions: updated.questions.length,
       completed: isLast,
     };
   }
@@ -216,8 +216,8 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const interview = await this.interviewService.saveAnswerProgress(id, body);
-    const currentAnswer = interview.answers.find(
+    const updated = await this.interviewService.saveAnswerProgress(id, body);
+    const currentAnswer = updated.answers.find(
       (answer) => answer.questionIndex === body.questionIndex,
     );
 
@@ -262,4 +262,5 @@ export class TakeController {
       ...validation,
     };
   }
+
 }

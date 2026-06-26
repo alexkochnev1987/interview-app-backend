@@ -424,6 +424,14 @@ export class CreateInterviewResultDto extends InterviewWithCandidateLinkResponse
   localeWarnings: InterviewLocaleWarningDto[];
 }
 
+export class InterviewCancelResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: true })
+  canceled: true;
+}
+
 export class InterviewQuestionPreviewDto {
   @ApiProperty()
   id: string;

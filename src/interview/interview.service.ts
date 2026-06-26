@@ -2,14 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
   apiBadRequest,
+  apiConflict,
   apiForbidden,
   apiNotFound,
 } from '../common/errors/api-error';
 import { randomUUID } from 'crypto';
+import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { UserRole } from '../user/interfaces/user.interface';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
@@ -28,6 +31,7 @@ import {
   InterviewQuestionResult,
   InterviewWorkflow,
   MediaArtifact,
+  InterviewCancelResult,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -39,6 +43,10 @@ import {
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
+import {
+  getInterviewPendingOnlyBlockReason,
+  isTerminalInterviewStatus,
+} from './interview-management-rules';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
 import {
@@ -81,6 +89,22 @@ const INTERVIEW_SELECT_COLUMNS = `
   created_by_id,
   created_at,
   updated_at
+`;
+
+const INTERVIEW_UPDATE_SQL = `
+  UPDATE interviews
+  SET
+    candidate_name = $2,
+    candidate_email = $3,
+    position = $4,
+    questions_json = $5::jsonb,
+    answers_json = $6::jsonb,
+    status = $7,
+    result_json = $8::jsonb,
+    workflow_json = $9::jsonb,
+    updated_at = NOW()
+  WHERE id = $1
+  RETURNING ${INTERVIEW_SELECT_COLUMNS}
 `;
 
 interface InterviewRow {
@@ -197,6 +221,7 @@ export class InterviewService {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
+        { rejectPendingDeletionFor: questionIds },
       );
 
       if (questions.length !== questionIds.length) {
@@ -251,6 +276,137 @@ export class InterviewService {
         interview: this.mapRow(result.rows[0]),
         localeWarnings,
       };
+    });
+  }
+
+  async cancel(id: string): Promise<InterviewCancelResult> {
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
+      }
+
+      const questionIds = interview.questions.map((question) => question.id);
+      await client.query(`DELETE FROM interviews WHERE id = $1`, [id]);
+      if (questionIds.length > 0) {
+        await client.query(
+          `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+          [questionIds],
+        );
+      }
+
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(
+        client,
+        questionIds,
+      );
+      return { id, canceled: true };
+    });
+  }
+
+  async update(id: string, dto: UpdateInterviewDto): Promise<Interview> {
+    const hasUpdates =
+      dto.candidateName !== undefined ||
+      dto.candidateEmail !== undefined ||
+      dto.position !== undefined ||
+      dto.questionIds !== undefined;
+
+    if (!hasUpdates) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'At least one field must be provided',
+      );
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
+      }
+
+      let candidateName = interview.candidateName;
+      let candidateEmail = interview.candidateEmail;
+      let position = interview.position;
+      let questions = interview.questions;
+
+      if (dto.candidateName !== undefined) {
+        candidateName = dto.candidateName.trim();
+        if (!candidateName) {
+          throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
+        }
+      }
+
+      if (dto.position !== undefined) {
+        position = dto.position.trim();
+        if (!position) {
+          throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Position is required');
+        }
+      }
+
+      if (dto.candidateEmail !== undefined) {
+        candidateEmail = dto.candidateEmail.trim().toLowerCase() || undefined;
+      }
+
+      if (dto.questionIds !== undefined) {
+        const questionIds = dto.questionIds
+          .map((questionId) => questionId.trim())
+          .filter(Boolean);
+
+        if (questionIds.length === 0) {
+          throw apiBadRequest(
+            ApiErrorCode.BAD_REQUEST,
+            'At least one question must be selected',
+          );
+        }
+
+        const oldIds = interview.questions.map((question) => question.id);
+        const added = questionIds.filter((questionId) => !oldIds.includes(questionId));
+        const removed = oldIds.filter((questionId) => !questionIds.includes(questionId));
+
+        const nextQuestions = await this.questionService.findManyByIdsForUpdate(
+          client,
+          questionIds,
+          { rejectPendingDeletionFor: added },
+        );
+
+        if (added.length > 0) {
+          await client.query(
+            `UPDATE questions SET usage_count = usage_count + 1 WHERE id = ANY($1::uuid[])`,
+            [added],
+          );
+        }
+
+        if (removed.length > 0) {
+          await client.query(
+            `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+            [removed],
+          );
+        }
+
+        questions = nextQuestions;
+      }
+
+      const updated: Interview = {
+        ...interview,
+        candidateName,
+        candidateEmail,
+        position,
+        questions,
+        updatedAt: new Date(),
+      };
+
+      return this.saveInterviewInTransaction(client, updated);
     });
   }
 
@@ -558,7 +714,8 @@ export class InterviewService {
       updatedAt: new Date(),
     };
 
-    return this.saveInterview(this.applyResultRecomputation(withUpdatedAnswer));
+    const next = this.applyResultRecomputation(withUpdatedAnswer);
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private isStaleValidationWrite(
@@ -629,15 +786,14 @@ export class InterviewService {
         })
       : interview.workflow;
 
-    return this.saveInterview(
-      this.applyResultRecomputation({
-        ...interview,
-        answers: updatedAnswers,
-        status: nextStatus,
-        workflow: nextWorkflow,
-        updatedAt: now,
-      }),
-    );
+    const next = this.applyResultRecomputation({
+      ...interview,
+      answers: updatedAnswers,
+      status: nextStatus,
+      workflow: nextWorkflow,
+      updatedAt: now,
+    });
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private async persistAnswerVersion(
@@ -892,34 +1048,88 @@ export class InterviewService {
     return answer;
   }
 
+  private async lockInterviewForUpdate(
+    client: PoolClient,
+    id: string,
+  ): Promise<InterviewRow> {
+    const result = await client.query<InterviewRow>(
+      `
+        SELECT ${INTERVIEW_SELECT_COLUMNS}
+        FROM interviews
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    if (!result.rows[0]) {
+      throw apiNotFound(
+        ApiErrorCode.INTERVIEW_NOT_FOUND,
+        `Interview with id "${id}" not found`,
+        { id },
+      );
+    }
+
+    return result.rows[0];
+  }
+
+  private interviewUpdateParams(interview: Interview): unknown[] {
+    return [
+      interview.id,
+      interview.candidateName,
+      interview.candidateEmail ?? null,
+      interview.position,
+      JSON.stringify(interview.questions),
+      JSON.stringify(interview.answers),
+      interview.status,
+      interview.result ? JSON.stringify(interview.result) : null,
+      interview.workflow ? JSON.stringify(interview.workflow) : null,
+    ];
+  }
+
+  private async saveInterviewInTransaction(
+    client: PoolClient,
+    interview: Interview,
+  ): Promise<Interview> {
+    const result = await client.query<InterviewRow>(
+      INTERVIEW_UPDATE_SQL,
+      this.interviewUpdateParams(interview),
+    );
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  private async saveInterviewWithTerminalSideEffects(
+    previousStatus: Interview['status'],
+    interview: Interview,
+    client?: PoolClient,
+  ): Promise<Interview> {
+    const becameTerminal =
+      !isTerminalInterviewStatus(previousStatus) &&
+      isTerminalInterviewStatus(interview.status);
+
+    const persist = async (tx: PoolClient): Promise<Interview> => {
+      if (becameTerminal) {
+        await this.lockInterviewForUpdate(tx, interview.id);
+        const saved = await this.saveInterviewInTransaction(tx, interview);
+        await this.questionService.processPendingDeletionsAfterTerminalInterview(
+          tx,
+          interview.questions.map((question) => question.id),
+        );
+        return saved;
+      }
+      return this.saveInterviewInTransaction(tx, interview);
+    };
+
+    return client
+      ? persist(client)
+      : this.databaseService.withTransaction(persist);
+  }
+
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
-      `
-        UPDATE interviews
-        SET
-          candidate_name = $2,
-          candidate_email = $3,
-          position = $4,
-          questions_json = $5::jsonb,
-          answers_json = $6::jsonb,
-          status = $7,
-          result_json = $8::jsonb,
-          workflow_json = $9::jsonb,
-          updated_at = NOW()
-        WHERE id = $1
-        RETURNING ${INTERVIEW_SELECT_COLUMNS}
-      `,
-      [
-        interview.id,
-        interview.candidateName,
-        interview.candidateEmail ?? null,
-        interview.position,
-        JSON.stringify(interview.questions),
-        JSON.stringify(interview.answers),
-        interview.status,
-        interview.result ? JSON.stringify(interview.result) : null,
-        interview.workflow ? JSON.stringify(interview.workflow) : null,
-      ],
+      INTERVIEW_UPDATE_SQL,
+      this.interviewUpdateParams(interview),
     );
 
     return this.mapRow(result.rows[0]);
@@ -931,7 +1141,7 @@ export class InterviewService {
     if (next === interview) {
       return interview;
     }
-    return this.saveInterview(next);
+    return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
   private applyResultRecomputation(interview: Interview): Interview {

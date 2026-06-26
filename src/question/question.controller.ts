@@ -41,7 +41,9 @@ import { GetQuestionQueryDto } from './dto/get-question-query.dto';
 import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
+  QuestionDeleteScheduledItem,
   SimilarQuestionMatch,
+  SoftDeleteQuestionResult,
 } from './interfaces/question.interface';
 import {
   PaginatedQuestions,
@@ -110,10 +112,18 @@ export class QuestionController {
     user: Omit<User, 'passwordHash'>,
     query: QueryQuestionsDto,
   ): QueryQuestionsDto {
-    if (user.role === 'super_admin' && !query.status) {
+    const interviewEligible = query.eligibleForInterview === true;
+    if (user.role === 'super_admin' && !query.status && !interviewEligible) {
       return { ...query, status: 'all' };
     }
     return query;
+  }
+
+  private questionsForceActive(
+    user: Omit<User, 'passwordHash'>,
+    query: QueryQuestionsDto,
+  ): boolean {
+    return query.eligibleForInterview === true || user.role !== 'super_admin';
   }
 
   @Get()
@@ -133,7 +143,7 @@ export class QuestionController {
     @CurrentLocale() locale: Locale,
   ): Promise<PaginatedQuestions> {
     return this.questionService.findAll(this.effectiveQuestionsQuery(user, query), {
-      forceActive: user.role !== 'super_admin',
+      forceActive: this.questionsForceActive(user, query),
       resolveLocale: locale,
     });
   }
@@ -252,7 +262,7 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
     return this.questionService.getFacets(this.effectiveQuestionsQuery(user, query), {
-      forceActive: user.role !== 'super_admin',
+      forceActive: this.questionsForceActive(user, query),
     });
   }
 
@@ -354,10 +364,7 @@ export class QuestionController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  @ApiConflictResponse({ type: ApiErrorResponseDto })
-  remove(
-    @Param('id') id: string,
-  ): Promise<{ id: string; deleted: true }> {
+  remove(@Param('id') id: string): Promise<SoftDeleteQuestionResult> {
     return this.questionService.softDelete(id);
   }
 
@@ -377,7 +384,7 @@ export class QuestionController {
     @CurrentLocale() locale: Locale,
   ): Promise<{
     deleted: string[];
-    blocked: Array<{ id: string; questionText: string; reason: string }>;
+    scheduled: QuestionDeleteScheduledItem[];
   }> {
     return this.questionService.softDeleteMany(dto.ids, locale);
   }
