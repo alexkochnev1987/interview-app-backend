@@ -3,10 +3,9 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 import {
   DEFAULT_LOCALE,
-  isLocale,
   LOCALE_HEADER,
+  parseLocaleHeader,
 } from './locale.constants';
-import { invalidLocaleException } from './locale.exceptions';
 
 const LENIENT_LOCALE_PATHS = new Set(['/health', '/openapi.json']);
 const TAKE_PATH_PREFIX = '/take';
@@ -27,25 +26,22 @@ export class LocaleMiddleware implements NestMiddleware {
       return;
     }
 
-    const value = (Array.isArray(raw) ? raw[0] : raw).trim();
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    const parsed = parseLocaleHeader(value);
 
-    if (value === '') {
-      req.locale = DEFAULT_LOCALE;
+    if (parsed) {
+      req.locale = parsed;
       next();
       return;
     }
 
-    if (!isLocale(value)) {
-      if (isLenientLocalePath(path)) {
-        // Take resolves contentLocale in resolveTakeContentLocale; do not force req.locale to en.
-        next();
-        return;
-      }
-      next(invalidLocaleException());
+    if (isLenientLocalePath(path)) {
+      // Take resolves contentLocale in resolveTakeContentLocale; do not force req.locale to en.
+      next();
       return;
     }
 
-    req.locale = value;
+    req.locale = DEFAULT_LOCALE;
     next();
   }
 }

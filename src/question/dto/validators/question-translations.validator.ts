@@ -53,12 +53,6 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
     const record = translations as Record<string, unknown>;
 
     if (dto.primaryLocale && isLocale(dto.primaryLocale)) {
-      if (!validatePrimaryTranslationBlock(record, dto.primaryLocale)) {
-        return false;
-      }
-    }
-
-    if (dto.translationsMode === 'replace' && dto.primaryLocale && isLocale(dto.primaryLocale)) {
       return validatePrimaryTranslationBlock(record, dto.primaryLocale);
     }
 
@@ -67,22 +61,21 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
 
   defaultMessage(args: ValidationArguments): string {
     const dto = args.object as UpdateQuestionDto;
-    if (dto.translationsMode === 'replace') {
-      return (
-        `translations replace mode requires a complete primaryLocale block in translations ` +
-        `(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). ` +
-        `Non-primary locales must provide at least questionText.`
-      );
-    }
     if (dto.primaryLocale) {
       return (
         `when primaryLocale is set, translations must include a complete block for that locale. ` +
         `Each non-primary locale must include at least questionText.`
       );
     }
+    if (dto.translationsMode === 'replace') {
+      return (
+        `translations locale keys must be one of: ${supportedLocaleListHint()}. ` +
+        `Each locale must include questionText; replace-mode primary block completeness is enforced in the service.`
+      );
+    }
     return (
       `each translations locale key (${supportedLocaleListHint()}) must include questionText; ` +
-      `primaryLocale must include full rubric fields.`
+      `patching translations[primaryLocale] requires the full five-field primary block in the service.`
     );
   }
 }

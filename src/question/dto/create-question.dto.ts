@@ -2,7 +2,6 @@ import {
   ApiExtraModels,
   ApiProperty,
   ApiPropertyOptional,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   IsArray,
@@ -14,7 +13,9 @@ import {
   IsString,
   Min,
   Validate,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
@@ -23,6 +24,9 @@ import {
   QuestionRedFlagDto,
 } from './question.responses.dto';
 import { QuestionTranslationDto } from './question-translation.dto';
+import {
+  QuestionTranslationsMapDto,
+} from './question-translations-map.dto';
 import { QuestionTranslationsMapConstraint } from './validators/question-translations.validator';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
@@ -30,6 +34,7 @@ import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
   QuestionTranslationDto,
+  QuestionTranslationsMapDto,
 )
 export class CreateQuestionDto {
   @ApiProperty({ enum: SUPPORTED_LOCALES, required: true })
@@ -39,17 +44,17 @@ export class CreateQuestionDto {
 
   @ApiProperty({
     required: true,
-    type: 'object',
-    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    type: QuestionTranslationsMapDto,
     description:
       'Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: ' +
       'questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. ' +
       'Additional locales require questionText only; rubric fields are optional.',
   })
   @IsDefined({ message: 'translations is required' })
-  @IsObject()
+  @ValidateNested()
+  @Type(() => QuestionTranslationsMapDto)
   @Validate(QuestionTranslationsMapConstraint)
-  translations: Partial<Record<Locale, QuestionTranslationDto>>;
+  translations: QuestionTranslationsMapDto;
 
   @ApiPropertyOptional()
   @IsOptional()

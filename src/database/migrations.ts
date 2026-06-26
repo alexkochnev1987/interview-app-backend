@@ -1,8 +1,11 @@
 import {
   BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
+  INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
   MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL,
   QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE,
   QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS,
+  QUESTIONS_SEARCH_TEXT_ROLLBACK_STATEMENTS,
+  QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
 } from './migration-sql/question-locale';
 
 export interface DatabaseMigration {
@@ -510,6 +513,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   {
     version: '0019',
     name: 'interviews_interview_locale',
+    rollbackStatements: INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
     statements: [
       `
         ALTER TABLE interviews
@@ -548,6 +552,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   {
     version: '0020',
     name: 'questions_search_text_trgm',
+    rollbackStatements: QUESTIONS_SEARCH_TEXT_ROLLBACK_STATEMENTS,
     statements: [
       `CREATE EXTENSION IF NOT EXISTS pg_trgm;`,
       `
@@ -591,6 +596,31 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         UPDATE questions
         SET translations_json = ${BUILD_PRIMARY_TRANSLATION_BLOCK_SQL}
         WHERE ${QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE};
+      `,
+    ],
+  },
+  {
+    version: '0022',
+    name: 'questions_translations_primary_locale_check',
+    rollbackStatements: QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
+    statements: [
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'questions'::regclass
+              AND conname = 'questions_translations_primary_locale_check'
+          ) THEN
+            ALTER TABLE questions
+            ADD CONSTRAINT questions_translations_primary_locale_check
+            CHECK (
+              translations_json ? primary_locale
+              AND COALESCE(trim(translations_json -> primary_locale ->> 'questionText'), '') <> ''
+            );
+          END IF;
+        END $$;
       `,
     ],
   },

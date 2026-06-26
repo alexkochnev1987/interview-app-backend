@@ -1174,7 +1174,7 @@
       "put": {
         "operationId": "QuestionController_update",
         "summary": "Update question",
-        "description": "`primaryLocale` is immutable — changing it returns 400. Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.",
+        "description": "`PUT` and `PATCH` are equivalent: both merge the body (default `translationsMode=merge`). Use `translationsMode=replace` with a full `translations` map for a full locale-map replace. `primaryLocale` is immutable — changing it returns 400. Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block (enforced in the service). Metadata-only patches are allowed when stored content stays valid.",
         "parameters": [
           {
             "name": "id",
@@ -1275,7 +1275,7 @@
       "patch": {
         "operationId": "QuestionController_patchUpdate",
         "summary": "Update question",
-        "description": "`primaryLocale` is immutable — changing it returns 400. Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.",
+        "description": "`PUT` and `PATCH` are equivalent: both merge the body (default `translationsMode=merge`). Use `translationsMode=replace` with a full `translations` map for a full locale-map replace. `primaryLocale` is immutable — changing it returns 400. Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block (enforced in the service). Metadata-only patches are allowed when stored content stays valid.",
         "parameters": [
           {
             "name": "id",
@@ -5024,6 +5024,23 @@
           "tags"
         ]
       },
+      "QuestionTranslationsMapDto": {
+        "type": "object",
+        "properties": {
+          "en": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "be": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "ru": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "pl": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          }
+        }
+      },
       "CreateQuestionDto": {
         "type": "object",
         "properties": {
@@ -5037,11 +5054,12 @@
             ]
           },
           "translations": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/QuestionTranslationDto"
-            },
-            "description": "Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. Additional locales require questionText only; rubric fields are optional."
+            "description": "Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. Additional locales require questionText only; rubric fields are optional.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuestionTranslationsMapDto"
+              }
+            ]
           },
           "externalId": {
             "type": "string"
@@ -5195,11 +5213,12 @@
             "description": "How to apply `translations`. Default `merge` upserts each locale key. Set to `replace` to replace the entire stored map (requires `translations`)."
           },
           "translations": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/QuestionTranslationDto"
-            },
-            "description": "Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields."
+            "description": "Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuestionTranslationsMapDto"
+              }
+            ]
           },
           "externalId": {
             "type": "string"

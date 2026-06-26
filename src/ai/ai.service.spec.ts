@@ -42,6 +42,15 @@ describe('draftRubricMatchesLocale', () => {
     expect(rubricTextsMatchLocale('ru', rubricOnly)).toBe(false);
     expect(rubricTextsMatchLocale('ru', ['замыкание', ...rubricOnly])).toBe(true);
   });
+
+  it('requires Belarusian glyphs for be locale', () => {
+    const russianOnly = ['Объясните замыкания в JavaScript.'];
+    const belarusian = ['Растлумачце замыканні ў JavaScript.'];
+
+    expect(rubricTextsMatchLocale('be', russianOnly)).toBe(false);
+    expect(rubricTextsMatchLocale('be', belarusian)).toBe(true);
+    expect(rubricTextsMatchLocale('ru', russianOnly)).toBe(true);
+  });
 });
 
 describe('AiService.draftQuestion', () => {

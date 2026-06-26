@@ -8,7 +8,10 @@ import { DatabaseService } from '../database/database.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
 import { isLocale, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
 import { CreateQuestionDto } from './dto/create-question.dto';
-import { QuestionTranslationDto } from './dto/question-translation.dto';
+import {
+  asQuestionTranslationsMapInput,
+  QuestionTranslationsMapInput,
+} from './dto/question-translations-map.dto';
 import {
   QueryQuestionsDto,
   QuestionSortField,
@@ -17,6 +20,7 @@ import {
 } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { applyTranslationsUpdate } from './question-translations-update';
+import { findUnknownTranslationLocaleKeys } from './question-translation.validation';
 import {
   Question,
   QuestionCore,
@@ -35,6 +39,7 @@ import {
   mergeTranslations,
   parseTranslationsJson,
   primaryLocaleToOutputLanguage,
+  QuestionLegacyFields,
   rejectPrimaryLocaleChange,
   resolvePrimaryLocale,
   resolveQuestionFields,
@@ -294,6 +299,11 @@ export class QuestionService {
     executor: QueryExecutor,
     payload: QuestionDraft,
   ): Promise<Question> {
+    await this.assertNoCrossLocaleTextDuplicate(
+      executor,
+      payload.questionText,
+      payload.translations,
+    );
     const result = await this.runWithDuplicateGuard(payload, () =>
       executor.query<QuestionRow>(
         `
@@ -364,6 +374,12 @@ export class QuestionService {
     id: string,
     payload: QuestionDraft,
   ): Promise<Question> {
+    await this.assertNoCrossLocaleTextDuplicate(
+      executor,
+      payload.questionText,
+      payload.translations,
+      id,
+    );
     const result = await this.runWithDuplicateGuard(payload, () =>
       executor.query<QuestionRow>(
         `
@@ -510,8 +526,15 @@ export class QuestionService {
 
   private buildHasTranslationClause(localeParamRef: string): string {
     return `(
-      primary_locale = ${localeParamRef}
-      OR COALESCE(trim(translations_json -> ${localeParamRef} ->> 'questionText'), '') <> ''
+      COALESCE(trim(translations_json -> ${localeParamRef} ->> 'questionText'), '') <> ''
+      OR (
+        primary_locale = ${localeParamRef}
+        AND COALESCE(
+          trim(translations_json -> primary_locale ->> 'questionText'),
+          trim(question_text),
+          ''
+        ) <> ''
+      )
     )`;
   }
 
@@ -534,6 +557,7 @@ export class QuestionService {
     if (query.q) {
       params.push(`%${this.escapeLike(query.q)}%`);
       const i = params.length;
+      // search_text is maintained on write; OR branches below are not index-backed (see migration 0020).
       whereClauses.push(`(
         search_text ILIKE $${i}
         OR role ILIKE $${i}
@@ -1057,16 +1081,42 @@ export class QuestionService {
       question.questionText,
       question.translations,
     );
+    const duplicateId = await this.findCrossLocaleTextDuplicateId(
+      client,
+      textVariants,
+      question.id,
+    );
+    if (duplicateId) {
+      throw apiConflict(
+        ApiErrorCode.QUESTION_DUPLICATE,
+        `Cannot restore: an active question with the same text already exists (id: ${duplicateId}).`,
+        { existingId: duplicateId },
+      );
+    }
+  }
+
+  private async findCrossLocaleTextDuplicateId(
+    executor: QueryExecutor,
+    textVariants: string[],
+    excludeId?: string,
+  ): Promise<string | undefined> {
     if (textVariants.length === 0) {
-      return;
+      return undefined;
     }
 
-    const textMatch = await client.query<{ id: string }>(
+    const params: unknown[] = [textVariants];
+    let excludeClause = '';
+    if (excludeId) {
+      params.push(excludeId);
+      excludeClause = `AND id <> $${params.length}`;
+    }
+
+    const textMatch = await executor.query<{ id: string }>(
       `
         SELECT id
         FROM questions
         WHERE deleted = FALSE
-          AND id <> $2
+          ${excludeClause}
           AND (
             lower(question_text) = ANY($1::text[])
             OR EXISTS (
@@ -1077,14 +1127,27 @@ export class QuestionService {
           )
         LIMIT 1
       `,
-      [textVariants, question.id],
+      params,
     );
 
-    if (textMatch.rows[0]) {
+    return textMatch.rows[0]?.id;
+  }
+
+  private async assertNoCrossLocaleTextDuplicate(
+    executor: QueryExecutor,
+    questionText: string,
+    translations: QuestionTranslations,
+    excludeId?: string,
+  ): Promise<void> {
+    const duplicateId = await this.findCrossLocaleTextDuplicateId(
+      executor,
+      collectQuestionTextVariants(questionText, translations),
+      excludeId,
+    );
+    if (duplicateId) {
       throw apiConflict(
         ApiErrorCode.QUESTION_DUPLICATE,
-        `Cannot restore: an active question with the same text already exists (id: ${textMatch.rows[0].id}).`,
-        { existingId: textMatch.rows[0].id },
+        'An active question with the same text already exists.',
       );
     }
   }
@@ -1280,9 +1343,12 @@ export class QuestionService {
       );
       const requirePrimary =
         translationsMode === 'replace' || patchesPrimary;
-      const incoming = this.normalizeTranslationsInput(dto.translations, {
+      const incoming = this.normalizeTranslationsInput(
+        asQuestionTranslationsMapInput(dto.translations),
+        {
         requirePrimaryLocale: requirePrimary ? primaryLocale : undefined,
-      });
+      },
+      );
       translations = applyTranslationsUpdate(
         existing.translations,
         incoming,
@@ -1368,9 +1434,12 @@ export class QuestionService {
   }
 
   private normalizeCreateQuestionInput(dto: CreateQuestionDto): QuestionDraft {
-    const translations = this.normalizeTranslationsInput(dto.translations, {
+    const translations = this.normalizeTranslationsInput(
+      asQuestionTranslationsMapInput(dto.translations),
+      {
       requirePrimaryLocale: dto.primaryLocale,
-    });
+    },
+    );
     const primary = translations[dto.primaryLocale];
     if (!this.isPrimaryTranslationComplete(primary)) {
       throw apiBadRequest(
@@ -1420,9 +1489,20 @@ export class QuestionService {
   }
 
   private normalizeTranslationsInput(
-    raw: Partial<Record<Locale, QuestionTranslationDto>>,
+    raw: QuestionTranslationsMapInput,
     options: { requirePrimaryLocale?: Locale } = {},
   ): QuestionTranslations {
+    const unknownKeys = findUnknownTranslationLocaleKeys(
+      raw as Record<string, unknown>,
+    );
+    if (unknownKeys.length > 0) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        `Unknown translations locale keys: ${unknownKeys.join(', ')}. Supported: ${SUPPORTED_LOCALES.join(', ')}.`,
+        { field: 'translations' },
+      );
+    }
+
     const translations: QuestionTranslations = {};
     for (const locale of SUPPORTED_LOCALES) {
       const block = raw[locale];
@@ -1903,7 +1983,7 @@ export class QuestionService {
       row.output_language,
     );
     const translations = parseTranslationsJson(row.translations_json);
-    const legacy = {
+    const legacy: QuestionLegacyFields = {
       questionText:
         this.normalizeOptionalString(row.question_text) ?? row.text,
       followUpQuestions: row.follow_up_questions ?? [],
@@ -1919,29 +1999,43 @@ export class QuestionService {
       translations,
       legacy,
     );
-    const resolved = resolveQuestionFields(
-      primaryLocale,
-      hydratedTranslations,
-      legacy,
-    );
+    const primaryBlock = hydratedTranslations[primaryLocale];
+    const flatFields =
+      primaryBlock?.questionText?.trim()
+        ? {
+            questionText: primaryBlock.questionText,
+            followUpQuestions: primaryBlock.followUpQuestions ?? [],
+            expectedConcepts: primaryBlock.expectedConcepts ?? [],
+            redFlags: primaryBlock.redFlags ?? [],
+            sampleGoodAnswer: primaryBlock.sampleGoodAnswer,
+          }
+        : {
+            questionText: legacy.questionText,
+            followUpQuestions: this.normalizeStringList(legacy.followUpQuestions),
+            expectedConcepts: this.normalizeExpectedConcepts(
+              legacy.expectedConcepts,
+            ),
+            redFlags: this.normalizeRedFlags(legacy.redFlags),
+            sampleGoodAnswer: legacy.sampleGoodAnswer,
+          };
 
     return {
       id: row.id,
       externalId: this.normalizeOptionalString(row.external_id),
       role: this.normalizeOptionalString(row.role),
       focus: this.normalizeOptionalString(row.focus),
-      primaryLocale: resolved.primaryLocale,
-      translations: resolved.translations,
-      outputLanguage: primaryLocaleToOutputLanguage(resolved.primaryLocale),
+      primaryLocale,
+      translations: hydratedTranslations,
+      outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
       category: this.normalizeOptionalString(row.category),
       subcategory: this.normalizeOptionalString(row.subcategory),
-      questionText: resolved.questionText,
-      followUpQuestions: this.normalizeStringList(resolved.followUpQuestions),
-      expectedConcepts: this.normalizeExpectedConcepts(resolved.expectedConcepts),
-      redFlags: this.normalizeRedFlags(resolved.redFlags),
+      questionText: flatFields.questionText,
+      followUpQuestions: flatFields.followUpQuestions,
+      expectedConcepts: flatFields.expectedConcepts,
+      redFlags: flatFields.redFlags,
       difficulty: row.difficulty,
       weight: row.weight,
-      sampleGoodAnswer: this.normalizeOptionalString(resolved.sampleGoodAnswer),
+      sampleGoodAnswer: this.normalizeOptionalString(flatFields.sampleGoodAnswer),
       minimumPassScore: Number((row.minimum_pass_score ?? 0).toFixed(2)),
       tags: row.tags ?? [],
       metadata: this.normalizeMetadata(row.metadata ?? {}),

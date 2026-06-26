@@ -1,6 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { parseLocaleHeader } from './locale.constants';
 import { LocaleMiddleware } from './locale.middleware';
 
 describe('LocaleMiddleware', () => {
@@ -34,16 +33,19 @@ describe('LocaleMiddleware', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  it('rejects invalid locale with INVALID_LOCALE', () => {
+  it('normalizes uppercase and regional tags', () => {
+    req.headers['x-locale'] = 'EN-US';
+    middleware.use(req, {} as Response, next as NextFunction);
+    expect(req.locale).toBe('en');
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('falls back to en for unrecognized locale on API routes', () => {
     req.headers['x-locale'] = 'xx';
     (req as Request & { path: string }).path = '/questions';
     middleware.use(req, {} as Response, next as NextFunction);
-    expect(next).toHaveBeenCalledTimes(1);
-    const err = next.mock.calls[0][0];
-    expect(err).toBeInstanceOf(BadRequestException);
-    expect((err as BadRequestException).getResponse()).toMatchObject({
-      code: ApiErrorCode.INVALID_LOCALE,
-    });
+    expect(req.locale).toBe('en');
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('ignores invalid locale on /health', () => {
@@ -61,5 +63,12 @@ describe('LocaleMiddleware', () => {
     middleware.use(req, {} as Response, next as NextFunction);
     expect(req.locale).toBeUndefined();
     expect(next).toHaveBeenCalledWith();
+  });
+});
+
+describe('parseLocaleHeader', () => {
+  it('normalizes regional tags and rejects unknown locales', () => {
+    expect(parseLocaleHeader('pl-PL')).toBe('pl');
+    expect(parseLocaleHeader('invalid')).toBeNull();
   });
 });

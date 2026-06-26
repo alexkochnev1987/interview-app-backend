@@ -14,6 +14,8 @@ describe('GET /questions/facets filters (BE-010)', () => {
     expect(whereSql).toContain('translations_json');
     expect(params).toContain('pl');
     expect(whereSql).toContain('deleted = FALSE');
+    expect(whereSql).toContain("translations_json -> $");
+    expect(whereSql).not.toMatch(/primary_locale = \$1\s*OR/);
   });
 
   it('keeps locale filter when excluding another facet dimension', () => {

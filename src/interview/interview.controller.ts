@@ -118,14 +118,13 @@ export class InterviewController {
     @Query(new ValidationPipe({ transform: true })) query: ListInterviewsQueryDto,
     @CurrentUser() user: ActingUser,
   ): Promise<PaginatedInterviewListResponseDto | InterviewPresentation[]> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 50;
-    const result = await this.interviewService.findAllForActor(user, {
-      page,
-      limit,
-    });
-
     if (query.paginated) {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 50;
+      const result = await this.interviewService.findAllForActor(user, {
+        page,
+        limit,
+      });
       return {
         items: result.items.map((interview) =>
           presentInterviewListItem(interview),
@@ -136,6 +135,9 @@ export class InterviewController {
       };
     }
 
+    const result = await this.interviewService.findAllForActor(user, {
+      unbounded: true,
+    });
     return result.items.map((interview) => presentInterview(interview));
   }
 

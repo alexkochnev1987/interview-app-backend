@@ -3,7 +3,10 @@ import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
-import { parseJsonFromModelOutput } from './parse-model-json';
+import {
+  isPlainRecord,
+  parseJsonFromModelOutput,
+} from './parse-model-json';
 
 export interface RawAnswerEvaluation {
   overallScore?: number;
@@ -76,6 +79,61 @@ Use minimumPassScore as the boundary: scores at or above pass, clearly below fai
 Do not invent concept ids — only use ids from the rubric.`;
 }
 
+function parseAnswerEvaluationShape(
+  value: unknown,
+): RawAnswerEvaluation | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const overallScore = value.overallScore;
+  if (typeof overallScore !== 'number' || !Number.isFinite(overallScore)) {
+    return undefined;
+  }
+
+  const decisionHint = value.decisionHint;
+  if (
+    decisionHint !== undefined &&
+    decisionHint !== 'pass' &&
+    decisionHint !== 'review' &&
+    decisionHint !== 'fail'
+  ) {
+    return undefined;
+  }
+
+  if (
+    value.categoryScores !== undefined &&
+    (!isPlainRecord(value.categoryScores) ||
+      Object.values(value.categoryScores).some(
+        (score) => typeof score !== 'number' || !Number.isFinite(score),
+      ))
+  ) {
+    return undefined;
+  }
+
+  const idListOk = (field: string): boolean => {
+    const list = value[field];
+    return (
+      list === undefined ||
+      (Array.isArray(list) && list.every((item) => typeof item === 'string'))
+    );
+  };
+
+  if (
+    !idListOk('coveredConceptIds') ||
+    !idListOk('missedConceptIds') ||
+    !idListOk('redFlagIds')
+  ) {
+    return undefined;
+  }
+
+  if (value.summary !== undefined && typeof value.summary !== 'string') {
+    return undefined;
+  }
+
+  return value as RawAnswerEvaluation;
+}
+
 export async function evaluateAnswerWithNativeLlm(
   config: NativeProviderConfig,
   question: InterviewQuestion,
@@ -88,5 +146,9 @@ export async function evaluateAnswerWithNativeLlm(
     interviewLocale,
   );
   const raw = await completeJson(config, ANSWER_EVALUATION_SYSTEM, user);
-  return parseJsonFromModelOutput(raw) as RawAnswerEvaluation;
+  const parsed = parseAnswerEvaluationShape(parseJsonFromModelOutput(raw));
+  if (!parsed) {
+    throw new Error('LLM returned invalid answer evaluation JSON.');
+  }
+  return parsed;
 }

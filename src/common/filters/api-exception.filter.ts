@@ -11,7 +11,7 @@ import { API_ERROR_CODE_BY_CODE } from '../errors/api-error.registry';
 
 interface NormalizedApiError {
   statusCode: number;
-  code: ApiErrorCode | string;
+  code: ApiErrorCode;
   message: string;
   params?: Record<string, unknown>;
 }
@@ -25,6 +25,24 @@ const DEFAULT_CODE_BY_STATUS: Partial<Record<number, ApiErrorCode>> = {
   [HttpStatus.SERVICE_UNAVAILABLE]: ApiErrorCode.SERVICE_UNAVAILABLE,
   [HttpStatus.INTERNAL_SERVER_ERROR]: ApiErrorCode.INTERNAL_SERVER_ERROR,
 };
+
+const ALLOWED_ERROR_PARAM_KEYS = new Set([
+  'cause',
+  'candidateName',
+  'errors',
+  'existingId',
+  'externalId',
+  'field',
+  'id',
+  'interviewId',
+  'mode',
+  'primaryLocale',
+  'questionId',
+  'questionIndex',
+  'sourceLocale',
+  'status',
+  'targetLocale',
+]);
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -95,13 +113,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const code = this.resolveCode(body.code, statusCode);
     const message = this.resolveMessage(body, statusCode, code);
 
-    const params =
-      body.params !== undefined &&
-      typeof body.params === 'object' &&
-      body.params !== null &&
-      !Array.isArray(body.params)
-        ? (body.params as Record<string, unknown>)
-        : undefined;
+    const params = this.sanitizeParams(body.params);
 
     return { statusCode, code, message, params };
   }
@@ -126,8 +138,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     };
   }
 
-  private resolveCode(code: unknown, statusCode: number): ApiErrorCode | string {
-    if (typeof code === 'string') {
+  private resolveCode(code: unknown, statusCode: number): ApiErrorCode {
+    if (typeof code === 'string' && isApiErrorCode(code)) {
       return code;
     }
     return this.defaultCode(statusCode);
@@ -136,22 +148,60 @@ export class ApiExceptionFilter implements ExceptionFilter {
   private resolveMessage(
     body: Record<string, unknown>,
     statusCode: number,
-    code: ApiErrorCode | string,
+    code: ApiErrorCode,
   ): string {
     const explicit = this.extractMessage(body.message ?? body.error);
     if (explicit !== 'Request failed') {
       return explicit;
     }
 
-    if (typeof code === 'string' && isApiErrorCode(code)) {
-      return API_ERROR_CODE_BY_CODE[code].defaultMessage;
-    }
-
-    return API_ERROR_CODE_BY_CODE[this.defaultCode(statusCode)].defaultMessage;
+    return API_ERROR_CODE_BY_CODE[code].defaultMessage;
   }
 
   private defaultCode(statusCode: number): ApiErrorCode {
     return DEFAULT_CODE_BY_STATUS[statusCode] ?? ApiErrorCode.BAD_REQUEST;
+  }
+
+  private sanitizeParams(
+    value: unknown,
+  ): Record<string, unknown> | undefined {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, paramValue] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      if (!ALLOWED_ERROR_PARAM_KEYS.has(key)) {
+        continue;
+      }
+      if (this.isSafeParamValue(paramValue)) {
+        sanitized[key] = paramValue;
+      }
+    }
+
+    return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+  }
+
+  private isSafeParamValue(value: unknown): boolean {
+    if (
+      value === null ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return true;
+    }
+    if (Array.isArray(value)) {
+      return value.every(
+        (item) =>
+          typeof item === 'string' ||
+          typeof item === 'number' ||
+          typeof item === 'boolean',
+      );
+    }
+    return false;
   }
 
   private extractMessage(value: unknown): string {

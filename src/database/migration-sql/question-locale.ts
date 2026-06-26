@@ -58,3 +58,31 @@ export const QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS = [
     DROP COLUMN IF EXISTS primary_locale;
   `,
 ];
+
+/** Manual rollback for migration 0019 — run before 0018 when reverting locale work. */
+export const INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS = [
+  `
+    ALTER TABLE interviews
+    DROP CONSTRAINT IF EXISTS interviews_interview_locale_check;
+  `,
+  `
+    ALTER TABLE interviews
+    DROP COLUMN IF EXISTS interview_locale;
+  `,
+];
+
+/** Manual rollback for migration 0020 — run before 0019 when reverting locale work. */
+export const QUESTIONS_SEARCH_TEXT_ROLLBACK_STATEMENTS = [
+  `DROP INDEX IF EXISTS questions_search_text_trgm_idx;`,
+  `
+    ALTER TABLE questions
+    DROP COLUMN IF EXISTS search_text;
+  `,
+];
+
+export const QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS = [
+  `
+    ALTER TABLE questions
+    DROP CONSTRAINT IF EXISTS questions_translations_primary_locale_check;
+  `,
+];

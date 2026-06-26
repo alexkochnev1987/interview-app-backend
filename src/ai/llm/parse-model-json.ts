@@ -57,7 +57,15 @@ function extractBalancedJson(text: string): string | undefined {
   return undefined;
 }
 
-export function parseJsonFromModelOutput(text: string): unknown {
-  const extracted = extractJsonStringFromModelOutput(text);
-  return JSON.parse(extracted) as unknown;
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function parseJsonFromModelOutput(text: string): unknown | undefined {
+  try {
+    const extracted = extractJsonStringFromModelOutput(text);
+    return JSON.parse(extracted) as unknown;
+  } catch {
+    return undefined;
+  }
 }

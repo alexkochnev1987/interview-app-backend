@@ -94,3 +94,9 @@ export function validatePrimaryTranslationBlock(
 export function supportedLocaleListHint(): string {
   return SUPPORTED_LOCALES.join(', ');
 }
+
+export function findUnknownTranslationLocaleKeys(
+  translations: Record<string, unknown>,
+): string[] {
+  return Object.keys(translations).filter((key) => !isLocale(key));
+}

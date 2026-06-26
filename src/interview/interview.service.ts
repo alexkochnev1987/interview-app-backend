@@ -309,8 +309,44 @@ export class InterviewService {
 
   async findAllForActor(
     actor: InterviewActor,
-    options?: { limit?: number; offset?: number; page?: number },
+    options?: {
+      limit?: number;
+      offset?: number;
+      page?: number;
+      unbounded?: boolean;
+    },
   ): Promise<PaginatedInterviews> {
+    if (options?.unbounded) {
+      if (actor.role === 'super_admin' || actor.role === 'admin') {
+        const result = await this.databaseService.query<InterviewRow>(
+          `
+            SELECT ${INTERVIEW_SELECT_COLUMNS}
+            FROM interviews
+            ORDER BY created_at DESC
+          `,
+        );
+        const items = result.rows.map((row) => this.mapRow(row));
+        return { items, total: items.length, page: 1, limit: items.length };
+      }
+      if (actor.role === 'hr') {
+        const result = await this.databaseService.query<InterviewRow>(
+          `
+            SELECT ${INTERVIEW_SELECT_COLUMNS}
+            FROM interviews
+            WHERE created_by_id = $1
+            ORDER BY created_at DESC
+          `,
+          [actor.id],
+        );
+        const items = result.rows.map((row) => this.mapRow(row));
+        return { items, total: items.length, page: 1, limit: items.length };
+      }
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        'You do not have access to interviews',
+      );
+    }
+
     const limit = Math.min(
       MAX_INTERVIEW_LIST_LIMIT,
       Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),

@@ -8,6 +8,8 @@ describe('buildQuestionDraftUserPrompt', () => {
     );
 
     expect(prompt).toContain('Output locale: pl (Polish)');
+    expect(prompt).toContain('Untrusted input');
+    expect(prompt).toContain('```json');
     expect(prompt).toContain('Write ALL human-readable rubric text in Polish');
     expect(prompt).toContain('snake_case Latin');
     expect(prompt).toContain('match the rubric language to the requested locale (pl)');

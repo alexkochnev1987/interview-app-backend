@@ -37,7 +37,10 @@ import {
   heuristicRedFlags,
   heuristicSampleAnswer,
 } from './question-draft-heuristic';
-import { draftRubricMatchesLocale } from './question-draft-rubric-locale';
+import {
+  conceptAndRedFlagIdsAreLatinSnakeCase,
+  draftRubricMatchesLocale,
+} from './question-draft-rubric-locale';
 import { QuestionDraftContent, QuestionDraftGenerate } from './question-draft-content';
 
 interface ChatMessage {
@@ -301,44 +304,52 @@ export class AiService {
     const llmInput = this.buildGenerateLlmInput(base);
 
     if (aiUrl) {
-      const proxyFirst = await this.generateProxyDraft(
-        aiUrl,
-        llmInput,
-        draftLocale,
-        base,
-        false,
-      );
-      if (proxyFirst.draft && !proxyFirst.localeMismatch) {
-        if (isAiDebugEnabled()) {
-          this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
-        }
-        return proxyFirst.draft;
-      }
-
-      if (proxyFirst.localeMismatch) {
-        if (isAiDebugEnabled()) {
-          this.logger.warn(
-            'question-draft: proxy returned mixed-language draft, retrying once with strict locale hint',
-          );
-        }
-        const proxyRetry = await this.generateProxyDraft(
+      try {
+        const proxyFirst = await this.generateProxyDraft(
           aiUrl,
           llmInput,
           draftLocale,
           base,
-          true,
+          false,
         );
-        if (proxyRetry.draft && !proxyRetry.localeMismatch) {
+        if (proxyFirst.draft && !proxyFirst.localeMismatch) {
           if (isAiDebugEnabled()) {
-            this.logger.log(`question-draft: legacy proxy ${aiUrl} (strict retry)`);
+            this.logger.log(`question-draft: legacy proxy ${aiUrl}`);
           }
-          return proxyRetry.draft;
+          return proxyFirst.draft;
         }
-      }
-      if (isAiDebugEnabled()) {
-        this.logger.warn(
-          'question-draft: proxy returned unusable JSON, trying native or heuristic',
-        );
+
+        if (proxyFirst.localeMismatch) {
+          if (isAiDebugEnabled()) {
+            this.logger.warn(
+              'question-draft: proxy returned mixed-language draft, retrying once with strict locale hint',
+            );
+          }
+          const proxyRetry = await this.generateProxyDraft(
+            aiUrl,
+            llmInput,
+            draftLocale,
+            base,
+            true,
+          );
+          if (proxyRetry.draft && !proxyRetry.localeMismatch) {
+            if (isAiDebugEnabled()) {
+              this.logger.log(`question-draft: legacy proxy ${aiUrl} (strict retry)`);
+            }
+            return proxyRetry.draft;
+          }
+        }
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            'question-draft: proxy returned unusable JSON, trying native or heuristic',
+          );
+        }
+      } catch (error) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `question-draft: proxy failed, trying native or heuristic — ${this.formatAiError(error)}`,
+          );
+        }
       }
     }
 
@@ -638,6 +649,7 @@ export class AiService {
           const strictParsed = await translateQuestionContentWithNativeLlm(
             native,
             llmInput,
+            { strictLocale: true },
           );
           const strictAttempt = this.acceptTranslateContentDraft(
             strictParsed,
@@ -822,11 +834,31 @@ export class AiService {
     if (!content) {
       return { draft: undefined, localeMismatch: false };
     }
+    if (!conceptAndRedFlagIdsAreLatinSnakeCase(content)) {
+      return { draft: undefined, localeMismatch: false };
+    }
+    if (!this.generateIdentityIdsAreValid(payload)) {
+      return { draft: undefined, localeMismatch: false };
+    }
     const draft = this.buildQuestionDraftGenerateFromBase(base, content, payload);
     return {
       draft,
       localeMismatch: !draftRubricMatchesLocale(content, draftLocale),
     };
+  }
+
+  private generateIdentityIdsAreValid(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return true;
+    }
+    const record = payload as Record<string, unknown>;
+    const externalId = record.externalId ?? record.external_id;
+    if (typeof externalId === 'string' && externalId.trim()) {
+      if (!/^[a-z][a-z0-9_]*$/.test(externalId.trim())) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private async generateProxyDraft(

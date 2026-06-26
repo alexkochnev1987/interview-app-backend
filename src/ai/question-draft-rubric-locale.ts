@@ -31,8 +31,12 @@ export function rubricTextsMatchLocale(locale: Locale, texts: string[]): boolean
   const text = texts.join(' ');
   const hasCyrillic = /[А-Яа-яЁёІіЎў]/.test(text);
   const hasLatin = /[A-Za-z]/.test(text);
+  const hasBelarusianGlyphs = /[іІўЎґҐ]/.test(text);
 
-  if (locale === 'ru' || locale === 'be') {
+  if (locale === 'be') {
+    return hasCyrillic && hasBelarusianGlyphs;
+  }
+  if (locale === 'ru') {
     return hasCyrillic;
   }
   if (locale === 'en') {

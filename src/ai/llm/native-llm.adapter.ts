@@ -1,4 +1,5 @@
 import type { NativeProviderConfig } from './ai-env';
+import { resolveNativeLlmTimeoutMs } from './ai-env';
 
 async function readErrorBody(res: Response): Promise<string> {
   try {
@@ -6,6 +7,25 @@ async function readErrorBody(res: Response): Promise<string> {
     return t.slice(0, 2000);
   } catch {
     return res.statusText;
+  }
+}
+
+async function fetchWithLlmTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const timeoutMs = resolveNativeLlmTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`LLM request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -61,7 +81,7 @@ async function completeOpenAi(
   if (mode === 'json') {
     body.response_format = { type: 'json_object' };
   }
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -95,7 +115,7 @@ async function completeAnthropic(
     mode === 'json'
       ? `${user}\n\nReply with a single JSON object only, no markdown or explanation.`
       : user;
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -160,7 +180,7 @@ async function completeGoogle(
   if (mode === 'json') {
     generationConfig.responseMimeType = 'application/json';
   }
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
     headers,
     body: JSON.stringify({

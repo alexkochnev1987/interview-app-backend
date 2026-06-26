@@ -1,7 +1,6 @@
 import {
   ApiExtraModels,
   ApiPropertyOptional,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   IsArray,
@@ -13,7 +12,9 @@ import {
   Length,
   Min,
   Validate,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import {
@@ -27,10 +28,16 @@ import {
   QuestionRedFlagDto,
 } from './question.responses.dto';
 import { QuestionTranslationDto } from './question-translation.dto';
+import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import { QuestionTranslationsUpdateMapConstraint } from './validators/question-translations.validator';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
-@ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto, QuestionTranslationDto)
+@ApiExtraModels(
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+  QuestionTranslationDto,
+  QuestionTranslationsMapDto,
+)
 export class UpdateQuestionDto {
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
@@ -55,15 +62,15 @@ export class UpdateQuestionDto {
   translationsMode?: QuestionTranslationsMode;
 
   @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    type: QuestionTranslationsMapDto,
     description:
       'Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields.',
   })
   @IsOptional()
-  @IsObject()
+  @ValidateNested()
+  @Type(() => QuestionTranslationsMapDto)
   @Validate(QuestionTranslationsUpdateMapConstraint)
-  translations?: Partial<Record<Locale, QuestionTranslationDto>>;
+  translations?: QuestionTranslationsMapDto;
 
   @ApiPropertyOptional()
   @IsOptional()

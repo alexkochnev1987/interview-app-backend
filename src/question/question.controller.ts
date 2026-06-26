@@ -79,9 +79,11 @@ function questionUpdateRouteDecorators() {
     ApiOperation({
       summary: 'Update question',
       description:
+        '`PUT` and `PATCH` are equivalent: both merge the body (default `translationsMode=merge`). ' +
+        'Use `translationsMode=replace` with a full `translations` map for a full locale-map replace. ' +
         '`primaryLocale` is immutable — changing it returns 400. ' +
-        'Default `translationsMode=merge` upserts locale keys; `replace` requires `translations` and replaces the entire map (removed locales disappear). ' +
-        'Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block. Metadata-only patches are allowed when stored content stays valid.',
+        'Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block (enforced in the service). ' +
+        'Metadata-only patches are allowed when stored content stays valid.',
     }),
     ApiParam({ name: 'id' }),
     ApiBody({ type: UpdateQuestionDto }),
