@@ -89,6 +89,7 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
           tags = EXCLUDED.tags,
           metadata = EXCLUDED.metadata,
           deleted = FALSE,
+          pending_deletion = FALSE,
           usage_count = EXCLUDED.usage_count,
           demo = TRUE,
           updated_at = NOW()
