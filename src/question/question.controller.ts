@@ -144,6 +144,7 @@ export class QuestionController {
     return this.questionService.findAll(this.effectiveQuestionsQuery(user, query), {
       forceActive: this.questionsForceActive(user, query),
       resolveLocale: locale,
+      demo: user.demo,
     });
   }
 
@@ -262,6 +263,7 @@ export class QuestionController {
   ): Promise<QuestionFacets> {
     return this.questionService.getFacets(this.effectiveQuestionsQuery(user, query), {
       forceActive: this.questionsForceActive(user, query),
+      demo: user.demo,
     });
   }
 
@@ -287,6 +289,7 @@ export class QuestionController {
     return this.questionService.findOneResolved(id, locale, {
       includeDeleted: user.role === 'super_admin',
       includeTranslations: query.includeTranslations,
+      demo: user.demo,
     });
   }
 
@@ -322,6 +325,7 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async findSimilar(
     @Body() dto: FindSimilarDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
     const matches = await this.questionService.findSimilar(
@@ -329,6 +333,7 @@ export class QuestionController {
       dto.limit ?? 5,
       dto.excludeQuestionId,
       locale,
+      user.demo,
     );
     return { matches };
   }

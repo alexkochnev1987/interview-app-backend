@@ -57,7 +57,7 @@ describe('GET /questions/facets filters (BE-010)', () => {
       { forceActive: true },
     );
 
-    expect(params).toEqual(['pl']);
+    expect(params).toEqual([false, 'pl']);
     expect(whereSql).toContain('primary_locale =');
     expect(whereSql).not.toContain('output_language');
   });

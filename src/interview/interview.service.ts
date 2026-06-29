@@ -41,12 +41,14 @@ import {
 import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import {
   getInterviewAccessDenialReason,
+  getDemoScopeDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import {
   getInterviewPendingOnlyBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
+import { demoScopeClause } from '../common/demo-scope';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
 import {
@@ -87,6 +89,7 @@ const INTERVIEW_SELECT_COLUMNS = `
   result_json,
   workflow_json,
   created_by_id,
+  demo,
   created_at,
   updated_at
 `;
@@ -119,6 +122,7 @@ interface InterviewRow {
   result_json: Record<string, unknown> | null;
   workflow_json: Record<string, unknown> | null;
   created_by_id: string | null;
+  demo: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -126,6 +130,7 @@ interface InterviewRow {
 export interface InterviewActor {
   id: string;
   role: UserRole;
+  demo: boolean;
 }
 
 interface AddAnswerInput {
@@ -196,7 +201,7 @@ export class InterviewService {
 
   async create(
     dto: CreateInterviewDto,
-    context: { createdById?: string } = {},
+    context: { createdById?: string; demo?: boolean } = {},
   ): Promise<CreateInterviewResult> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
@@ -221,6 +226,7 @@ export class InterviewService {
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
+        context.demo === true,
         { rejectPendingDeletionFor: questionIds },
       );
 
@@ -248,9 +254,10 @@ export class InterviewService {
             answers_json,
             status,
             workflow_json,
-            created_by_id
+            created_by_id,
+            demo
           )
-          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10)
+          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11)
           RETURNING ${INTERVIEW_SELECT_COLUMNS}
         `,
         [
@@ -264,6 +271,7 @@ export class InterviewService {
           'pending',
           JSON.stringify(this.buildWorkflow('idle', new Date())),
           context.createdById ?? null,
+          context.demo === true,
         ],
       );
 
@@ -377,6 +385,7 @@ export class InterviewService {
         const nextQuestions = await this.questionService.findManyByIdsForUpdate(
           client,
           questionIds,
+          interview.demo === true,
           { rejectPendingDeletionFor: added },
         );
 
@@ -472,35 +481,27 @@ export class InterviewService {
       unbounded?: boolean;
     },
   ): Promise<PaginatedInterviews> {
-    if (options?.unbounded) {
-      if (actor.role === 'super_admin' || actor.role === 'admin') {
-        const result = await this.databaseService.query<InterviewRow>(
-          `
-            SELECT ${INTERVIEW_SELECT_COLUMNS}
-            FROM interviews
-            ORDER BY created_at DESC
-          `,
-        );
-        const items = result.rows.map((row) => this.mapRow(row));
-        return { items, total: items.length, page: 1, limit: items.length };
-      }
-      if (actor.role === 'hr') {
-        const result = await this.databaseService.query<InterviewRow>(
-          `
-            SELECT ${INTERVIEW_SELECT_COLUMNS}
-            FROM interviews
-            WHERE created_by_id = $1
-            ORDER BY created_at DESC
-          `,
-          [actor.id],
-        );
-        const items = result.rows.map((row) => this.mapRow(row));
-        return { items, total: items.length, page: 1, limit: items.length };
-      }
+    if (actor.role !== 'super_admin' && actor.role !== 'admin' && actor.role !== 'hr') {
       throw apiForbidden(
         ApiErrorCode.INSUFFICIENT_PERMISSIONS,
         'You do not have access to interviews',
       );
+    }
+
+    if (options?.unbounded) {
+      const params: unknown[] = [];
+      const whereSql = this.buildActorInterviewWhere(actor, params);
+      const result = await this.databaseService.query<InterviewRow>(
+        `
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          FROM interviews
+          ${whereSql}
+          ORDER BY created_at DESC
+        `,
+        params,
+      );
+      const items = result.rows.map((row) => this.mapRow(row));
+      return { items, total: items.length, page: 1, limit: items.length };
     }
 
     const limit = Math.min(
@@ -510,38 +511,60 @@ export class InterviewService {
     const page = Math.max(1, options?.page ?? 1);
     const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
 
-    if (actor.role === 'super_admin' || actor.role === 'admin') {
-      return this.findAll({ limit, offset, page });
-    }
-    if (actor.role === 'hr') {
-      const result = await this.databaseService.query<InterviewRow & { __total: string }>(
-        `
-          SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
-          FROM interviews
-          WHERE created_by_id = $1
-          ORDER BY created_at DESC
-          LIMIT $2 OFFSET $3
-        `,
-        [actor.id, limit, offset],
-      );
-      const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-      return {
-        items: result.rows.map((row) => this.mapRow(row)),
-        total,
-        page,
-        limit,
-      };
-    }
-    throw apiForbidden(
-      ApiErrorCode.INSUFFICIENT_PERMISSIONS,
-      'You do not have access to interviews',
+    const params: unknown[] = [];
+    const whereSql = this.buildActorInterviewWhere(actor, params);
+    params.push(limit);
+    const limitParam = params.length;
+    params.push(offset);
+    const offsetParam = params.length;
+
+    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
+      `
+        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
+        FROM interviews
+        ${whereSql}
+        ORDER BY created_at DESC
+        LIMIT $${limitParam} OFFSET $${offsetParam}
+      `,
+      params,
     );
+    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    return {
+      items: result.rows.map((row) => this.mapRow(row)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
     const interview = await this.findOne(id);
     this.assertActorCanAccess(interview, actor);
+    this.assertActorDemoScope(interview, actor);
     return interview;
+  }
+
+  private buildActorInterviewWhere(actor: InterviewActor, params: unknown[]): string {
+    const clauses = [demoScopeClause(params, actor.demo === true)];
+    if (actor.role === 'hr') {
+      params.push(actor.id);
+      clauses.push(`created_by_id = $${params.length}`);
+    }
+    return `WHERE ${clauses.join(' AND ')}`;
+  }
+
+  private assertActorDemoScope(
+    interview: Interview,
+    actor: InterviewActor,
+  ): void {
+    const denial = getDemoScopeDenialReason(interview, actor);
+    if (denial) {
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        INTERVIEW_ACCESS_DENIED_MESSAGE,
+        { interviewId: interview.id },
+      );
+    }
   }
 
   async complete(id: string): Promise<Interview> {
@@ -1329,6 +1352,7 @@ export class InterviewService {
         row.updated_at,
       ),
       createdById: row.created_by_id ?? undefined,
+      demo: Boolean(row.demo),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

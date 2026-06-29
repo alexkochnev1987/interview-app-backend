@@ -35,4 +35,16 @@ describe('PermissionsGuard', () => {
     const context = mockExecutionContext();
     expect(guard.canActivate(context)).toBe(true);
   });
+
+  it('allows a demo user to read', () => {
+    reflector.getAllAndOverride.mockReturnValue(['questions:read']);
+    const context = mockExecutionContext({ user: { role: 'hr', demo: true } });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('forbids a demo user from a write the role would otherwise allow', () => {
+    reflector.getAllAndOverride.mockReturnValue(['interviews:create']);
+    const context = mockExecutionContext({ user: { role: 'hr', demo: true } });
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
 });

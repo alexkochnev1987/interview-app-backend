@@ -91,6 +91,7 @@ export class InterviewController {
   ): Promise<InterviewPresentation & { candidateLink: string; localeWarnings: Array<{ questionId: string; availableLocales: Locale[] }> }> {
     const created = await this.interviewService.create(dto, {
       createdById: user.id,
+      demo: user.demo,
     });
     const token = this.authService.generateCandidateToken(created.interview.id);
     return {

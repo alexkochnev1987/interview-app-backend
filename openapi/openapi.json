@@ -56,6 +56,51 @@
         ]
       }
     },
+    "/auth/demo": {
+      "post": {
+        "operationId": "AuthController_demo",
+        "summary": "Sign in to the read-only demo account",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many demo sign-in attempts"
+          },
+          "503": {
+            "description": "Demo access is not available"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/register": {
       "post": {
         "operationId": "AuthController_register",
@@ -385,6 +430,71 @@
             }
           },
           "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/demo": {
+      "post": {
+        "operationId": "UserController_provisionDemo",
+        "summary": "Provision the read-only demo account and demo content",
+        "description": "Idempotent admin-only setup for environments without direct database access. Refused on production unless ALLOW_DEMO_SEED=true is set, so it can never seed demo data into production by accident.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoProvisionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -4400,6 +4510,11 @@
             "type": "string",
             "example": "org_123"
           },
+          "demo": {
+            "type": "boolean",
+            "example": false,
+            "description": "Read-only demo account."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -4411,6 +4526,7 @@
           "email",
           "name",
           "role",
+          "demo",
           "createdAt"
         ]
       },
@@ -4528,6 +4644,43 @@
         },
         "required": [
           "role"
+        ]
+      },
+      "DemoProvisionCountsDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "number",
+            "example": 1
+          },
+          "questions": {
+            "type": "number",
+            "example": 3
+          },
+          "interviews": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "users",
+          "questions",
+          "interviews"
+        ]
+      },
+      "DemoProvisionResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUserResponseDto"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/DemoProvisionCountsDto"
+          }
+        },
+        "required": [
+          "user",
+          "counts"
         ]
       },
       "QuestionExpectedConceptDto": {

@@ -4,6 +4,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
+import { demoScopeClause } from '../common/demo-scope';
 import { DatabaseService } from '../database/database.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
 import { isLocale, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
@@ -487,7 +488,7 @@ export class QuestionService {
 
   async findAll(
     query: QueryQuestionsDto = {},
-    options: { forceActive?: boolean; resolveLocale: Locale },
+    options: { forceActive?: boolean; resolveLocale: Locale; demo?: boolean },
   ): Promise<PaginatedQuestions> {
     const page = Math.max(1, query.page ?? DEFAULT_QUESTIONS_PAGE);
     const limit = Math.min(
@@ -509,6 +510,7 @@ export class QuestionService {
 
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
+      demo: options.demo,
     });
 
     params.push(limit);
@@ -556,10 +558,13 @@ export class QuestionService {
 
   private buildQuestionFilterClauses(
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean; excludeField?: FacetField } = {},
+    options: { forceActive?: boolean; excludeField?: FacetField; demo?: boolean } = {},
   ): { whereSql: string; params: unknown[] } {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
+
+    // Demo isolation: demo users see only demo rows, everyone else only real rows.
+    whereClauses.push(demoScopeClause(params, options.demo === true));
 
     const status: QuestionStatusFilter = options.forceActive
       ? 'active'
@@ -642,7 +647,7 @@ export class QuestionService {
 
   async getFacets(
     query: QueryQuestionsDto = {},
-    options: { forceActive?: boolean } = {},
+    options: { forceActive?: boolean; demo?: boolean } = {},
   ): Promise<QuestionFacets> {
     const [difficulties, categories, subcategories, roles, tags] = await Promise.all([
       this.queryScalarFacet('difficulty', 'difficulty', query, options),
@@ -659,11 +664,12 @@ export class QuestionService {
     column: 'difficulty' | 'category' | 'subcategory' | 'role',
     facetField: FacetField,
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean },
+    options: { forceActive?: boolean; demo?: boolean },
   ): Promise<FacetCount[]> {
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
       excludeField: facetField,
+      demo: options.demo,
     });
 
     const result = await this.databaseService.query<{
@@ -689,11 +695,12 @@ export class QuestionService {
 
   private async queryTagFacet(
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean },
+    options: { forceActive?: boolean; demo?: boolean },
   ): Promise<FacetCount[]> {
     const { whereSql, params } = this.buildQuestionFilterClauses(query, {
       forceActive: options.forceActive,
       excludeField: 'tags',
+      demo: options.demo,
     });
 
     const result = await this.databaseService.query<{
@@ -719,15 +726,17 @@ export class QuestionService {
 
   async findOne(
     id: string,
-    options: { includeDeleted?: boolean } = {},
+    options: { includeDeleted?: boolean; demo?: boolean } = {},
   ): Promise<Question> {
+    const params: unknown[] = [id];
+    const demoClause = demoScopeClause(params, options.demo === true);
     let result = await this.databaseService.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1${options.includeDeleted ? '' : ' AND deleted = FALSE'}
+        WHERE id = $1 AND ${demoClause}${options.includeDeleted ? '' : ' AND deleted = FALSE'}
         LIMIT 1
       `,
-      [id],
+      params,
     );
 
     if (!result.rows[0]) {
@@ -772,10 +781,15 @@ export class QuestionService {
   async findOneResolved(
     id: string,
     locale: Locale,
-    options: { includeDeleted?: boolean; includeTranslations?: boolean } = {},
+    options: {
+      includeDeleted?: boolean;
+      includeTranslations?: boolean;
+      demo?: boolean;
+    } = {},
   ): Promise<ResolvedQuestion> {
     const question = await this.findOne(id, {
       includeDeleted: options.includeDeleted,
+      demo: options.demo,
     });
     return this.toResolvedQuestion(question, locale, {
       includeTranslations: options.includeTranslations !== false,
@@ -893,6 +907,7 @@ export class QuestionService {
   async findManyByIdsForUpdate(
     client: PoolClient,
     ids: string[],
+    demo = false,
     options: { rejectPendingDeletionFor?: string[] } = {},
   ): Promise<QuestionCore[]> {
     if (ids.length === 0) {
@@ -900,13 +915,18 @@ export class QuestionService {
     }
 
     const uniqueIds = ids.map((id) => id.trim()).filter(Boolean);
+    const params: unknown[] = [uniqueIds];
+    // Demo isolation: an actor may only build interviews from questions on its
+    // own side of the demo boundary. Out-of-scope ids fall through to the
+    // not-found check below rather than being silently mixed into the row.
+    const demoClause = demoScopeClause(params, demo);
     const result = await client.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = ANY($1::uuid[])
+        WHERE id = ANY($1::uuid[]) AND ${demoClause}
         FOR UPDATE
       `,
-      [uniqueIds],
+      params,
     );
 
     const byId = new Map(
@@ -1318,6 +1338,7 @@ export class QuestionService {
     limit: number,
     excludeQuestionId: string | undefined,
     locale: Locale,
+    demo = false,
   ): Promise<SimilarQuestionMatch[]> {
     const text = draft.questionText?.trim();
     if (!text) {
@@ -1330,6 +1351,15 @@ export class QuestionService {
     const vector = await this.embeddingsService.generate(text);
     const literal = `[${vector.join(',')}]`;
 
+    const params: unknown[] = [
+      literal,
+      this.embeddingsService.model,
+      excludeQuestionId ?? null,
+      SIMILARITY_DISTANCE_THRESHOLD,
+      limit,
+    ];
+    const demoClause = demoScopeClause(params, demo, 'q.demo');
+
     const result = await this.databaseService.query<QuestionRow & { distance: number }>(
       `
         SELECT
@@ -1340,17 +1370,12 @@ export class QuestionService {
         WHERE e.model = $2
           AND q.id IS DISTINCT FROM $3::uuid
           AND q.deleted = FALSE
+          AND ${demoClause}
           AND (e.embedding <=> $1::vector) <= $4::float
         ORDER BY distance ASC
         LIMIT $5
       `,
-      [
-        literal,
-        this.embeddingsService.model,
-        excludeQuestionId ?? null,
-        SIMILARITY_DISTANCE_THRESHOLD,
-        limit,
-      ],
+      params,
     );
 
     return result.rows.map((row) => {
