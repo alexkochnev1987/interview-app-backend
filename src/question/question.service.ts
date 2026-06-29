@@ -243,12 +243,11 @@ export class QuestionService {
     return question;
   }
 
-  async createResolved(
-    dto: CreateQuestionDto,
-    locale: Locale,
-  ): Promise<ResolvedQuestion> {
+  async createResolved(dto: CreateQuestionDto): Promise<ResolvedQuestion> {
     const question = await this.create(dto);
-    return this.toResolvedQuestion(question, locale, { includeTranslations: true });
+    return this.toResolvedQuestion(question, question.primaryLocale, {
+      includeTranslations: true,
+    });
   }
 
   toResolvedQuestion(

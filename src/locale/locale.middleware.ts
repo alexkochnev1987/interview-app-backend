@@ -41,6 +41,7 @@ export class LocaleMiddleware implements NestMiddleware {
       return;
     }
 
+    // Unrecognized X-Locale on API routes: soft fallback to default (see docs/locale-and-api.md).
     req.locale = DEFAULT_LOCALE;
     next();
   }

@@ -646,7 +646,7 @@
       "post": {
         "operationId": "QuestionController_create",
         "summary": "Create question",
-        "description": "Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block (questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). Metadata fields (role, category, tags, …) are stored flat on the question row.",
+        "description": "Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block (questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). Response rubric is resolved for `primaryLocale` (not `X-Locale`). Metadata fields (role, category, tags, …) are stored flat on the question row.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -5086,6 +5086,23 @@
           "sampleGoodAnswer"
         ]
       },
+      "QuestionTranslationsMapDto": {
+        "type": "object",
+        "properties": {
+          "en": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "be": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "ru": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "pl": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          }
+        }
+      },
       "QuestionDraftInputDto": {
         "type": "object",
         "properties": {
@@ -5099,10 +5116,7 @@
             ]
           },
           "translations": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/QuestionTranslationDto"
-            }
+            "$ref": "#/components/schemas/QuestionTranslationsMapDto"
           },
           "questionText": {
             "type": "string"
@@ -5262,23 +5276,6 @@
           "roles",
           "tags"
         ]
-      },
-      "QuestionTranslationsMapDto": {
-        "type": "object",
-        "properties": {
-          "en": {
-            "$ref": "#/components/schemas/QuestionTranslationDto"
-          },
-          "be": {
-            "$ref": "#/components/schemas/QuestionTranslationDto"
-          },
-          "ru": {
-            "$ref": "#/components/schemas/QuestionTranslationDto"
-          },
-          "pl": {
-            "$ref": "#/components/schemas/QuestionTranslationDto"
-          }
-        }
       },
       "CreateQuestionDto": {
         "type": "object",

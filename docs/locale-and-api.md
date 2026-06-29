@@ -15,9 +15,9 @@
 
 - Header: `X-Locale: en | be | ru | pl`
 - Default: `en` if omitted
-- Invalid value: `400`, `code: "INVALID_LOCALE"` (except `/take/*` and `/health`: invalid header ignored)
+- Invalid value: falls back to `en` (except `/take/*` and `/health`: invalid header ignored; take uses `contentLocale` / `interviewLocale` chain)
 
-Controls locale resolution for question text on read/write responses. Rubric fields fall back to `primaryLocale` when they are missing in the resolved text locale.
+Controls locale resolution for question text on read/write responses. Rubric fields fall back to `primaryLocale` as a **complete block** when the resolved text locale block is missing any rubric field (no per-field mixing across locales).
 
 `GET /questions?q=` searches denormalized `search_text` (all locale question titles), plus role/category/tags.
 
@@ -43,7 +43,7 @@ Controls locale resolution for question text on read/write responses. Rubric fie
 **Non-localized:** `id`, `category`, `role`, `difficulty`, `tags`, `primaryLocale`, scores, media, workflow. Deprecated: `outputLanguage` (use `primaryLocale`).
 
 **questionText fallback** for requested locale `L`: `translations[L]` → `primaryLocale` → any available locale with non-empty `questionText`.
-Rubric fields (`followUpQuestions`, `expectedConcepts`, `redFlags`, `sampleGoodAnswer`) use the resolved text locale first, then fallback to `primaryLocale` when missing there.
+Rubric fields (`followUpQuestions`, `expectedConcepts`, `redFlags`, `sampleGoodAnswer`) use the resolved text locale when that block includes all rubric fields; otherwise the full rubric bundle comes from `primaryLocale`.
 
 ---
 

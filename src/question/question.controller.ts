@@ -297,6 +297,7 @@ export class QuestionController {
     description:
       'Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block ' +
       '(questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). ' +
+      'Response rubric is resolved for `primaryLocale` (not `X-Locale`). ' +
       'Metadata fields (role, category, tags, …) are stored flat on the question row.',
   })
   @ApiBody({ type: CreateQuestionDto })
@@ -304,11 +305,8 @@ export class QuestionController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  create(
-    @Body() dto: CreateQuestionDto,
-    @CurrentLocale() locale: Locale,
-  ): Promise<ResolvedQuestion> {
-    return this.questionService.createResolved(dto, locale);
+  create(@Body() dto: CreateQuestionDto): Promise<ResolvedQuestion> {
+    return this.questionService.createResolved(dto);
   }
 
   @Post('similar')

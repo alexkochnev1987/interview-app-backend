@@ -13,7 +13,7 @@ import {
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
-import { QuestionTranslationDto } from './question-translation.dto';
+import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 import {
   QuestionExpectedConceptDto,
@@ -28,12 +28,12 @@ export class QuestionDraftInputDto {
   primaryLocale?: Locale;
 
   @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    type: QuestionTranslationsMapDto,
   })
   @IsOptional()
-  @IsObject()
-  translations?: Partial<Record<Locale, QuestionTranslationDto>>;
+  @ValidateNested()
+  @Type(() => QuestionTranslationsMapDto)
+  translations?: QuestionTranslationsMapDto;
 
   @ApiPropertyOptional()
   @IsOptional()
