@@ -642,14 +642,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0022',
+    version: '0025',
     name: 'add_users_demo_flag',
     statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
     ],
   },
   {
-    version: '0023',
+    version: '0026',
     name: 'add_demo_flag_to_content',
     statements: [
       // Demo content is isolated in both directions: demo users read only demo
@@ -659,7 +659,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0024',
+    version: '0027',
     name: 'enforce_single_demo_user',
     statements: [
       // At most one demo account may exist, so the demo login resolves to a
