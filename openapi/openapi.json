@@ -1780,6 +1780,73 @@
         ]
       }
     },
+    "/interviews/{id}/mark-demo": {
+      "post": {
+        "operationId": "InterviewController_markDemo",
+        "summary": "Mark an interview as the demo interview",
+        "description": "Admin-only. Flips the interview to demo and reassigns it to the demo account, and removes the fabricated placeholder demo interview so exactly the marked completed interview plus the seeded pending one remain. Refused on production unless ALLOW_DEMO_SEED=true is set.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkInterviewDemoResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/interviews/{id}/results": {
       "get": {
         "operationId": "InterviewController_getResults",
@@ -4632,6 +4699,28 @@
           "reusedCount",
           "skippedCount",
           "answers"
+        ]
+      },
+      "MarkInterviewDemoResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "interviewId": {
+            "type": "string",
+            "example": "00000000-0000-4000-8000-0000000000a1"
+          },
+          "placeholderRemoved": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "ok",
+          "interviewId",
+          "placeholderRemoved"
         ]
       },
       "PresignRequestDto": {

@@ -47,6 +47,7 @@ import {
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -233,6 +234,18 @@ export class InterviewController {
       questionIndex,
       force,
     );
+  }
+
+  @Post(':id/mark-demo')
+  @RequirePermissions('users:assign_role')
+  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, and removes the fabricated placeholder demo interview so exactly the marked completed interview plus the seeded pending one remain. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: MarkInterviewDemoResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  markDemo(@Param('id') id: string) {
+    return this.interviewService.markAsDemo(id);
   }
 
   @Get(':id/results')

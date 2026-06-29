@@ -43,6 +43,8 @@ import {
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import { getInterviewPendingOnlyBlockReason, isTerminalInterviewStatus } from './interview-management-rules';
+import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core';
+import { DEMO_USER_ID } from '../database/demo-seed-data';
 
 interface InterviewRow {
   id: string;
@@ -488,6 +490,46 @@ export class InterviewService {
       throw new NotFoundException(unavailableMessage);
     }
     return interview.result!;
+  }
+
+  /**
+   * Admin-only: flips the given interview to demo and reassigns it to the demo
+   * account so the read-only demo shows a real completed interview. Gated by
+   * isDemoSeedAllowed so it can never touch production data by accident. Also
+   * removes the fabricated placeholder demo interview so exactly the marked
+   * completed interview plus the seeded pending one remain.
+   */
+  async markAsDemo(interviewId: string): Promise<{
+    ok: true;
+    interviewId: string;
+    placeholderRemoved: boolean;
+  }> {
+    if (!isDemoSeedAllowed()) {
+      throw new ForbiddenException(
+        'Demo marking is disabled in this environment. Set ' +
+          'ALLOW_DEMO_SEED=true on the backend to enable it (never on production).',
+      );
+    }
+
+    await upsertDemoUser(this.databaseService);
+
+    const update = await this.databaseService.query(
+      `UPDATE interviews SET demo = true, created_by_id = $2, updated_at = NOW() WHERE id = $1`,
+      [interviewId, DEMO_USER_ID],
+    );
+    if (update.rowCount === 0) {
+      throw new NotFoundException(`Interview ${interviewId} not found`);
+    }
+
+    let placeholderRemoved = false;
+    if (interviewId !== '00000000-0000-4000-8000-0000000000a1') {
+      const removal = await this.databaseService.query(
+        `DELETE FROM interviews WHERE id = '00000000-0000-4000-8000-0000000000a1'`,
+      );
+      placeholderRemoved = (removal.rowCount ?? 0) > 0;
+    }
+
+    return { ok: true as const, interviewId, placeholderRemoved };
   }
 
   private assertActorCanAccess(
