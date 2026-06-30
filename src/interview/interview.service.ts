@@ -43,6 +43,11 @@ import {
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import { getInterviewPendingOnlyBlockReason, isTerminalInterviewStatus } from './interview-management-rules';
+import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core';
+import {
+  DEMO_PLACEHOLDER_INTERVIEW_ID,
+  DEMO_USER_ID,
+} from '../database/demo-seed-data';
 
 interface InterviewRow {
   id: string;
@@ -488,6 +493,56 @@ export class InterviewService {
       throw new NotFoundException(unavailableMessage);
     }
     return interview.result!;
+  }
+
+  /**
+   * Admin-only: flips the given interview to demo and reassigns it to the demo
+   * account so the read-only demo shows a real completed interview. Gated by
+   * isDemoSeedAllowed so it can never touch production data by accident. Keeps a
+   * single completed demo interview: it deletes the fabricated placeholder and
+   * demotes any other interview previously marked as the demo. The whole swap
+   * runs in one transaction so the demo can never be left in a half-updated
+   * state.
+   */
+  async markAsDemo(interviewId: string): Promise<{
+    ok: true;
+    interviewId: string;
+    placeholderRemoved: boolean;
+  }> {
+    if (!isDemoSeedAllowed()) {
+      throw new ForbiddenException(
+        'Demo marking is disabled in this environment. Set ' +
+          'ALLOW_DEMO_SEED=true on the backend to enable it (never on production).',
+      );
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      await upsertDemoUser(client);
+
+      const update = await client.query(
+        `UPDATE interviews SET demo = true, created_by_id = $2, updated_at = NOW() WHERE id = $1`,
+        [interviewId, DEMO_USER_ID],
+      );
+      if (update.rowCount === 0) {
+        throw new NotFoundException(`Interview ${interviewId} not found`);
+      }
+
+      let placeholderRemoved = false;
+      if (interviewId !== DEMO_PLACEHOLDER_INTERVIEW_ID) {
+        const removal = await client.query(
+          `DELETE FROM interviews WHERE id = $1`,
+          [DEMO_PLACEHOLDER_INTERVIEW_ID],
+        );
+        placeholderRemoved = (removal.rowCount ?? 0) > 0;
+      }
+
+      await client.query(
+        `UPDATE interviews SET demo = false WHERE demo = true AND status = 'completed' AND id <> $1`,
+        [interviewId],
+      );
+
+      return { ok: true as const, interviewId, placeholderRemoved };
+    });
   }
 
   private assertActorCanAccess(

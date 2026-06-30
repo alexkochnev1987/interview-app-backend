@@ -20,6 +20,11 @@ export const DEMO_USER_ID = '00000000-0000-4000-8000-0000000000d0';
 export const DEMO_USER_EMAIL = 'demo@interview-app.com';
 export const DEMO_USER_NAME = 'Demo HR';
 
+// Fabricated completed demo interview. A real recorded interview can replace it
+// via the mark-demo endpoint, which deletes this placeholder.
+export const DEMO_PLACEHOLDER_INTERVIEW_ID =
+  '00000000-0000-4000-8000-0000000000a1';
+
 const concept = (
   id: string,
   label: string,
@@ -430,7 +435,7 @@ function buildPendingDemoInterview(input: PendingDemoInterviewInput): Interview 
 
 export const DEMO_INTERVIEWS: Interview[] = [
   buildDemoInterview({
-    id: '00000000-0000-4000-8000-0000000000a1',
+    id: DEMO_PLACEHOLDER_INTERVIEW_ID,
     candidateName: 'Jordan Avery',
     candidateEmail: 'jordan.avery@example.com',
     position: 'Frontend Engineer',
