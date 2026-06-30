@@ -238,7 +238,7 @@ export class InterviewController {
 
   @Post(':id/mark-demo')
   @RequirePermissions('users:assign_role')
-  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, and removes the fabricated placeholder demo interview so exactly the marked completed interview plus the seeded pending one remain. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
+  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, removes the fabricated placeholder demo interview and demotes any other completed demo interview so exactly the marked completed interview plus the seeded pending one remain. Re-running the demo provisioning afterwards will not recreate the placeholder. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: MarkInterviewDemoResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })

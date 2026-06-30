@@ -8,7 +8,7 @@
  *   $env:PROD_BASE_URL  = "https://develop.d1z0clbcev0y8a.amplifyapp.com/api"
  *   $env:ADMIN_EMAIL    = "admin@interview-app.com"
  *   $env:ADMIN_PASSWORD = "admin123"
- *   $env:INTERVIEW_ID   = "00000000-0000-4000-8000-0000000000a1"
+ *   $env:INTERVIEW_ID   = "<your-completed-interview-uuid>"
  *   npx ts-node scripts/mark-demo.ts
  */
 export {};
@@ -56,14 +56,12 @@ async function main(): Promise<void> {
   });
   const body = await readBody(res);
   if (!res.ok) {
-    if (res.status === 403) {
+    console.error(`\nMarking failed -> ${res.status}: ${body}`);
+    if (res.status === 403 && /ALLOW_DEMO_SEED/i.test(body)) {
       console.error(
-        `\nThe environment blocked marking (403). This means it runs as production, ` +
-          `so it needs ALLOW_DEMO_SEED=true set on the backend. Ask the mentor to set that ` +
-          `one variable, then run this again.\n\nServer said: ${body}`,
+        `\nThis environment runs as production, so it needs ALLOW_DEMO_SEED=true ` +
+          `set on the backend. Ask the mentor to set that one variable, then run this again.`,
       );
-    } else {
-      console.error(`\nMarking failed -> ${res.status}: ${body}`);
     }
     process.exit(1);
   }
