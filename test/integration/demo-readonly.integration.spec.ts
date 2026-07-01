@@ -101,7 +101,7 @@ describe('Demo read-only account (integration)', () => {
     expect(questionIds).not.toContain(seedQuestionId);
 
     const interviews = await demo.get('/interviews').expect(200);
-    const interviewIds = interviews.body.map((i: { id: string }) => i.id);
+    const interviewIds = interviews.body.items.map((i: { id: string }) => i.id);
     expect(interviewIds).toContain(demoInterviewId);
     expect(interviewIds).not.toContain(realInterviewId);
 
