@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -26,30 +27,48 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { InterviewService } from './interview.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
-import { Interview, InterviewResult, InterviewCancelResult } from './interfaces/interview.interface';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../user/interfaces/user.interface';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AuthService } from '../auth/auth.service';
+import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
+import { CreateInterviewDto } from './dto/create-interview.dto';
+import { QueryInterviewsDto } from './dto/query-interviews.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 import {
   CandidateLinkResponseDto,
   InterviewCancelResponseDto,
+  InterviewFacetsResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
   InterviewWithCandidateLinkResponseDto,
+  PaginatedInterviewsResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
+import {
+  Interview,
+  InterviewCancelResult,
+  InterviewResult,
+} from './interfaces/interview.interface';
+import {
+  InterviewFacets,
+  InterviewService,
+  PaginatedInterviews,
+} from './interview.service';
 
 type ActingUser = Omit<User, 'passwordHash'>;
+
+const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  transformOptions: { enableImplicitConversion: false },
+});
 
 @ApiTags('interviews')
 @ApiCookieAuth('sessionAuth')
@@ -87,11 +106,30 @@ export class InterviewController {
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'List interviews' })
-  @ApiOkResponse({ type: [InterviewResponseDto] })
+  @ApiOperation({ summary: 'List interviews (paginated, filterable, sortable)' })
+  @ApiOkResponse({ type: PaginatedInterviewsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
-    return this.interviewService.findAllForActor(user);
+  findAll(
+      @Query(INTERVIEW_QUERY_VALIDATION_PIPE) query: QueryInterviewsDto,
+      @CurrentUser() user: ActingUser,
+  ): Promise<PaginatedInterviews> {
+    return this.interviewService.findAllPaginated(query, user);
+  }
+
+  @Get('facets')
+  @RequirePermissions('interviews:read_own')
+  @ApiOperation({
+    summary: 'Faceted counts for the interview list sidebar',
+    description:
+      'Returns position and status counts. Counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking.',
+  })
+  @ApiOkResponse({ type: InterviewFacetsResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  getFacets(
+    @Query(INTERVIEW_QUERY_VALIDATION_PIPE) query: QueryInterviewsDto,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewFacets> {
+    return this.interviewService.getFacets(query, user);
   }
 
   @Get(':id')

@@ -380,6 +380,82 @@ export class InterviewResponseDto {
   workflow?: InterviewWorkflowDto;
 }
 
+export class InterviewListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  candidateName: string;
+
+  @ApiPropertyOptional()
+  candidateEmail?: string;
+
+  @ApiProperty()
+  position: string;
+
+  @ApiProperty({ enum: INTERVIEW_STATUSES })
+  status: string;
+
+  @ApiProperty({ description: 'Total questions in this interview.' })
+  questionCount: number;
+
+  @ApiProperty({ description: 'Number of submitted answers.' })
+  submittedAnswerCount: number;
+
+  @ApiPropertyOptional({ description: 'Present when a result has been computed.' })
+  overallScore?: number;
+
+  @ApiPropertyOptional({ enum: ['proceed', 'review', 'reject'] })
+  decision?: string;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
+export class PaginatedInterviewsResponseDto {
+  @ApiProperty({ type: [InterviewListItemDto] })
+  items: InterviewListItemDto[];
+
+  @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
+}
+
+export class InterviewFacetCountDto {
+  @ApiProperty()
+  value: string;
+
+  @ApiProperty({
+    description:
+        'Number of interviews with this value, given all OTHER current filters.',
+  })
+  count: number;
+}
+
+export class InterviewFacetsResponseDto {
+  @ApiProperty({
+    type: [InterviewFacetCountDto],
+    description:
+        'Position value + count, given all OTHER current filters (position itself is not applied).',
+  })
+  positions: InterviewFacetCountDto[];
+
+  @ApiProperty({
+    type: [InterviewFacetCountDto],
+    description:
+        'Status value + count, given all OTHER current filters (status itself is not applied).',
+  })
+  statuses: InterviewFacetCountDto[];
+}
+
 export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto {
   @ApiProperty()
   candidateLink: string;

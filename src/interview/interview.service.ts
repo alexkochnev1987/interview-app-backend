@@ -5,13 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { demoScopeClause } from '../common/demo-scope';
 import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { UserRole } from '../user/interfaces/user.interface';
+import {
+  QueryInterviewsDto,
+  InterviewSortField,
+  InterviewSortOrder,
+} from './dto/query-interviews.dto';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
   Answer,
@@ -29,7 +32,9 @@ import {
   InterviewQuestionResult,
   InterviewWorkflow,
   MediaArtifact,
-  InterviewCancelResult
+  InterviewCancelResult,
+  InterviewListItem,
+  InterviewActor,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -48,6 +53,55 @@ import {
   DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_USER_ID,
 } from '../database/demo-seed-data';
+import { buildInterviewFilterClauses } from './interview-list-filters';
+import { toInterviewListItem } from './interview-list-item';
+
+export const DEFAULT_INTERVIEWS_PAGE = 1;
+export const DEFAULT_INTERVIEWS_LIMIT = 20;
+export const MAX_INTERVIEWS_LIMIT = 100;
+export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
+export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
+
+const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
+  candidateName: 'lower(candidate_name)',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
+
+const INTERVIEW_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  questions_json,
+  answers_json,
+  status,
+  result_json,
+  workflow_json,
+  created_by_id,
+  demo,
+  created_at,
+  updated_at
+`;
+
+export interface PaginatedInterviews {
+  items: InterviewListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface InterviewFacets {
+  positions: FacetCount[];
+  statuses: FacetCount[];
+}
+
+export type { InterviewFacetFields } from './interview-list-filters';
 
 interface InterviewRow {
   id: string;
@@ -92,12 +146,6 @@ const INTERVIEW_UPDATE_SQL = `
     created_at,
     updated_at
 `;
-
-export interface InterviewActor {
-  id: string;
-  role: UserRole;
-  demo: boolean;
-}
 
 interface AddAnswerInput {
   questionIndex: number;
@@ -362,24 +410,11 @@ export class InterviewService {
 
   // Unscoped: returns both demo and real interviews. Reserved for internal
   // background work such as validation recovery on boot. Do not expose through
-  // an actor-facing route; use findAllForActor so demo isolation is preserved.
+  // an actor-facing route; use findAllPaginated so demo isolation is preserved.
   async findAll(): Promise<Interview[]> {
     const result = await this.databaseService.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_COLUMNS}
         FROM interviews
         ORDER BY created_at DESC
       `,
@@ -419,41 +454,134 @@ export class InterviewService {
     return this.mapRow(result.rows[0]);
   }
 
-  async findAllForActor(actor: InterviewActor): Promise<Interview[]> {
-    // Demo isolation: demo users see only demo interviews, real users only real ones.
-    const params: unknown[] = [];
-    const whereClauses = [demoScopeClause(params, actor.demo === true)];
-
-    if (actor.role === 'hr') {
-      params.push(actor.id);
-      whereClauses.push(`created_by_id = $${params.length}`);
-    } else if (actor.role !== 'super_admin' && actor.role !== 'admin') {
+  private assertActorCanList(actor: InterviewActor): void {
+    if (
+      actor.role !== 'super_admin' &&
+      actor.role !== 'admin' &&
+      actor.role !== 'hr'
+    ) {
       throw new ForbiddenException('You do not have access to interviews');
     }
+  }
 
-    const result = await this.databaseService.query<InterviewRow>(
+  async findAllPaginated(
+    query: QueryInterviewsDto = {},
+    actor: InterviewActor,
+  ): Promise<PaginatedInterviews> {
+    this.assertActorCanList(actor);
+
+    const page = Math.max(1, query.page ?? DEFAULT_INTERVIEWS_PAGE);
+    const limit = Math.min(
+      MAX_INTERVIEWS_LIMIT,
+      Math.max(1, query.limit ?? DEFAULT_INTERVIEWS_LIMIT),
+    );
+    const offset = (page - 1) * limit;
+
+    const sortBy = query.sortBy ?? DEFAULT_INTERVIEWS_SORT_BY;
+    const sortOrder =
+      (query.sortOrder ?? DEFAULT_INTERVIEWS_SORT_ORDER) === 'asc'
+        ? 'ASC'
+        : 'DESC';
+    const sortExpression = SORT_FIELD_TO_SQL[sortBy];
+
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor);
+
+    params.push(limit);
+    const limitParam = params.length;
+    params.push(offset);
+    const offsetParam = params.length;
+
+    const sql = `
+      SELECT ${INTERVIEW_COLUMNS}, COUNT(*) OVER() AS __total
+      FROM interviews
+      ${whereSql}
+      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
+
+    const result = await this.databaseService.query<
+      InterviewRow & { __total: string }
+    >(sql, params);
+
+    const total =
+      result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const items = result.rows.map((row) =>
+      toInterviewListItem(this.mapRow(row)),
+    );
+
+    return { items, total, page, limit };
+  }
+
+  async getFacets(
+    query: QueryInterviewsDto = {},
+    actor: InterviewActor,
+  ): Promise<InterviewFacets> {
+    this.assertActorCanList(actor);
+
+    const [positions, statuses] = await Promise.all([
+      this.queryInterviewPositionFacet(query, actor),
+      this.queryInterviewStatusFacet(query, actor),
+    ]);
+
+    return { positions, statuses };
+  }
+
+  private async queryInterviewPositionFacet(
+    query: QueryInterviewsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
+      excludeField: 'position',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
+        SELECT MIN(position) AS value, COUNT(*)::text AS count
         FROM interviews
-        WHERE ${whereClauses.join(' AND ')}
-        ORDER BY created_at DESC
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} position IS NOT NULL AND trim(position) <> ''
+        GROUP BY lower(position)
+        ORDER BY COUNT(*) DESC, MIN(position) ASC
       `,
       params,
     );
-    return result.rows.map((row) => this.mapRow(row));
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
+  }
+
+  private async queryInterviewStatusFacet(
+    query: QueryInterviewsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
+      excludeField: 'status',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT status AS value, COUNT(*)::text AS count
+        FROM interviews
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} status IS NOT NULL
+        GROUP BY status
+        ORDER BY COUNT(*) DESC, status ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
