@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { DatabaseService } from './database.service';
 import {
   DEMO_INTERVIEWS,
+  DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_QUESTIONS,
   DEMO_USER_EMAIL,
   DEMO_USER_ID,
@@ -127,6 +128,17 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
 
 export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> {
   for (const interview of DEMO_INTERVIEWS) {
+    // Once a real recorded interview has been promoted to the demo, do not
+    // recreate the fabricated placeholder on a later re-seed.
+    if (interview.id === DEMO_PLACEHOLDER_INTERVIEW_ID) {
+      const replaced = await db.query(
+        `SELECT 1 FROM interviews WHERE demo = TRUE AND status = 'completed' AND id <> $1 LIMIT 1`,
+        [DEMO_PLACEHOLDER_INTERVIEW_ID],
+      );
+      if ((replaced.rowCount ?? 0) > 0) {
+        continue;
+      }
+    }
     await db.query(
       `
         INSERT INTO interviews (
