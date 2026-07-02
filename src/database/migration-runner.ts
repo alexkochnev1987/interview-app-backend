@@ -12,18 +12,28 @@ export async function runMigrations(
     );
   `);
 
-  const appliedResult = await databaseService.query<{ version: string }>(
+  const appliedResult = await databaseService.query<{
+    version: string;
+    name: string;
+  }>(
     `
-      SELECT version
+      SELECT version, name
       FROM schema_migrations
     `,
   );
-  const appliedVersions = new Set(
-    appliedResult.rows.map((row) => row.version),
+  const appliedMigrations = new Map(
+    appliedResult.rows.map((row) => [row.version, row.name]),
   );
 
   for (const migration of DATABASE_MIGRATIONS) {
-    if (appliedVersions.has(migration.version)) {
+    const appliedName = appliedMigrations.get(migration.version);
+    if (appliedName !== undefined) {
+      if (appliedName !== migration.name) {
+        throw new Error(
+          `Migration version collision for ${migration.version}: ` +
+            `database has "${appliedName}", source has "${migration.name}"`,
+        );
+      }
       continue;
     }
 
