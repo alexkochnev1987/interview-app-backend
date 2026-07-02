@@ -1,9 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiUnauthorized } from '../common/errors/api-error';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
@@ -33,12 +30,12 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'>> {
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
     }
 
     const isValid = await this.userService.validatePassword(user, password);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
     }
 
     return this.userService.toPublicUser(user);

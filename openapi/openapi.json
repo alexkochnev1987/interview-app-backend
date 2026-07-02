@@ -5,7 +5,24 @@
       "post": {
         "operationId": "AuthController_login",
         "summary": "Sign in with email and password",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -43,7 +60,24 @@
       "post": {
         "operationId": "AuthController_demo",
         "summary": "Sign in to the read-only demo account",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -71,7 +105,24 @@
       "post": {
         "operationId": "AuthController_register",
         "summary": "Register a new account",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -103,7 +154,24 @@
       "get": {
         "operationId": "AuthController_googleLogin",
         "summary": "Start Google OAuth sign-in flow",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Redirects to Google OAuth consent screen"
@@ -118,7 +186,24 @@
       "get": {
         "operationId": "AuthController_googleCallback",
         "summary": "Google OAuth callback endpoint",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "302": {
             "description": "Sets session cookie and redirects to frontend"
@@ -133,7 +218,24 @@
       "post": {
         "operationId": "AuthController_logout",
         "summary": "Sign out current user",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -155,7 +257,24 @@
       "get": {
         "operationId": "AuthController_me",
         "summary": "Get current authenticated user",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -206,6 +325,22 @@
               "default": 0,
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -254,6 +389,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -304,7 +455,24 @@
         "operationId": "UserController_provisionDemo",
         "summary": "Provision the read-only demo account and demo content",
         "description": "Idempotent admin-only setup for environments without direct database access. Refused on production unless ALLOW_DEMO_SEED=true is set, so it can never seed demo data into production by accident.",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "",
@@ -351,6 +519,7 @@
       "get": {
         "operationId": "QuestionController_findAll",
         "summary": "List questions (paginated, filterable, sortable)",
+        "description": "Filter by translation availability with `?locale=` (primaryLocale match or non-empty `translations[locale].questionText`); list items resolve rubric for that locale when set, otherwise for `X-Locale` (default `en`). Use `?primaryLocale=` for canonical locale only. Deprecated: `?outputLanguage=`. Pass `?includeTranslations=true` for the full map per item.",
         "parameters": [
           {
             "name": "q",
@@ -412,10 +581,42 @@
             }
           },
           {
+            "name": "primaryLocale",
+            "required": false,
+            "in": "query",
+            "description": "Filter by canonical question locale (primary_locale).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "outputLanguage",
             "required": false,
             "in": "query",
+            "deprecated": true,
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input).",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -465,6 +666,15 @@
             }
           },
           {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, each list item includes the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -493,6 +703,22 @@
             "schema": {
               "default": false,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -530,7 +756,25 @@
       "post": {
         "operationId": "QuestionController_create",
         "summary": "Create question",
-        "parameters": [],
+        "description": "Requires `primaryLocale` (en|be|ru|pl) and a full `translations[primaryLocale]` block (questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer). Response rubric is resolved for `primaryLocale` (not `X-Locale`). Metadata fields (role, category, tags, …) are stored flat on the question row.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -547,7 +791,153 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/questions/ai/draft": {
+      "post": {
+        "operationId": "QuestionController_draftQuestion",
+        "summary": "Generate AI question draft",
+        "description": "Generates a question draft in locale from body `locale` or X-Locale header. If `mode=translate`, translates the full primary content block from `question.primaryLocale` to body `locale` (requires both locales and the complete primary rubric; preserves concept/red-flag ids 1:1) and returns the content block only. If `mode=generate`, returns identity fields (externalId, role, focus, category, subcategory, difficulty, weight, minimumPassScore, tags) plus the full rubric content block in the target locale; seed metadata is context only and is not returned. Does not persist anything to the database.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "description": "Used when body `locale` is omitted. Defaults to `en`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              },
+              "examples": {
+                "polishGenerate": {
+                  "summary": "Generate full rubric in Polish",
+                  "value": {
+                    "locale": "pl",
+                    "mode": "generate",
+                    "question": {
+                      "questionText": "Wyjaśnij działanie hooków w React.",
+                      "category": "react"
+                    }
+                  }
+                },
+                "translateRuToPl": {
+                  "summary": "Translate full primary block ru → pl",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "pl",
+                    "question": {
+                      "primaryLocale": "ru",
+                      "questionText": "Объясните замыкания в JavaScript.",
+                      "followUpQuestions": [
+                        "Можете привести простой практический пример?",
+                        "Какую типичную ошибку вы бы избегали?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "цепочка областей видимости",
+                          "weight": 0.34,
+                          "description": "должна быть явно раскрыта"
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "лексическое окружение",
+                          "weight": 0.33,
+                          "description": "объяснить привязку"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практическое применение",
+                          "weight": 0.33,
+                          "description": "привести реальный пример"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Путает область видимости",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Нет примера",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильный ответ объясняет замыкания простыми словами и приводит один пример."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "mode=generate: identity + rubric (QuestionDraftGenerateResponseDto). mode=translate: content block only (QuestionDraftContentResponseDto).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftGenerateResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                    }
+                  ]
                 }
               }
             }
@@ -597,7 +987,7 @@
       "get": {
         "operationId": "QuestionController_getFacets",
         "summary": "Faceted counts for the picker sidebar",
-        "description": "Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. Counts respect every other filter on the request so the user sees what is still available before clicking.",
+        "description": "Returns each filter facet (difficulty / category / subcategory / role / tags) with a per-value count. Uses the same query filters as GET /questions (including ?locale=, ?primaryLocale=, ?q=, tags, status). Deprecated: ?outputLanguage= (use primaryLocale). The facet being counted is omitted from the filter so counts show remaining options.",
         "parameters": [
           {
             "name": "q",
@@ -659,10 +1049,42 @@
             }
           },
           {
+            "name": "primaryLocale",
+            "required": false,
+            "in": "query",
+            "description": "Filter by canonical question locale (primary_locale).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "outputLanguage",
             "required": false,
             "in": "query",
+            "deprecated": true,
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input).",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -712,6 +1134,15 @@
             }
           },
           {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When true, each list item includes the full translations map. Default false.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -740,6 +1171,22 @@
             "schema": {
               "default": false,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -779,6 +1226,7 @@
       "get": {
         "operationId": "QuestionController_findOne",
         "summary": "Get question by id",
+        "description": "Nested editor shape: `primaryLocale`, flat metadata, resolved rubric for `X-Locale`, and `translations` map (omit with `?includeTranslations=false`). Legacy rows with only `outputLanguage` and flat columns map to `primaryLocale` and hydrate the primary translation block on read. Non–super-admin callers receive 404 for soft-deleted questions.",
         "parameters": [
           {
             "name": "id",
@@ -786,6 +1234,31 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When false, omit the translations map. Default true for GET /questions/:id.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -795,7 +1268,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -830,9 +1303,10 @@
           }
         ]
       },
-      "patch": {
+      "put": {
         "operationId": "QuestionController_update",
         "summary": "Update question",
+        "description": "`PUT` and `PATCH` are equivalent: both merge the body (default `translationsMode=merge`). Use `translationsMode=replace` with a full `translations` map for a full locale-map replace. `primaryLocale` is immutable — changing it returns 400. Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block (enforced in the service). Metadata-only patches are allowed when stored content stays valid.",
         "parameters": [
           {
             "name": "id",
@@ -840,6 +1314,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -859,7 +1349,108 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "questions"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "QuestionController_patchUpdate",
+        "summary": "Update question",
+        "description": "`PUT` and `PATCH` are equivalent: both merge the body (default `translationsMode=merge`). Use `translationsMode=replace` with a full `translations` map for a full locale-map replace. `primaryLocale` is immutable — changing it returns 400. Patching `translations[primaryLocale]` or using `replace` requires the full five-field primary block (enforced in the service). Metadata-only patches are allowed when stored content stays valid.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -925,6 +1516,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -983,7 +1590,25 @@
       "post": {
         "operationId": "QuestionController_findSimilar",
         "summary": "Find similar questions",
-        "parameters": [],
+        "description": "Embedding search; each match question is resolved for X-Locale. Match reasons use the same locale.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1040,7 +1665,25 @@
       "post": {
         "operationId": "QuestionController_bulkRemove",
         "summary": "Soft delete questions in bulk",
-        "parameters": [],
+        "description": "Blocked items include questionText resolved for X-Locale.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1115,6 +1758,31 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "includeTranslations",
+            "required": false,
+            "in": "query",
+            "description": "When false, omit the translations map. Default true for GET /questions/:id.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1123,7 +1791,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuestionResponseDto"
+                  "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
                 }
               }
             }
@@ -1169,11 +1837,429 @@
         ]
       }
     },
+    "/ai/chat": {
+      "post": {
+        "operationId": "AiController_chat",
+        "summary": "Candidate chat assistant",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
+    "/ai/greet": {
+      "post": {
+        "operationId": "AiController_greet",
+        "summary": "Candidate greeting prompt",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GreetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTextResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
+    "/ai/question-draft": {
+      "post": {
+        "operationId": "AiController_draftQuestion",
+        "summary": "Generate draft question with AI",
+        "description": "Deprecated compatibility endpoint. Use POST /questions/ai/draft. Supports two scenarios: `translate` (full primary content block from `question.primaryLocale` to body `locale`; ids preserved 1:1; content-only response) and `generate` (identity + full rubric content block; seed metadata is context, not returned). When `mode` is omitted, locale mismatch with full primary content triggers translate mode automatically.",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "description": "Used when body `locale` is omitted. Defaults to `en`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftQuestionDto"
+              },
+              "examples": {
+                "polishFromSeed": {
+                  "summary": "Polish draft (body locale)",
+                  "description": "Seed text can be any language; output rubric is generated in Polish.",
+                  "value": {
+                    "locale": "pl",
+                    "question": {
+                      "questionText": "Wyjaśnij działanie hooków w React.",
+                      "category": "react"
+                    }
+                  }
+                },
+                "englishViaHeader": {
+                  "summary": "English draft (header only)",
+                  "value": {
+                    "question": {
+                      "questionText": "Explain how CSS flexbox distributes free space."
+                    }
+                  }
+                },
+                "translateRuToPl": {
+                  "summary": "Translate full primary block ru → pl",
+                  "description": "Requires complete primary rubric (follow-ups, concepts, red flags, sample answer).",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "pl",
+                    "question": {
+                      "primaryLocale": "ru",
+                      "questionText": "Объясните замыкания в JavaScript.",
+                      "followUpQuestions": [
+                        "Можете привести простой практический пример?",
+                        "Какую типичную ошибку вы бы избегали?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "цепочка областей видимости",
+                          "weight": 0.34,
+                          "description": "должна быть явно раскрыта"
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "лексическое окружение",
+                          "weight": 0.33,
+                          "description": "объяснить привязку"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практическое применение",
+                          "weight": 0.33,
+                          "description": "привести реальный пример"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Путает область видимости",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Нет примера",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильный ответ объясняет замыкания простыми словами и приводит один пример."
+                    }
+                  }
+                },
+                "translateBeToEn": {
+                  "summary": "Translate full primary block be → en",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "en",
+                    "question": {
+                      "primaryLocale": "be",
+                      "questionText": "Растлумачце, як працуе віртуальны DOM у React.",
+                      "followUpQuestions": [
+                        "Can you walk through a simple practical example?",
+                        "What common pitfall would you avoid?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "virtual_dom",
+                          "label": "віртуальны DOM",
+                          "weight": 0.34,
+                          "description": "поясняе мадэль"
+                        },
+                        {
+                          "id": "reconciliation",
+                          "label": "рэкансіліяцыя",
+                          "weight": 0.33,
+                          "description": "змяненні і diff"
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "практыка",
+                          "weight": 0.33,
+                          "description": "рэальны прыклад"
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_dom",
+                          "label": "Путае DOM",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "Без прыкладу",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "Сильны адказ тлумачыць віртуальны DOM і дае адзін канкрэтны прыклад."
+                    }
+                  }
+                },
+                "translateEnToRu": {
+                  "summary": "Translate full primary block en → ru",
+                  "value": {
+                    "mode": "translate",
+                    "locale": "ru",
+                    "question": {
+                      "primaryLocale": "en",
+                      "questionText": "Explain closures in JavaScript.",
+                      "followUpQuestions": [
+                        "Can you walk through a simple practical example?",
+                        "What common pitfall would you avoid?"
+                      ],
+                      "expectedConcepts": [
+                        {
+                          "id": "scope_chain",
+                          "label": "Scope chain",
+                          "weight": 0.34,
+                          "description": "Candidate explains lexical scope."
+                        },
+                        {
+                          "id": "lexical_env",
+                          "label": "Lexical environment",
+                          "weight": 0.33,
+                          "description": "Binding and nesting."
+                        },
+                        {
+                          "id": "practical_use",
+                          "label": "Practical use",
+                          "weight": 0.33,
+                          "description": "Concrete example."
+                        }
+                      ],
+                      "redFlags": [
+                        {
+                          "id": "confuses_scope",
+                          "label": "Confuses scope",
+                          "severity": "medium"
+                        },
+                        {
+                          "id": "no_example",
+                          "label": "No example",
+                          "severity": "high"
+                        }
+                      ],
+                      "sampleGoodAnswer": "A strong answer explains closures in plain language with one example."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "mode=generate: identity + rubric. mode=translate: content block only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftGenerateResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuestionDraftContentResponseDto"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/interviews": {
       "post": {
         "operationId": "InterviewController_create",
         "summary": "Create interview",
-        "parameters": [],
+        "description": "Question snapshots in the response are resolved for interviewLocale. If some selected questions have no translation for interviewLocale, creation still succeeds and `localeWarnings` is returned.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1190,7 +2276,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InterviewWithCandidateLinkResponseDto"
+                  "$ref": "#/components/schemas/CreateInterviewResultDto"
                 }
               }
             }
@@ -1238,17 +2324,73 @@
       "get": {
         "operationId": "InterviewController_findAll",
         "summary": "List interviews",
-        "parameters": [],
+        "description": "Default: JSON array with full questions[] (legacy clients). Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. questions[]/questionsPreview are resolved in interviewLocale.",
+        "parameters": [
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "description": "When true, response is { items, total, page, limit }. When false or omitted, returns a plain array (legacy clients).",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Array when paginated is false/omitted; paginated object when paginated=true",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InterviewResponseDto"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InterviewResponseDto"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedInterviewListResponseDto"
+                    }
+                  ]
                 }
               }
             }
@@ -1278,6 +2420,7 @@
       "get": {
         "operationId": "InterviewController_findOne",
         "summary": "Get interview by id",
+        "description": "questions[] resolved for interviewLocale.",
         "parameters": [
           {
             "name": "id",
@@ -1285,6 +2428,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1339,6 +2498,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1426,6 +2601,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1481,6 +2672,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1540,6 +2747,7 @@
       "patch": {
         "operationId": "InterviewController_complete",
         "summary": "Complete interview",
+        "description": "Response questions[] resolved for interviewLocale.",
         "parameters": [
           {
             "name": "id",
@@ -1547,6 +2755,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1612,6 +2836,22 @@
             "description": "Re-evaluate answers whose latest validation already completed. Defaults to false; in-flight validations always return 409.",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1706,6 +2946,22 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1793,6 +3049,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -1851,6 +3123,7 @@
       "get": {
         "operationId": "InterviewController_getResults",
         "summary": "Get interview results",
+        "description": "Returns single-locale AI result content in interviewLocale (not X-Locale).",
         "parameters": [
           {
             "name": "id",
@@ -1858,6 +3131,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -1917,7 +3206,24 @@
       "post": {
         "operationId": "UploadController_presign",
         "summary": "Generate one-shot upload URL",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1974,7 +3280,24 @@
       "post": {
         "operationId": "UploadController_complete",
         "summary": "Confirm one-shot upload",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2031,7 +3354,24 @@
       "post": {
         "operationId": "UploadController_startMultipartUpload",
         "summary": "Start multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2088,7 +3428,24 @@
       "post": {
         "operationId": "UploadController_presignMultipartPart",
         "summary": "Presign multipart upload part",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2145,7 +3502,24 @@
       "post": {
         "operationId": "UploadController_completeMultipartUpload",
         "summary": "Complete multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2202,7 +3576,24 @@
       "post": {
         "operationId": "UploadController_abortMultipartUpload",
         "summary": "Abort multipart upload session",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2274,6 +3665,22 @@
             "in": "path",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2359,6 +3766,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "requestBody": {
@@ -2443,6 +3866,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2491,7 +3930,24 @@
       "get": {
         "operationId": "HealthController_check",
         "summary": "Health check endpoint",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -2513,6 +3969,7 @@
       "get": {
         "operationId": "TakeController_getInterview",
         "summary": "Get candidate interview state",
+        "description": "Resolves currentQuestion using optional contentLocale (UI language), then interviewLocale, primaryLocale, and any available translation. X-Locale is ignored on take. Includes resolvedLocale and optional fallbackFromLocale.",
         "parameters": [
           {
             "name": "id",
@@ -2528,6 +3985,37 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "contentLocale",
+            "required": false,
+            "in": "query",
+            "description": "Candidate UI language for currentQuestion. Omit to use interviewLocale.",
+            "schema": {
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2594,6 +4082,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2670,6 +4174,22 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -2755,6 +4275,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -2809,191 +4345,11 @@
         ]
       }
     },
-    "/ai/chat": {
-      "post": {
-        "operationId": "AiController_chat",
-        "summary": "Candidate chat assistant",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiTextResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "candidateSessionAuth": []
-          }
-        ]
-      }
-    },
-    "/ai/greet": {
-      "post": {
-        "operationId": "AiController_greet",
-        "summary": "Candidate greeting prompt",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GreetDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiTextResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "candidateSessionAuth": []
-          }
-        ]
-      }
-    },
-    "/ai/question-draft": {
-      "post": {
-        "operationId": "AiController_draftQuestion",
-        "summary": "Generate draft question with AI",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftQuestionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QuestionDraftResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ]
-      }
-    },
     "/feedback/{id}": {
       "get": {
         "operationId": "FeedbackController_getFeedback",
         "summary": "Get interview feedback using a share link",
+        "description": "Returns AI feedback in the interview single locale (interviewLocale). generalFeedback, improvements and per-question summaries are single-locale in v1.",
         "parameters": [
           {
             "name": "id",
@@ -3011,6 +4367,22 @@
             "description": "Access token from the share link",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -3053,6 +4425,22 @@
             "description": "Interview ID",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
             }
           }
         ],
@@ -3099,6 +4487,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
           }
         ],
         "responses": {
@@ -3129,7 +4533,7 @@
   },
   "info": {
     "title": "Interview App API",
-    "description": "HTTP API contract for Interview App backend",
+    "description": "Interview App backend API. i18n: `docs/locale-and-api.md`. Spec: `openapi/openapi.json` (`npm run openapi:check`). Global `X-Locale` (en|be|ru|pl, default en). Errors: `code` in `src/common/errors/api-error.registry.ts`.",
     "version": "1.0.0",
     "contact": {}
   },
@@ -3240,6 +4644,40 @@
           "ok"
         ]
       },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "VALIDATION_ERROR",
+          "INVALID_LOCALE",
+          "REGISTRATION_FAILED",
+          "UPLOAD_FAILED",
+          "UPLOAD_NOT_ALLOWED",
+          "UNAUTHORIZED",
+          "INVALID_CREDENTIALS",
+          "AUTHENTICATION_REQUIRED",
+          "CANDIDATE_SESSION_REQUIRED",
+          "INVALID_CANDIDATE_SESSION",
+          "INTERVIEW_TOKEN_REQUIRED",
+          "INVALID_INTERVIEW_TOKEN",
+          "FORBIDDEN",
+          "INSUFFICIENT_PERMISSIONS",
+          "ACCESS_DENIED",
+          "NOT_FOUND",
+          "QUESTION_NOT_FOUND",
+          "INTERVIEW_NOT_FOUND",
+          "USER_NOT_FOUND",
+          "FEEDBACK_NOT_FOUND",
+          "CONFLICT",
+          "QUESTION_IN_USE",
+          "VALIDATION_RUNNING",
+          "QUESTION_DUPLICATE",
+          "SERVICE_UNAVAILABLE",
+          "AI_PROVIDER_NOT_CONFIGURED",
+          "EMBEDDING_PROVIDER_NOT_CONFIGURED",
+          "INTERNAL_SERVER_ERROR"
+        ]
+      },
       "ApiErrorResponseDto": {
         "type": "object",
         "properties": {
@@ -3247,23 +4685,21 @@
             "type": "number",
             "example": 400
           },
-          "error": {
-            "type": "string",
-            "example": "Bad Request"
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
           },
           "message": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            ],
+            "type": "string",
             "example": "Validation failed"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "errors": [
+                "email must be an email"
+              ]
+            }
           },
           "path": {
             "type": "string",
@@ -3272,7 +4708,7 @@
         },
         "required": [
           "statusCode",
-          "error",
+          "code",
           "message"
         ]
       },
@@ -3377,6 +4813,42 @@
           "severity"
         ]
       },
+      "QuestionTranslationDto": {
+        "type": "object",
+        "properties": {
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "description": "Optional for non-primary locales. Required for primaryLocale.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            },
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            },
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          },
+          "sampleGoodAnswer": {
+            "type": "string",
+            "description": "Optional for non-primary locales. Required for primaryLocale."
+          }
+        },
+        "required": [
+          "questionText"
+        ]
+      },
       "QuestionDeleteBlockingInterviewDto": {
         "type": "object",
         "properties": {
@@ -3404,6 +4876,15 @@
           "id": {
             "type": "string"
           },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
           "externalId": {
             "type": "string"
           },
@@ -3414,7 +4895,16 @@
             "type": "string"
           },
           "outputLanguage": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy display label derived from primaryLocale. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses."
           },
           "category": {
             "type": "string"
@@ -3499,7 +4989,6 @@
         },
         "required": [
           "id",
-          "outputLanguage",
           "questionText",
           "followUpQuestions",
           "expectedConcepts",
@@ -3516,13 +5005,182 @@
           "usageCount"
         ]
       },
+      "ResolvedQuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy display label derived from primaryLocale. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QuestionTranslationDto"
+            },
+            "description": "Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses."
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "pendingDeletion": {
+            "type": "boolean",
+            "description": "True when deletion is scheduled because the question is still used by active interviews."
+          },
+          "blockingInterviews": {
+            "description": "Present when pendingDeletion is true — active interviews still using this question.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionDeleteBlockingInterviewDto"
+            }
+          },
+          "usageCount": {
+            "type": "number",
+            "description": "Number of times this question has been used in an interview."
+          },
+          "resolvedLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale of returned questionText and rubric fields."
+          },
+          "availableLocales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
+            }
+          },
+          "fallbackFromLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Requested X-Locale (or ?locale= on list). Omitted when resolvedLocale matches. Also set when rubric fields partially fall back to primaryLocale while questionText matches the request."
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "minimumPassScore",
+          "tags",
+          "metadata",
+          "createdAt",
+          "updatedAt",
+          "deleted",
+          "pendingDeletion",
+          "usageCount",
+          "resolvedLocale",
+          "availableLocales"
+        ]
+      },
       "PaginatedQuestionsResponseDto": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionResponseDto"
+              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
             }
           },
           "total": {
@@ -3542,6 +5200,255 @@
           "page",
           "limit"
         ]
+      },
+      "QuestionDraftGenerateResponseDto": {
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "difficulty",
+          "weight",
+          "sampleGoodAnswer",
+          "minimumPassScore",
+          "tags"
+        ]
+      },
+      "QuestionDraftContentResponseDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "primaryLocale",
+          "questionText",
+          "followUpQuestions",
+          "expectedConcepts",
+          "redFlags",
+          "sampleGoodAnswer"
+        ]
+      },
+      "QuestionTranslationsMapDto": {
+        "type": "object",
+        "properties": {
+          "en": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "be": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "ru": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          },
+          "pl": {
+            "$ref": "#/components/schemas/QuestionTranslationDto"
+          }
+        }
+      },
+      "QuestionDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translations": {
+            "$ref": "#/components/schemas/QuestionTranslationsMapDto"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
+            }
+          },
+          "redFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionRedFlagDto"
+            }
+          },
+          "outputLanguage": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
+          },
+          "role": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "minimumPassScore": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DraftQuestionDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "default": "en",
+            "description": "Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).",
+            "example": "pl"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "translate",
+              "generate"
+            ],
+            "description": "Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1; returns content block only. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns identity fields plus the primary locale rubric content block. If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.",
+            "example": "translate"
+          },
+          "question": {
+            "$ref": "#/components/schemas/QuestionDraftInputDto"
+          }
+        }
       },
       "FacetCountDto": {
         "type": "object",
@@ -3609,6 +5516,23 @@
       "CreateQuestionDto": {
         "type": "object",
         "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "translations": {
+            "description": "Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. Additional locales require questionText only; rubric fields are optional.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuestionTranslationsMapDto"
+              }
+            ]
+          },
           "externalId": {
             "type": "string"
           },
@@ -3619,48 +5543,16 @@
             "type": "string"
           },
           "outputLanguage": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true,
+            "description": "Ignored when translations are provided. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "Flat question metadata — stored on the question row, not inside translations."
           },
           "subcategory": {
             "type": "string"
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expectedConcepts": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-                }
-              ]
-            }
-          },
-          "redFlags": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionRedFlagDto"
-                }
-              ]
-            }
           },
           "difficulty": {
             "type": "string",
@@ -3672,9 +5564,6 @@
           },
           "weight": {
             "type": "number"
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
           },
           "minimumPassScore": {
             "type": "number"
@@ -3691,7 +5580,8 @@
           }
         },
         "required": [
-          "questionText"
+          "primaryLocale",
+          "translations"
         ]
       },
       "FindSimilarDraftDto": {
@@ -3739,7 +5629,7 @@
         "type": "object",
         "properties": {
           "question": {
-            "$ref": "#/components/schemas/QuestionResponseDto"
+            "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
           },
           "score": {
             "type": "number"
@@ -3774,6 +5664,34 @@
       "UpdateQuestionDto": {
         "type": "object",
         "properties": {
+          "primaryLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "deprecated": true,
+            "description": "Ignored on update — primaryLocale is immutable after creation. Update the primary locale block via `translations[primaryLocale]` instead."
+          },
+          "translationsMode": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "replace"
+            ],
+            "default": "merge",
+            "description": "How to apply `translations`. Default `merge` upserts each locale key. Set to `replace` to replace the entire stored map (requires `translations`)."
+          },
+          "translations": {
+            "description": "Locale blocks to merge or replace. primaryLocale must remain a full block; non-primary locales require questionText only and may omit rubric fields.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuestionTranslationsMapDto"
+              }
+            ]
+          },
           "externalId": {
             "type": "string"
           },
@@ -3784,7 +5702,9 @@
             "type": "string"
           },
           "outputLanguage": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true,
+            "description": "Ignored when primaryLocale or translations are set. Deprecated: use primaryLocale (en|be|ru|pl). Legacy outputLanguage labels map to locale: en→English, be→Belarusian, ru→Russian, pl→Polish (aliases such as english/polish also accepted on input)."
           },
           "category": {
             "type": "string"
@@ -3793,38 +5713,29 @@
             "type": "string"
           },
           "questionText": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true,
+            "description": "Updates the primary locale block when translations are omitted (legacy partial update)."
           },
           "followUpQuestions": {
+            "deprecated": true,
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "expectedConcepts": {
+            "deprecated": true,
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-                }
-              ]
+              "type": "string"
             }
           },
           "redFlags": {
+            "deprecated": true,
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/QuestionRedFlagDto"
-                }
-              ]
+              "type": "string"
             }
           },
           "difficulty": {
@@ -3839,7 +5750,8 @@
             "type": "number"
           },
           "sampleGoodAnswer": {
-            "type": "string"
+            "type": "string",
+            "deprecated": true
           },
           "minimumPassScore": {
             "type": "number"
@@ -3942,6 +5854,86 @@
           "scheduled"
         ]
       },
+      "ChatHistoryItemDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "assistant",
+              "candidate"
+            ]
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "ChatDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryItemDto"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "position",
+          "candidateName",
+          "history",
+          "message"
+        ]
+      },
+      "AiTextResponseDto": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "response"
+        ]
+      },
+      "GreetDto": {
+        "type": "object",
+        "properties": {
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "totalQuestions": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "candidateName",
+          "position",
+          "totalQuestions"
+        ]
+      },
       "CreateInterviewDto": {
         "type": "object",
         "properties": {
@@ -3953,6 +5945,17 @@
           },
           "position": {
             "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "default": "en",
+            "description": "Locale for interview UI and feedback. Defaults to en when omitted."
           },
           "questionIds": {
             "type": "array",
@@ -4355,11 +6358,25 @@
       "InterviewResultResponseDto": {
         "type": "object",
         "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Interview language used for AI evaluation and summary text."
+          },
           "overallScore": {
             "type": "number"
           },
           "summary": {
             "type": "string"
+          },
+          "improvements": {
+            "type": "string",
+            "description": "Improvement notes in interviewLocale (same language as general summary)."
           },
           "categoryScores": {
             "type": "object",
@@ -4402,6 +6419,7 @@
           }
         },
         "required": [
+          "interviewLocale",
           "overallScore",
           "summary",
           "categoryScores",
@@ -4455,7 +6473,31 @@
           "lastUpdatedAt"
         ]
       },
-      "InterviewWithCandidateLinkResponseDto": {
+      "InterviewLocaleWarningDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "availableLocales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
+            }
+          }
+        },
+        "required": [
+          "questionId",
+          "availableLocales"
+        ]
+      },
+      "CreateInterviewResultDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -4470,10 +6512,30 @@
           "position": {
             "type": "string"
           },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questions[] (always interviewLocale)."
+          },
           "questions": {
+            "description": "Resolved for interviewLocale on read (resolvedLocale, availableLocales).",
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionResponseDto"
+              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
             }
           },
           "answers": {
@@ -4508,18 +6570,26 @@
           },
           "candidateLink": {
             "type": "string"
+          },
+          "localeWarnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewLocaleWarningDto"
+            }
           }
         },
         "required": [
           "id",
           "candidateName",
           "position",
+          "interviewLocale",
           "questions",
           "answers",
           "status",
           "createdAt",
           "updatedAt",
-          "candidateLink"
+          "candidateLink",
+          "localeWarnings"
         ]
       },
       "InterviewResponseDto": {
@@ -4537,10 +6607,30 @@
           "position": {
             "type": "string"
           },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questions[] (always interviewLocale)."
+          },
           "questions": {
+            "description": "Resolved for interviewLocale on read (resolvedLocale, availableLocales).",
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionResponseDto"
+              "$ref": "#/components/schemas/ResolvedQuestionResponseDto"
             }
           },
           "answers": {
@@ -4578,11 +6668,150 @@
           "id",
           "candidateName",
           "position",
+          "interviewLocale",
           "questions",
           "answers",
           "status",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "InterviewQuestionPreviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "resolvedLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "resolvedLocale"
+        ]
+      },
+      "InterviewListItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questionsDisplayLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for questionsPreview (always interviewLocale)."
+          },
+          "questionCount": {
+            "type": "number"
+          },
+          "questionsPreview": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewQuestionPreviewDto"
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerDto"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/InterviewResultResponseDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/InterviewWorkflowDto"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "interviewLocale",
+          "questionCount",
+          "questionsPreview",
+          "answers",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedInterviewListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemResponseDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
         ]
       },
       "CandidateLinkResponseDto": {
@@ -5035,10 +7264,38 @@
         "properties": {
           "text": {
             "type": "string"
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resolvedLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation."
+          },
+          "fallbackFromLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale the candidate asked for: contentLocale query param, or interviewLocale when contentLocale is omitted. Omitted when resolvedLocale equals that requested locale."
           }
         },
         "required": [
-          "text"
+          "text",
+          "followUpQuestions",
+          "resolvedLocale"
         ]
       },
       "CurrentAnswerMetaDto": {
@@ -5073,6 +7330,15 @@
           "position": {
             "type": "string"
           },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
           "candidateName": {
             "type": "string"
           },
@@ -5098,6 +7364,7 @@
         "required": [
           "id",
           "position",
+          "interviewLocale",
           "candidateName",
           "status",
           "totalQuestions",
@@ -5396,180 +7663,48 @@
           "reused"
         ]
       },
-      "ChatHistoryItemDto": {
+      "FeedbackQuestionResultDto": {
         "type": "object",
         "properties": {
-          "role": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "decisionHint": {
             "type": "string",
             "enum": [
-              "system",
-              "assistant",
-              "candidate"
+              "pass",
+              "review",
+              "fail"
             ]
           },
-          "content": {
+          "summary": {
             "type": "string"
           }
         },
         "required": [
-          "role",
-          "content"
-        ]
-      },
-      "ChatDto": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "history": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatHistoryItemDto"
-            }
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "question",
-          "position",
-          "candidateName",
-          "history",
-          "message"
-        ]
-      },
-      "AiTextResponseDto": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "response"
-        ]
-      },
-      "GreetDto": {
-        "type": "object",
-        "properties": {
-          "candidateName": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "totalQuestions": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "candidateName",
-          "position",
-          "totalQuestions"
-        ]
-      },
-      "DraftQuestionDto": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "$ref": "#/components/schemas/CreateQuestionDto"
-          }
-        }
-      },
-      "QuestionDraftResponseDto": {
-        "type": "object",
-        "properties": {
-          "externalId": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "focus": {
-            "type": "string"
-          },
-          "outputLanguage": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string"
-          },
-          "subcategory": {
-            "type": "string"
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "followUpQuestions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "expectedConcepts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionExpectedConceptDto"
-            }
-          },
-          "redFlags": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionRedFlagDto"
-            }
-          },
-          "difficulty": {
-            "type": "string",
-            "enum": [
-              "easy",
-              "medium",
-              "hard"
-            ]
-          },
-          "weight": {
-            "type": "number"
-          },
-          "sampleGoodAnswer": {
-            "type": "string"
-          },
-          "minimumPassScore": {
-            "type": "number"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        },
-        "required": [
-          "outputLanguage",
-          "questionText",
-          "followUpQuestions",
-          "expectedConcepts",
-          "redFlags",
-          "difficulty",
-          "weight",
-          "minimumPassScore",
-          "tags",
-          "metadata"
+          "questionIndex",
+          "questionId"
         ]
       },
       "FeedbackResponseDto": {
         "type": "object",
         "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale used for AI-generated feedback text (interview.interviewLocale). v1 is single-locale only — not multi-locale."
+          },
           "position": {
             "type": "string"
           },
@@ -5597,13 +7732,23 @@
             }
           },
           "generalFeedback": {
-            "type": "string"
+            "type": "string",
+            "description": "Overall AI summary in interviewLocale (stored at completion)."
           },
           "improvements": {
-            "type": "string"
+            "type": "string",
+            "description": "Improvement notes in interviewLocale (aggregated from weak answers)."
+          },
+          "questionResults": {
+            "description": "Per-question feedback snippets in interviewLocale.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestionResultDto"
+            }
           }
         },
         "required": [
+          "interviewLocale",
           "position",
           "date",
           "expiresAt"

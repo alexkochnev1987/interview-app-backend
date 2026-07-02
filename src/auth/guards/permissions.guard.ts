@@ -1,11 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { apiForbidden, apiUnauthorized } from '../../common/errors/api-error';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
@@ -57,7 +52,10 @@ export class PermissionsGuard implements CanActivate {
       // not become an accidental write path for a read-only demo user. Non-demo
       // users keep the documented fail-open behavior.
       if (request.user?.demo === true) {
-        throw new ForbiddenException('Demo accounts are read-only');
+        throw apiForbidden(
+          ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+          'Demo accounts are read-only',
+        );
       }
       this.warnMissingDecorator(context);
       return true;
@@ -65,7 +63,10 @@ export class PermissionsGuard implements CanActivate {
 
     const role = request.user?.role;
     if (!role) {
-      throw new UnauthorizedException('Authentication required');
+      throw apiUnauthorized(
+        ApiErrorCode.AUTHENTICATION_REQUIRED,
+        'Authentication required',
+      );
     }
 
     const demo = request.user?.demo === true;
@@ -74,9 +75,15 @@ export class PermissionsGuard implements CanActivate {
     );
     if (!allowed) {
       if (demo && required.some((permission) => !isReadOnlyPermission(permission))) {
-        throw new ForbiddenException('Demo accounts are read-only');
+        throw apiForbidden(
+          ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+          'Demo accounts are read-only',
+        );
       }
-      throw new ForbiddenException('Insufficient permissions');
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        'Insufficient permissions',
+      );
     }
     return true;
   }

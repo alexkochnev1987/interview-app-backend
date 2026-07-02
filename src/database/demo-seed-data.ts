@@ -8,6 +8,7 @@ import type {
   QuestionCore,
   QuestionExpectedConcept,
   QuestionRedFlag,
+  QuestionTranslations,
 } from '../question/interfaces/question.interface';
 import type {
   Answer,
@@ -15,10 +16,14 @@ import type {
   Interview,
   InterviewResult,
 } from '../interview/interfaces/interview.interface';
+import type { Locale } from '../locale/locale.constants';
 
 export const DEMO_USER_ID = '00000000-0000-4000-8000-0000000000d0';
 export const DEMO_USER_EMAIL = 'demo@interview-app.com';
 export const DEMO_USER_NAME = 'Demo HR';
+
+const DEMO_LOCALE: Locale = 'en';
+const DEMO_INTERVIEW_LOCALE: Locale = 'en';
 
 // Fabricated completed demo interview. A real recorded interview can replace it
 // via the mark-demo endpoint, which deletes this placeholder.
@@ -49,10 +54,42 @@ const demoQuestionBase = {
   followUpQuestions: [] as string[],
   deleted: false,
   metadata: { demo: true } as Record<string, unknown>,
-} satisfies Partial<DemoQuestion>;
+};
+
+type DemoQuestionInput = Omit<DemoQuestion, 'primaryLocale' | 'translations'>;
+
+function defineDemoQuestion(input: DemoQuestionInput): DemoQuestion {
+  const {
+    questionText,
+    followUpQuestions,
+    expectedConcepts,
+    redFlags,
+    sampleGoodAnswer,
+    ...rest
+  } = input;
+  const translations: QuestionTranslations = {
+    [DEMO_LOCALE]: {
+      questionText,
+      followUpQuestions,
+      expectedConcepts,
+      redFlags,
+      sampleGoodAnswer,
+    },
+  };
+  return {
+    ...rest,
+    questionText,
+    followUpQuestions,
+    expectedConcepts,
+    redFlags,
+    sampleGoodAnswer,
+    primaryLocale: DEMO_LOCALE,
+    translations,
+  };
+}
 
 export const DEMO_QUESTIONS: DemoQuestion[] = [
-  {
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000001',
     externalId: 'demo-js-closures',
@@ -72,8 +109,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['javascript', 'fundamentals', 'demo'],
     usageCount: 1,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000002',
     externalId: 'demo-react-state-vs-props',
@@ -94,8 +131,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['react', 'rendering', 'demo'],
     usageCount: 1,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000003',
     externalId: 'demo-event-loop',
@@ -115,8 +152,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['javascript', 'async', 'demo'],
     usageCount: 1,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000004',
     externalId: 'demo-css-flexbox',
@@ -136,8 +173,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['css', 'layout', 'demo'],
     usageCount: 1,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000005',
     externalId: 'demo-useeffect-cleanup',
@@ -157,8 +194,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['react', 'hooks', 'demo'],
     usageCount: 1,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000006',
     externalId: 'demo-http-caching',
@@ -178,8 +215,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['networking', 'http', 'demo'],
     usageCount: 0,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000007',
     externalId: 'demo-accessibility',
@@ -199,8 +236,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['accessibility', 'forms', 'demo'],
     usageCount: 0,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000008',
     externalId: 'demo-debounce-throttle',
@@ -220,8 +257,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['javascript', 'performance', 'demo'],
     usageCount: 0,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000009',
     externalId: 'demo-ts-generics',
@@ -241,8 +278,8 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['typescript', 'types', 'demo'],
     usageCount: 0,
-  },
-  {
+  }),
+  defineDemoQuestion({
     ...demoQuestionBase,
     id: '00000000-0000-4000-8000-000000000010',
     externalId: 'demo-core-web-vitals',
@@ -262,7 +299,7 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     minimumPassScore: 0.5,
     tags: ['performance', 'web-vitals', 'demo'],
     usageCount: 0,
-  },
+  }),
 ];
 
 // Fixed timestamps keep re-seeding deterministic.
@@ -397,6 +434,7 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
       decisionHint: answer.evaluation?.decisionHint,
     })),
     completedAt: COMPLETED_AT,
+    interviewLocale: DEMO_INTERVIEW_LOCALE,
   };
 
   return {
@@ -404,6 +442,7 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
     candidateName: input.candidateName,
     candidateEmail: input.candidateEmail,
     position: input.position,
+    interviewLocale: DEMO_INTERVIEW_LOCALE,
     questions: input.answers.map((a) => questionById(a.questionId)),
     answers,
     status: 'completed',
@@ -422,6 +461,7 @@ function buildPendingDemoInterview(input: PendingDemoInterviewInput): Interview 
     candidateName: input.candidateName,
     candidateEmail: input.candidateEmail,
     position: input.position,
+    interviewLocale: DEMO_INTERVIEW_LOCALE,
     questions: input.questionIds.map(questionById),
     answers: [],
     status: 'pending',

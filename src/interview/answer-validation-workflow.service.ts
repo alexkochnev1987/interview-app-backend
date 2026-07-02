@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiConflict, apiServiceUnavailable } from '../common/errors/api-error';
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   Answer,
@@ -13,6 +13,7 @@ import {
   AnswerTranscript,
   AnswerValidationStatus,
   AnswerVersion,
+  Interview,
   InterviewQuestion,
 } from './interfaces/interview.interface';
 import { InterviewService } from './interview.service';
@@ -25,6 +26,8 @@ import {
 } from '../ai/llm/answer-evaluation-llm';
 import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 import { DatabaseService } from '../database/database.service';
+import { Locale } from '../locale/locale.constants';
+import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
 
 const DEFAULT_MAX_CONCURRENT_VALIDATIONS = 3;
 
@@ -68,6 +71,7 @@ interface SpawnPayload {
   sourceVersionNumber: number;
   runId: string;
   requestedAt: Date;
+  interviewLocale: Locale;
   question: InterviewQuestion;
   selectedVersion: AnswerVersion;
   existingTranscript?: AnswerTranscript;
@@ -119,7 +123,16 @@ export class AnswerValidationWorkflowService
       );
       return;
     }
-    const interviews = await this.interviewService.findAll();
+    const interviews: Interview[] = [];
+    let page = 1;
+    for (;;) {
+      const batch = await this.interviewService.findAll({ page, limit: 100 });
+      interviews.push(...batch.items);
+      if (page * batch.limit >= batch.total) {
+        break;
+      }
+      page += 1;
+    }
     const now = new Date();
     for (const interview of interviews) {
       for (const answer of interview.answers) {
@@ -175,7 +188,8 @@ export class AnswerValidationWorkflowService
     force = false,
   ): Promise<StartAllAnswerValidationsResult> {
     if (!resolveNativeProvider()) {
-      throw new ServiceUnavailableException(
+      throw apiServiceUnavailable(
+        ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
@@ -201,8 +215,10 @@ export class AnswerValidationWorkflowService
           answer.validation?.status === 'processing',
       );
       if (hasActiveValidation) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.VALIDATION_RUNNING,
           'Answer validation is already running for this interview.',
+          { interviewId },
         );
       }
 
@@ -246,6 +262,7 @@ export class AnswerValidationWorkflowService
           sourceVersionNumber,
           runId: randomUUID(),
           requestedAt,
+          interviewLocale: interview.interviewLocale,
           question,
           selectedVersion,
           existingTranscript: answer.transcript,
@@ -277,6 +294,7 @@ export class AnswerValidationWorkflowService
             sourceVersionNumber: payload.sourceVersionNumber,
             runId: payload.runId,
             requestedAt: payload.requestedAt,
+            interviewLocale: payload.interviewLocale,
             question: payload.question,
             selectedVersion: payload.selectedVersion,
             existingTranscript: payload.existingTranscript,
@@ -320,7 +338,8 @@ export class AnswerValidationWorkflowService
     force: boolean,
   ): Promise<StartAnswerValidationResult> {
     if (!resolveNativeProvider()) {
-      throw new ServiceUnavailableException(
+      throw apiServiceUnavailable(
+        ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
         'AI provider is not configured. Set AI_PROVIDER and the matching API key.',
       );
     }
@@ -361,8 +380,10 @@ export class AnswerValidationWorkflowService
         (existingValidation.status === 'queued' ||
           existingValidation.status === 'processing')
       ) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.VALIDATION_RUNNING,
           `Answer validation is already running for question ${questionIndex}.`,
+          { interviewId, questionIndex },
         );
       }
       if (
@@ -401,6 +422,7 @@ export class AnswerValidationWorkflowService
         sourceVersionNumber,
         runId,
         requestedAt,
+        interviewLocale: interview.interviewLocale,
         question,
         selectedVersion,
         existingTranscript: answer.transcript,
@@ -431,6 +453,7 @@ export class AnswerValidationWorkflowService
           sourceVersionNumber: payload.sourceVersionNumber,
           runId: payload.runId,
           requestedAt: payload.requestedAt,
+          interviewLocale: payload.interviewLocale,
           question: payload.question,
           selectedVersion: payload.selectedVersion,
           existingTranscript: payload.existingTranscript,
@@ -457,6 +480,7 @@ export class AnswerValidationWorkflowService
     sourceVersionNumber: number;
     runId: string;
     requestedAt: Date;
+    interviewLocale: Locale;
     question: InterviewQuestion;
     selectedVersion: AnswerVersion;
     existingTranscript?: AnswerTranscript;
@@ -467,10 +491,16 @@ export class AnswerValidationWorkflowService
       sourceVersionNumber,
       runId,
       requestedAt,
+      interviewLocale,
       question,
       selectedVersion,
       existingTranscript,
     } = params;
+
+    const questionForEvaluation = prepareQuestionForEvaluation(
+      question,
+      interviewLocale,
+    );
 
     try {
       const provider = resolveNativeProvider();
@@ -523,8 +553,9 @@ export class AnswerValidationWorkflowService
       const llmT0 = Date.now();
       const rawEvaluation = await evaluateAnswerWithNativeLlm(
         provider,
-        question,
+        questionForEvaluation,
         transcriptText,
+        interviewLocale,
       );
       this.logger.log(
         `[validate] llm ok interview=${interviewId} q=${questionIndex} ms=${Date.now() - llmT0} score=${rawEvaluation.overallScore ?? '?'} hint=${rawEvaluation.decisionHint ?? '?'}`,
@@ -542,15 +573,15 @@ export class AnswerValidationWorkflowService
         ),
         coveredConceptIds: this.filterConceptIds(
           rawEvaluation.coveredConceptIds,
-          question.expectedConcepts.map((concept) => concept.id),
+          questionForEvaluation.expectedConcepts.map((concept) => concept.id),
         ),
         missedConceptIds: this.filterConceptIds(
           rawEvaluation.missedConceptIds,
-          question.expectedConcepts.map((concept) => concept.id),
+          questionForEvaluation.expectedConcepts.map((concept) => concept.id),
         ),
         redFlagIds: this.filterConceptIds(
           rawEvaluation.redFlagIds,
-          question.redFlags.map((flag) => flag.id),
+          questionForEvaluation.redFlags.map((flag) => flag.id),
         ),
         behaviorRisk,
         summary: rawEvaluation.summary?.trim() || undefined,

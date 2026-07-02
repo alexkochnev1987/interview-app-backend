@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -255,6 +257,23 @@ export class SaveAnswerProgressDto {
 export class CandidateQuestionViewDto {
   @ApiProperty()
   text: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation.',
+  })
+  resolvedLocale: Locale;
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale the candidate asked for: contentLocale query param, or interviewLocale when contentLocale is omitted. Omitted when resolvedLocale equals that requested locale.',
+  })
+  fallbackFromLocale?: Locale;
 }
 
 export class CurrentAnswerMetaDto {
@@ -274,6 +293,9 @@ export class TakeInterviewResponseDto {
 
   @ApiProperty()
   position: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
 
   @ApiProperty()
   candidateName: string;

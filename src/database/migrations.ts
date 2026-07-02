@@ -1,7 +1,19 @@
+import {
+  BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
+  INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
+  MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL,
+  QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE,
+  QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS,
+  QUESTIONS_SEARCH_TEXT_ROLLBACK_STATEMENTS,
+  QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
+} from './migration-sql/question-locale';
+
 export interface DatabaseMigration {
   version: string;
   name: string;
   statements: string[];
+  /** Optional manual rollback SQL — not applied automatically; see docs/database-migrations.md */
+  rollbackStatements?: string[];
 }
 
 export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
@@ -441,14 +453,186 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
+    version: '0018',
+    name: 'questions_primary_locale_and_translations',
+    rollbackStatements: QUESTIONS_PRIMARY_LOCALE_ROLLBACK_STATEMENTS,
+    statements: [
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS primary_locale TEXT NULL;
+      `,
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS translations_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+      `,
+      `
+        UPDATE questions
+        SET primary_locale = ${MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL}
+        WHERE primary_locale IS NULL;
+      `,
+      `
+        UPDATE questions
+        SET translations_json = ${BUILD_PRIMARY_TRANSLATION_BLOCK_SQL}
+        WHERE ${QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE};
+      `,
+      `
+        ALTER TABLE questions
+        ALTER COLUMN primary_locale SET DEFAULT 'en';
+      `,
+      `
+        UPDATE questions
+        SET primary_locale = 'en'
+        WHERE primary_locale IS NULL;
+      `,
+      `
+        ALTER TABLE questions
+        ALTER COLUMN primary_locale SET NOT NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'questions'::regclass
+              AND conname = 'questions_primary_locale_check'
+          ) THEN
+            ALTER TABLE questions
+            ADD CONSTRAINT questions_primary_locale_check
+            CHECK (primary_locale IN ('en', 'be', 'ru', 'pl'));
+          END IF;
+        END $$;
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_primary_locale_idx
+        ON questions (primary_locale)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
+  {
+    version: '0019',
+    name: 'interviews_interview_locale',
+    rollbackStatements: INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
+    statements: [
+      `
+        ALTER TABLE interviews
+        ADD COLUMN IF NOT EXISTS interview_locale TEXT NULL;
+      `,
+      `
+        UPDATE interviews
+        SET interview_locale = 'en'
+        WHERE interview_locale IS NULL;
+      `,
+      `
+        ALTER TABLE interviews
+        ALTER COLUMN interview_locale SET DEFAULT 'en';
+      `,
+      `
+        ALTER TABLE interviews
+        ALTER COLUMN interview_locale SET NOT NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'interviews'::regclass
+              AND conname = 'interviews_interview_locale_check'
+          ) THEN
+            ALTER TABLE interviews
+            ADD CONSTRAINT interviews_interview_locale_check
+            CHECK (interview_locale IN ('en', 'be', 'ru', 'pl'));
+          END IF;
+        END $$;
+      `,
+    ],
+  },
+  {
     version: '0020',
+    name: 'questions_search_text_trgm',
+    rollbackStatements: QUESTIONS_SEARCH_TEXT_ROLLBACK_STATEMENTS,
+    statements: [
+      `CREATE EXTENSION IF NOT EXISTS pg_trgm;`,
+      `
+        ALTER TABLE questions
+        ADD COLUMN IF NOT EXISTS search_text TEXT NOT NULL DEFAULT '';
+      `,
+      `
+        UPDATE questions
+        SET search_text = lower(
+          trim(
+            concat_ws(
+              ' ',
+              nullif(trim(question_text), ''),
+              (
+                SELECT string_agg(DISTINCT trim(block->>'questionText'), ' ')
+                FROM jsonb_each(translations_json) AS tr(locale_key, block)
+                WHERE trim(COALESCE(block->>'questionText', '')) <> ''
+              )
+            )
+          )
+        );
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS questions_search_text_trgm_idx
+        ON questions USING GIN (search_text gin_trgm_ops)
+        WHERE deleted = FALSE;
+      `,
+    ],
+  },
+  {
+    version: '0021',
+    name: 'questions_primary_locale_backfill',
+    statements: [
+      `
+        UPDATE questions
+        SET primary_locale = ${MAP_OUTPUT_LANGUAGE_TO_PRIMARY_LOCALE_SQL}
+        WHERE primary_locale IS NULL
+           OR primary_locale NOT IN ('en', 'be', 'ru', 'pl');
+      `,
+      `
+        UPDATE questions
+        SET translations_json = ${BUILD_PRIMARY_TRANSLATION_BLOCK_SQL}
+        WHERE ${QUESTIONS_MISSING_PRIMARY_BLOCK_WHERE};
+      `,
+    ],
+  },
+  {
+    version: '0022',
+    name: 'questions_translations_primary_locale_check',
+    rollbackStatements: QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
+    statements: [
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'questions'::regclass
+              AND conname = 'questions_translations_primary_locale_check'
+          ) THEN
+            ALTER TABLE questions
+            ADD CONSTRAINT questions_translations_primary_locale_check
+            CHECK (
+              translations_json ? primary_locale
+              AND COALESCE(trim(translations_json -> primary_locale ->> 'questionText'), '') <> ''
+            );
+          END IF;
+        END $$;
+      `,
+    ],
+  },
+  {
+    version: '0023',
     name: 'add_questions_pending_deletion',
     statements: [
       `ALTER TABLE questions ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN NOT NULL DEFAULT FALSE;`,
     ],
   },
   {
-    version: '0021',
+    version: '0024',
     name: 'add_interviews_questions_json_gin_index',
     statements: [
       `
@@ -458,14 +642,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0022',
+    version: '0025',
     name: 'add_users_demo_flag',
     statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT FALSE;`,
     ],
   },
   {
-    version: '0023',
+    version: '0026',
     name: 'add_demo_flag_to_content',
     statements: [
       // Demo content is isolated in both directions: demo users read only demo
@@ -475,7 +659,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0024',
+    version: '0027',
     name: 'enforce_single_demo_user',
     statements: [
       // At most one demo account may exist, so the demo login resolves to a

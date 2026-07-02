@@ -2,30 +2,60 @@ import {
   ApiExtraModels,
   ApiProperty,
   ApiPropertyOptional,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   IsArray,
+  IsDefined,
   IsIn,
   IsNumber,
   IsObject,
   IsOptional,
   IsString,
-  Length,
   Min,
+  Validate,
+  ValidateNested,
 } from 'class-validator';
-import {
-  QuestionDifficulty,
-  QuestionExpectedConcept,
-  QuestionRedFlag,
-} from '../interfaces/question.interface';
+import { Type } from 'class-transformer';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
+import { QuestionDifficulty } from '../interfaces/question.interface';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question.responses.dto';
+import { QuestionTranslationDto } from './question-translation.dto';
+import {
+  QuestionTranslationsMapDto,
+} from './question-translations-map.dto';
+import { QuestionTranslationsMapConstraint } from './validators/question-translations.validator';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
-@ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto)
+@ApiExtraModels(
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+  QuestionTranslationDto,
+  QuestionTranslationsMapDto,
+)
 export class CreateQuestionDto {
+  @ApiProperty({ enum: SUPPORTED_LOCALES, required: true })
+  @IsDefined({ message: 'primaryLocale is required (en, be, ru, or pl)' })
+  @IsIn([...SUPPORTED_LOCALES])
+  primaryLocale: Locale;
+
+  @ApiProperty({
+    required: true,
+    type: QuestionTranslationsMapDto,
+    description:
+      'Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: ' +
+      'questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. ' +
+      'Additional locales require questionText only; rubric fields are optional.',
+  })
+  @IsDefined({ message: 'translations is required' })
+  @ValidateNested()
+  @Type(() => QuestionTranslationsMapDto)
+  @Validate(QuestionTranslationsMapConstraint)
+  translations: QuestionTranslationsMapDto;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -41,12 +71,18 @@ export class CreateQuestionDto {
   @IsString()
   focus?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: `Ignored when translations are provided. ${OUTPUT_LANGUAGE_OPENAPI_NOTE}`,
+  })
   @IsOptional()
   @IsString()
   outputLanguage?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Flat question metadata — stored on the question row, not inside translations.',
+  })
   @IsOptional()
   @IsString()
   category?: string;
@@ -55,43 +91,6 @@ export class CreateQuestionDto {
   @IsOptional()
   @IsString()
   subcategory?: string;
-
-  @ApiProperty()
-  @IsString()
-  @Length(1, 5000)
-  questionText: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  followUpQuestions?: string[];
-
-  @ApiPropertyOptional({
-    type: 'array',
-    items: {
-      oneOf: [
-        { type: 'string' },
-        { $ref: getSchemaPath(QuestionExpectedConceptDto) },
-      ],
-    },
-  })
-  @IsOptional()
-  @IsArray()
-  expectedConcepts?: Array<string | Partial<QuestionExpectedConcept>>;
-
-  @ApiPropertyOptional({
-    type: 'array',
-    items: {
-      oneOf: [
-        { type: 'string' },
-        { $ref: getSchemaPath(QuestionRedFlagDto) },
-      ],
-    },
-  })
-  @IsOptional()
-  @IsArray()
-  redFlags?: Array<string | Partial<QuestionRedFlag>>;
 
   @ApiPropertyOptional({ enum: ['easy', 'medium', 'hard'] })
   @IsOptional()
@@ -103,11 +102,6 @@ export class CreateQuestionDto {
   @IsNumber()
   @Min(0)
   weight?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  sampleGoodAnswer?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

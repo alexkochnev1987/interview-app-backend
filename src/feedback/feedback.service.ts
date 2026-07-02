@@ -1,10 +1,13 @@
 import {
-  ConflictException,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import {
+  apiConflict,
+  apiForbidden,
+  apiNotFound,
+} from '../common/errors/api-error';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { DatabaseError } from 'pg';
 import { DatabaseService } from '../database/database.service';
@@ -18,6 +21,7 @@ import {
   FeedbackLink,
   FeedbackResponse,
 } from './interfaces/feedback-link.interface';
+import { buildFeedbackImprovements } from './feedback-text';
 
 export const FEEDBACK_LINK_TTL_DAYS = 7;
 
@@ -54,8 +58,10 @@ export class FeedbackService {
       actor,
     );
     if (interview.status !== 'completed' || !interview.result) {
-      throw new ForbiddenException(
+      throw apiForbidden(
+        ApiErrorCode.FORBIDDEN,
         'Feedback link can only be generated for a completed interview',
+        { interviewId },
       );
     }
 
@@ -106,8 +112,10 @@ export class FeedbackService {
       });
     } catch (error) {
       if (this.isUniqueViolation(error)) {
-        throw new ConflictException(
+        throw apiConflict(
+          ApiErrorCode.CONFLICT,
           'Another feedback link was created concurrently. Try again.',
+          { interviewId },
         );
       }
       throw error;
@@ -154,12 +162,20 @@ export class FeedbackService {
       linkRow.revoked_at !== null ||
       (linkRow.expires_at !== null && linkRow.expires_at.getTime() <= Date.now())
     ) {
-      throw new NotFoundException('Invalid or expired feedback link');
+      throw apiNotFound(
+        ApiErrorCode.NOT_FOUND,
+        'Invalid or expired feedback link',
+        { interviewId },
+      );
     }
 
     const interview = await this.interviewService.findOne(interviewId);
     if (interview.status !== 'completed' || !interview.result) {
-      throw new NotFoundException('Feedback is not available for this interview');
+      throw apiNotFound(
+        ApiErrorCode.NOT_FOUND,
+        'Feedback is not available for this interview',
+        { interviewId },
+      );
     }
 
     return this.toFeedbackResponse(interview, linkRow);
@@ -191,6 +207,7 @@ export class FeedbackService {
       throw new InternalServerErrorException('Feedback link has no expiry');
     }
     return {
+      interviewLocale: interview.interviewLocale,
       position: interview.position,
       date: result.completedAt.toISOString(),
       expiresAt: linkRow.expires_at.toISOString(),
@@ -198,6 +215,21 @@ export class FeedbackService {
       overallScore: result.overallScore,
       categoryScores: result.categoryScores,
       generalFeedback: result.summary,
+      improvements:
+        result.improvements ??
+        (result.questionResults
+          ? buildFeedbackImprovements(
+              result.questionResults,
+              interview.interviewLocale,
+            )
+          : undefined),
+      questionResults: result.questionResults?.map((item) => ({
+        questionIndex: item.questionIndex,
+        questionId: item.questionId,
+        score: item.score,
+        decisionHint: item.decisionHint,
+        summary: item.summary,
+      })),
     };
   }
 

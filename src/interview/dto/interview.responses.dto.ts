@@ -1,10 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { QuestionResponseDto } from '../../question/dto/question.responses.dto';
+import { Locale, SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { ResolvedQuestionResponseDto } from '../../question/dto/question.responses.dto';
 import { INTERVIEW_STATUSES } from '../interfaces/interview.interface';
 
 export class CandidateLinkResponseDto {
   @ApiProperty()
   candidateLink: string;
+}
+
+export class InterviewLocaleWarningDto {
+  @ApiProperty()
+  questionId: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
+  availableLocales: Locale[];
 }
 
 export class StartAnswerValidationResultDto {
@@ -314,11 +323,22 @@ export class InterviewQuestionResultDto {
 }
 
 export class InterviewResultResponseDto {
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description: 'Interview language used for AI evaluation and summary text.',
+  })
+  interviewLocale: Locale;
+
   @ApiProperty()
   overallScore: number;
 
   @ApiProperty()
   summary: string;
+
+  @ApiPropertyOptional({
+    description: 'Improvement notes in interviewLocale (same language as general summary).',
+  })
+  improvements?: string;
 
   @ApiProperty({ type: 'object', additionalProperties: { type: 'number' } })
   categoryScores: Record<string, number>;
@@ -358,8 +378,22 @@ export class InterviewResponseDto {
   @ApiProperty()
   position: string;
 
-  @ApiProperty({ type: [QuestionResponseDto] })
-  questions: QuestionResponseDto[];
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale used for questions[] (always interviewLocale).',
+  })
+  questionsDisplayLocale?: Locale;
+
+  @ApiProperty({
+    type: [ResolvedQuestionResponseDto],
+    description:
+      'Resolved for interviewLocale on read (resolvedLocale, availableLocales).',
+  })
+  questions: ResolvedQuestionResponseDto[];
 
   @ApiProperty({ type: [AnswerDto] })
   answers: AnswerDto[];
@@ -385,10 +419,87 @@ export class InterviewWithCandidateLinkResponseDto extends InterviewResponseDto 
   candidateLink: string;
 }
 
+export class CreateInterviewResultDto extends InterviewWithCandidateLinkResponseDto {
+  @ApiProperty({ type: [InterviewLocaleWarningDto] })
+  localeWarnings: InterviewLocaleWarningDto[];
+}
+
 export class InterviewCancelResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ example:true })
+  @ApiProperty({ example: true })
   canceled: true;
+}
+
+export class InterviewQuestionPreviewDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  resolvedLocale: Locale;
+}
+
+export class InterviewListItemResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  candidateName: string;
+
+  @ApiPropertyOptional()
+  candidateEmail?: string;
+
+  @ApiProperty()
+  position: string;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  interviewLocale: Locale;
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale used for questionsPreview (always interviewLocale).',
+  })
+  questionsDisplayLocale?: Locale;
+
+  @ApiProperty()
+  questionCount: number;
+
+  @ApiProperty({ type: [InterviewQuestionPreviewDto] })
+  questionsPreview: InterviewQuestionPreviewDto[];
+
+  @ApiProperty({ type: [AnswerDto] })
+  answers: AnswerDto[];
+
+  @ApiProperty({ enum: ['pending', 'in_progress', 'processing', 'completed', 'failed'] })
+  status: string;
+
+  @ApiPropertyOptional({ type: InterviewResultResponseDto })
+  result?: InterviewResultResponseDto;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiPropertyOptional({ type: InterviewWorkflowDto })
+  workflow?: InterviewWorkflowDto;
+}
+
+export class PaginatedInterviewListResponseDto {
+  @ApiProperty({ type: [InterviewListItemResponseDto] })
+  items: InterviewListItemResponseDto[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
 }

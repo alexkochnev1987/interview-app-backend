@@ -77,6 +77,21 @@ export function resolveNativeProvider(): NativeProviderConfig | null {
   const model =
     trimEnv('GOOGLE_AI_MODEL') ??
     trimEnv('GEMINI_MODEL') ??
-    'gemini-2.0-flash';
+    'gemini-2.5-flash-lite';
   return { kind: 'google', apiKey, model };
+}
+
+const DEFAULT_NATIVE_LLM_TIMEOUT_MS = 120_000;
+
+/** Upper bound for a single native LLM HTTP call (generate, translate, evaluation). */
+export function resolveNativeLlmTimeoutMs(): number {
+  const raw = trimEnv('AI_LLM_TIMEOUT_MS');
+  if (!raw) {
+    return DEFAULT_NATIVE_LLM_TIMEOUT_MS;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_NATIVE_LLM_TIMEOUT_MS;
+  }
+  return parsed;
 }

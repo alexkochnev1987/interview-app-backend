@@ -1,4 +1,5 @@
 import type { NativeProviderConfig } from './ai-env';
+import { resolveNativeLlmTimeoutMs } from './ai-env';
 
 async function readErrorBody(res: Response): Promise<string> {
   try {
@@ -6,6 +7,25 @@ async function readErrorBody(res: Response): Promise<string> {
     return t.slice(0, 2000);
   } catch {
     return res.statusText;
+  }
+}
+
+async function fetchWithLlmTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const timeoutMs = resolveNativeLlmTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`LLM request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -61,7 +81,7 @@ async function completeOpenAi(
   if (mode === 'json') {
     body.response_format = { type: 'json_object' };
   }
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -95,7 +115,7 @@ async function completeAnthropic(
     mode === 'json'
       ? `${user}\n\nReply with a single JSON object only, no markdown or explanation.`
       : user;
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -128,24 +148,41 @@ async function completeAnthropic(
   return text;
 }
 
+export function buildGoogleGenerateContentRequest(
+  model: string,
+  apiKey: string,
+): { url: string; headers: Record<string, string> } {
+  const base = 'https://generativelanguage.googleapis.com/v1beta';
+  const encodedModel = encodeURIComponent(model);
+  const url = `${base}/models/${encodedModel}:generateContent`;
+  return {
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+  };
+}
+
 async function completeGoogle(
   config: NativeProviderConfig,
   system: string,
   user: string,
   mode: 'json' | 'text',
 ): Promise<string> {
-  const base = 'https://generativelanguage.googleapis.com/v1beta';
-  const model = encodeURIComponent(config.model);
-  const url = `${base}/models/${model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+  const { url, headers } = buildGoogleGenerateContentRequest(
+    config.model,
+    config.apiKey,
+  );
   const generationConfig: Record<string, unknown> = {
     temperature: mode === 'json' ? 0.25 : 0.5,
   };
   if (mode === 'json') {
     generationConfig.responseMimeType = 'application/json';
   }
-  const res = await fetch(url, {
+  const res = await fetchWithLlmTimeout(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
@@ -159,9 +196,11 @@ async function completeGoogle(
   const candidates = data.candidates as Array<Record<string, unknown>> | undefined;
   const parts = candidates?.[0]?.content as Record<string, unknown> | undefined;
   const partsList = parts?.parts as Array<Record<string, unknown>> | undefined;
-  const text =
-    typeof partsList?.[0]?.text === 'string' ? partsList[0].text : '';
-  if (!text.trim()) {
+  const text = (partsList ?? [])
+    .map((part) => (typeof part.text === 'string' ? part.text : ''))
+    .join('')
+    .trim();
+  if (!text) {
     throw new Error('Gemini returned an empty response.');
   }
   return text;

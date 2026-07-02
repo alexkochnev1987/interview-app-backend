@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest } from '../common/errors/api-error';
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -110,7 +112,11 @@ export class UploadService {
 
     const response = await this.s3Client.send(command);
     if (!response.UploadId) {
-      throw new BadRequestException('Failed to initialize multipart upload');
+      throw apiBadRequest(
+        ApiErrorCode.UPLOAD_FAILED,
+        'Failed to initialize multipart upload',
+        { interviewId, questionIndex },
+      );
     }
 
     return {
@@ -275,8 +281,10 @@ export class UploadService {
       (answer) => answer.status === 'submitted',
     ).length;
     if (questionIndex !== currentQuestionIndex) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.UPLOAD_NOT_ALLOWED,
         'Uploads are only allowed for the current question',
+        { interviewId, questionIndex, currentQuestionIndex },
       );
     }
     if (questionIndex >= interview.questions.length) {

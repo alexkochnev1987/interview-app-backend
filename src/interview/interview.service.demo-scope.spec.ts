@@ -16,7 +16,10 @@ describe('InterviewService demo scoping (findAllForActor)', () => {
 
   it('scopes a demo HR user to demo rows they own', async () => {
     const { service, query } = makeService();
-    await service.findAllForActor({ id: 'demo-user', role: 'hr', demo: true });
+    await service.findAllForActor(
+      { id: 'demo-user', role: 'hr', demo: true },
+      { unbounded: true },
+    );
 
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain('demo = $1');
@@ -26,7 +29,10 @@ describe('InterviewService demo scoping (findAllForActor)', () => {
 
   it('scopes a real admin to non-demo rows with no owner filter', async () => {
     const { service, query } = makeService();
-    await service.findAllForActor({ id: 'admin', role: 'admin', demo: false });
+    await service.findAllForActor(
+      { id: 'admin', role: 'admin', demo: false },
+      { unbounded: true },
+    );
 
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain('demo = $1');

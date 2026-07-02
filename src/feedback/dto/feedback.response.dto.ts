@@ -1,6 +1,32 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
+
+export class FeedbackQuestionResultDto {
+  @ApiProperty()
+  questionIndex: number;
+
+  @ApiProperty()
+  questionId: string;
+
+  @ApiPropertyOptional()
+  score?: number;
+
+  @ApiPropertyOptional({ enum: ['pass', 'review', 'fail'] })
+  decisionHint?: 'pass' | 'review' | 'fail';
+
+  @ApiPropertyOptional()
+  summary?: string;
+}
 
 export class FeedbackResponseDto {
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Locale used for AI-generated feedback text (interview.interviewLocale). v1 is single-locale only — not multi-locale.',
+  })
+  interviewLocale: Locale;
+
   @ApiProperty()
   position: string;
 
@@ -19,9 +45,19 @@ export class FeedbackResponseDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'number' } })
   categoryScores?: Record<string, number>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Overall AI summary in interviewLocale (stored at completion).',
+  })
   generalFeedback?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Improvement notes in interviewLocale (aggregated from weak answers).',
+  })
   improvements?: string;
+
+  @ApiPropertyOptional({
+    type: [FeedbackQuestionResultDto],
+    description: 'Per-question feedback snippets in interviewLocale.',
+  })
+  questionResults?: FeedbackQuestionResultDto[];
 }

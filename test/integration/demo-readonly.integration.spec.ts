@@ -6,6 +6,7 @@ import { useIntegrationHarness } from '../helpers/integration-harness';
 import { DatabaseService } from '../../src/database/database.service';
 import { UserService } from '../../src/user/user.service';
 import { QuestionService } from '../../src/question/question.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Read-only demo account, end to end through Nest + Postgres + cookies/guards:
 // reads are scoped to demo rows, every write is 403, and real data never leaks.
@@ -42,11 +43,12 @@ describe('Demo read-only account (integration)', () => {
     // Stamped demo further down: create() refuses to fold a demo question into a
     // non-demo actor's interview, so the demo interview fixture must reference it
     // while it is still a real row, then both get flipped together.
-    const demoQuestion = await questionService.create({
-      questionText: 'Demo-only question for the integration test.',
-      difficulty: 'easy',
-      weight: 1,
-    });
+    const demoQuestion = await questionService.create(
+      buildCreateQuestionPayload('Demo-only question for the integration test.', {
+        difficulty: 'easy',
+        weight: 1,
+      }),
+    );
 
     // A real interview owned by the super admin, plus a demo interview.
     const adminAgent = supertest.agent(app.getHttpServer());
@@ -120,11 +122,12 @@ describe('Demo read-only account (integration)', () => {
     expect(String(createInterview.body.message)).toMatch(/read-only/i);
 
     await expectStatus(
-      demo.post('/questions').send({
-        questionText: 'demo cannot create questions',
-        difficulty: 'easy',
-        weight: 1,
-      }),
+      demo.post('/questions').send(
+        buildCreateQuestionPayload('demo cannot create questions', {
+          difficulty: 'easy',
+          weight: 1,
+        }),
+      ),
       403,
     );
     await expectStatus(demo.post(`/interviews/${demoInterviewId}/validate`).send({}), 403);

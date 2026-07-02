@@ -1,9 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { apiUnauthorized } from '../../common/errors/api-error';
 import { AuthService } from '../auth.service';
 import { CANDIDATE_SESSION_COOKIE } from '../candidate-session';
 
@@ -20,12 +17,18 @@ export class CandidateAuthGuard implements CanActivate {
     const token = queryToken ?? cookieToken;
 
     if (!token) {
-      throw new UnauthorizedException('Interview token required');
+      throw apiUnauthorized(
+        ApiErrorCode.INTERVIEW_TOKEN_REQUIRED,
+        'Interview token required',
+      );
     }
 
     const payload = this.authService.validateCandidateToken(token);
     if (!payload) {
-      throw new UnauthorizedException('Invalid or expired interview token');
+      throw apiUnauthorized(
+        ApiErrorCode.INVALID_INTERVIEW_TOKEN,
+        'Invalid or expired interview token',
+      );
     }
 
     request.candidatePayload = payload;
