@@ -66,6 +66,7 @@ jobs:
       LIGHTSAIL_USER: ${{ vars.LIGHTSAIL_USER || 'ubuntu' }}
       REMOTE_DIR: ${{ github.ref == 'refs/heads/main' && '/home/ubuntu/interview-app-backend-prod' || '/home/ubuntu/interview-app-backend-dev' }}
       BACKEND_SERVICE: ${{ github.ref == 'refs/heads/main' && 'backend-prod' || 'backend-dev' }}
+      MIGRATION_SERVICE: ${{ github.ref == 'refs/heads/main' && 'migrate-prod' || 'migrate-dev' }}
       COMPOSE_PROJECT_NAME: interview-app-backend
       GIT_SHA: ${{ github.sha }}
     steps:
@@ -104,11 +105,11 @@ jobs:
 
       - name: Build, migrate, and restart backend
         run: |
-          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' BACKEND_SERVICE='$BACKEND_SERVICE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' GIT_SHA='$GIT_SHA' bash -s" <<'SH'
+          ssh -i ~/.ssh/lightsail "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" "REMOTE_DIR='$REMOTE_DIR' BACKEND_SERVICE='$BACKEND_SERVICE' MIGRATION_SERVICE='$MIGRATION_SERVICE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' GIT_SHA='$GIT_SHA' bash -s" <<'SH'
           set -euo pipefail
           cd "$REMOTE_DIR"
           test -f .env.lightsail
-          sudo GIT_SHA="$GIT_SHA" docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --no-deps --build -T migrate < /dev/null
+          sudo GIT_SHA="$GIT_SHA" docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml run --rm --no-deps --build -T "$MIGRATION_SERVICE" < /dev/null
           sudo GIT_SHA="$GIT_SHA" docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml up -d --no-deps --build "$BACKEND_SERVICE"
           sudo docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.lightsail -f docker-compose.lightsail.yml ps "$BACKEND_SERVICE"
           SH

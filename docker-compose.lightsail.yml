@@ -60,7 +60,7 @@ services:
     expose:
       - "3000"
 
-  migrate:
+  migrate-dev:
     build:
       context: .
       args:
@@ -71,6 +71,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DATABASE_URL: ${DEV_DATABASE_URL:-${DATABASE_URL}}
+    command: ["node", "dist/database/migrate.js"]
+    profiles:
+      - tools
+
+  migrate-prod:
+    build:
+      context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    env_file:
+      - path: .env.lightsail
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${PROD_DATABASE_URL:-${DATABASE_URL}}
     command: ["node", "dist/database/migrate.js"]
     profiles:
       - tools
