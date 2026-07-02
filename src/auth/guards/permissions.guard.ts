@@ -9,11 +9,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { hasPermission, Permission } from '../permissions';
+import {
+  hasEffectivePermission,
+  isReadOnlyPermission,
+  Permission,
+} from '../permissions';
 import { UserRole } from '../../user/interfaces/user.interface';
 
 interface AuthenticatedRequest extends Request {
-  user?: { role?: UserRole };
+  user?: { role?: UserRole; demo?: boolean };
 }
 
 @Injectable()
@@ -45,19 +49,33 @@ export class PermissionsGuard implements CanActivate {
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
     );
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
     if (!required || required.length === 0) {
+      // Fail CLOSED for demo accounts: a route with no explicit permission must
+      // not become an accidental write path for a read-only demo user. Non-demo
+      // users keep the documented fail-open behavior.
+      if (request.user?.demo === true) {
+        throw new ForbiddenException('Demo accounts are read-only');
+      }
       this.warnMissingDecorator(context);
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const role = request.user?.role;
     if (!role) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const allowed = required.every((permission) => hasPermission(role, permission));
+    const demo = request.user?.demo === true;
+    const allowed = required.every((permission) =>
+      hasEffectivePermission(role, demo, permission),
+    );
     if (!allowed) {
+      if (demo && required.some((permission) => !isReadOnlyPermission(permission))) {
+        throw new ForbiddenException('Demo accounts are read-only');
+      }
       throw new ForbiddenException('Insufficient permissions');
     }
     return true;

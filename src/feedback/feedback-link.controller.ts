@@ -44,6 +44,7 @@ export class FeedbackLinkController {
     const { link, url } = await this.feedbackService.createLink(interviewId, {
       id: user.id,
       role: user.role,
+      demo: user.demo,
     });
     return {
       url,
@@ -64,6 +65,7 @@ export class FeedbackLinkController {
     return this.feedbackService.revokeActiveLink(interviewId, {
       id: user.id,
       role: user.role,
+      demo: user.demo,
     });
   }
 }

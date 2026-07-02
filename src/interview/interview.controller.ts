@@ -28,7 +28,7 @@ import {
 } from '@nestjs/swagger';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
-import { Interview, InterviewResult } from './interfaces/interview.interface';
+import { Interview, InterviewResult, InterviewCancelResult } from './interfaces/interview.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -38,6 +38,7 @@ import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import {
   CandidateLinkResponseDto,
+  InterviewCancelResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
   InterviewWithCandidateLinkResponseDto,
@@ -45,6 +46,8 @@ import {
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -73,6 +76,7 @@ export class InterviewController {
   ): Promise<Interview & { candidateLink: string }> {
     const interview = await this.interviewService.create(dto, {
       createdById: user.id,
+      demo: user.demo,
     });
     const token = this.authService.generateCandidateToken(interview.id);
     return {
@@ -122,6 +126,22 @@ export class InterviewController {
     };
   }
 
+  @Patch(':id/cancel')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Cancel pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewCancelResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewCancelResult> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.cancel(id);
+  }
+
   @Patch(':id/complete')
   @RequirePermissions('interviews:update_own')
   @ApiOperation({ summary: 'Complete interview' })
@@ -135,6 +155,25 @@ export class InterviewController {
   ): Promise<Interview> {
     await this.interviewService.findOneForActor(id, user);
     return this.interviewService.complete(id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Update pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: UpdateInterviewDto })
+  @ApiOkResponse({ type: InterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateInterviewDto,
+    @CurrentUser() user: ActingUser,
+  ): Promise<Interview> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.update(id, dto);
   }
 
   @Post(':id/validate')
@@ -195,6 +234,18 @@ export class InterviewController {
       questionIndex,
       force,
     );
+  }
+
+  @Post(':id/mark-demo')
+  @RequirePermissions('users:assign_role')
+  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, removes the fabricated placeholder demo interview and demotes any other completed demo interview so exactly the marked completed interview plus the seeded pending one remain. Re-running the demo provisioning afterwards will not recreate the placeholder. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: MarkInterviewDemoResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  markDemo(@Param('id') id: string) {
+    return this.interviewService.markAsDemo(id);
   }
 
   @Get(':id/results')

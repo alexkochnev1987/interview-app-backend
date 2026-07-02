@@ -14,7 +14,6 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
-  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -35,7 +34,9 @@ import { QueryQuestionsDto } from './dto/query-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   Question,
+  QuestionDeleteScheduledItem,
   SimilarQuestionMatch,
+  SoftDeleteQuestionResult,
 } from './interfaces/question.interface';
 import { PaginatedQuestions, QuestionFacets, QuestionService } from './question.service';
 import {
@@ -72,9 +73,18 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<PaginatedQuestions> {
     const isSuperAdmin = user.role === 'super_admin';
+    const interviewEligible = query.eligibleForInterview === true;
+
     const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.findAll(effectiveQuery, { forceActive: !isSuperAdmin });
+      isSuperAdmin && !query.status && !interviewEligible
+        ? { ...query, status: 'all' as const }
+        : query;
+
+    const forceActive = interviewEligible || !isSuperAdmin;
+    return this.questionService.findAll(effectiveQuery, {
+      forceActive,
+      demo: user.demo,
+    });
   }
 
   @Get('facets')
@@ -91,9 +101,18 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
     const isSuperAdmin = user.role === 'super_admin';
+    const interviewEligible = query.eligibleForInterview === true;
+
     const effectiveQuery =
-      isSuperAdmin && !query.status ? { ...query, status: 'all' as const } : query;
-    return this.questionService.getFacets(effectiveQuery, { forceActive: !isSuperAdmin });
+      isSuperAdmin && !query.status && !interviewEligible
+        ? { ...query, status: 'all' as const }
+        : query;
+
+    const forceActive = interviewEligible || !isSuperAdmin;
+    return this.questionService.getFacets(effectiveQuery, {
+      forceActive,
+      demo: user.demo,
+    });
   }
 
   @Get(':id')
@@ -109,6 +128,7 @@ export class QuestionController {
   ): Promise<Question> {
     return this.questionService.findOne(id, {
       includeDeleted: user.role === 'super_admin',
+      demo: user.demo,
     });
   }
 
@@ -133,11 +153,13 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   async findSimilar(
     @Body() dto: FindSimilarDto,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<{ matches: SimilarQuestionMatch[] }> {
     const matches = await this.questionService.findSimilar(
       dto.draft ?? {},
       dto.limit ?? 5,
       dto.excludeQuestionId,
+      user.demo,
     );
     return { matches };
   }
@@ -167,10 +189,7 @@ export class QuestionController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  @ApiConflictResponse({ type: ApiErrorResponseDto })
-  remove(
-    @Param('id') id: string,
-  ): Promise<{ id: string; deleted: true }> {
+  remove(@Param('id') id: string): Promise<SoftDeleteQuestionResult> {
     return this.questionService.softDelete(id);
   }
 
@@ -184,7 +203,7 @@ export class QuestionController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   bulkRemove(@Body() dto: BulkDeleteQuestionsDto): Promise<{
     deleted: string[];
-    blocked: Array<{ id: string; questionText: string; reason: string }>;
+    scheduled: QuestionDeleteScheduledItem[];
   }> {
     return this.questionService.softDeleteMany(dto.ids);
   }

@@ -12,6 +12,8 @@ on:
       - 'scripts/lightsail/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'nest-cli.json'
       - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
