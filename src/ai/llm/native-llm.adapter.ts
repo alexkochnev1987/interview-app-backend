@@ -10,7 +10,7 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
-async function fetchWithLlmTimeout(
+export async function fetchWithLlmTimeout(
   url: string,
   init: RequestInit,
 ): Promise<Response> {

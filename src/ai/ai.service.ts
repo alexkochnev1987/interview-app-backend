@@ -18,6 +18,7 @@ import {
   primaryLocaleToOutputLanguage,
 } from '../question/question-locale';
 import { resolveNativeProvider } from './llm/ai-env';
+import { fetchWithLlmTimeout } from './llm/native-llm.adapter';
 import {
   runInterviewChat,
   runInterviewGreet,
@@ -695,7 +696,7 @@ export class AiService {
     targetLocale: Locale,
     strictLocaleRetry: boolean,
   ): Promise<LlmContentAttempt> {
-    const res = await fetch(`${aiUrl}/interview`, {
+    const res = await fetchWithLlmTimeout(`${aiUrl}/interview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -868,7 +869,7 @@ export class AiService {
     base: QuestionDraft,
     strictLocaleRetry: boolean,
   ): Promise<LlmGenerateAttempt> {
-    const res = await fetch(`${aiUrl}/interview`, {
+    const res = await fetchWithLlmTimeout(`${aiUrl}/interview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

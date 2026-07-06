@@ -616,8 +616,11 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
             ALTER TABLE questions
             ADD CONSTRAINT questions_translations_primary_locale_check
             CHECK (
-              translations_json ? primary_locale
-              AND COALESCE(trim(translations_json -> primary_locale ->> 'questionText'), '') <> ''
+              deleted = TRUE
+              OR (
+                translations_json ? primary_locale
+                AND COALESCE(trim(translations_json -> primary_locale ->> 'questionText'), '') <> ''
+              )
             );
           END IF;
         END $$;
