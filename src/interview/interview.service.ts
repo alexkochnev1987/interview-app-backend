@@ -888,7 +888,6 @@ export class InterviewService {
       submittedAtFallback: 'now' | 'keep';
     },
   ): Promise<Interview> {
-    const interview = await this.findOne(id);
     const {
       questionIndex,
       versionNumber,
@@ -905,213 +904,218 @@ export class InterviewService {
       clientTranscript,
     } = input;
 
-    const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
-    if (questionIndex !== currentQuestionIndex) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Invalid question index — must answer in order',
-        { interviewId: id, questionIndex, currentQuestionIndex },
-      );
-    }
-    if (questionIndex >= interview.questions.length) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Question index is out of range',
-        { interviewId: id, questionIndex },
-      );
-    }
-    if (
-      !matchesInterviewMediaKey({
-        mediaKey,
-        interviewId: id,
-        questionIndex,
-        mediaType: 'camera',
-      })
-    ) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Invalid camera recording key',
-        { interviewId: id, questionIndex },
-      );
-    }
-    if (
-      screenMediaKey &&
-      !matchesInterviewMediaKey({
-        mediaKey: screenMediaKey,
-        interviewId: id,
-        questionIndex,
-        mediaType: 'screen',
-      })
-    ) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Invalid screen recording key',
-        { interviewId: id, questionIndex },
-      );
-    }
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
 
-    const question = interview.questions[questionIndex];
-    const existingAnswer =
-      interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
-      undefined;
-    if (existingAnswer?.status === 'submitted' && !submitAnswer) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Cannot update recording progress for a submitted answer',
-        { interviewId: id, questionIndex },
-      );
-    }
-
-    const normalizedVersionNumber =
-      typeof versionNumber === 'number' && versionNumber > 0
-        ? versionNumber
-        : 1;
-    const existingVersions = this.getAnswerVersions(existingAnswer);
-    const existingVersion = existingVersions.find(
-      (version) => version.versionNumber === normalizedVersionNumber,
-    );
-
-    const uploadedAt = existingVersion?.uploadedAt ?? new Date();
-    const normalizedStartedAt =
-      startedAt && !Number.isNaN(startedAt.getTime())
-        ? startedAt
-        : existingVersion?.startedAt;
-    let normalizedSubmittedAt = this.resolveSubmittedAt({
-      submittedAt,
-      uploadedAt,
-      existingVersion,
-      fallback: options.submittedAtFallback,
-    });
-
-    if (
-      !submitAnswer &&
-      normalizedStartedAt &&
-      normalizedSubmittedAt &&
-      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
-    ) {
-      normalizedSubmittedAt = undefined;
-    }
-
-    if (
-      normalizedStartedAt &&
-      normalizedSubmittedAt &&
-      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
-    ) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'submittedAt must be after startedAt for the answer',
-        { interviewId: id, questionIndex },
-      );
-    }
-
-    const normalizedBehaviorSignals = this.mergeBehaviorSignals(
-      existingVersion?.behaviorSignals ??
-        existingAnswer?.behaviorSignals,
-      behaviorSignals,
-    );
-    const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
-      existingVersion?.behaviorEvents ??
-        existingAnswer?.behaviorEvents,
-      behaviorEvents,
-      normalizedVersionNumber,
-      options.mergeBehaviorEvents,
-    );
-    const currentVersion: AnswerVersion = {
-      versionNumber: normalizedVersionNumber,
-      mediaKey,
-      screenMediaKey,
-      uploadedAt,
-      durationSeconds:
-        typeof durationSeconds === 'number' && durationSeconds > 0
-          ? durationSeconds
-          : existingVersion?.durationSeconds,
-      startedAt: normalizedStartedAt,
-      submittedAt: normalizedSubmittedAt,
-      camera: this.buildMediaArtifact({
-        mediaKey,
-        uploadedAt,
-        fileSizeBytes:
-          this.normalizePositiveNumber(cameraFileSizeBytes) ??
-          existingVersion?.camera?.fileSizeBytes ??
-          existingAnswer?.camera?.fileSizeBytes,
-      }),
-      screen: screenMediaKey
-        ? this.buildMediaArtifact({
-            mediaKey: screenMediaKey,
-            uploadedAt,
-            fileSizeBytes:
-              this.normalizePositiveNumber(screenFileSizeBytes) ??
-              existingVersion?.screen?.fileSizeBytes ??
-              existingAnswer?.screen?.fileSizeBytes,
-          })
-        : undefined,
-      behaviorSignals: normalizedBehaviorSignals,
-      behaviorEvents: normalizedBehaviorEvents,
-    };
-
-    const nextVersions = [
-      ...existingVersions.filter(
-        (version) => version.versionNumber !== normalizedVersionNumber,
-      ),
-      currentVersion,
-    ].sort((left, right) => left.versionNumber - right.versionNumber);
-
-    const selectedVersionNumber = options.preserveLatestSelectedVersion
-      ? Math.max(
-          existingAnswer?.selectedVersionNumber ?? 0,
-          normalizedVersionNumber,
-        )
-      : normalizedVersionNumber;
-    const selectedVersion =
-      nextVersions.find(
-        (version) => version.versionNumber === selectedVersionNumber,
-      ) ?? currentVersion;
-    const shouldCarryTranscriptFromPreviousVersion =
-      existingAnswer?.selectedVersionNumber === selectedVersionNumber;
-
-    const nextAnswer: Answer = {
-      questionIndex,
-      questionId: question.id,
-      status: submitAnswer ? 'submitted' : 'recording',
-      mediaKey: selectedVersion.mediaKey,
-      screenMediaKey: selectedVersion.screenMediaKey,
-      uploadedAt: selectedVersion.uploadedAt,
-      durationSeconds: selectedVersion.durationSeconds,
-      retakeCount: Math.max(nextVersions.length - 1, 0),
-      startedAt: selectedVersion.startedAt,
-      submittedAt: selectedVersion.submittedAt,
-      camera: selectedVersion.camera,
-      screen: selectedVersion.screen,
-      behaviorSignals: selectedVersion.behaviorSignals,
-      selectedVersionNumber,
-      versions: nextVersions,
-      behaviorEvents: selectedVersion.behaviorEvents,
-      transcript: clientTranscript
-        ? this.normalizeTranscript(clientTranscript)
-        : shouldCarryTranscriptFromPreviousVersion
-          ? existingAnswer?.transcript
-          : undefined,
-      evaluation: existingAnswer?.evaluation,
-      validation: existingAnswer?.validation,
-    };
-
-    const nextAnswers = existingAnswer
-      ? interview.answers.map((answer) =>
-          answer.questionIndex === questionIndex ? nextAnswer : answer,
-        )
-      : [...interview.answers, nextAnswer].sort(
-          (left, right) => left.questionIndex - right.questionIndex,
+      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
+      if (questionIndex !== currentQuestionIndex) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid question index — must answer in order',
+          { interviewId: id, questionIndex, currentQuestionIndex },
         );
+      }
+      if (questionIndex >= interview.questions.length) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Question index is out of range',
+          { interviewId: id, questionIndex },
+        );
+      }
+      if (
+        !matchesInterviewMediaKey({
+          mediaKey,
+          interviewId: id,
+          questionIndex,
+          mediaType: 'camera',
+        })
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid camera recording key',
+          { interviewId: id, questionIndex },
+        );
+      }
+      if (
+        screenMediaKey &&
+        !matchesInterviewMediaKey({
+          mediaKey: screenMediaKey,
+          interviewId: id,
+          questionIndex,
+          mediaType: 'screen',
+        })
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid screen recording key',
+          { interviewId: id, questionIndex },
+        );
+      }
 
-    const now = new Date();
-    return this.saveInterview({
-      ...interview,
-      answers: nextAnswers,
-      status: 'in_progress',
-      workflow: this.buildWorkflow('idle', now, {
-        startedAt: interview.workflow?.startedAt,
-      }),
-      updatedAt: now,
+      const question = interview.questions[questionIndex];
+      const existingAnswer =
+        interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
+        undefined;
+      if (existingAnswer?.status === 'submitted' && !submitAnswer) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Cannot update recording progress for a submitted answer',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const normalizedVersionNumber =
+        typeof versionNumber === 'number' && versionNumber > 0
+          ? versionNumber
+          : 1;
+      const existingVersions = this.getAnswerVersions(existingAnswer);
+      const existingVersion = existingVersions.find(
+        (version) => version.versionNumber === normalizedVersionNumber,
+      );
+
+      const uploadedAt = existingVersion?.uploadedAt ?? new Date();
+      const normalizedStartedAt =
+        startedAt && !Number.isNaN(startedAt.getTime())
+          ? startedAt
+          : existingVersion?.startedAt;
+      let normalizedSubmittedAt = this.resolveSubmittedAt({
+        submittedAt,
+        uploadedAt,
+        existingVersion,
+        fallback: options.submittedAtFallback,
+      });
+
+      if (
+        !submitAnswer &&
+        normalizedStartedAt &&
+        normalizedSubmittedAt &&
+        normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+      ) {
+        normalizedSubmittedAt = undefined;
+      }
+
+      if (
+        normalizedStartedAt &&
+        normalizedSubmittedAt &&
+        normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'submittedAt must be after startedAt for the answer',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const normalizedBehaviorSignals = this.mergeBehaviorSignals(
+        existingVersion?.behaviorSignals ??
+          existingAnswer?.behaviorSignals,
+        behaviorSignals,
+      );
+      const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
+        existingVersion?.behaviorEvents ??
+          existingAnswer?.behaviorEvents,
+        behaviorEvents,
+        normalizedVersionNumber,
+        options.mergeBehaviorEvents,
+      );
+      const currentVersion: AnswerVersion = {
+        versionNumber: normalizedVersionNumber,
+        mediaKey,
+        screenMediaKey,
+        uploadedAt,
+        durationSeconds:
+          typeof durationSeconds === 'number' && durationSeconds > 0
+            ? durationSeconds
+            : existingVersion?.durationSeconds,
+        startedAt: normalizedStartedAt,
+        submittedAt: normalizedSubmittedAt,
+        camera: this.buildMediaArtifact({
+          mediaKey,
+          uploadedAt,
+          fileSizeBytes:
+            this.normalizePositiveNumber(cameraFileSizeBytes) ??
+            existingVersion?.camera?.fileSizeBytes ??
+            existingAnswer?.camera?.fileSizeBytes,
+        }),
+        screen: screenMediaKey
+          ? this.buildMediaArtifact({
+              mediaKey: screenMediaKey,
+              uploadedAt,
+              fileSizeBytes:
+                this.normalizePositiveNumber(screenFileSizeBytes) ??
+                existingVersion?.screen?.fileSizeBytes ??
+                existingAnswer?.screen?.fileSizeBytes,
+            })
+          : undefined,
+        behaviorSignals: normalizedBehaviorSignals,
+        behaviorEvents: normalizedBehaviorEvents,
+      };
+
+      const nextVersions = [
+        ...existingVersions.filter(
+          (version) => version.versionNumber !== normalizedVersionNumber,
+        ),
+        currentVersion,
+      ].sort((left, right) => left.versionNumber - right.versionNumber);
+
+      const selectedVersionNumber = options.preserveLatestSelectedVersion
+        ? Math.max(
+            existingAnswer?.selectedVersionNumber ?? 0,
+            normalizedVersionNumber,
+          )
+        : normalizedVersionNumber;
+      const selectedVersion =
+        nextVersions.find(
+          (version) => version.versionNumber === selectedVersionNumber,
+        ) ?? currentVersion;
+      const shouldCarryTranscriptFromPreviousVersion =
+        existingAnswer?.selectedVersionNumber === selectedVersionNumber;
+
+      const nextAnswer: Answer = {
+        questionIndex,
+        questionId: question.id,
+        status: submitAnswer ? 'submitted' : 'recording',
+        mediaKey: selectedVersion.mediaKey,
+        screenMediaKey: selectedVersion.screenMediaKey,
+        uploadedAt: selectedVersion.uploadedAt,
+        durationSeconds: selectedVersion.durationSeconds,
+        retakeCount: Math.max(nextVersions.length - 1, 0),
+        startedAt: selectedVersion.startedAt,
+        submittedAt: selectedVersion.submittedAt,
+        camera: selectedVersion.camera,
+        screen: selectedVersion.screen,
+        behaviorSignals: selectedVersion.behaviorSignals,
+        selectedVersionNumber,
+        versions: nextVersions,
+        behaviorEvents: selectedVersion.behaviorEvents,
+        transcript: clientTranscript
+          ? this.normalizeTranscript(clientTranscript)
+          : shouldCarryTranscriptFromPreviousVersion
+            ? existingAnswer?.transcript
+            : undefined,
+        evaluation: existingAnswer?.evaluation,
+        validation: existingAnswer?.validation,
+      };
+
+      const nextAnswers = existingAnswer
+        ? interview.answers.map((answer) =>
+            answer.questionIndex === questionIndex ? nextAnswer : answer,
+          )
+        : [...interview.answers, nextAnswer].sort(
+            (left, right) => left.questionIndex - right.questionIndex,
+          );
+
+      const now = new Date();
+      return this.saveInterviewInTransaction(client, {
+        ...interview,
+        answers: nextAnswers,
+        status: 'in_progress',
+        workflow: this.buildWorkflow('idle', now, {
+          startedAt: interview.workflow?.startedAt,
+        }),
+        updatedAt: now,
+      });
     });
   }
 
