@@ -11,7 +11,11 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { CreateQuestionDto } from '../../question/dto/create-question.dto';
+import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.dto';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
+
+export type DraftQuestionMode = 'translate' | 'generate';
 
 export class ChatHistoryItemDto {
   @ApiProperty({ enum: ['system', 'assistant', 'candidate'] })
@@ -71,12 +75,33 @@ export class GreetDto {
 }
 
 export class DraftQuestionDto {
-  @ApiPropertyOptional({ type: CreateQuestionDto })
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    default: 'en',
+    description:
+      'Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).',
+    example: 'pl',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  locale?: Locale;
+
+  @ApiPropertyOptional({
+    enum: ['translate', 'generate'],
+    description:
+      'Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1; returns content block only. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns identity fields plus the primary locale rubric content block. If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.',
+    example: 'translate',
+  })
+  @IsOptional()
+  @IsIn(['translate', 'generate'])
+  mode?: DraftQuestionMode;
+
+  @ApiPropertyOptional({ type: QuestionDraftInputDto })
   @IsOptional()
   @IsObject()
   @ValidateNested()
-  @Type(() => CreateQuestionDto)
-  question?: Partial<CreateQuestionDto>;
+  @Type(() => QuestionDraftInputDto)
+  question?: QuestionDraftInputDto;
 }
 
 export class AiTextResponseDto {

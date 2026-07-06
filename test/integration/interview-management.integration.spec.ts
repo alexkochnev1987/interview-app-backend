@@ -2,6 +2,7 @@ import { DatabaseService } from '../../src/database/database.service';
 import { InterviewService } from '../../src/interview/interview.service';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import { updateInterviewStatus } from '../helpers/integration-db';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
@@ -19,11 +20,7 @@ async function createQuestion(
   const response = await agent
     .post('/questions')
     .set(authCookie(session))
-    .send({
-      questionText,
-      difficulty: 'medium',
-      weight: 1,
-    })
+    .send(buildCreateQuestionPayload(questionText))
     .expect(201);
 
   return response.body.id as string;

@@ -1,4 +1,4 @@
-import { normalizeAiProvider, resolveNativeProvider } from './ai-env';
+import { normalizeAiProvider, resolveNativeLlmTimeoutMs, resolveNativeProvider } from './ai-env';
 
 describe('ai-env', () => {
   const envSnapshot = { ...process.env };
@@ -48,5 +48,12 @@ describe('ai-env', () => {
       apiKey: 'gem-key',
       model: 'gemini-test',
     });
+  });
+
+  it('resolves native LLM timeout from env', () => {
+    process.env.AI_LLM_TIMEOUT_MS = '45000';
+    expect(resolveNativeLlmTimeoutMs()).toBe(45000);
+    delete process.env.AI_LLM_TIMEOUT_MS;
+    expect(resolveNativeLlmTimeoutMs()).toBe(120_000);
   });
 });
