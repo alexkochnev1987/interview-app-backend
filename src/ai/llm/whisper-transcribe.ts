@@ -1,4 +1,5 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { spawn } from 'child_process';
 import type { Readable } from 'stream';
 
 export interface WhisperTranscriptionResult {
@@ -66,6 +67,106 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
+function toAudioFilename(videoFilename: string): string {
+  const dotIndex = videoFilename.lastIndexOf('.');
+  const baseName =
+    dotIndex > 0 ? videoFilename.slice(0, dotIndex) : videoFilename;
+  return `${baseName}.mp3`;
+}
+
+export async function extractAudioFromVideo(
+  videoBuffer: Buffer,
+): Promise<Buffer> {
+  if (!videoBuffer.length) {
+    throw new Error('Cannot extract audio from an empty video buffer.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const stderrChunks: Buffer[] = [];
+    const stdoutChunks: Buffer[] = [];
+
+    const ffmpeg = spawn(
+      'ffmpeg',
+      [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-f',
+        'webm',
+        '-i',
+        'pipe:0',
+        '-vn',
+        '-acodec',
+        'libmp3lame',
+        '-q:a',
+        '4',
+        '-f',
+        'mp3',
+        'pipe:1',
+      ],
+      { stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+
+    ffmpeg.stdin.on('error', () => {
+      // Ignore EPIPE when ffmpeg exits before stdin is fully consumed.
+    });
+
+    ffmpeg.stdout.on('data', (chunk: Buffer) => {
+      stdoutChunks.push(chunk);
+    });
+
+    ffmpeg.stderr.on('data', (chunk: Buffer) => {
+      stderrChunks.push(chunk);
+    });
+
+    ffmpeg.on('error', (err) => {
+      reject(
+        new Error(
+          `Failed to run ffmpeg (is it installed?): ${err.message}`,
+        ),
+      );
+    });
+
+    ffmpeg.on('close', (code) => {
+      const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+      if (code !== 0) {
+        if (
+          /does not contain any stream|no audio|Invalid data found/i.test(
+            stderr,
+          )
+        ) {
+          reject(
+            new Error(
+              `No audio track in interview recording${stderr ? `: ${stderr}` : ''}`,
+            ),
+          );
+          return;
+        }
+        reject(
+          new Error(
+            `ffmpeg audio extraction failed (exit ${code})${stderr ? `: ${stderr}` : ''}`,
+          ),
+        );
+        return;
+      }
+
+      const audioBuffer = Buffer.concat(stdoutChunks);
+      if (!audioBuffer.length) {
+        reject(
+          new Error(
+            'ffmpeg produced empty audio output (recording may have no audio track).',
+          ),
+        );
+        return;
+      }
+
+      resolve(audioBuffer);
+    });
+
+    ffmpeg.stdin.end(videoBuffer);
+  });
+}
+
 export async function transcribeInterviewMedia(
   mediaKey: string,
 ): Promise<WhisperTranscriptionResult> {
@@ -78,12 +179,16 @@ export async function transcribeInterviewMedia(
     'https://api.openai.com/v1').replace(/\/$/, '');
   const model = process.env.OPENAI_WHISPER_MODEL?.trim() ?? 'whisper-1';
 
-  const { buffer, contentType } = await downloadInterviewMedia(mediaKey);
+  const { buffer: videoBuffer } = await downloadInterviewMedia(mediaKey);
   const filename = mediaKey.split('/').pop() ?? 'recording.webm';
+  const audioBuffer = await extractAudioFromVideo(videoBuffer);
+  const audioFilename = toAudioFilename(filename);
 
   const form = new FormData();
-  const blob = new Blob([new Uint8Array(buffer)], { type: contentType });
-  form.append('file', blob, filename);
+  const blob = new Blob([new Uint8Array(audioBuffer)], {
+    type: 'audio/mpeg',
+  });
+  form.append('file', blob, audioFilename);
   form.append('model', model);
   form.append('response_format', 'verbose_json');
 
