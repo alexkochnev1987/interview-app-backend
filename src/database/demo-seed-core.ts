@@ -59,21 +59,24 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
     await db.query(
       `
         INSERT INTO questions (
-          id, external_id, role, focus, output_language, category, subcategory,
+          id, external_id, role, focus, output_language, primary_locale,
+          translations_json, category, subcategory,
           text, question_text, follow_up_questions, expected_concepts,
           expected_concepts_json, red_flags, red_flags_json, difficulty, weight,
           sample_good_answer, minimum_pass_score, tags, metadata, deleted,
           usage_count, demo
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13,
-          $14::jsonb, $15, $16, $17, $18, $19, $20::jsonb, FALSE, $21, TRUE
+          $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14::jsonb, $15,
+          $16::jsonb, $17, $18, $19, $20, $21, $22::jsonb, FALSE, $23, TRUE
         )
         ON CONFLICT (id) DO UPDATE SET
           external_id = EXCLUDED.external_id,
           role = EXCLUDED.role,
           focus = EXCLUDED.focus,
           output_language = EXCLUDED.output_language,
+          primary_locale = EXCLUDED.primary_locale,
+          translations_json = EXCLUDED.translations_json,
           category = EXCLUDED.category,
           subcategory = EXCLUDED.subcategory,
           text = EXCLUDED.text,
@@ -100,6 +103,8 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
         q.role ?? null,
         q.focus ?? null,
         q.outputLanguage,
+        q.primaryLocale,
+        JSON.stringify(q.translations),
         q.category ?? null,
         q.subcategory ?? null,
         q.questionText,
@@ -137,17 +142,18 @@ export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> 
     await db.query(
       `
         INSERT INTO interviews (
-          id, candidate_name, candidate_email, position, questions_json,
-          answers_json, status, result_json, workflow_json, created_by_id,
-          created_at, updated_at, demo
+          id, candidate_name, candidate_email, position, interview_locale,
+          questions_json, answers_json, status, result_json, workflow_json,
+          created_by_id, created_at, updated_at, demo
         )
         VALUES (
-          $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::jsonb, NULL, $9, $10, $11, TRUE
+          $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, NULL, $10, $11, $12, TRUE
         )
         ON CONFLICT (id) DO UPDATE SET
           candidate_name = EXCLUDED.candidate_name,
           candidate_email = EXCLUDED.candidate_email,
           position = EXCLUDED.position,
+          interview_locale = EXCLUDED.interview_locale,
           questions_json = EXCLUDED.questions_json,
           answers_json = EXCLUDED.answers_json,
           status = EXCLUDED.status,
@@ -161,6 +167,7 @@ export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> 
         interview.candidateName,
         interview.candidateEmail ?? null,
         interview.position,
+        interview.interviewLocale,
         JSON.stringify(interview.questions),
         JSON.stringify(interview.answers),
         interview.status,

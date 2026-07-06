@@ -6,6 +6,7 @@ function interview(partial: Partial<Interview>): Interview {
     id: 'interview-1',
     candidateName: 'Alice',
     position: 'Engineer',
+    interviewLocale: 'en',
     questions: [
       { id: 'q1', questionText: 'One' } as Interview['questions'][0],
       { id: 'q2', questionText: 'Two' } as Interview['questions'][0],
@@ -47,6 +48,7 @@ describe('toInterviewListItem', () => {
       interview({
         status: 'completed',
         result: {
+          interviewLocale: 'en',
           overallScore: 82,
           summary: 'Strong answers.',
           categoryScores: {},

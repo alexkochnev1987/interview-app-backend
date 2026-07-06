@@ -3,11 +3,13 @@ import { Test } from '@nestjs/testing';
 import * as cookieParser from 'cookie-parser';
 import supertest = require('supertest');
 import { AppModule } from '../../src/app.module';
+import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
 import { LoginThrottlerGuard } from '../../src/auth/guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from '../../src/auth/guards/register-throttler.guard';
 import { DatabaseService } from '../../src/database/database.service';
 import { QuestionService } from '../../src/question/question.service';
 import { UserService } from '../../src/user/user.service';
+import { buildCreateQuestionPayload } from './create-question-payload';
 import { truncateIntegrationTables } from './integration-db';
 
 export type IntegrationAgent = ReturnType<typeof supertest.agent>;
@@ -61,6 +63,7 @@ export async function getIntegrationApp(): Promise<{
 
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
+    app.useGlobalFilters(new ApiExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -114,12 +117,12 @@ export async function seedIntegrationFixtures(
     ...INTEGRATION_USERS.hr,
   });
 
-  const seedQuestion = await questionService.create({
-    questionText: 'Describe how you would debug a production API outage.',
-    difficulty: 'medium',
-    weight: 1,
-    tags: ['integration-seed'],
-  });
+  const seedQuestion = await questionService.create(
+    buildCreateQuestionPayload(
+      'Describe how you would debug a production API outage.',
+      { tags: ['integration-seed'] },
+    ),
+  );
 
   return {
     superAdmin: {

@@ -1,12 +1,15 @@
+import { Injectable } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
-  BadRequestException, ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+  apiBadRequest,
+  apiConflict,
+  apiForbidden,
+  apiNotFound,
+} from '../common/errors/api-error';
 import { randomUUID } from 'crypto';
 import { PoolClient } from 'pg';
 import { DatabaseService } from '../database/database.service';
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
@@ -43,11 +46,20 @@ import {
 } from './interview-completion-rules';
 import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import {
-  getDemoScopeDenialReason,
   getInterviewAccessDenialReason,
+  getDemoScopeDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
-import { getInterviewPendingOnlyBlockReason, isTerminalInterviewStatus } from './interview-management-rules';
+import {
+  getInterviewPendingOnlyBlockReason,
+  isTerminalInterviewStatus,
+} from './interview-management-rules';
+import { buildFeedbackImprovements } from '../feedback/feedback-text';
+import { buildInterviewSummary } from './build-interview-summary';
+import {
+  collectInterviewLocaleWarnings,
+  InterviewLocaleWarning,
+} from './interview-locale-warnings';
 import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core';
 import {
   DEMO_PLACEHOLDER_INTERVIEW_ID,
@@ -68,22 +80,6 @@ const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
   updatedAt: 'updated_at',
 };
 
-const INTERVIEW_COLUMNS = `
-  id,
-  candidate_name,
-  candidate_email,
-  position,
-  questions_json,
-  answers_json,
-  status,
-  result_json,
-  workflow_json,
-  created_by_id,
-  demo,
-  created_at,
-  updated_at
-`;
-
 export interface PaginatedInterviews {
   items: InterviewListItem[];
   total: number;
@@ -103,21 +99,36 @@ export interface InterviewFacets {
 
 export type { InterviewFacetFields } from './interview-list-filters';
 
-interface InterviewRow {
-  id: string;
-  candidate_name: string;
-  candidate_email: string | null;
-  position: string;
-  questions_json: InterviewQuestion[] | null;
-  answers_json: Record<string, unknown>[] | null;
-  status: Interview['status'];
-  result_json: Record<string, unknown> | null;
-  workflow_json: Record<string, unknown> | null;
-  created_by_id: string | null;
-  demo: boolean;
-  created_at: Date;
-  updated_at: Date;
+const DEFAULT_INTERVIEW_LIST_LIMIT = 50;
+const MAX_INTERVIEW_LIST_LIMIT = 100;
+
+export type { InterviewLocaleWarning } from './interview-locale-warnings';
+
+export interface CreateInterviewResult {
+  interview: Interview;
+  localeWarnings: InterviewLocaleWarning[];
 }
+
+export type InterviewResultWithLocale = InterviewResult & {
+  interviewLocale: Locale;
+};
+
+const INTERVIEW_SELECT_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  interview_locale,
+  questions_json,
+  answers_json,
+  status,
+  result_json,
+  workflow_json,
+  created_by_id,
+  demo,
+  created_at,
+  updated_at
+`;
 
 const INTERVIEW_UPDATE_SQL = `
   UPDATE interviews
@@ -132,20 +143,25 @@ const INTERVIEW_UPDATE_SQL = `
     workflow_json = $9::jsonb,
     updated_at = NOW()
   WHERE id = $1
-  RETURNING
-    id,
-    candidate_name,
-    candidate_email,
-    position,
-    questions_json,
-    answers_json,
-    status,
-    result_json,
-    workflow_json,
-    created_by_id,
-    created_at,
-    updated_at
+  RETURNING ${INTERVIEW_SELECT_COLUMNS}
 `;
+
+interface InterviewRow {
+  id: string;
+  candidate_name: string;
+  candidate_email: string | null;
+  position: string;
+  interview_locale: string;
+  questions_json: InterviewQuestion[] | null;
+  answers_json: Record<string, unknown>[] | null;
+  status: Interview['status'];
+  result_json: Record<string, unknown> | null;
+  workflow_json: Record<string, unknown> | null;
+  created_by_id: string | null;
+  demo: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
 
 interface AddAnswerInput {
   questionIndex: number;
@@ -216,20 +232,25 @@ export class InterviewService {
   async create(
     dto: CreateInterviewDto,
     context: { createdById?: string; demo?: boolean } = {},
-  ): Promise<Interview> {
+  ): Promise<CreateInterviewResult> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
     const questionIds = dto.questionIds.map((id) => id.trim()).filter(Boolean);
 
     if (!candidateName) {
-      throw new BadRequestException('Candidate name is required');
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
     }
     if (!position) {
-      throw new BadRequestException('Position is required');
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Position is required');
     }
     if (questionIds.length === 0) {
-      throw new BadRequestException('At least one question must be selected');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'At least one question must be selected',
+      );
     }
+
+    const interviewLocale = dto.interviewLocale ?? DEFAULT_LOCALE;
 
     return this.databaseService.withTransaction(async (client) => {
       const questions = await this.questionService.findManyByIdsForUpdate(
@@ -239,6 +260,18 @@ export class InterviewService {
         { rejectPendingDeletionFor: questionIds },
       );
 
+      if (questions.length !== questionIds.length) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          `Resolved ${questions.length} questions for ${questionIds.length} requested ids; interview cannot be created.`,
+        );
+      }
+
+      const localeWarnings = collectInterviewLocaleWarnings(
+        questions,
+        interviewLocale,
+      );
+
       const result = await client.query<InterviewRow>(
         `
           INSERT INTO interviews (
@@ -246,38 +279,29 @@ export class InterviewService {
             candidate_name,
             candidate_email,
             position,
+            interview_locale,
             questions_json,
             answers_json,
             status,
-            workflow_json,
-            created_by_id
-          )
-          VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::jsonb, $9)
-          RETURNING
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            questions_json,
-            answers_json,
-            status,
-            result_json,
             workflow_json,
             created_by_id,
-            demo,
-            created_at,
-            updated_at
+            demo
+          )
+          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11)
+          RETURNING ${INTERVIEW_SELECT_COLUMNS}
         `,
         [
           randomUUID(),
           candidateName,
           dto.candidateEmail?.trim().toLowerCase() || null,
           position,
+          interviewLocale,
           JSON.stringify(questions),
           JSON.stringify([]),
           'pending',
           JSON.stringify(this.buildWorkflow('idle', new Date())),
           context.createdById ?? null,
+          context.demo === true,
         ],
       );
 
@@ -286,7 +310,10 @@ export class InterviewService {
         [questionIds],
       );
 
-      return this.mapRow(result.rows[0]);
+      return {
+        interview: this.mapRow(result.rows[0]),
+        localeWarnings,
+      };
     });
   }
 
@@ -297,14 +324,19 @@ export class InterviewService {
 
       const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
       if (blockReason) {
-        throw new ConflictException(blockReason);
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
       }
 
-      const questionIds = interview.questions.map(question => question.id);
-      await client.query(`DELETE FROM interviews WHERE id=$1`, [id]);
-      if(questionIds.length > 0){
-        await client.query(`UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
-            [questionIds])
+      const questionIds = interview.questions.map((question) => question.id);
+      await client.query(`DELETE FROM interviews WHERE id = $1`, [id]);
+      if (questionIds.length > 0) {
+        await client.query(
+          `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+          [questionIds],
+        );
       }
 
       await this.questionService.processPendingDeletionsAfterTerminalInterview(
@@ -323,7 +355,10 @@ export class InterviewService {
       dto.questionIds !== undefined;
 
     if (!hasUpdates) {
-      throw new BadRequestException('At least one field must be provided');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'At least one field must be provided',
+      );
     }
 
     return this.databaseService.withTransaction(async (client) => {
@@ -332,7 +367,10 @@ export class InterviewService {
 
       const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
       if (blockReason) {
-        throw new ConflictException(blockReason);
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
       }
 
       let candidateName = interview.candidateName;
@@ -343,14 +381,14 @@ export class InterviewService {
       if (dto.candidateName !== undefined) {
         candidateName = dto.candidateName.trim();
         if (!candidateName) {
-          throw new BadRequestException('Candidate name is required');
+          throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
         }
       }
 
       if (dto.position !== undefined) {
         position = dto.position.trim();
         if (!position) {
-          throw new BadRequestException('Position is required');
+          throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Position is required');
         }
       }
 
@@ -364,7 +402,10 @@ export class InterviewService {
           .filter(Boolean);
 
         if (questionIds.length === 0) {
-          throw new BadRequestException('At least one question must be selected');
+          throw apiBadRequest(
+            ApiErrorCode.BAD_REQUEST,
+            'At least one question must be selected',
+          );
         }
 
         const oldIds = interview.questions.map((question) => question.id);
@@ -408,38 +449,41 @@ export class InterviewService {
     });
   }
 
-  // Unscoped: returns both demo and real interviews. Reserved for internal
-  // background work such as validation recovery on boot. Do not expose through
-  // an actor-facing route; use findAllPaginated so demo isolation is preserved.
-  async findAll(): Promise<Interview[]> {
-    const result = await this.databaseService.query<InterviewRow>(
+  async findAll(options?: {
+    limit?: number;
+    offset?: number;
+    page?: number;
+  }): Promise<{ items: Interview[]; total: number; page: number; limit: number }> {
+    const limit = Math.min(
+      MAX_INTERVIEW_LIST_LIMIT,
+      Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
+    );
+    const page = Math.max(1, options?.page ?? 1);
+    const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
+
+    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
       `
-        SELECT ${INTERVIEW_COLUMNS}
+        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
         FROM interviews
         ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
       `,
+      [limit, offset],
     );
 
-    return result.rows.map((row) => this.mapRow(row));
+    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    return {
+      items: result.rows.map((row) => this.mapRow(row)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_SELECT_COLUMNS}
         FROM interviews
         WHERE id = $1
         LIMIT 1
@@ -448,7 +492,11 @@ export class InterviewService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Interview with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.INTERVIEW_NOT_FOUND,
+        `Interview with id "${id}" not found`,
+        { id },
+      );
     }
 
     return this.mapRow(result.rows[0]);
@@ -460,7 +508,10 @@ export class InterviewService {
       actor.role !== 'admin' &&
       actor.role !== 'hr'
     ) {
-      throw new ForbiddenException('You do not have access to interviews');
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        'You do not have access to interviews',
+      );
     }
   }
 
@@ -492,7 +543,7 @@ export class InterviewService {
     const offsetParam = params.length;
 
     const sql = `
-      SELECT ${INTERVIEW_COLUMNS}, COUNT(*) OVER() AS __total
+      SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
       FROM interviews
       ${whereSql}
       ORDER BY ${sortExpression} ${sortOrder}, id ASC
@@ -597,7 +648,11 @@ export class InterviewService {
   ): void {
     const denial = getDemoScopeDenialReason(interview, actor);
     if (denial) {
-      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        INTERVIEW_ACCESS_DENIED_MESSAGE,
+        { interviewId: interview.id },
+      );
     }
   }
 
@@ -605,22 +660,30 @@ export class InterviewService {
     const interview = await this.findOne(id);
     const blockReason = getInterviewCompletionBlockReason(interview);
     if (blockReason) {
-      throw new BadRequestException(blockReason);
+      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, blockReason, {
+        interviewId: id,
+      });
     }
 
     return this.recomputeResult(id);
   }
 
-  async getResults(id: string): Promise<InterviewResult> {
+  async getResults(id: string): Promise<InterviewResultWithLocale> {
     const interview = await this.findOne(id);
     const unavailableMessage = getInterviewResultsUnavailableMessage(
       interview,
       id,
     );
     if (unavailableMessage) {
-      throw new NotFoundException(unavailableMessage);
+      throw apiNotFound(ApiErrorCode.NOT_FOUND, unavailableMessage, {
+        id,
+        status: interview.status,
+      });
     }
-    return interview.result!;
+    return {
+      ...interview.result!,
+      interviewLocale: interview.interviewLocale,
+    };
   }
 
   /**
@@ -638,7 +701,8 @@ export class InterviewService {
     placeholderRemoved: boolean;
   }> {
     if (!isDemoSeedAllowed()) {
-      throw new ForbiddenException(
+      throw apiForbidden(
+        ApiErrorCode.FORBIDDEN,
         'Demo marking is disabled in this environment. Set ' +
           'ALLOW_DEMO_SEED=true on the backend to enable it (never on production).',
       );
@@ -652,7 +716,11 @@ export class InterviewService {
         [interviewId, DEMO_USER_ID],
       );
       if (update.rowCount === 0) {
-        throw new NotFoundException(`Interview ${interviewId} not found`);
+        throw apiNotFound(
+          ApiErrorCode.INTERVIEW_NOT_FOUND,
+          `Interview ${interviewId} not found`,
+          { interviewId },
+        );
       }
 
       let placeholderRemoved = false;
@@ -679,7 +747,11 @@ export class InterviewService {
   ): void {
     const denial = getInterviewAccessDenialReason(interview, actor);
     if (denial) {
-      throw new ForbiddenException(INTERVIEW_ACCESS_DENIED_MESSAGE);
+      throw apiForbidden(
+        ApiErrorCode.INSUFFICIENT_PERMISSIONS,
+        INTERVIEW_ACCESS_DENIED_MESSAGE,
+        { interviewId: interview.id },
+      );
     }
   }
 
@@ -921,195 +993,213 @@ export class InterviewService {
       const interview = this.mapRow(row);
 
       const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
-    if (questionIndex !== currentQuestionIndex) {
-      throw new BadRequestException(
-        'Invalid question index — must answer in order',
-      );
-    }
-    if (questionIndex >= interview.questions.length) {
-      throw new BadRequestException('Question index is out of range');
-    }
-    if (
-      !matchesInterviewMediaKey({
-        mediaKey,
-        interviewId: id,
-        questionIndex,
-        mediaType: 'camera',
-      })
-    ) {
-      throw new BadRequestException('Invalid camera recording key');
-    }
-    if (
-      screenMediaKey &&
-      !matchesInterviewMediaKey({
-        mediaKey: screenMediaKey,
-        interviewId: id,
-        questionIndex,
-        mediaType: 'screen',
-      })
-    ) {
-      throw new BadRequestException('Invalid screen recording key');
-    }
-
-    const question = interview.questions[questionIndex];
-    const existingAnswer =
-      interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
-      undefined;
-    if (existingAnswer?.status === 'submitted' && !submitAnswer) {
-      throw new BadRequestException(
-        'Cannot update recording progress for a submitted answer',
-      );
-    }
-
-    const normalizedVersionNumber =
-      typeof versionNumber === 'number' && versionNumber > 0
-        ? versionNumber
-        : 1;
-    const existingVersions = this.getAnswerVersions(existingAnswer);
-    const existingVersion = existingVersions.find(
-      (version) => version.versionNumber === normalizedVersionNumber,
-    );
-
-    const uploadedAt = existingVersion?.uploadedAt ?? new Date();
-    const normalizedStartedAt =
-      startedAt && !Number.isNaN(startedAt.getTime())
-        ? startedAt
-        : existingVersion?.startedAt;
-    let normalizedSubmittedAt = this.resolveSubmittedAt({
-      submittedAt,
-      uploadedAt,
-      existingVersion,
-      fallback: options.submittedAtFallback,
-    });
-
-    if (
-      !submitAnswer &&
-      normalizedStartedAt &&
-      normalizedSubmittedAt &&
-      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
-    ) {
-      normalizedSubmittedAt = undefined;
-    }
-
-    if (
-      normalizedStartedAt &&
-      normalizedSubmittedAt &&
-      normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
-    ) {
-      throw new BadRequestException(
-        'submittedAt must be after startedAt for the answer',
-      );
-    }
-
-    const normalizedBehaviorSignals = this.mergeBehaviorSignals(
-      existingVersion?.behaviorSignals ??
-        existingAnswer?.behaviorSignals,
-      behaviorSignals,
-    );
-    const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
-      existingVersion?.behaviorEvents ??
-        existingAnswer?.behaviorEvents,
-      behaviorEvents,
-      normalizedVersionNumber,
-      options.mergeBehaviorEvents,
-    );
-    const currentVersion: AnswerVersion = {
-      versionNumber: normalizedVersionNumber,
-      mediaKey,
-      screenMediaKey,
-      uploadedAt,
-      durationSeconds:
-        typeof durationSeconds === 'number' && durationSeconds > 0
-          ? durationSeconds
-          : existingVersion?.durationSeconds,
-      startedAt: normalizedStartedAt,
-      submittedAt: normalizedSubmittedAt,
-      camera: this.buildMediaArtifact({
-        mediaKey,
-        uploadedAt,
-        fileSizeBytes:
-          this.normalizePositiveNumber(cameraFileSizeBytes) ??
-          existingVersion?.camera?.fileSizeBytes ??
-          existingAnswer?.camera?.fileSizeBytes,
-      }),
-      screen: screenMediaKey
-        ? this.buildMediaArtifact({
-            mediaKey: screenMediaKey,
-            uploadedAt,
-            fileSizeBytes:
-              this.normalizePositiveNumber(screenFileSizeBytes) ??
-              existingVersion?.screen?.fileSizeBytes ??
-              existingAnswer?.screen?.fileSizeBytes,
-          })
-        : undefined,
-      behaviorSignals: normalizedBehaviorSignals,
-      behaviorEvents: normalizedBehaviorEvents,
-    };
-
-    const nextVersions = [
-      ...existingVersions.filter(
-        (version) => version.versionNumber !== normalizedVersionNumber,
-      ),
-      currentVersion,
-    ].sort((left, right) => left.versionNumber - right.versionNumber);
-
-    const selectedVersionNumber = options.preserveLatestSelectedVersion
-      ? Math.max(
-          existingAnswer?.selectedVersionNumber ?? 0,
-          normalizedVersionNumber,
-        )
-      : normalizedVersionNumber;
-    const selectedVersion =
-      nextVersions.find(
-        (version) => version.versionNumber === selectedVersionNumber,
-      ) ?? currentVersion;
-    const shouldCarryTranscriptFromPreviousVersion =
-      existingAnswer?.selectedVersionNumber === selectedVersionNumber;
-
-    const nextAnswer: Answer = {
-      questionIndex,
-      questionId: question.id,
-      status: submitAnswer ? 'submitted' : 'recording',
-      mediaKey: selectedVersion.mediaKey,
-      screenMediaKey: selectedVersion.screenMediaKey,
-      uploadedAt: selectedVersion.uploadedAt,
-      durationSeconds: selectedVersion.durationSeconds,
-      retakeCount: Math.max(nextVersions.length - 1, 0),
-      startedAt: selectedVersion.startedAt,
-      submittedAt: selectedVersion.submittedAt,
-      camera: selectedVersion.camera,
-      screen: selectedVersion.screen,
-      behaviorSignals: selectedVersion.behaviorSignals,
-      selectedVersionNumber,
-      versions: nextVersions,
-      behaviorEvents: selectedVersion.behaviorEvents,
-      transcript: clientTranscript
-        ? this.normalizeTranscript(clientTranscript)
-        : shouldCarryTranscriptFromPreviousVersion
-          ? existingAnswer?.transcript
-          : undefined,
-      evaluation: existingAnswer?.evaluation,
-      validation: existingAnswer?.validation,
-    };
-
-    const nextAnswers = existingAnswer
-      ? interview.answers.map((answer) =>
-          answer.questionIndex === questionIndex ? nextAnswer : answer,
-        )
-      : [...interview.answers, nextAnswer].sort(
-          (left, right) => left.questionIndex - right.questionIndex,
+      if (questionIndex !== currentQuestionIndex) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid question index — must answer in order',
+          { interviewId: id, questionIndex, currentQuestionIndex },
         );
+      }
+      if (questionIndex >= interview.questions.length) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Question index is out of range',
+          { interviewId: id, questionIndex },
+        );
+      }
+      if (
+        !matchesInterviewMediaKey({
+          mediaKey,
+          interviewId: id,
+          questionIndex,
+          mediaType: 'camera',
+        })
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid camera recording key',
+          { interviewId: id, questionIndex },
+        );
+      }
+      if (
+        screenMediaKey &&
+        !matchesInterviewMediaKey({
+          mediaKey: screenMediaKey,
+          interviewId: id,
+          questionIndex,
+          mediaType: 'screen',
+        })
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid screen recording key',
+          { interviewId: id, questionIndex },
+        );
+      }
 
-    const now = new Date();
-    return this.saveInterviewInTransaction(client, {
-      ...interview,
-      answers: nextAnswers,
-      status: 'in_progress',
-      workflow: this.buildWorkflow('idle', now, {
-        startedAt: interview.workflow?.startedAt,
-      }),
-      updatedAt: now,
-    });
+      const question = interview.questions[questionIndex];
+      const existingAnswer =
+        interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
+        undefined;
+      if (existingAnswer?.status === 'submitted' && !submitAnswer) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Cannot update recording progress for a submitted answer',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const normalizedVersionNumber =
+        typeof versionNumber === 'number' && versionNumber > 0
+          ? versionNumber
+          : 1;
+      const existingVersions = this.getAnswerVersions(existingAnswer);
+      const existingVersion = existingVersions.find(
+        (version) => version.versionNumber === normalizedVersionNumber,
+      );
+
+      const uploadedAt = existingVersion?.uploadedAt ?? new Date();
+      const normalizedStartedAt =
+        startedAt && !Number.isNaN(startedAt.getTime())
+          ? startedAt
+          : existingVersion?.startedAt;
+      let normalizedSubmittedAt = this.resolveSubmittedAt({
+        submittedAt,
+        uploadedAt,
+        existingVersion,
+        fallback: options.submittedAtFallback,
+      });
+
+      if (
+        !submitAnswer &&
+        normalizedStartedAt &&
+        normalizedSubmittedAt &&
+        normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+      ) {
+        normalizedSubmittedAt = undefined;
+      }
+
+      if (
+        normalizedStartedAt &&
+        normalizedSubmittedAt &&
+        normalizedSubmittedAt.getTime() < normalizedStartedAt.getTime()
+      ) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'submittedAt must be after startedAt for the answer',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const normalizedBehaviorSignals = this.mergeBehaviorSignals(
+        existingVersion?.behaviorSignals ??
+          existingAnswer?.behaviorSignals,
+        behaviorSignals,
+      );
+      const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
+        existingVersion?.behaviorEvents ??
+          existingAnswer?.behaviorEvents,
+        behaviorEvents,
+        normalizedVersionNumber,
+        options.mergeBehaviorEvents,
+      );
+      const currentVersion: AnswerVersion = {
+        versionNumber: normalizedVersionNumber,
+        mediaKey,
+        screenMediaKey,
+        uploadedAt,
+        durationSeconds:
+          typeof durationSeconds === 'number' && durationSeconds > 0
+            ? durationSeconds
+            : existingVersion?.durationSeconds,
+        startedAt: normalizedStartedAt,
+        submittedAt: normalizedSubmittedAt,
+        camera: this.buildMediaArtifact({
+          mediaKey,
+          uploadedAt,
+          fileSizeBytes:
+            this.normalizePositiveNumber(cameraFileSizeBytes) ??
+            existingVersion?.camera?.fileSizeBytes ??
+            existingAnswer?.camera?.fileSizeBytes,
+        }),
+        screen: screenMediaKey
+          ? this.buildMediaArtifact({
+              mediaKey: screenMediaKey,
+              uploadedAt,
+              fileSizeBytes:
+                this.normalizePositiveNumber(screenFileSizeBytes) ??
+                existingVersion?.screen?.fileSizeBytes ??
+                existingAnswer?.screen?.fileSizeBytes,
+            })
+          : undefined,
+        behaviorSignals: normalizedBehaviorSignals,
+        behaviorEvents: normalizedBehaviorEvents,
+      };
+
+      const nextVersions = [
+        ...existingVersions.filter(
+          (version) => version.versionNumber !== normalizedVersionNumber,
+        ),
+        currentVersion,
+      ].sort((left, right) => left.versionNumber - right.versionNumber);
+
+      const selectedVersionNumber = options.preserveLatestSelectedVersion
+        ? Math.max(
+            existingAnswer?.selectedVersionNumber ?? 0,
+            normalizedVersionNumber,
+          )
+        : normalizedVersionNumber;
+      const selectedVersion =
+        nextVersions.find(
+          (version) => version.versionNumber === selectedVersionNumber,
+        ) ?? currentVersion;
+      const shouldCarryTranscriptFromPreviousVersion =
+        existingAnswer?.selectedVersionNumber === selectedVersionNumber;
+
+      const nextAnswer: Answer = {
+        questionIndex,
+        questionId: question.id,
+        status: submitAnswer ? 'submitted' : 'recording',
+        mediaKey: selectedVersion.mediaKey,
+        screenMediaKey: selectedVersion.screenMediaKey,
+        uploadedAt: selectedVersion.uploadedAt,
+        durationSeconds: selectedVersion.durationSeconds,
+        retakeCount: Math.max(nextVersions.length - 1, 0),
+        startedAt: selectedVersion.startedAt,
+        submittedAt: selectedVersion.submittedAt,
+        camera: selectedVersion.camera,
+        screen: selectedVersion.screen,
+        behaviorSignals: selectedVersion.behaviorSignals,
+        selectedVersionNumber,
+        versions: nextVersions,
+        behaviorEvents: selectedVersion.behaviorEvents,
+        transcript: clientTranscript
+          ? this.normalizeTranscript(clientTranscript)
+          : shouldCarryTranscriptFromPreviousVersion
+            ? existingAnswer?.transcript
+            : undefined,
+        evaluation: existingAnswer?.evaluation,
+        validation: existingAnswer?.validation,
+      };
+
+      const nextAnswers = existingAnswer
+        ? interview.answers.map((answer) =>
+            answer.questionIndex === questionIndex ? nextAnswer : answer,
+          )
+        : [...interview.answers, nextAnswer].sort(
+            (left, right) => left.questionIndex - right.questionIndex,
+          );
+
+      const now = new Date();
+      return this.saveInterviewInTransaction(client, {
+        ...interview,
+        answers: nextAnswers,
+        status: 'in_progress',
+        workflow: this.buildWorkflow('idle', now, {
+          startedAt: interview.workflow?.startedAt,
+        }),
+        updatedAt: now,
+      });
     });
   }
 
@@ -1119,8 +1209,10 @@ export class InterviewService {
     );
 
     if (!answer) {
-      throw new BadRequestException(
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
         `Answer for question ${questionIndex} is not available`,
+        { questionIndex },
       );
     }
 
@@ -1133,20 +1225,7 @@ export class InterviewService {
   ): Promise<InterviewRow> {
     const result = await client.query<InterviewRow>(
       `
-        SELECT
-          id,
-          candidate_name,
-          candidate_email,
-          position,
-          questions_json,
-          answers_json,
-          status,
-          result_json,
-          workflow_json,
-          created_by_id,
-          demo,
-          created_at,
-          updated_at
+        SELECT ${INTERVIEW_SELECT_COLUMNS}
         FROM interviews
         WHERE id = $1
         FOR UPDATE
@@ -1155,7 +1234,11 @@ export class InterviewService {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundException(`Interview with id "${id}" not found`);
+      throw apiNotFound(
+        ApiErrorCode.INTERVIEW_NOT_FOUND,
+        `Interview with id "${id}" not found`,
+        { id },
+      );
     }
 
     return result.rows[0];
@@ -1310,7 +1393,10 @@ export class InterviewService {
     }
 
     const decision = this.computeInterviewDecision(overallScore, maxRisk);
-    const summary = this.buildInterviewSummary(questionResults);
+    const summary = buildInterviewSummary(
+      questionResults,
+      interview.interviewLocale,
+    );
     const trustScore = this.riskToTrustScore(maxRisk);
 
     const allAnswered = submittedAnswers.length >= interview.questions.length;
@@ -1324,8 +1410,13 @@ export class InterviewService {
     const completedAt = new Date();
 
     const result: InterviewResult = {
+      interviewLocale: interview.interviewLocale,
       overallScore,
       summary,
+      improvements: buildFeedbackImprovements(
+        questionResults,
+        interview.interviewLocale,
+      ),
       categoryScores,
       rubricVersion: 'mvp-v1',
       decision,
@@ -1382,39 +1473,27 @@ export class InterviewService {
     return 100;
   }
 
-  private buildInterviewSummary(
-    questionResults: InterviewQuestionResult[],
-  ): string {
-    const lines = questionResults
-      .map((item) =>
-        item.summary
-          ? `Q${item.questionIndex + 1}: ${item.summary}`
-          : undefined,
-      )
-      .filter((line): line is string => Boolean(line));
-
-    if (lines.length === 0) {
-      return 'No per-question summaries were produced.';
-    }
-    return lines.join('\n');
-  }
-
   private mapRow(row: InterviewRow): Interview {
     const questions = (row.questions_json ?? []).map((question) =>
       this.questionService.hydrateStoredQuestionCore(question),
     );
+
+    const interviewLocale = isLocale(row.interview_locale)
+      ? row.interview_locale
+      : DEFAULT_LOCALE;
 
     return {
       id: row.id,
       candidateName: row.candidate_name,
       candidateEmail: row.candidate_email ?? undefined,
       position: row.position,
+      interviewLocale,
       questions,
       answers: (row.answers_json ?? []).map((answer) =>
         this.normalizeAnswer(answer, questions),
       ),
       status: row.status,
-      result: this.normalizeResult(row.result_json),
+      result: this.normalizeResult(row.result_json, interviewLocale),
       workflow: this.normalizeWorkflow(
         row.workflow_json,
         row.status,
@@ -1861,15 +1940,22 @@ export class InterviewService {
 
   private normalizeResult(
     value: Record<string, unknown> | null,
+    interviewLocale: Locale,
   ): InterviewResult | undefined {
     const rawResult = this.asRecord(value);
     if (!rawResult) {
       return undefined;
     }
 
+    const storedInterviewLocale = this.asString(rawResult.interviewLocale);
     return {
+      interviewLocale:
+        storedInterviewLocale && isLocale(storedInterviewLocale)
+          ? storedInterviewLocale
+          : interviewLocale,
       overallScore: this.asNumber(rawResult.overallScore) ?? 0,
       summary: this.asString(rawResult.summary) ?? '',
+      improvements: this.asString(rawResult.improvements),
       categoryScores: this.asNumberRecord(rawResult.categoryScores),
       rubricVersion: this.asString(rawResult.rubricVersion),
       decision: this.asString(rawResult.decision) as

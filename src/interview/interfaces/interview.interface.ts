@@ -1,3 +1,4 @@
+import { Locale } from '../../locale/locale.constants';
 import { QuestionCore } from '../../question/interfaces/question.interface';
 import { UserRole } from '../../user/interfaces/user.interface';
 
@@ -55,6 +56,9 @@ export type InterviewWorkflowStage =
 
 export interface CandidateQuestionView {
   text: string;
+  followUpQuestions: string[];
+  resolvedLocale: Locale;
+  fallbackFromLocale?: Locale;
 }
 
 export interface Interview {
@@ -62,6 +66,7 @@ export interface Interview {
   candidateName: string;
   candidateEmail?: string;
   position: string;
+  interviewLocale: Locale;
   questions: InterviewQuestion[];
   answers: Answer[];
   status: InterviewStatus;
@@ -203,8 +208,10 @@ export interface InterviewBehaviorSummary {
 }
 
 export interface InterviewResult {
+  interviewLocale: Locale;
   overallScore: number;
   summary: string;
+  improvements?: string;
   categoryScores: Record<string, number>;
   rubricVersion?: string;
   decision?: InterviewDecision;

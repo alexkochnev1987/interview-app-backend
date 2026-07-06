@@ -23,14 +23,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { InterviewService } from '../interview/interview.service';
-import {
-  CandidateQuestionView,
-} from '../interview/interfaces/interview.interface';
 import { AuthService } from '../auth/auth.service';
+import { buildCandidateQuestionView } from './take-question-view';
+import { resolveTakeContentLocale } from './take-locale';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
   CANDIDATE_SESSION_COOKIE,
@@ -64,9 +63,20 @@ export class TakeController {
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
   @ApiCookieAuth('candidateSessionAuth')
-  @ApiOperation({ summary: 'Get candidate interview state' })
+  @ApiOperation({
+    summary: 'Get candidate interview state',
+    description:
+      'Resolves currentQuestion using optional contentLocale (UI language), then interviewLocale, primaryLocale, and any available translation. X-Locale is ignored on take. Includes resolvedLocale and optional fallbackFromLocale.',
+  })
   @ApiParam({ name: 'id' })
   @ApiQuery({ name: 'token', required: false })
+  @ApiQuery({
+    name: 'contentLocale',
+    required: false,
+    enum: ['en', 'be', 'ru', 'pl'],
+    description:
+      'Candidate UI language for currentQuestion. Omit to use interviewLocale.',
+  })
   @ApiOkResponse({ type: TakeInterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -74,7 +84,8 @@ export class TakeController {
   async getInterview(
     @Param('id') id: string,
     @Query('token') token: string,
-    @Req() req: CandidateRequest,
+    @Query('contentLocale') contentLocale: string | undefined,
+    @Req() req: CandidateRequest & Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const tokenMismatch = getCandidateTokenMismatchReason(
@@ -94,6 +105,7 @@ export class TakeController {
     }
 
     const interview = await this.interviewService.findOne(id);
+    const takeContentLocale = resolveTakeContentLocale(contentLocale, interview);
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -108,6 +120,7 @@ export class TakeController {
       return {
         id: interview.id,
         position: interview.position,
+        interviewLocale: interview.interviewLocale,
         candidateName: interview.candidateName,
         status: interview.status,
         totalQuestions,
@@ -118,13 +131,15 @@ export class TakeController {
       };
     }
 
-    const currentQuestion: CandidateQuestionView = {
-      text: interview.questions[answeredCount].questionText,
-    };
+    const currentQuestion = buildCandidateQuestionView(
+      interview.questions[answeredCount],
+      takeContentLocale,
+    );
 
     return {
       id: interview.id,
       position: interview.position,
+      interviewLocale: interview.interviewLocale,
       candidateName: interview.candidateName,
       status: interview.status,
       totalQuestions,

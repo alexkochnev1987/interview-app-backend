@@ -7,7 +7,10 @@ export interface FeedbackLink {
   createdAt: Date;
 }
 
+import { Locale } from '../../locale/locale.constants';
+
 export interface FeedbackResponse {
+  interviewLocale: Locale;
   position: string;
   date: string;
   expiresAt: string;
@@ -16,4 +19,11 @@ export interface FeedbackResponse {
   categoryScores?: Record<string, number>;
   generalFeedback?: string;
   improvements?: string;
+  questionResults?: Array<{
+    questionIndex: number;
+    questionId: string;
+    summary?: string;
+    score?: number;
+    decisionHint?: 'pass' | 'review' | 'fail';
+  }>;
 }

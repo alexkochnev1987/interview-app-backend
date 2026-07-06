@@ -16,6 +16,7 @@ import {
   createTakeInterview,
   openCandidateTakeSession,
 } from '../helpers/take-flow';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Thin integration layer (~20% of backend tests): Nest + Postgres + cookies/guards.
 // Business rules live in unit specs under src/.
@@ -60,22 +61,22 @@ describe('App wiring (integration)', () => {
     await agent
       .post('/questions')
       .set(authCookie(hrSession))
-      .send({
-        questionText: 'HR should not create this.',
-        difficulty: 'easy',
-        weight: 1,
-      })
+      .send(
+        buildCreateQuestionPayload('HR should not create this.', {
+          difficulty: 'easy',
+        }),
+      )
       .expect(403);
 
     const adminSession = await loginAsStaffAdmin(agent);
     const created = await agent
       .post('/questions')
       .set(authCookie(adminSession))
-      .send({
-        questionText: 'Admin-created question.',
-        difficulty: 'hard',
-        weight: 1,
-      })
+      .send(
+        buildCreateQuestionPayload('Admin-created question.', {
+          difficulty: 'hard',
+        }),
+      )
       .expect(201);
 
     await agent
@@ -95,6 +96,43 @@ describe('App wiring (integration)', () => {
       .expect(400);
   });
 
+  it('wires draft translate past nested rubric whitelist to AI layer', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    const response = await agent
+      .post('/questions/ai/draft')
+      .set(authCookie(session))
+      .send({
+        mode: 'translate',
+        locale: 'pl',
+        question: {
+          primaryLocale: 'ru',
+          questionText: 'Что такое DOM?',
+          followUpQuestions: ['Можете привести пример?', 'Какую ошибку избегаете?'],
+          expectedConcepts: [
+            { id: 'dom_model', label: 'модель DOM', weight: 0.34, description: 'структура' },
+            { id: 'rendering', label: 'отрисовка', weight: 0.33, description: 'обновления' },
+            { id: 'practical_use', label: 'практика', weight: 0.33, description: 'пример' },
+          ],
+          redFlags: [
+            { id: 'confuses_dom', label: 'Путает DOM', severity: 'medium' },
+            { id: 'no_example', label: 'Нет примера', severity: 'high' },
+          ],
+          sampleGoodAnswer: 'DOM — объектная модель документа в браузере.',
+        },
+      });
+
+    expect([200, 201, 503]).toContain(response.status);
+    const payload = JSON.stringify(response.body);
+    expect(payload).not.toContain('question.expectedConcepts (at least 3)');
+    if (response.status === 200 || response.status === 201) {
+      expect(response.body.primaryLocale).toBe('pl');
+      expect(response.body.questionText).toBeTruthy();
+      expect(response.body.expectedConcepts).toHaveLength(3);
+    }
+  });
+
   it('wires recruiter APIs through Postgres', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
@@ -102,11 +140,7 @@ describe('App wiring (integration)', () => {
     const created = await agent
       .post('/questions')
       .set(authCookie(session))
-      .send({
-        questionText: 'Integration wiring question.',
-        difficulty: 'medium',
-        weight: 1,
-      })
+      .send(buildCreateQuestionPayload('Integration wiring question.'))
       .expect(201);
 
     const interview = await agent
