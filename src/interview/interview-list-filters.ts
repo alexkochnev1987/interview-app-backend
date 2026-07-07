@@ -1,5 +1,5 @@
 import { demoScopeClause } from '../common/demo-scope';
-import { QueryInterviewsDto } from './dto/query-interviews.dto';
+import { InterviewListFiltersDto } from './dto/query-interviews.dto';
 import type { InterviewActor } from './interfaces/interview.interface';
 
 export type InterviewFacetFields = 'position' | 'status';
@@ -9,7 +9,7 @@ export function escapeLike(value: string): string {
 }
 
 export function buildInterviewFilterClauses(
-  query: QueryInterviewsDto,
+  query: InterviewListFiltersDto,
   actor: InterviewActor,
   options: { excludeField?: InterviewFacetFields } = {},
 ): { whereSql: string; params: unknown[] } {

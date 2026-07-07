@@ -26,7 +26,8 @@ describe('InterviewService list query (findAllPaginated)', () => {
 
     const [sql] = query.mock.calls[0];
     expect(sql).toContain('jsonb_array_length(questions_json)');
-    expect(sql).toContain("jsonb_array_elements(COALESCE(answers_json");
+    expect(sql).toContain("answer.value->>'status' = 'submitted'");
+    expect(sql).not.toContain("COALESCE(answer.value->>'status', 'submitted')");
     expect(sql).toContain("result_json->>'overallScore'");
     expect(sql).toContain("result_json->>'decision'");
     expect(sql).not.toContain('workflow_json');

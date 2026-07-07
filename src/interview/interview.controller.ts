@@ -38,6 +38,7 @@ import { AuthService } from '../auth/auth.service';
 import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import { QueryInterviewsDto } from './dto/query-interviews.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
@@ -66,6 +67,13 @@ import {
 type ActingUser = Omit<User, 'passwordHash'>;
 
 const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  transformOptions: { enableImplicitConversion: false },
+});
+
+const INTERVIEW_FACETS_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,
   forbidNonWhitelisted: true,
   transform: true,
@@ -134,7 +142,7 @@ export class InterviewController {
   @ApiOkResponse({ type: InterviewFacetsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   getFacets(
-    @Query(INTERVIEW_QUERY_VALIDATION_PIPE) query: QueryInterviewsDto,
+    @Query(INTERVIEW_FACETS_QUERY_VALIDATION_PIPE) query: QueryInterviewFacetsDto,
     @CurrentUser() user: ActingUser,
   ): Promise<InterviewFacets> {
     return this.interviewService.getFacets(query, user);

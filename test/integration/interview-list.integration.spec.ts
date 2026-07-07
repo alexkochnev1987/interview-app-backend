@@ -131,6 +131,17 @@ describe('Interview list API (integration)', () => {
     ).toBe(true);
   });
 
+  it('rejects pagination and sort params on facets', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    await agent
+      .get('/interviews/facets')
+      .query({ page: 1, sortBy: 'updatedAt' })
+      .set(authCookie(session))
+      .expect(400);
+  });
+
   it('wires HR list ownership scoping with Postgres', async () => {
     const { app, agent } = await getIntegrationApp();
     const adminSession = await loginAsSuperAdmin(agent);

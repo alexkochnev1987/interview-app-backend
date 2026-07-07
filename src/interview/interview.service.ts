@@ -18,6 +18,7 @@ import {
   InterviewSortField,
   InterviewSortOrder,
 } from './dto/query-interviews.dto';
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
   Answer,
@@ -142,7 +143,7 @@ const INTERVIEW_LIST_SELECT_COLUMNS = `
   (
     SELECT COUNT(*)::int
     FROM jsonb_array_elements(COALESCE(answers_json, '[]'::jsonb)) AS answer(value)
-    WHERE COALESCE(answer.value->>'status', 'submitted') = 'submitted'
+    WHERE answer.value->>'status' = 'submitted'
   ) AS submitted_answer_count,
   CASE
     WHEN result_json IS NULL THEN NULL
@@ -475,8 +476,7 @@ export class InterviewService {
     offset?: number;
     page?: number;
   }): Promise<{ items: Interview[]; total: number; page: number; limit: number }> {
-    const limit = Math.min(
-      MAX_INTERVIEW_LIST_LIMIT,
+    const limit = Math.min(MAX_INTERVIEW_LIST_LIMIT,
       Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
     );
     const page = Math.max(1, options?.page ?? 1);
@@ -583,7 +583,7 @@ export class InterviewService {
   }
 
   async getFacets(
-    query: QueryInterviewsDto = {},
+    query: QueryInterviewFacetsDto = {},
     actor: InterviewActor,
   ): Promise<InterviewFacets> {
     this.assertActorCanList(actor);
@@ -597,7 +597,7 @@ export class InterviewService {
   }
 
   private async queryInterviewPositionFacet(
-    query: QueryInterviewsDto,
+    query: QueryInterviewFacetsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
     const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
@@ -626,7 +626,7 @@ export class InterviewService {
   }
 
   private async queryInterviewStatusFacet(
-    query: QueryInterviewsDto,
+    query: QueryInterviewFacetsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
     const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
