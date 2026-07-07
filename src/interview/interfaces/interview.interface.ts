@@ -1,3 +1,4 @@
+import { Locale } from '../../locale/locale.constants';
 import { QuestionCore } from '../../question/interfaces/question.interface';
 
 /** Keep in sync with interviews.status CHECK in src/database/migrations.ts */
@@ -17,9 +18,18 @@ export const ACTIVE_INTERVIEW_STATUSES = [
   'processing',
 ] as const satisfies readonly InterviewStatus[];
 
+export const TERMINAL_INTERVIEW_STATUSES = [
+  'completed',
+  'failed',
+] as const satisfies readonly InterviewStatus[];
+
 export type ActiveInterviewStatus = (typeof ACTIVE_INTERVIEW_STATUSES)[number];
 
-export type InterviewQuestion = QuestionCore;
+export type InterviewQuestion = QuestionCore & {
+  deleted?: boolean;
+  pendingDeletion?: boolean;
+  usageCount?: number;
+};
 export type InterviewBehaviorRisk = 'low' | 'medium' | 'high';
 export type InterviewDecision = 'proceed' | 'review' | 'reject';
 export type AnswerDecisionHint = 'pass' | 'review' | 'fail';
@@ -45,6 +55,9 @@ export type InterviewWorkflowStage =
 
 export interface CandidateQuestionView {
   text: string;
+  followUpQuestions: string[];
+  resolvedLocale: Locale;
+  fallbackFromLocale?: Locale;
 }
 
 export interface Interview {
@@ -52,12 +65,14 @@ export interface Interview {
   candidateName: string;
   candidateEmail?: string;
   position: string;
+  interviewLocale: Locale;
   questions: InterviewQuestion[];
   answers: Answer[];
   status: InterviewStatus;
   result?: InterviewResult;
   workflow?: InterviewWorkflow;
   createdById?: string;
+  demo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -172,8 +187,10 @@ export interface InterviewBehaviorSummary {
 }
 
 export interface InterviewResult {
+  interviewLocale: Locale;
   overallScore: number;
   summary: string;
+  improvements?: string;
   categoryScores: Record<string, number>;
   rubricVersion?: string;
   decision?: InterviewDecision;
@@ -192,4 +209,9 @@ export interface InterviewWorkflow {
   completedAt?: Date;
   lastUpdatedAt: Date;
   errorMessage?: string;
+}
+
+export interface InterviewCancelResult {
+  id: string;
+  canceled: true;
 }

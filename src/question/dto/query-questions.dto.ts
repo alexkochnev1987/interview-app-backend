@@ -3,6 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -11,7 +12,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 export const QUESTION_SORT_FIELDS = [
   'createdAt',
@@ -26,7 +30,7 @@ export type QuestionSortField = (typeof QUESTION_SORT_FIELDS)[number];
 export const QUESTION_SORT_ORDERS = ['asc', 'desc'] as const;
 export type QuestionSortOrder = (typeof QUESTION_SORT_ORDERS)[number];
 
-export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all'] as const;
+export const QUESTION_STATUS_VALUES = ['active', 'inactive', 'all' , 'scheduled'] as const;
 export type QuestionStatusFilter = (typeof QUESTION_STATUS_VALUES)[number];
 
 function trimToUndefined(value: unknown): string | undefined {
@@ -35,6 +39,19 @@ function trimToUndefined(value: unknown): string | undefined {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function queryBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (value === true || value === 'true') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
 }
 
 function csvToArray(value: unknown): string[] | undefined {
@@ -90,12 +107,34 @@ export class QueryQuestionsDto {
   @MaxLength(120)
   role?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Filter by canonical question locale (primary_locale).',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  primaryLocale?: Locale;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: OUTPUT_LANGUAGE_OPENAPI_NOTE,
+  })
   @IsOptional()
   @Transform(({ value }) => trimToUndefined(value))
   @IsString()
   @MaxLength(60)
   outputLanguage?: string;
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. ' +
+      'When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). ' +
+      'When omitted, items follow `X-Locale` (default `en`).',
+  })
+  @IsOptional()
+  @IsIn([...SUPPORTED_LOCALES])
+  locale?: Locale;
 
   @ApiPropertyOptional({ enum: QUESTION_STATUS_VALUES, default: 'active', description: 'Non-super_admin callers are forced to "active" regardless of what they pass.' })
   @IsOptional()
@@ -112,6 +151,15 @@ export class QueryQuestionsDto {
   @IsIn(QUESTION_SORT_ORDERS)
   sortOrder?: QuestionSortOrder;
 
+  @ApiPropertyOptional({
+    description:
+      'When true, each list item includes the full translations map. Default false.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => queryBoolean(value))
+  @IsBoolean()
+  includeTranslations?: boolean;
+
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -126,4 +174,14 @@ export class QueryQuestionsDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description:
+        'When true, only interview-eligible (active) questions are returned',  })
+  @IsOptional()
+  @Transform(({value})=> value === true || value === 'true')
+  @IsBoolean()
+  eligibleForInterview?: boolean;
 }

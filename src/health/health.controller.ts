@@ -8,9 +8,10 @@ export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiOkResponse({ type: HealthResponseDto })
-  check(): { status: string; timestamp: Date } {
+  check(): { status: string; message: string; timestamp: Date } {
     return {
       status: 'ok',
+      message: 'Lightsail backend is serving the latest deploy.',
       timestamp: new Date(),
     };
   }

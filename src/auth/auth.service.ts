@@ -1,8 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiUnauthorized } from '../common/errors/api-error';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
@@ -32,12 +30,12 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'>> {
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
     }
 
     const isValid = await this.userService.validatePassword(user, password);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
     }
 
     return this.userService.toPublicUser(user);
@@ -46,6 +44,14 @@ export class AuthService {
   login(user: Omit<User, 'passwordHash'>): string {
     const payload = { sub: user.id, email: user.email, role: user.role };
     return this.jwtService.sign(payload, { expiresIn: '24h' });
+  }
+
+  async demoLogin(): Promise<Omit<User, 'passwordHash'>> {
+    const user = await this.userService.findDemoUser();
+    if (!user) {
+      throw new ServiceUnavailableException('Demo access is not available');
+    }
+    return this.userService.toPublicUser(user);
   }
 
   async findOrCreateGoogleUser(
@@ -66,14 +72,9 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<Omit<User, 'passwordHash'>> {
-    // Self-registration must never grant elevated roles. Privileged accounts
-    // come from `onModuleInit` bootstrap or verified SSO (Google), where the
-    // identity provider proves email ownership.
-    //
-    // Both privileged-email and already-registered cases return the same
-    // generic 400 instead of a descriptive 409 to avoid leaking which
-    // addresses are taken or privileged. The DTO trims `name` via
-    // `@Transform`, so no further trimming is needed here.
+    // Self-registration must never grant elevated roles. Both privileged-email
+    // and already-registered cases return the same generic 400 (not a 409) to
+    // avoid leaking which addresses are taken or privileged.
     if (this.isSuperAdminEmail(dto.email) || (await this.userService.findByEmail(dto.email))) {
       throw new BadRequestException('Unable to complete registration');
     }

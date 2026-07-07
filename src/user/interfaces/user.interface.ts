@@ -7,5 +7,6 @@ export interface User {
   role: UserRole;
   organizationId?: string;
   passwordHash: string;
+  demo: boolean;
   createdAt: Date;
 }

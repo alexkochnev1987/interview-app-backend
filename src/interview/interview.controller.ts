@@ -10,12 +10,14 @@ import {
   Post,
   Query,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
   ApiConflictResponse,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -26,9 +28,17 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Locale } from '../locale/locale.constants';
 import { InterviewService } from './interview.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
-import { Interview, InterviewResult } from './interfaces/interview.interface';
+import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
+import {
+  Interview,
+  InterviewCancelResult,
+  InterviewResult,
+} from './interfaces/interview.interface';
+import { InterviewPresentation, presentInterview } from './present-interview';
+import { presentInterviewListItem } from './present-interview-list';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -37,14 +47,18 @@ import { User } from '../user/interfaces/user.interface';
 import { AuthService } from '../auth/auth.service';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import {
+  CreateInterviewResultDto,
   CandidateLinkResponseDto,
+  InterviewCancelResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
-  InterviewWithCandidateLinkResponseDto,
+  PaginatedInterviewListResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -61,47 +75,96 @@ export class InterviewController {
 
   @Post()
   @RequirePermissions('interviews:create')
-  @ApiOperation({ summary: 'Create interview' })
+  @ApiOperation({
+    summary: 'Create interview',
+    description:
+      'Question snapshots in the response are resolved for interviewLocale. ' +
+      'If some selected questions have no translation for interviewLocale, creation still succeeds and `localeWarnings` is returned.',
+  })
   @ApiBody({ type: CreateInterviewDto })
-  @ApiOkResponse({ type: InterviewWithCandidateLinkResponseDto })
+  @ApiOkResponse({ type: CreateInterviewResultDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async create(
     @Body() dto: CreateInterviewDto,
     @CurrentUser() user: ActingUser,
-  ): Promise<Interview & { candidateLink: string }> {
-    const interview = await this.interviewService.create(dto, {
+  ): Promise<InterviewPresentation & { candidateLink: string; localeWarnings: Array<{ questionId: string; availableLocales: Locale[] }> }> {
+    const created = await this.interviewService.create(dto, {
       createdById: user.id,
+      demo: user.demo,
     });
-    const token = this.authService.generateCandidateToken(interview.id);
+    const token = this.authService.generateCandidateToken(created.interview.id);
     return {
-      ...interview,
-      candidateLink: `/take/${interview.id}?token=${token}`,
+      ...presentInterview(created.interview),
+      candidateLink: `/take/${created.interview.id}?token=${token}`,
+      localeWarnings: created.localeWarnings,
     };
   }
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'List interviews' })
-  @ApiOkResponse({ type: [InterviewResponseDto] })
+  @ApiExtraModels(InterviewResponseDto, PaginatedInterviewListResponseDto)
+  @ApiOperation({
+    summary: 'List interviews',
+    description:
+      'Default: JSON array with full questions[] (legacy clients). ' +
+      'Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. ' +
+      'questions[]/questionsPreview are resolved in interviewLocale.',
+  })
+  @ApiOkResponse({
+    description: 'Array when paginated is false/omitted; paginated object when paginated=true',
+    schema: {
+      oneOf: [
+        { type: 'array', items: { $ref: '#/components/schemas/InterviewResponseDto' } },
+        { $ref: '#/components/schemas/PaginatedInterviewListResponseDto' },
+      ],
+    },
+  })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  findAll(@CurrentUser() user: ActingUser): Promise<Interview[]> {
-    return this.interviewService.findAllForActor(user);
+  async findAll(
+    @Query(new ValidationPipe({ transform: true })) query: ListInterviewsQueryDto,
+    @CurrentUser() user: ActingUser,
+  ): Promise<PaginatedInterviewListResponseDto | InterviewPresentation[]> {
+    if (query.paginated) {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 50;
+      const result = await this.interviewService.findAllForActor(user, {
+        page,
+        limit,
+      });
+      return {
+        items: result.items.map((interview) =>
+          presentInterviewListItem(interview),
+        ),
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+      };
+    }
+
+    const result = await this.interviewService.findAllForActor(user, {
+      unbounded: true,
+    });
+    return result.items.map((interview) => presentInterview(interview));
   }
 
   @Get(':id')
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'Get interview by id' })
+  @ApiOperation({
+    summary: 'Get interview by id',
+    description: 'questions[] resolved for interviewLocale.',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  findOne(
+  async findOne(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
-  ): Promise<Interview> {
-    return this.interviewService.findOneForActor(id, user);
+  ): Promise<InterviewPresentation> {
+    const interview = await this.interviewService.findOneForActor(id, user);
+    return presentInterview(interview);
   }
 
   @Post(':id/candidate-link')
@@ -122,9 +185,28 @@ export class InterviewController {
     };
   }
 
+  @Patch(':id/cancel')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Cancel pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewCancelResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewCancelResult> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.cancel(id);
+  }
+
   @Patch(':id/complete')
   @RequirePermissions('interviews:update_own')
-  @ApiOperation({ summary: 'Complete interview' })
+  @ApiOperation({
+    summary: 'Complete interview',
+    description: 'Response questions[] resolved for interviewLocale.',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
@@ -132,9 +214,29 @@ export class InterviewController {
   async complete(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
+  ): Promise<InterviewPresentation> {
+    await this.interviewService.findOneForActor(id, user);
+    const interview = await this.interviewService.complete(id);
+    return presentInterview(interview);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Update pending interview' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: UpdateInterviewDto })
+  @ApiOkResponse({ type: InterviewResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateInterviewDto,
+    @CurrentUser() user: ActingUser,
   ): Promise<Interview> {
     await this.interviewService.findOneForActor(id, user);
-    return this.interviewService.complete(id);
+    return this.interviewService.update(id, dto);
   }
 
   @Post(':id/validate')
@@ -197,9 +299,25 @@ export class InterviewController {
     );
   }
 
+  @Post(':id/mark-demo')
+  @RequirePermissions('users:assign_role')
+  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, removes the fabricated placeholder demo interview and demotes any other completed demo interview so exactly the marked completed interview plus the seeded pending one remain. Re-running the demo provisioning afterwards will not recreate the placeholder. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: MarkInterviewDemoResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  markDemo(@Param('id') id: string) {
+    return this.interviewService.markAsDemo(id);
+  }
+
   @Get(':id/results')
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'Get interview results' })
+  @ApiOperation({
+    summary: 'Get interview results',
+    description:
+      'Returns single-locale AI result content in interviewLocale (not X-Locale).',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewResultResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

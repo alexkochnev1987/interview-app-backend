@@ -16,6 +16,9 @@ export class AuthUserResponseDto {
   @ApiPropertyOptional({ example: 'org_123' })
   organizationId?: string;
 
+  @ApiProperty({ example: false, description: 'Read-only demo account.' })
+  demo: boolean;
+
   @ApiProperty({ example: '2026-05-05T12:00:00.000Z' })
   createdAt: Date;
 }

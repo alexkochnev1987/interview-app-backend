@@ -1,5 +1,7 @@
+import './types/express-augment';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { SwaggerModule } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AppModule } from './app.module';
@@ -20,6 +22,8 @@ async function bootstrap(): Promise<void> {
   app.getHttpAdapter().getInstance().get('/openapi.json', (_req: Request, res: Response) => {
     res.json(openApiDocument);
   });
+
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({

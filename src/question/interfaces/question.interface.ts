@@ -1,3 +1,5 @@
+import { Locale } from '../../locale/locale.constants';
+
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard';
 export type QuestionRedFlagSeverity = 'low' | 'medium' | 'high';
 
@@ -14,11 +16,23 @@ export interface QuestionRedFlag {
   severity: QuestionRedFlagSeverity;
 }
 
+export interface QuestionTranslation {
+  questionText: string;
+  followUpQuestions?: string[];
+  expectedConcepts?: QuestionExpectedConcept[];
+  redFlags?: QuestionRedFlag[];
+  sampleGoodAnswer?: string;
+}
+
+export type QuestionTranslations = Partial<Record<Locale, QuestionTranslation>>;
+
 export interface QuestionCore {
   id: string;
   externalId?: string;
   role?: string;
   focus?: string;
+  primaryLocale: Locale;
+  translations: QuestionTranslations;
   outputLanguage: string;
   category?: string;
   subcategory?: string;
@@ -39,12 +53,42 @@ export interface Question extends QuestionCore {
   updatedAt: Date;
   deleted: boolean;
   usageCount: number;
+  pendingDeletion: boolean;
+  blockingInterviews?: QuestionDeleteBlockingInterview[];
 }
+
+export interface QuestionDeleteBlockingInterview {
+  id: string;
+  candidateName: string;
+  href: string;
+}
+
+export interface QuestionDeleteScheduledItem {
+  id: string;
+  questionText: string;
+  reason: string;
+  blockingInterviews: QuestionDeleteBlockingInterview[];
+}
+
+export type SoftDeleteQuestionResult =
+  | { id: string; deleted: true }
+  | {
+      id: string;
+      scheduled: true;
+      blockingInterviews: QuestionDeleteBlockingInterview[];
+    };
 
 export type QuestionDraft = Omit<QuestionCore, 'id'>;
 
+export type SimilarQuestionResolved = Omit<Question, 'translations'> & {
+  resolvedLocale: Locale;
+  availableLocales: Locale[];
+  fallbackFromLocale?: Locale;
+  translations?: QuestionTranslations;
+};
+
 export interface SimilarQuestionMatch {
-  question: Question;
+  question: SimilarQuestionResolved;
   score: number;
   reasons: string[];
 }

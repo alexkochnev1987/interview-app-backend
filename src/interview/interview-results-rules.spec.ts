@@ -45,6 +45,7 @@ describe('interview-results-rules', () => {
             trustFlags: [],
             behaviorSummary: { riskLevel: 'low', notes: [] },
             questionResults: [],
+            interviewLocale: 'en',
             completedAt: new Date('2026-06-05T12:00:00.000Z'),
           },
         }),

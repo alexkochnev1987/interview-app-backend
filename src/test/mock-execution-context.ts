@@ -2,7 +2,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { UserRole } from '../user/interfaces/user.interface';
 
 export function mockExecutionContext(options: {
-  user?: { role: UserRole };
+  user?: { role: UserRole; demo?: boolean };
   cookies?: Record<string, string>;
   query?: Record<string, string>;
 } = {}): ExecutionContext {

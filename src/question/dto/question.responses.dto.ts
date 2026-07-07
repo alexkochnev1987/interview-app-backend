@@ -1,33 +1,40 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
+import { QuestionTranslations } from '../interfaces/question.interface';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
+import { QuestionTranslationDto } from './question-translation.dto';
+import {
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question-rubric.dto';
 
-export class QuestionExpectedConceptDto {
+export {
+  QuestionExpectedConceptDto,
+  QuestionRedFlagDto,
+} from './question-rubric.dto';
+
+@ApiExtraModels(QuestionTranslationDto)
+export class QuestionDeleteBlockingInterviewDto {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
-  label: string;
+  candidateName: string;
 
-  @ApiProperty()
-  weight: number;
-
-  @ApiProperty()
-  description: string;
-}
-
-export class QuestionRedFlagDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  label: string;
-
-  @ApiProperty({ enum: ['low', 'medium', 'high'] })
-  severity: 'low' | 'medium' | 'high';
+  @ApiProperty({
+    description: 'Staff app path to open the blocking interview.',
+    example: '/interviews/550e8400-e29b-41d4-a716-446655440000',
+  })
+  href: string;
 }
 
 export class QuestionResponseDto {
   @ApiProperty()
   id: string;
+
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  primaryLocale?: Locale;
 
   @ApiPropertyOptional()
   externalId?: string;
@@ -38,8 +45,20 @@ export class QuestionResponseDto {
   @ApiPropertyOptional()
   focus?: string;
 
-  @ApiProperty()
-  outputLanguage: string;
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: `Legacy display label derived from primaryLocale. ${OUTPUT_LANGUAGE_OPENAPI_NOTE}`,
+  })
+  outputLanguage?: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { $ref: getSchemaPath(QuestionTranslationDto) },
+    description:
+      'Locale-keyed rubric blocks (`Record<locale, QuestionTranslationDto>`). ' +
+      'Included by default on GET /questions/:id; on list GET when `?includeTranslations=true`; always on POST/PUT/PATCH responses.',
+  })
+  translations?: QuestionTranslations;
 
   @ApiPropertyOptional()
   category?: string;
@@ -86,13 +105,47 @@ export class QuestionResponseDto {
   @ApiProperty()
   deleted: boolean;
 
+  @ApiProperty({
+    description:
+      'True when deletion is scheduled because the question is still used by active interviews.',
+  })
+  pendingDeletion: boolean;
+
+  @ApiPropertyOptional({
+    type: [QuestionDeleteBlockingInterviewDto],
+    description:
+      'Present when pendingDeletion is true — active interviews still using this question.',
+  })
+  blockingInterviews?: QuestionDeleteBlockingInterviewDto[];
+
   @ApiProperty({ description: 'Number of times this question has been used in an interview.' })
   usageCount: number;
 }
 
+export class ResolvedQuestionResponseDto extends QuestionResponseDto {
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  declare primaryLocale: Locale;
+
+  @ApiProperty({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale of returned questionText and rubric fields.',
+  })
+  resolvedLocale: Locale;
+
+  @ApiProperty({ enum: SUPPORTED_LOCALES, isArray: true })
+  availableLocales: Locale[];
+
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description:
+      'Requested X-Locale (or ?locale= on list). Omitted when resolvedLocale matches. Also set when rubric fields partially fall back to primaryLocale while questionText matches the request.',
+  })
+  fallbackFromLocale?: Locale;
+}
+
 export class PaginatedQuestionsResponseDto {
-  @ApiProperty({ type: [QuestionResponseDto] })
-  items: QuestionResponseDto[];
+  @ApiProperty({ type: [ResolvedQuestionResponseDto] })
+  items: ResolvedQuestionResponseDto[];
 
   @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
   total: number;
@@ -102,6 +155,71 @@ export class PaginatedQuestionsResponseDto {
 
   @ApiProperty()
   limit: number;
+}
+
+export class QuestionDraftContentResponseDto {
+  @ApiProperty({ enum: SUPPORTED_LOCALES })
+  primaryLocale: Locale;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({ type: [QuestionExpectedConceptDto] })
+  expectedConcepts: QuestionExpectedConceptDto[];
+
+  @ApiProperty({ type: [QuestionRedFlagDto] })
+  redFlags: QuestionRedFlagDto[];
+
+  @ApiProperty()
+  sampleGoodAnswer: string;
+}
+
+/** `mode=generate` — identity + rubric; HR sets primaryLocale separately. */
+export class QuestionDraftGenerateResponseDto {
+  @ApiPropertyOptional()
+  externalId?: string;
+
+  @ApiPropertyOptional()
+  role?: string;
+
+  @ApiPropertyOptional()
+  focus?: string;
+
+  @ApiPropertyOptional()
+  category?: string;
+
+  @ApiPropertyOptional()
+  subcategory?: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ type: [String] })
+  followUpQuestions: string[];
+
+  @ApiProperty({ type: [QuestionExpectedConceptDto] })
+  expectedConcepts: QuestionExpectedConceptDto[];
+
+  @ApiProperty({ type: [QuestionRedFlagDto] })
+  redFlags: QuestionRedFlagDto[];
+
+  @ApiProperty({ enum: ['easy', 'medium', 'hard'] })
+  difficulty: 'easy' | 'medium' | 'hard';
+
+  @ApiProperty()
+  weight: number;
+
+  @ApiProperty()
+  sampleGoodAnswer: string;
+
+  @ApiProperty()
+  minimumPassScore: number;
+
+  @ApiProperty({ type: [String] })
+  tags: string[];
 }
 
 export class QuestionDraftResponseDto {
@@ -114,8 +232,17 @@ export class QuestionDraftResponseDto {
   @ApiPropertyOptional()
   focus?: string;
 
-  @ApiProperty()
-  outputLanguage: string;
+  @ApiPropertyOptional({
+    enum: SUPPORTED_LOCALES,
+    description: 'Locale used for generation (body `locale` or `X-Locale`).',
+  })
+  primaryLocale?: Locale;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: OUTPUT_LANGUAGE_OPENAPI_NOTE,
+  })
+  outputLanguage?: string;
 
   @ApiPropertyOptional()
   category?: string;
@@ -158,11 +285,17 @@ export class DeleteQuestionResponseDto {
   @ApiProperty()
   id: string;
 
-  @ApiProperty({ example: true })
-  deleted: true;
+  @ApiPropertyOptional({ example: true })
+  deleted?: true;
+
+  @ApiPropertyOptional({ example: true })
+  scheduled?: true;
+
+  @ApiPropertyOptional({ type: [QuestionDeleteBlockingInterviewDto] })
+  blockingInterviews?: QuestionDeleteBlockingInterviewDto[];
 }
 
-export class BulkDeleteBlockedItemDto {
+export class BulkDeleteScheduledItemDto {
   @ApiProperty()
   id: string;
 
@@ -171,19 +304,22 @@ export class BulkDeleteBlockedItemDto {
 
   @ApiProperty()
   reason: string;
+
+  @ApiProperty({ type: [QuestionDeleteBlockingInterviewDto] })
+  blockingInterviews: QuestionDeleteBlockingInterviewDto[];
 }
 
 export class BulkDeleteQuestionsResponseDto {
   @ApiProperty({ type: [String] })
   deleted: string[];
 
-  @ApiProperty({ type: [BulkDeleteBlockedItemDto] })
-  blocked: BulkDeleteBlockedItemDto[];
+  @ApiProperty({ type: [BulkDeleteScheduledItemDto] })
+  scheduled: BulkDeleteScheduledItemDto[];
 }
 
 export class SimilarQuestionMatchDto {
-  @ApiProperty({ type: QuestionResponseDto })
-  question: QuestionResponseDto;
+  @ApiProperty({ type: ResolvedQuestionResponseDto })
+  question: ResolvedQuestionResponseDto;
 
   @ApiProperty()
   score: number;
