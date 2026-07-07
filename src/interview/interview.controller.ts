@@ -39,7 +39,6 @@ import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
-import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import { QueryInterviewsDto } from './dto/query-interviews.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
