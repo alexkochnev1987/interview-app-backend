@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -13,6 +14,7 @@ import {
   INTERVIEW_STATUSES,
   InterviewStatus,
 } from '../interfaces/interview.interface';
+import { parseBooleanQuery } from './list-interviews-query.dto';
 
 export const INTERVIEW_SORT_FIELDS = [
   'candidateName',
@@ -55,6 +57,16 @@ export class InterviewListFiltersDto {
 }
 
 export class QueryInterviewsDto extends InterviewListFiltersDto {
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseBooleanQuery(value))
+  @IsBoolean()
+  paginated?: boolean;
+
   @ApiPropertyOptional({ enum: INTERVIEW_SORT_FIELDS, default: 'updatedAt' })
   @IsOptional()
   @IsIn([...INTERVIEW_SORT_FIELDS])

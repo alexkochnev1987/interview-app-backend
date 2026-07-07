@@ -81,6 +81,24 @@ describe('Interview list API (integration)', () => {
     expect(item).not.toHaveProperty('workflow');
   });
 
+  it('accepts the deprecated paginated flag without returning 400', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    const response = await agent
+      .get('/interviews')
+      .query({ paginated: true, page: 1, limit: 10 })
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      total: expect.any(Number),
+      page: 1,
+      limit: 10,
+      items: expect.any(Array),
+    });
+  });
+
   it('wires list filters and facets with Postgres', async () => {
     const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);

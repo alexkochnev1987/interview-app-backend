@@ -122,7 +122,13 @@ export class InterviewController {
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiOperation({ summary: 'List interviews (paginated, filterable, sortable)' })
+  @ApiOperation({
+    summary: 'List interviews (paginated, filterable, sortable)',
+    description:
+      'Always returns { items, total, page, limit } with slim InterviewListItem rows. ' +
+      'The legacy `paginated` query flag is accepted but ignored for backward compatibility. ' +
+      'Plain-array responses from older clients are no longer supported on this endpoint.',
+  })
   @ApiOkResponse({ type: PaginatedInterviewsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   findAll(
