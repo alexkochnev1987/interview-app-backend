@@ -58,6 +58,7 @@ export class UploadController {
       dto.questionIndex,
       dto.contentType,
       dto.mediaType,
+      dto.versionNumber,
     );
   }
 
@@ -93,6 +94,7 @@ export class UploadController {
       dto.questionIndex,
       dto.contentType,
       dto.mediaType,
+      dto.versionNumber,
     );
   }
 

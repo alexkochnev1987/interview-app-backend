@@ -26,6 +26,10 @@ import {
   InterviewMediaType,
   matchesInterviewMediaKey,
 } from './upload-key';
+import {
+  getAnswerAttemptLimitBlockReason,
+  getSavedAnswerVersions,
+} from '../interview/answer-attempt-rules';
 
 export interface PresignedDownloadUrlResponse {
   downloadUrl: string;
@@ -64,9 +68,14 @@ export class UploadService {
     questionIndex: number,
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
+    versionNumber?: number,
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -93,9 +102,14 @@ export class UploadService {
     questionIndex: number,
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
+    versionNumber?: number,
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -275,6 +289,7 @@ export class UploadService {
   private async assertCurrentQuestionUploadAllowed(
     interviewId: string,
     questionIndex: number,
+    versionNumber?: number,
   ): Promise<void> {
     const interview = await this.interviewService.findOne(interviewId);
     const currentQuestionIndex = interview.answers.filter(
@@ -289,6 +304,21 @@ export class UploadService {
     }
     if (questionIndex >= interview.questions.length) {
       throw new BadRequestException('Question index is out of range');
+    }
+
+    const answer = interview.answers.find(
+      (item) => item.questionIndex === questionIndex,
+    );
+    const attemptLimitReason = getAnswerAttemptLimitBlockReason(
+      getSavedAnswerVersions(answer),
+      versionNumber,
+    );
+    if (attemptLimitReason) {
+      throw apiBadRequest(
+        ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+        attemptLimitReason,
+        { interviewId, questionIndex, versionNumber },
+      );
     }
   }
 
