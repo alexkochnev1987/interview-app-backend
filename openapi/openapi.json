@@ -2473,24 +2473,6 @@
         "description": "Returns position and status counts. Counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking.",
         "parameters": [
           {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "description": "Search by candidates name",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "position",
-            "required": false,
-            "in": "query",
-            "description": "Filter by position (exact match)",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -2504,6 +2486,20 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "name": "position",
+            "required": false,
+            "in": "query",
+            "description": "Filter by position (exact match)",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search by candidates name",
+            "schema": {}
           },
           {
             "name": "X-Locale",

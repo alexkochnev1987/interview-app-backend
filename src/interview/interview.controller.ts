@@ -39,6 +39,7 @@ import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import { QueryInterviewsDto } from './dto/query-interviews.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
@@ -57,6 +58,7 @@ import {
   Interview,
   InterviewCancelResult,
   InterviewResult,
+  INTERVIEW_STATUSES,
 } from './interfaces/interview.interface';
 import {
   InterviewFacets,
@@ -140,6 +142,23 @@ export class InterviewController {
   })
   @ApiOkResponse({ type: InterviewFacetsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search by candidates name',
+  })
+  @ApiQuery({
+    name: 'position',
+    required: false,
+    type: String,
+    description: 'Filter by position (exact match)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: INTERVIEW_STATUSES,
+  })
   getFacets(
     @Query() rawQuery: Record<string, unknown>,
     @CurrentUser() user: ActingUser,
