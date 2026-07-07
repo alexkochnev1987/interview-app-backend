@@ -41,7 +41,7 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
 
 async function downloadInterviewMedia(
   mediaKey: string,
-): Promise<{ buffer: Buffer; contentType: string }> {
+): Promise<Buffer> {
   const bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
   const response = await getS3Client().send(
     new GetObjectCommand({ Bucket: bucket, Key: mediaKey }),
@@ -51,11 +51,7 @@ async function downloadInterviewMedia(
     throw new Error(`S3 object "${mediaKey}" returned an empty body.`);
   }
 
-  const buffer = await streamToBuffer(response.Body as Readable);
-  return {
-    buffer,
-    contentType: response.ContentType ?? 'video/webm',
-  };
+  return streamToBuffer(response.Body as Readable);
 }
 
 async function readErrorBody(res: Response): Promise<string> {
@@ -131,9 +127,7 @@ export async function extractAudioFromVideo(
       const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
       if (code !== 0) {
         if (
-          /does not contain any stream|no audio|Invalid data found/i.test(
-            stderr,
-          )
+          /does not contain any stream|audio.*not found|no audio/i.test(stderr)
         ) {
           reject(
             new Error(
@@ -179,7 +173,7 @@ export async function transcribeInterviewMedia(
     'https://api.openai.com/v1').replace(/\/$/, '');
   const model = process.env.OPENAI_WHISPER_MODEL?.trim() ?? 'whisper-1';
 
-  const { buffer: videoBuffer } = await downloadInterviewMedia(mediaKey);
+  const videoBuffer = await downloadInterviewMedia(mediaKey);
   const filename = mediaKey.split('/').pop() ?? 'recording.webm';
   const audioBuffer = await extractAudioFromVideo(videoBuffer);
   const audioFilename = toAudioFilename(filename);
