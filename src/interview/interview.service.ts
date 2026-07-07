@@ -66,7 +66,7 @@ import {
   DEMO_USER_ID,
 } from '../database/demo-seed-data';
 import { buildInterviewFilterClauses } from './interview-list-filters';
-import { toInterviewListItem } from './interview-list-item';
+import { fromInterviewListRow, InterviewListRow } from './interview-list-item';
 
 export const DEFAULT_INTERVIEWS_PAGE = 1;
 export const DEFAULT_INTERVIEWS_LIMIT = 20;
@@ -128,6 +128,27 @@ const INTERVIEW_SELECT_COLUMNS = `
   demo,
   created_at,
   updated_at
+`;
+
+const INTERVIEW_LIST_SELECT_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  status,
+  created_at,
+  updated_at,
+  COALESCE(jsonb_array_length(questions_json), 0) AS question_count,
+  (
+    SELECT COUNT(*)::int
+    FROM jsonb_array_elements(COALESCE(answers_json, '[]'::jsonb)) AS answer(value)
+    WHERE COALESCE(answer.value->>'status', 'submitted') = 'submitted'
+  ) AS submitted_answer_count,
+  CASE
+    WHEN result_json IS NULL THEN NULL
+    ELSE COALESCE((result_json->>'overallScore')::double precision, 0)
+  END AS overall_score,
+  result_json->>'decision' AS decision
 `;
 
 const INTERVIEW_UPDATE_SQL = `
@@ -543,7 +564,7 @@ export class InterviewService {
     const offsetParam = params.length;
 
     const sql = `
-      SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
+      SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
       FROM interviews
       ${whereSql}
       ORDER BY ${sortExpression} ${sortOrder}, id ASC
@@ -551,14 +572,12 @@ export class InterviewService {
     `;
 
     const result = await this.databaseService.query<
-      InterviewRow & { __total: string }
+      InterviewListRow & { __total: string }
     >(sql, params);
 
     const total =
       result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-    const items = result.rows.map((row) =>
-      toInterviewListItem(this.mapRow(row)),
-    );
+    const items = result.rows.map((row) => fromInterviewListRow(row));
 
     return { items, total, page, limit };
   }
