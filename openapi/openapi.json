@@ -2324,6 +2324,7 @@
       "get": {
         "operationId": "InterviewController_findAll",
         "summary": "List interviews (paginated, filterable, sortable)",
+        "description": "Always returns { items, total, page, limit } with slim InterviewListItem rows. The legacy `paginated` query flag is accepted but ignored for backward compatibility. Plain-array responses from older clients are no longer supported on this endpoint.",
         "parameters": [
           {
             "name": "q",
@@ -2356,6 +2357,16 @@
                 "failed"
               ],
               "type": "string"
+            }
+          },
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "deprecated": true,
+            "description": "Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
