@@ -1,11 +1,34 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { Readable } from 'stream';
 
 export interface WhisperTranscriptionResult {
   text: string;
   language?: string;
 }
+
+export const WHISPER_MAX_FILE_BYTES = 26_214_400;
+const FFMPEG_EXTRACTION_TIMEOUT_MS = 120_000;
+
+const FFMPEG_AUDIO_ARGS = [
+  '-hide_banner',
+  '-loglevel',
+  'error',
+  '-i',
+  'pipe:0',
+  '-vn',
+  '-ac',
+  '1',
+  '-ar',
+  '16000',
+  '-acodec',
+  'libmp3lame',
+  '-b:a',
+  '32k',
+  '-f',
+  'mp3',
+  'pipe:1',
+] as const;
 
 let cachedS3Client: S3Client | null = null;
 
@@ -39,9 +62,7 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-async function downloadInterviewMedia(
-  mediaKey: string,
-): Promise<Buffer> {
+async function downloadInterviewMedia(mediaKey: string): Promise<Buffer> {
   const bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
   const response = await getS3Client().send(
     new GetObjectCommand({ Bucket: bucket, Key: mediaKey }),
@@ -70,6 +91,14 @@ function toAudioFilename(videoFilename: string): string {
   return `${baseName}.mp3`;
 }
 
+export function assertUnderWhisperLimit(audioBuffer: Buffer): void {
+  if (audioBuffer.length >= WHISPER_MAX_FILE_BYTES) {
+    throw new Error(
+      `Extracted audio (${audioBuffer.length} bytes) exceeds the Whisper upload limit (${WHISPER_MAX_FILE_BYTES} bytes).`,
+    );
+  }
+}
+
 export async function extractAudioFromVideo(
   videoBuffer: Buffer,
 ): Promise<Buffer> {
@@ -80,28 +109,31 @@ export async function extractAudioFromVideo(
   return new Promise((resolve, reject) => {
     const stderrChunks: Buffer[] = [];
     const stdoutChunks: Buffer[] = [];
+    let settled = false;
 
-    const ffmpeg = spawn(
-      'ffmpeg',
-      [
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-f',
-        'webm',
-        '-i',
-        'pipe:0',
-        '-vn',
-        '-acodec',
-        'libmp3lame',
-        '-q:a',
-        '4',
-        '-f',
-        'mp3',
-        'pipe:1',
-      ],
-      { stdio: ['pipe', 'pipe', 'pipe'] },
-    );
+    const ffmpeg = spawn('ffmpeg', [...FFMPEG_AUDIO_ARGS], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }) as ChildProcessWithoutNullStreams;
+
+    const finish = (handler: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      handler();
+    };
+
+    const timeout = setTimeout(() => {
+      finish(() => {
+        ffmpeg.kill('SIGKILL');
+        reject(
+          new Error(
+            `ffmpeg audio extraction timed out after ${FFMPEG_EXTRACTION_TIMEOUT_MS}ms`,
+          ),
+        );
+      });
+    }, FFMPEG_EXTRACTION_TIMEOUT_MS);
 
     ffmpeg.stdin.on('error', () => {
       // Ignore EPIPE when ffmpeg exits before stdin is fully consumed.
@@ -116,45 +148,58 @@ export async function extractAudioFromVideo(
     });
 
     ffmpeg.on('error', (err) => {
-      reject(
-        new Error(
-          `Failed to run ffmpeg (is it installed?): ${err.message}`,
-        ),
-      );
+      finish(() => {
+        reject(
+          new Error(
+            `Failed to run ffmpeg (is it installed?): ${err.message}`,
+          ),
+        );
+      });
     });
 
     ffmpeg.on('close', (code) => {
-      const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-      if (code !== 0) {
-        if (
-          /does not contain any stream|audio.*not found|no audio/i.test(stderr)
-        ) {
+      finish(() => {
+        const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+        if (code !== 0) {
+          if (
+            /does not contain any stream|audio.*not found|no audio/i.test(
+              stderr,
+            )
+          ) {
+            reject(
+              new Error(
+                `No audio track in interview recording${stderr ? `: ${stderr}` : ''}`,
+              ),
+            );
+            return;
+          }
           reject(
             new Error(
-              `No audio track in interview recording${stderr ? `: ${stderr}` : ''}`,
+              `ffmpeg audio extraction failed (exit ${code})${stderr ? `: ${stderr}` : ''}`,
             ),
           );
           return;
         }
-        reject(
-          new Error(
-            `ffmpeg audio extraction failed (exit ${code})${stderr ? `: ${stderr}` : ''}`,
-          ),
-        );
-        return;
-      }
 
-      const audioBuffer = Buffer.concat(stdoutChunks);
-      if (!audioBuffer.length) {
-        reject(
-          new Error(
-            'ffmpeg produced empty audio output (recording may have no audio track).',
-          ),
-        );
-        return;
-      }
+        const audioBuffer = Buffer.concat(stdoutChunks);
+        if (!audioBuffer.length) {
+          reject(
+            new Error(
+              'ffmpeg produced empty audio output (recording may have no audio track).',
+            ),
+          );
+          return;
+        }
 
-      resolve(audioBuffer);
+        try {
+          assertUnderWhisperLimit(audioBuffer);
+        } catch (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(audioBuffer);
+      });
     });
 
     ffmpeg.stdin.end(videoBuffer);

@@ -1,7 +1,11 @@
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import { spawn } from 'child_process';
-import { extractAudioFromVideo } from './whisper-transcribe';
+import {
+  assertUnderWhisperLimit,
+  extractAudioFromVideo,
+  WHISPER_MAX_FILE_BYTES,
+} from './whisper-transcribe';
 
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
@@ -9,20 +13,46 @@ jest.mock('child_process', () => ({
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
+const EXPECTED_FFMPEG_ARGS = [
+  '-hide_banner',
+  '-loglevel',
+  'error',
+  '-i',
+  'pipe:0',
+  '-vn',
+  '-ac',
+  '1',
+  '-ar',
+  '16000',
+  '-acodec',
+  'libmp3lame',
+  '-b:a',
+  '32k',
+  '-f',
+  'mp3',
+  'pipe:1',
+];
+
 function createMockFfmpegProcess(options: {
   stdout?: Buffer;
   stderr?: string;
   exitCode?: number;
   spawnError?: Error;
+  hang?: boolean;
 }) {
   const stdin = new PassThrough();
   const stdout = new PassThrough();
   const stderr = new PassThrough();
   const proc = new EventEmitter() as ReturnType<typeof spawn>;
-  Object.assign(proc, { stdin, stdout, stderr, kill: jest.fn() });
+  const kill = jest.fn();
+  Object.assign(proc, { stdin, stdout, stderr, kill });
 
   if (options.spawnError) {
     setImmediate(() => proc.emit('error', options.spawnError));
+    return proc;
+  }
+
+  if (options.hang) {
     return proc;
   }
 
@@ -46,6 +76,7 @@ function createMockFfmpegProcess(options: {
 describe('extractAudioFromVideo', () => {
   beforeEach(() => {
     mockSpawn.mockReset();
+    jest.useRealTimers();
   });
 
   it('returns mp3 buffer produced by ffmpeg', async () => {
@@ -55,27 +86,9 @@ describe('extractAudioFromVideo', () => {
     const result = await extractAudioFromVideo(Buffer.from('video-webm'));
 
     expect(result).toEqual(mp3);
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'ffmpeg',
-      [
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-f',
-        'webm',
-        '-i',
-        'pipe:0',
-        '-vn',
-        '-acodec',
-        'libmp3lame',
-        '-q:a',
-        '4',
-        '-f',
-        'mp3',
-        'pipe:1',
-      ],
-      { stdio: ['pipe', 'pipe', 'pipe'] },
-    );
+    expect(mockSpawn).toHaveBeenCalledWith('ffmpeg', EXPECTED_FFMPEG_ARGS, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
   });
 
   it('throws when ffmpeg exits with an error', async () => {
@@ -114,6 +127,19 @@ describe('extractAudioFromVideo', () => {
     );
   });
 
+  it('throws when extracted audio exceeds the Whisper upload limit', async () => {
+    mockSpawn.mockReturnValue(
+      createMockFfmpegProcess({
+        exitCode: 0,
+        stdout: Buffer.alloc(WHISPER_MAX_FILE_BYTES),
+      }),
+    );
+
+    await expect(extractAudioFromVideo(Buffer.from('video'))).rejects.toThrow(
+      'exceeds the Whisper upload limit',
+    );
+  });
+
   it('throws when ffmpeg is not available', async () => {
     mockSpawn.mockReturnValue(
       createMockFfmpegProcess({
@@ -126,10 +152,38 @@ describe('extractAudioFromVideo', () => {
     );
   });
 
+  it('kills ffmpeg when extraction hangs', async () => {
+    jest.useFakeTimers();
+    const proc = createMockFfmpegProcess({ hang: true });
+    mockSpawn.mockReturnValue(proc);
+
+    const promise = extractAudioFromVideo(Buffer.from('video'));
+    jest.advanceTimersByTime(120_001);
+
+    await expect(promise).rejects.toThrow(
+      'ffmpeg audio extraction timed out after 120000ms',
+    );
+    expect(proc.kill).toHaveBeenCalledWith('SIGKILL');
+  });
+
   it('throws for an empty video buffer', async () => {
     await expect(extractAudioFromVideo(Buffer.alloc(0))).rejects.toThrow(
       'Cannot extract audio from an empty video buffer.',
     );
     expect(mockSpawn).not.toHaveBeenCalled();
+  });
+});
+
+describe('assertUnderWhisperLimit', () => {
+  it('allows audio below the Whisper limit', () => {
+    expect(() =>
+      assertUnderWhisperLimit(Buffer.alloc(WHISPER_MAX_FILE_BYTES - 1)),
+    ).not.toThrow();
+  });
+
+  it('rejects audio at or above the Whisper limit', () => {
+    expect(() =>
+      assertUnderWhisperLimit(Buffer.alloc(WHISPER_MAX_FILE_BYTES)),
+    ).toThrow('exceeds the Whisper upload limit');
   });
 });
