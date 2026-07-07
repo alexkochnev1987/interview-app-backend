@@ -2492,14 +2492,18 @@
             "required": false,
             "in": "query",
             "description": "Filter by position (exact match)",
-            "schema": {}
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "q",
             "required": false,
             "in": "query",
             "description": "Search by candidates name",
-            "schema": {}
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "X-Locale",
