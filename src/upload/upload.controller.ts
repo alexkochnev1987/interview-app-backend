@@ -114,6 +114,7 @@ export class UploadController {
       dto.mediaKey,
       dto.uploadId,
       dto.partNumber,
+      dto.versionNumber,
     );
   }
 
@@ -132,6 +133,7 @@ export class UploadController {
       dto.questionIndex,
       dto.mediaKey,
       dto.uploadId,
+      dto.versionNumber,
     );
   }
 
@@ -150,6 +152,7 @@ export class UploadController {
       dto.questionIndex,
       dto.mediaKey,
       dto.uploadId,
+      dto.versionNumber,
     );
   }
 }

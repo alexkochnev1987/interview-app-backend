@@ -145,8 +145,13 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     partNumber: number,
+    versionNumber?: number,
   ): Promise<MultipartUploadPartResponseDto> {
-    await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+    );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     if (!uploadId.trim()) {
@@ -180,8 +185,13 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     uploadId: string,
+    versionNumber?: number,
   ): Promise<MultipartUploadCompleteResponseDto> {
-    await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+    );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     const normalizedUploadId = uploadId.trim();
@@ -233,8 +243,13 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     uploadId: string,
+    versionNumber?: number,
   ): Promise<MultipartUploadAbortResponseDto> {
-    await this.assertCurrentQuestionUploadAllowed(interviewId, questionIndex);
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+    );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     const normalizedUploadId = uploadId.trim();

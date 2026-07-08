@@ -7086,6 +7086,10 @@
           },
           "partNumber": {
             "type": "number"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [
@@ -7129,6 +7133,10 @@
           },
           "uploadId": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [
@@ -7168,6 +7176,10 @@
           },
           "uploadId": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [

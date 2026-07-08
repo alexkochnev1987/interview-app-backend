@@ -98,6 +98,16 @@ export class PresignMultipartPartDto {
   @IsInt()
   @Min(1)
   partNumber!: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber?: number;
 }
 
 export class CompleteMultipartUploadDto {
@@ -116,6 +126,16 @@ export class CompleteMultipartUploadDto {
   @IsString()
   @IsNotEmpty()
   uploadId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber?: number;
 }
 
 export class AbortMultipartUploadDto {
@@ -134,6 +154,16 @@ export class AbortMultipartUploadDto {
   @IsString()
   @IsNotEmpty()
   uploadId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber?: number;
 }
 
 export class PresignedUrlResponseDto {
