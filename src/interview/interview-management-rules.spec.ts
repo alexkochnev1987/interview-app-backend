@@ -1,5 +1,7 @@
 import {
+  getInterviewCompletedOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
+  INTERVIEW_COMPLETED_ONLY_MESSAGE,
   INTERVIEW_PENDING_ONLY_MESSAGE,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
@@ -19,6 +21,25 @@ describe('interview-management-rules', () => {
       ] as const) {
         expect(getInterviewPendingOnlyBlockReason(status)).toBe(
           INTERVIEW_PENDING_ONLY_MESSAGE,
+        );
+      }
+    });
+  });
+
+  describe('getInterviewCompletedOnlyBlockReason', () => {
+    it('allows completed interviews', () => {
+      expect(getInterviewCompletedOnlyBlockReason('completed')).toBeNull();
+    });
+
+    it('blocks non-completed interviews', () => {
+      for (const status of [
+        'pending',
+        'in_progress',
+        'processing',
+        'failed',
+      ] as const) {
+        expect(getInterviewCompletedOnlyBlockReason(status)).toBe(
+          INTERVIEW_COMPLETED_ONLY_MESSAGE,
         );
       }
     });
