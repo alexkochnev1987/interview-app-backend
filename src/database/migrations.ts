@@ -703,4 +703,16 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE interview_templates DROP COLUMN IF EXISTS usage_count;`,
     ],
   },
+  {
+    version: '0038',
+    name: 'index_interview_templates_demo_updated_at',
+    statements: [
+      // The list query filters by demo and orders by updated_at DESC; a composite
+      // index serves that ordered scan (and still covers demo-only lookups).
+      `CREATE INDEX IF NOT EXISTS interview_templates_demo_updated_at_idx ON interview_templates (demo, updated_at DESC);`,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS interview_templates_demo_updated_at_idx;`,
+    ],
+  },
 ];

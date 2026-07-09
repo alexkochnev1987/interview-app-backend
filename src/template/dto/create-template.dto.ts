@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
   IsArray,
@@ -12,6 +13,10 @@ import {
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
+
+// Upper bound on a template's question set; keeps the JSONB column and the
+// batch resolve query from being bloated by an unbounded array.
+export const MAX_TEMPLATE_QUESTIONS = 100;
 
 export class CreateTemplateDto {
   @ApiProperty()
@@ -50,6 +55,7 @@ export class CreateTemplateDto {
   // Reject non-UUIDs so a malformed reference can never persist and break the read path.
   @IsUUID('all', { each: true })
   @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_TEMPLATE_QUESTIONS)
   @ArrayUnique()
   questionIds: string[];
 }

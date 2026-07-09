@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
   IsArray,
@@ -9,6 +10,7 @@ import {
   IsUUID,
   Length,
 } from 'class-validator';
+import { MAX_TEMPLATE_QUESTIONS } from './create-template.dto';
 
 const trimString = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -47,6 +49,7 @@ export class UpdateTemplateDto {
   @IsString({ each: true })
   @IsUUID('all', { each: true })
   @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_TEMPLATE_QUESTIONS)
   @ArrayUnique()
   questionIds?: string[];
 }
