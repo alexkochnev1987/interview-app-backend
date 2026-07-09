@@ -9,6 +9,7 @@ import { TakeModule } from './take/take.module';
 import { AiModule } from './ai/ai.module';
 import { DatabaseModule } from './database/database.module';
 import { QuestionModule } from './question/question.module';
+import { TemplateModule } from './template/template.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { LocaleModule } from './locale/locale.module';
@@ -22,6 +23,7 @@ import { LocaleModule } from './locale/locale.module';
     AuthModule,
     UserModule,
     QuestionModule,
+    TemplateModule,
     InterviewModule,
     UploadModule,
     HealthModule,

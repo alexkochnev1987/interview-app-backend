@@ -38,6 +38,23 @@ describe('permissions', () => {
     expect(hasPermission('candidate', 'questions:read')).toBe(false);
   });
 
+  it('grants super_admin, admin, and hr full interview-template CRUD', () => {
+    const templatePermissions = [
+      'templates:create',
+      'templates:read',
+      'templates:update',
+      'templates:delete',
+    ] as const;
+    for (const role of ['super_admin', 'admin', 'hr'] as const) {
+      for (const permission of templatePermissions) {
+        expect(hasPermission(role, permission)).toBe(true);
+      }
+    }
+    for (const permission of templatePermissions) {
+      expect(hasPermission('candidate', permission)).toBe(false);
+    }
+  });
+
   describe('demo read-only mode', () => {
     it('keeps HR read permissions but strips every write for a demo user', () => {
       const effective = getEffectivePermissions('hr', true);
@@ -60,6 +77,15 @@ describe('permissions', () => {
       expect(hasEffectivePermission('hr', true, 'interviews:read_own')).toBe(true);
       expect(hasEffectivePermission('hr', true, 'interviews:create')).toBe(false);
       expect(hasEffectivePermission('hr', true, 'interviews:update_own')).toBe(false);
+    });
+
+    it('lets a demo user read templates but not mutate them', () => {
+      expect(hasEffectivePermission('hr', true, 'templates:read')).toBe(true);
+      expect(hasEffectivePermission('hr', true, 'templates:create')).toBe(false);
+      expect(hasEffectivePermission('hr', true, 'templates:update')).toBe(false);
+      expect(hasEffectivePermission('hr', true, 'templates:delete')).toBe(false);
+      expect(getEffectivePermissions('hr', true)).toContain('templates:read');
+      expect(getEffectivePermissions('hr', true)).not.toContain('templates:create');
     });
 
     it('still requires the underlying role permission even in read-only mode', () => {
