@@ -5250,6 +5250,7 @@
           "REGISTRATION_FAILED",
           "UPLOAD_FAILED",
           "UPLOAD_NOT_ALLOWED",
+          "ANSWER_ATTEMPT_LIMIT_REACHED",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -7703,6 +7704,10 @@
               "camera",
               "screen"
             ]
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
           }
         },
         "required": [
@@ -7774,6 +7779,10 @@
               "camera",
               "screen"
             ]
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
           }
         },
         "required": [
@@ -7810,6 +7819,10 @@
           },
           "partNumber": {
             "type": "number"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [
@@ -7853,6 +7866,10 @@
           },
           "uploadId": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [
@@ -7892,6 +7909,10 @@
           },
           "uploadId": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
           }
         },
         "required": [
