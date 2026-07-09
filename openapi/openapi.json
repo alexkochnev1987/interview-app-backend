@@ -2751,89 +2751,6 @@
         ]
       }
     },
-    "/templates/{id}/use": {
-      "post": {
-        "operationId": "TemplateController_recordUse",
-        "summary": "Record that an interview was created from this template",
-        "description": "Increments the template popularity (usage_count). Gated on interviews:create so only users who can create interviews (never demo accounts) affect it.",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Locale",
-            "in": "header",
-            "required": false,
-            "description": "Response language for localized content. Defaults to `en` when omitted.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "en",
-                "be",
-                "ru",
-                "pl"
-              ],
-              "default": "en"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateUsageResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "templates"
-        ],
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ]
-      }
-    },
     "/interviews": {
       "post": {
         "operationId": "InterviewController_create",
@@ -6634,22 +6551,6 @@
           }
         }
       },
-      "TemplateUsageResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "usageCount": {
-            "type": "number",
-            "description": "Usage count after the increment."
-          }
-        },
-        "required": [
-          "id",
-          "usageCount"
-        ]
-      },
       "DeleteTemplateResponseDto": {
         "type": "object",
         "properties": {
@@ -6690,6 +6591,10 @@
             ],
             "default": "en",
             "description": "Locale for interview UI and feedback. Defaults to en when omitted."
+          },
+          "templateId": {
+            "type": "string",
+            "description": "Template this interview was started from. When set, the template popularity (usage_count) is incremented in the same transaction, so usage is recorded server-side rather than by a separate client call."
           },
           "questionIds": {
             "type": "array",

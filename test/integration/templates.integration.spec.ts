@@ -62,12 +62,23 @@ describe('Interview templates (integration)', () => {
     expect(updated.body.name).toBe('Frontend Fundamentals v2');
     expect(updated.body.questionCount).toBe(1);
 
-    // Recording a use bumps popularity.
-    const used = await agent
-      .post(`/templates/${templateId}/use`)
+    // Creating an interview from the template bumps its popularity; usage is
+    // recorded server-side in the same transaction, not by a separate call.
+    await agent
+      .post('/interviews')
       .set(authCookie(session))
+      .send({
+        candidateName: 'Casey Candidate',
+        position: 'Frontend Engineer',
+        questionIds: [seedQuestionId],
+        templateId,
+      })
       .expect(201);
-    expect(used.body.usageCount).toBe(1);
+    const afterUse = await agent
+      .get(`/templates/${templateId}`)
+      .set(authCookie(session))
+      .expect(200);
+    expect(afterUse.body.usageCount).toBe(1);
 
     // An empty question set is rejected by validation.
     await expectStatus(
@@ -152,7 +163,18 @@ describe('Interview templates (integration)', () => {
       403,
     );
     await expectStatus(demo.delete(`/templates/${demoTemplateId}`), 403);
-    // Usage tracking is gated on interviews:create, which demo accounts lack.
-    await expectStatus(demo.post(`/templates/${demoTemplateId}/use`).send({}), 403);
+    // Usage is only ever recorded through interview creation, which demo accounts
+    // cannot perform, so they can never inflate a template's popularity.
+    await expectStatus(
+      demo
+        .post('/interviews')
+        .send({
+          candidateName: 'Nope',
+          position: 'Nope',
+          questionIds: [demoQuestion.id],
+          templateId: demoTemplateId,
+        }),
+      403,
+    );
   });
 });

@@ -55,7 +55,11 @@ describe('TemplateService', () => {
 
   describe('create', () => {
     it('inserts with the demo flag and creator, then resolves live questions', async () => {
-      const { service, query, resolveExistingByIds } = makeService();
+      const { service, query, resolveExistingByIds } = makeService([
+        resolvedQuestion('q1'),
+        resolvedQuestion('q2'),
+        resolvedQuestion('q3'),
+      ]);
       query.mockResolvedValueOnce({ rows: [templateRow({ demo: true })] });
 
       const result = await service.create(
@@ -81,8 +85,8 @@ describe('TemplateService', () => {
         'en',
         { demo: true },
       );
-      expect(result.questionCount).toBe(2);
-      expect(result.questions).toHaveLength(2);
+      expect(result.questionCount).toBe(3);
+      expect(result.questions).toHaveLength(3);
     });
 
     it('rejects an empty question set before touching the database', async () => {
@@ -94,6 +98,20 @@ describe('TemplateService', () => {
           { demo: false },
         ),
       ).rejects.toMatchObject({ message: expect.stringContaining('question') });
+      expect(query).not.toHaveBeenCalled();
+    });
+
+    it('rejects ids that do not resolve to live questions, before inserting', async () => {
+      // Two ids requested, only one resolves (deleted/out-of-scope/nonexistent).
+      const { service, query } = makeService([resolvedQuestion('q1')]);
+
+      await expect(
+        service.create(
+          { name: 'Partial', questionIds: ['q1', 'q2'] },
+          'en',
+          { demo: false },
+        ),
+      ).rejects.toMatchObject({ message: expect.stringContaining('unavailable') });
       expect(query).not.toHaveBeenCalled();
     });
   });
@@ -159,30 +177,6 @@ describe('TemplateService', () => {
 
       await expect(
         service.remove('t1', { demo: false }),
-      ).rejects.toMatchObject({ message: expect.stringContaining('not found') });
-    });
-  });
-
-  describe('recordUse', () => {
-    it('demo-scopes the increment and returns the new usage count', async () => {
-      const { service, query } = makeService();
-      query.mockResolvedValueOnce({ rows: [{ usage_count: 5 }] });
-
-      const result = await service.recordUse('t1', { demo: false });
-
-      const [sql, params] = query.mock.calls[0];
-      expect(sql).toContain('usage_count = usage_count + 1');
-      expect(sql).toContain('demo = $2');
-      expect(params).toEqual(['t1', false]);
-      expect(result).toEqual({ id: 't1', usageCount: 5 });
-    });
-
-    it('throws NOT_FOUND when the template is missing or out of scope', async () => {
-      const { service, query } = makeService();
-      query.mockResolvedValueOnce({ rows: [] });
-
-      await expect(
-        service.recordUse('t1', { demo: false }),
       ).rejects.toMatchObject({ message: expect.stringContaining('not found') });
     });
   });

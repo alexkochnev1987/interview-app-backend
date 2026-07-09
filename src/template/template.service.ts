@@ -82,6 +82,16 @@ export class TemplateService {
       );
     }
 
+    const demo = context.demo === true;
+    // Reject ids that do not resolve to live, in-scope questions so a template is
+    // never persisted dead on arrival (mirrors the id check in interview create).
+    const questions = await this.questionService.resolveExistingByIds(
+      questionIds,
+      locale,
+      { demo },
+    );
+    this.assertAllResolved(questionIds, questions);
+
     const result = await this.databaseService.query<TemplateRow>(
       `
         INSERT INTO interview_templates (
@@ -103,11 +113,11 @@ export class TemplateService {
         this.normalizeOptional(dto.position),
         JSON.stringify(questionIds),
         context.createdById ?? null,
-        context.demo === true,
+        demo,
       ],
     );
 
-    return this.resolve(this.mapRow(result.rows[0]), locale);
+    return this.toResponse(this.mapRow(result.rows[0]), questions);
   }
 
   async findAll(
@@ -174,33 +184,43 @@ export class TemplateService {
       );
     }
 
-    const updated = await this.databaseService.withTransaction(async (client) => {
-      // Lock the row so a concurrent update/delete can't race the demo scope.
-      const existing = await this.findRow(id, options.demo === true, client);
+    const demo = options.demo === true;
+    const { updated, resolvedQuestions } =
+      await this.databaseService.withTransaction(async (client) => {
+        // Lock the row so a concurrent update/delete can't race the demo scope.
+        const existing = await this.findRow(id, demo, client);
 
-      const name = dto.name !== undefined ? dto.name.trim() : existing.name;
-      const description =
-        dto.description !== undefined
-          ? this.normalizeOptional(dto.description)
-          : existing.description;
-      const position =
-        dto.position !== undefined
-          ? this.normalizeOptional(dto.position)
-          : existing.position;
+        const name = dto.name !== undefined ? dto.name.trim() : existing.name;
+        const description =
+          dto.description !== undefined
+            ? this.normalizeOptional(dto.description)
+            : existing.description;
+        const position =
+          dto.position !== undefined
+            ? this.normalizeOptional(dto.position)
+            : existing.position;
 
-      let questionIds = existing.question_ids_json ?? [];
-      if (dto.questionIds !== undefined) {
-        questionIds = this.normalizeIds(dto.questionIds);
-        if (questionIds.length === 0) {
-          throw apiBadRequest(
-            ApiErrorCode.BAD_REQUEST,
-            'A template must contain at least one question',
+        let questionIds = existing.question_ids_json ?? [];
+        let resolvedQuestions: ResolvedQuestion[] | null = null;
+        if (dto.questionIds !== undefined) {
+          questionIds = this.normalizeIds(dto.questionIds);
+          if (questionIds.length === 0) {
+            throw apiBadRequest(
+              ApiErrorCode.BAD_REQUEST,
+              'A template must contain at least one question',
+            );
+          }
+          // Same guard as create: a replacement set must resolve to live questions.
+          resolvedQuestions = await this.questionService.resolveExistingByIds(
+            questionIds,
+            locale,
+            { demo },
           );
+          this.assertAllResolved(questionIds, resolvedQuestions);
         }
-      }
 
-      const result = await client.query<TemplateRow>(
-        `
+        const result = await client.query<TemplateRow>(
+          `
           UPDATE interview_templates
           SET
             name = $2,
@@ -211,19 +231,23 @@ export class TemplateService {
           WHERE id = $1
           ${TEMPLATE_RETURNING}
         `,
-        [
-          id,
-          name,
-          description,
-          position,
-          JSON.stringify(questionIds),
-        ],
-      );
+          [
+            id,
+            name,
+            description,
+            position,
+            JSON.stringify(questionIds),
+          ],
+        );
 
-      return this.mapRow(result.rows[0]);
-    });
+        return { updated: this.mapRow(result.rows[0]), resolvedQuestions };
+      });
 
-    // Resolve after commit so the live-question read does not hold the FOR UPDATE lock.
+    // Reuse the set already resolved for validation; otherwise resolve the
+    // unchanged stored ids after commit (no live read under the FOR UPDATE lock).
+    if (resolvedQuestions) {
+      return this.toResponse(updated, resolvedQuestions);
+    }
     return this.resolve(updated, locale);
   }
 
@@ -241,26 +265,6 @@ export class TemplateService {
       throw this.notFound(id);
     }
     return { id, deleted: true };
-  }
-
-  /** Increment popularity: called when an interview is created from a template. */
-  async recordUse(
-    id: string,
-    options: { demo?: boolean } = {},
-  ): Promise<{ id: string; usageCount: number }> {
-    const params: unknown[] = [id];
-    const demoClause = demoScopeClause(params, options.demo === true);
-    const result = await this.databaseService.query<{ usage_count: number }>(
-      `UPDATE interview_templates
-          SET usage_count = usage_count + 1, updated_at = NOW()
-        WHERE id = $1 AND ${demoClause}
-        RETURNING usage_count`,
-      params,
-    );
-    if (!result.rows[0]) {
-      throw this.notFound(id);
-    }
-    return { id, usageCount: Number(result.rows[0].usage_count) };
   }
 
   private async findRow(
@@ -337,6 +341,20 @@ export class TemplateService {
 
   private normalizeIds(ids: string[]): string[] {
     return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  }
+
+  // Every requested id must map to a live, in-scope question; otherwise the
+  // caller selected something deleted, pending deletion, or out of demo scope.
+  private assertAllResolved(
+    questionIds: string[],
+    resolved: ResolvedQuestion[],
+  ): void {
+    if (resolved.length !== questionIds.length) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'One or more selected questions are unavailable in this workspace; refresh the question list and try again',
+      );
+    }
   }
 
   private normalizeOptional(value?: string): string | null {

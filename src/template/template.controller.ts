@@ -36,7 +36,6 @@ import { UpdateTemplateDto } from './dto/update-template.dto';
 import {
   DeleteTemplateResponseDto,
   TemplateResponseDto,
-  TemplateUsageResponseDto,
 } from './dto/template.responses.dto';
 import { TemplateService, TemplateWithQuestions } from './template.service';
 
@@ -128,7 +127,7 @@ export class TemplateController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
   ): Promise<TemplateWithQuestions> {
-    return this.templateService.update(id, dto, locale, { demo: user.demo });
+    return this.applyUpdate(id, dto, user, locale);
   }
 
   @Patch(':id')
@@ -147,27 +146,17 @@ export class TemplateController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
   ): Promise<TemplateWithQuestions> {
-    return this.templateService.update(id, dto, locale, { demo: user.demo });
+    return this.applyUpdate(id, dto, user, locale);
   }
 
-  @Post(':id/use')
-  @RequirePermissions('interviews:create')
-  @ApiOperation({
-    summary: 'Record that an interview was created from this template',
-    description:
-      'Increments the template popularity (usage_count). Gated on interviews:create ' +
-      'so only users who can create interviews (never demo accounts) affect it.',
-  })
-  @ApiParam({ name: 'id' })
-  @ApiOkResponse({ type: TemplateUsageResponseDto })
-  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
-  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
-  recordUse(
-    @Param('id') id: string,
-    @CurrentUser() user: Omit<User, 'passwordHash'>,
-  ): Promise<{ id: string; usageCount: number }> {
-    return this.templateService.recordUse(id, { demo: user.demo });
+  // PUT and PATCH share one behaviour; both routes funnel here so they can't drift.
+  private applyUpdate(
+    id: string,
+    dto: UpdateTemplateDto,
+    user: Omit<User, 'passwordHash'>,
+    locale: Locale,
+  ): Promise<TemplateWithQuestions> {
+    return this.templateService.update(id, dto, locale, { demo: user.demo });
   }
 
   @Delete(':id')

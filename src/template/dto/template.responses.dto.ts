@@ -50,14 +50,6 @@ export class TemplateResponseDto {
   updatedAt: Date;
 }
 
-export class TemplateUsageResponseDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty({ description: 'Usage count after the increment.' })
-  usageCount: number;
-}
-
 export class DeleteTemplateResponseDto {
   @ApiProperty()
   id: string;
