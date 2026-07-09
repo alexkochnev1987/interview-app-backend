@@ -304,7 +304,24 @@
       "patch": {
         "operationId": "AuthController_completeOnboarding",
         "summary": "Mark first-time onboarding as completed or skipped",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
         "requestBody": {
           "required": false,
           "content": {
@@ -4691,6 +4708,20 @@
           "ok"
         ]
       },
+      "CompleteOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "description": "How the user closed onboarding. Both values persist the same completion timestamp.",
+            "example": "completed"
+          }
+        }
+      },
       "ApiErrorCode": {
         "type": "string",
         "enum": [
@@ -4725,20 +4756,6 @@
           "EMBEDDING_PROVIDER_NOT_CONFIGURED",
           "INTERNAL_SERVER_ERROR"
         ]
-      },
-      "CompleteOnboardingDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "completed",
-              "skipped"
-            ],
-            "description": "How the user closed onboarding. Both values persist the same completion timestamp.",
-            "example": "completed"
-          }
-        }
       },
       "ApiErrorResponseDto": {
         "type": "object",
