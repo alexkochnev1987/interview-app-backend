@@ -5,6 +5,7 @@ import {
   DEMO_INTERVIEWS,
   DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_QUESTIONS,
+  DEMO_TEMPLATES,
   DEMO_USER_EMAIL,
   DEMO_USER_ID,
   DEMO_USER_NAME,
@@ -20,6 +21,7 @@ export interface DemoSeedCounts {
   users: number;
   questions: number;
   interviews: number;
+  templates: number;
 }
 
 /**
@@ -180,21 +182,57 @@ export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> 
   }
 }
 
-/**
- * Upserts the full demo dataset (one read-only demo user, demo questions, demo
- * interviews). Idempotent: every write is an upsert keyed by a fixed id, so it
- * is safe to run repeatedly. Migrations are NOT run here; callers that run
- * outside a booted app (the CLI seed) run them first.
- */
+export async function upsertDemoTemplates(db: DemoSeedExecutor): Promise<void> {
+  const demoQuestionIds = new Set(DEMO_QUESTIONS.map((q) => q.id));
+  for (const template of DEMO_TEMPLATES) {
+    // Fail fast on a mistyped reference so a broken template never seeds.
+    const unknown = template.questionIds.filter((id) => !demoQuestionIds.has(id));
+    if (unknown.length > 0) {
+      throw new Error(
+        `Demo template ${template.id} references unknown question(s): ${unknown.join(', ')}`,
+      );
+    }
+    await db.query(
+      `
+        INSERT INTO interview_templates (
+          id, name, description, position, question_ids_json, created_by_id, demo, usage_count
+        )
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6, TRUE, $7)
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          position = EXCLUDED.position,
+          question_ids_json = EXCLUDED.question_ids_json,
+          created_by_id = EXCLUDED.created_by_id,
+          demo = TRUE,
+          usage_count = EXCLUDED.usage_count,
+          updated_at = NOW()
+      `,
+      [
+        template.id,
+        template.name,
+        template.description ?? null,
+        template.position ?? null,
+        JSON.stringify(template.questionIds),
+        DEMO_USER_ID,
+        template.usageCount,
+      ],
+    );
+  }
+}
+
+// Upserts the full demo dataset (user, questions, interviews, templates). Idempotent; migrations are NOT run here.
 export async function seedDemoData(
   db: DemoSeedExecutor,
 ): Promise<DemoSeedCounts> {
   await upsertDemoUser(db);
   await upsertDemoQuestions(db);
   await upsertDemoInterviews(db);
+  await upsertDemoTemplates(db);
   return {
     users: 1,
     questions: DEMO_QUESTIONS.length,
     interviews: DEMO_INTERVIEWS.length,
+    templates: DEMO_TEMPLATES.length,
   };
 }

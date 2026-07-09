@@ -670,4 +670,37 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `CREATE UNIQUE INDEX IF NOT EXISTS users_single_demo_idx ON users (demo) WHERE demo = TRUE;`,
     ],
   },
+  {
+    version: '0036',
+    name: 'create_interview_templates',
+    statements: [
+      // Reusable templates; question_ids_json holds ordered live references resolved on read. demo scopes rows like other content.
+      `
+        CREATE TABLE IF NOT EXISTS interview_templates (
+          id UUID PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NULL,
+          position TEXT NULL,
+          question_ids_json JSONB NOT NULL DEFAULT '[]',
+          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+          demo BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `CREATE INDEX IF NOT EXISTS interview_templates_demo_idx ON interview_templates (demo);`,
+    ],
+    rollbackStatements: [`DROP TABLE IF EXISTS interview_templates;`],
+  },
+  {
+    version: '0037',
+    name: 'add_interview_templates_usage_count',
+    statements: [
+      // Popularity: incremented each time an interview is created from the template.
+      `ALTER TABLE interview_templates ADD COLUMN IF NOT EXISTS usage_count INTEGER NOT NULL DEFAULT 0;`,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE interview_templates DROP COLUMN IF EXISTS usage_count;`,
+    ],
+  },
 ];
