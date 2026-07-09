@@ -42,6 +42,9 @@ import {
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
+  getAnswerAttemptLimitBlockReason,
+} from './answer-attempt-rules';
+import {
   getInterviewCompletionBlockReason,
   getSubmittedAnswerCount as countSubmittedAnswers,
 } from './interview-completion-rules';
@@ -1076,6 +1079,19 @@ export class InterviewService {
       const existingVersion = existingVersions.find(
         (version) => version.versionNumber === normalizedVersionNumber,
       );
+      const attemptLimitReason = getAnswerAttemptLimitBlockReason(
+        existingVersions.map((version) => ({
+          versionNumber: version.versionNumber,
+        })),
+        normalizedVersionNumber,
+      );
+      if (attemptLimitReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+          attemptLimitReason,
+          { interviewId: id, questionIndex, versionNumber: normalizedVersionNumber },
+        );
+      }
 
       const uploadedAt = existingVersion?.uploadedAt ?? new Date();
       const normalizedStartedAt =

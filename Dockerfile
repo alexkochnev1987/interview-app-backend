@@ -6,6 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM node:22-alpine
+RUN apk add --no-cache ffmpeg
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.revision=$GIT_SHA
 WORKDIR /app
