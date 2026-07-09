@@ -32,6 +32,7 @@ import {
   InterviewWorkflow,
   MediaArtifact,
   InterviewCancelResult,
+    InterviewDeleteResult
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -45,6 +46,7 @@ import {
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import {
+  getInterviewCompletedOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
@@ -319,6 +321,36 @@ export class InterviewService {
         questionIds,
       );
       return { id, canceled: true };
+    });
+  }
+
+  async deleteCompleted(id: string): Promise<InterviewDeleteResult> {
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const blockReason = getInterviewCompletedOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
+      }
+
+      const questionIds = interview.questions.map((question) => question.id);
+      await client.query(`DELETE FROM interviews WHERE id = $1`, [id]);
+      if (questionIds.length > 0) {
+        await client.query(
+          `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+          [questionIds],
+        );
+      }
+
+      await this.questionService.processPendingDeletionsAfterTerminalInterview(
+        client,
+        questionIds,
+      );
+      return { id, deleted: true };
     });
   }
 
