@@ -671,7 +671,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0025',
+    version: '0036',
     name: 'add_users_onboarding_completed_at',
     statements: [
       `
