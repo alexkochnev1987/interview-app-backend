@@ -3,6 +3,10 @@ import { validate, ValidationError } from 'class-validator';
 import { DraftQuestionDto } from '../ai/dto/ai.dto';
 import { CreateInterviewDto } from '../interview/dto/create-interview.dto';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
+import { CreateTemplateDto } from '../template/dto/create-template.dto';
+
+const UUID_A = '00000000-0000-4000-8000-000000000001';
+const UUID_B = '00000000-0000-4000-8000-000000000002';
 
 async function validateDto<T extends object>(
   Cls: new () => T,
@@ -47,6 +51,37 @@ describe('DTO validation', () => {
       candidateName: 'Alex',
       position: 'Engineer',
       questionIds: ['question-1'],
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects CreateTemplateDto with a non-UUID question id (prevents a poison reference)', async () => {
+    const errors = await validateDto(CreateTemplateDto, {
+      name: 'Frontend Fundamentals',
+      questionIds: [UUID_A, 'not-a-uuid'],
+    });
+    expect(errors.some((error) => error.property === 'questionIds')).toBe(true);
+  });
+
+  it('rejects CreateTemplateDto with an empty question set', async () => {
+    const errors = await validateDto(CreateTemplateDto, {
+      name: 'Frontend Fundamentals',
+      questionIds: [],
+    });
+    expect(errors.some((error) => error.property === 'questionIds')).toBe(true);
+  });
+
+  it('rejects CreateTemplateDto without a name', async () => {
+    const errors = await validateDto(CreateTemplateDto, {
+      questionIds: [UUID_A],
+    });
+    expect(errors.some((error) => error.property === 'name')).toBe(true);
+  });
+
+  it('accepts a minimal valid CreateTemplateDto', async () => {
+    const errors = await validateDto(CreateTemplateDto, {
+      name: 'Frontend Fundamentals',
+      questionIds: [UUID_A, UUID_B],
     });
     expect(errors).toHaveLength(0);
   });

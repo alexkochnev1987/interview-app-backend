@@ -335,6 +335,19 @@ export class InterviewService {
         [questionIds],
       );
 
+      // Popularity is recorded here, atomically with the interview, when the
+      // client started from a template. Best-effort and demo-scoped: a stale or
+      // out-of-scope templateId leaves the interview untouched rather than failing it.
+      const templateId = dto.templateId?.trim();
+      if (templateId) {
+        await client.query(
+          `UPDATE interview_templates
+              SET usage_count = usage_count + 1, updated_at = NOW()
+            WHERE id = $1 AND demo = $2`,
+          [templateId, context.demo === true],
+        );
+      }
+
       return {
         interview: this.mapRow(result.rows[0]),
         localeWarnings,
