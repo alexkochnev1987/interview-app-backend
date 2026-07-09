@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     await runMigrations(databaseService);
     const counts = await seedDemoData(databaseService);
     console.log(
-      `Seeded demo data: ${counts.users} user, ${counts.questions} questions, ${counts.interviews} interviews`,
+      `Seeded demo data: ${counts.users} user, ${counts.questions} questions, ${counts.interviews} interviews, ${counts.templates} templates`,
     );
   } finally {
     await databaseService.onModuleDestroy();

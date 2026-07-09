@@ -8,6 +8,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
 } from 'class-validator';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../../locale/locale.constants';
@@ -37,6 +38,16 @@ export class CreateInterviewDto {
   @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])
   interviewLocale?: Locale;
+
+  @ApiPropertyOptional({
+    description:
+      'Template this interview was started from. When set, the template popularity ' +
+      '(usage_count) is incremented in the same transaction, so usage is recorded ' +
+      'server-side rather than by a separate client call.',
+  })
+  @IsOptional()
+  @IsUUID()
+  templateId?: string;
 
   @ApiProperty({ type: [String] })
   @Transform(({ value }) =>

@@ -534,3 +534,42 @@ export const DEMO_INTERVIEWS: Interview[] = [
     ],
   }),
 ];
+
+export interface DemoTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  position?: string;
+  questionIds: string[];
+  usageCount: number;
+}
+
+// Demo templates reference demo question ids; validated against DEMO_QUESTIONS by the seed runner.
+export const DEMO_TEMPLATES: DemoTemplate[] = [
+  {
+    id: '00000000-0000-4000-8000-0000000000b1',
+    name: 'Frontend Fundamentals',
+    description:
+      'Core JavaScript, React and CSS questions for a first-round frontend screen.',
+    position: 'Frontend Engineer',
+    questionIds: [
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000002',
+      '00000000-0000-4000-8000-000000000004',
+      '00000000-0000-4000-8000-000000000005',
+    ],
+    usageCount: 7,
+  },
+  {
+    id: '00000000-0000-4000-8000-0000000000b2',
+    name: 'JavaScript Deep Dive',
+    description: 'Closures, the event loop and async behavior in depth.',
+    position: 'Frontend Engineer',
+    questionIds: [
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000008',
+    ],
+    usageCount: 3,
+  },
+];
