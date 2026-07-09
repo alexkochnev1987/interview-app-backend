@@ -174,7 +174,9 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   async completeOnboarding(
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Body() dto: CompleteOnboardingDto,
   ): Promise<Omit<User, 'passwordHash'>> {
+    void dto.status;
     return this.authService.completeOnboarding(user.id);
   }
 }

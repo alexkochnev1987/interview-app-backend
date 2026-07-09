@@ -4,6 +4,7 @@ import { DraftQuestionDto } from '../ai/dto/ai.dto';
 import { CreateInterviewDto } from '../interview/dto/create-interview.dto';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import { CreateTemplateDto } from '../template/dto/create-template.dto';
+import { CompleteOnboardingDto } from '../auth/dto/complete-onboarding.dto';
 
 const UUID_A = '00000000-0000-4000-8000-000000000001';
 const UUID_B = '00000000-0000-4000-8000-000000000002';
@@ -84,6 +85,23 @@ describe('DTO validation', () => {
       questionIds: [UUID_A, UUID_B],
     });
     expect(errors).toHaveLength(0);
+  });
+
+  it('accepts CompleteOnboardingDto without status', async () => {
+    const errors = await validateDto(CompleteOnboardingDto, {});
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts CompleteOnboardingDto with completed or skipped status', async () => {
+    for (const status of ['completed', 'skipped'] as const) {
+      const errors = await validateDto(CompleteOnboardingDto, { status });
+      expect(errors).toHaveLength(0);
+    }
+  });
+
+  it('rejects CompleteOnboardingDto with an invalid status', async () => {
+    const errors = await validateDto(CompleteOnboardingDto, { status: 'dismissed' });
+    expect(errors.some((error) => error.property === 'status')).toBe(true);
   });
 
   it('keeps nested rubric fields on DraftQuestionDto under ValidationPipe whitelist', async () => {
