@@ -4529,6 +4529,391 @@
           }
         ]
       }
+    },
+    "/interviews/{id}/candidate-feedback": {
+      "get": {
+        "operationId": "CandidateFeedbackController_getCandidateFeedback",
+        "summary": "Get candidate-facing feedback blocks for HR review",
+        "description": "Returns overall and per-question blocks with generation state and current texts.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "CandidateFeedbackController_patchCandidateFeedback",
+        "summary": "Update candidate-facing feedback texts and block states",
+        "description": "Partial update: HR may set recommendation/improvement texts and move blocks to accepted or edited.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchCandidateFeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/{id}/candidate-feedback/generate": {
+      "post": {
+        "operationId": "CandidateFeedbackController_generateAllCandidateFeedback",
+        "summary": "Generate candidate-facing feedback for the whole interview",
+        "description": "Loops question blocks sequentially (skips accepted/edited), then regenerates overall from best-available per-question texts. Overall accepted/edited blocks are not overwritten.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "required": true,
+            "in": "query",
+            "description": "Generation scope. MVP supports only `all`.",
+            "schema": {
+              "enum": [
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateAllCandidateFeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/{id}/candidate-feedback/questions/{questionIndex}/generate": {
+      "post": {
+        "operationId": "CandidateFeedbackController_generateQuestionFeedback",
+        "summary": "Generate candidate-facing feedback for one question",
+        "description": "Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Locked blocks (accepted/edited) are not overwritten.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionIndex",
+            "required": true,
+            "in": "path",
+            "description": "Zero-based question index",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackQuestionBlockDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -7789,6 +8174,261 @@
         "required": [
           "url",
           "expiresAt"
+        ]
+      },
+      "CandidateFeedbackBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_generated",
+              "generating",
+              "generated",
+              "accepted",
+              "edited",
+              "failed"
+            ],
+            "description": "Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors."
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "Present when generation failed for this block."
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "CandidateFeedbackQuestionBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_generated",
+              "generating",
+              "generated",
+              "accepted",
+              "edited",
+              "failed"
+            ],
+            "description": "Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors."
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "Present when generation failed for this block."
+          },
+          "questionIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "state",
+          "questionIndex",
+          "questionId"
+        ]
+      },
+      "CandidateFeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "interviewId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/CandidateFeedbackBlockDto"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateFeedbackQuestionBlockDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "interviewId",
+          "overall",
+          "questions",
+          "updatedAt"
+        ]
+      },
+      "PatchCandidateFeedbackOverallBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "edited"
+            ],
+            "description": "HR may accept generated text or mark manual edits."
+          }
+        }
+      },
+      "PatchCandidateFeedbackQuestionBlockDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "edited"
+            ],
+            "description": "HR may accept generated text or mark manual edits."
+          }
+        },
+        "required": [
+          "questionIndex"
+        ]
+      },
+      "PatchCandidateFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "overall": {
+            "description": "Partial overall block update.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PatchCandidateFeedbackOverallBlockDto"
+              }
+            ]
+          },
+          "questions": {
+            "description": "Partial per-question block updates.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PatchCandidateFeedbackQuestionBlockDto"
+            }
+          }
+        }
+      },
+      "GenerateAllCandidateFeedbackQuestionResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "skipped",
+              "failed"
+            ]
+          },
+          "questionIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "locked",
+              "in_progress",
+              "not_submitted",
+              "missing_answer",
+              "missing_transcript",
+              "missing_question"
+            ]
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "questionIndex"
+        ]
+      },
+      "GenerateAllCandidateFeedbackOverallResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "skipped",
+              "failed"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "locked",
+              "in_progress",
+              "no_question_texts"
+            ]
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "GenerateAllCandidateFeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "feedback": {
+            "$ref": "#/components/schemas/CandidateFeedbackResponseDto"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenerateAllCandidateFeedbackQuestionResultDto"
+            }
+          },
+          "overall": {
+            "$ref": "#/components/schemas/GenerateAllCandidateFeedbackOverallResultDto"
+          }
+        },
+        "required": [
+          "feedback",
+          "questions",
+          "overall"
         ]
       }
     }

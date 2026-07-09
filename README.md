@@ -71,7 +71,7 @@ S3/MinIO defaults in `test/integration-env.ts` are for local Docker — CI omits
 
 PostgreSQL on host **5433**, MinIO S3 API **9002**, MinIO web console **9003** (`minioadmin` / `minioadmin`).
 
-**API:** [Swagger](http://localhost:3000/docs) · [`openapi/openapi.json`](openapi/openapi.json) · `npm run openapi:check`. **Locales:** [docs/locale-and-api.md](docs/locale-and-api.md).
+**API:** [Swagger](http://localhost:3000/docs) · [`openapi/openapi.json`](openapi/openapi.json) · [`openapi/generated/api.d.ts`](openapi/generated/api.d.ts) (`npm run openapi:check`) · **Locales:** [docs/locale-and-api.md](docs/locale-and-api.md).
 
 ### With the frontend
 

@@ -28,6 +28,7 @@ import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
 import { DatabaseService } from '../database/database.service';
 import { Locale } from '../locale/locale.constants';
 import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
+import { resolveSelectedAnswerVersion } from './resolve-selected-answer-version';
 
 const DEFAULT_MAX_CONCURRENT_VALIDATIONS = 3;
 
@@ -225,7 +226,7 @@ export class AnswerValidationWorkflowService
       const requestedAt = new Date();
 
       for (const answer of submittedAnswers) {
-        const selectedVersion = this.resolveSelectedVersion(answer);
+        const selectedVersion = resolveSelectedAnswerVersion(answer);
         if (!selectedVersion?.mediaKey) {
           throw new BadRequestException(
             `Question ${answer.questionIndex} does not have an uploaded answer media key`,
@@ -366,7 +367,7 @@ export class AnswerValidationWorkflowService
         );
       }
 
-      const selectedVersion = this.resolveSelectedVersion(answer);
+      const selectedVersion = resolveSelectedAnswerVersion(answer);
       if (!selectedVersion?.mediaKey) {
         throw new BadRequestException(
           `Question ${questionIndex} does not have an uploaded answer media key`,
@@ -627,35 +628,6 @@ export class AnswerValidationWorkflowService
         );
       }
     }
-  }
-
-  private resolveSelectedVersion(answer: Answer): AnswerVersion | undefined {
-    if (answer.versions?.length) {
-      return (
-        answer.versions.find(
-          (version) =>
-            version.versionNumber === (answer.selectedVersionNumber ?? 1),
-        ) ?? answer.versions[answer.versions.length - 1]
-      );
-    }
-
-    if (!answer.mediaKey) {
-      return undefined;
-    }
-
-    return {
-      versionNumber: answer.selectedVersionNumber ?? 1,
-      mediaKey: answer.mediaKey,
-      screenMediaKey: answer.screenMediaKey,
-      uploadedAt: answer.uploadedAt,
-      durationSeconds: answer.durationSeconds,
-      startedAt: answer.startedAt,
-      submittedAt: answer.submittedAt,
-      camera: answer.camera,
-      screen: answer.screen,
-      behaviorSignals: answer.behaviorSignals,
-      behaviorEvents: answer.behaviorEvents,
-    };
   }
 
   private clampScore(value: unknown): number | undefined {

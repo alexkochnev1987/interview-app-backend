@@ -138,6 +138,25 @@ describe('Demo read-only account (integration)', () => {
     await expectStatus(demo.patch(`/interviews/${demoInterviewId}/complete`).send({}), 403);
     await expectStatus(demo.post(`/interviews/${demoInterviewId}/candidate-link`).send({}), 403);
     await expectStatus(demo.post(`/interviews/${demoInterviewId}/feedback-link`).send({}), 403);
+    await expectStatus(
+      demo.patch(`/interviews/${demoInterviewId}/candidate-feedback`).send({
+        overall: { recommendationText: 'Demo edit', state: 'edited' },
+      }),
+      403,
+    );
+    await expectStatus(
+      demo
+        .post(`/interviews/${demoInterviewId}/candidate-feedback/questions/0/generate`)
+        .send({}),
+      403,
+    );
+    await expectStatus(
+      demo
+        .post(`/interviews/${demoInterviewId}/candidate-feedback/generate`)
+        .query({ scope: 'all' })
+        .send({}),
+      403,
+    );
     await expectStatus(demo.post('/ai/question-draft').send({ question: {} }), 403);
   });
 });
