@@ -19,6 +19,16 @@ export interface TemplateWithQuestions extends Omit<Template, 'questionIds'> {
   questions: ResolvedQuestion[];
   // Count of currently-resolvable questions (deleted/pending refs excluded).
   questionCount: number;
+  // Count of ids stored on the template, including refs that no longer resolve;
+  // lets the client tell when some saved questions are no longer available.
+  storedQuestionCount: number;
+}
+
+// List shape: summary fields only, no resolved questions array (the list view
+// never reads it). Keeps both counts so the UI can still flag stale references.
+export interface TemplateSummary extends Omit<Template, 'questionIds'> {
+  questionCount: number;
+  storedQuestionCount: number;
 }
 
 const TEMPLATE_COLUMNS = `
@@ -123,7 +133,7 @@ export class TemplateService {
   async findAll(
     locale: Locale,
     options: { demo?: boolean } = {},
-  ): Promise<TemplateWithQuestions[]> {
+  ): Promise<TemplateSummary[]> {
     const demo = options.demo === true;
     const params: unknown[] = [];
     const demoClause = demoScopeClause(params, demo);
@@ -136,7 +146,8 @@ export class TemplateService {
       params,
     );
 
-    // One query resolves the union of referenced ids; each template re-slices its own (no N+1).
+    // One query resolves the union of referenced ids so each row can report its
+    // resolvable count; the summaries themselves omit the heavy questions array.
     const templates = result.rows.map((row) => this.mapRow(row));
     const uniqueIds = Array.from(
       new Set(templates.flatMap((template) => template.questionIds)),
@@ -146,13 +157,11 @@ export class TemplateService {
       locale,
       { demo },
     );
-    const byId = new Map(resolved.map((question) => [question.id, question]));
+    const resolvableIds = new Set(resolved.map((question) => question.id));
     return templates.map((template) =>
-      this.toResponse(
+      this.toSummary(
         template,
-        template.questionIds
-          .map((id) => byId.get(id))
-          .filter((q): q is ResolvedQuestion => q !== undefined),
+        template.questionIds.filter((id) => resolvableIds.has(id)).length,
       ),
     );
   }
@@ -319,6 +328,27 @@ export class TemplateService {
       updatedAt: template.updatedAt,
       questions,
       questionCount: questions.length,
+      storedQuestionCount: template.questionIds.length,
+    };
+  }
+
+  private toSummary(
+    template: Template,
+    questionCount: number,
+  ): TemplateSummary {
+    // Same fields as the full response minus the resolved questions array.
+    return {
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      position: template.position,
+      createdById: template.createdById,
+      demo: template.demo,
+      usageCount: template.usageCount,
+      createdAt: template.createdAt,
+      updatedAt: template.updatedAt,
+      questionCount,
+      storedQuestionCount: template.questionIds.length,
     };
   }
 

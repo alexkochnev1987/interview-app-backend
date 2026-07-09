@@ -130,15 +130,17 @@ describe('TemplateService', () => {
       expect(params).toEqual([false]);
     });
 
-    it('reports the count of currently-resolvable questions (deleted refs drop out)', async () => {
+    it('reports resolvable and stored counts (deleted refs drop out of the count)', async () => {
       // Row references 3 ids but only 1 resolves live.
       const { service, query } = makeService([resolvedQuestion('q1')]);
       query.mockResolvedValueOnce({ rows: [templateRow()] });
 
       const [template] = await service.findAll('en', { demo: false });
 
+      // Summary omits the heavy questions array but keeps both counts.
       expect(template.questionCount).toBe(1);
-      expect(template.questions).toHaveLength(1);
+      expect(template.storedQuestionCount).toBe(3);
+      expect(template).not.toHaveProperty('questions');
     });
   });
 

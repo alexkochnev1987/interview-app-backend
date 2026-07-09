@@ -2268,7 +2268,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TemplateResponseDto"
+                    "$ref": "#/components/schemas/TemplateSummaryResponseDto"
                   }
                 }
               }
@@ -6468,6 +6468,10 @@
             "type": "number",
             "description": "Number of currently-resolvable questions (references that are deleted or pending deletion are excluded)."
           },
+          "storedQuestionCount": {
+            "type": "number",
+            "description": "Number of ids stored on the template, including references that no longer resolve. When higher than questionCount, some saved questions are gone."
+          },
           "questions": {
             "description": "Live question rows resolved from the stored ids, in stored order, for the request locale. Seeds the interview question picker on edit and prefill.",
             "type": "array",
@@ -6499,7 +6503,62 @@
           "id",
           "name",
           "questionCount",
+          "storedQuestionCount",
           "questions",
+          "demo",
+          "usageCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "TemplateSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "questionCount": {
+            "type": "number",
+            "description": "Number of currently-resolvable questions (references that are deleted or pending deletion are excluded)."
+          },
+          "storedQuestionCount": {
+            "type": "number",
+            "description": "Number of ids stored on the template, including references that no longer resolve. When higher than questionCount, some saved questions are gone."
+          },
+          "createdById": {
+            "type": "string",
+            "description": "Id of the user who created the template (attribution only)."
+          },
+          "demo": {
+            "type": "boolean"
+          },
+          "usageCount": {
+            "type": "number",
+            "description": "Popularity: how many interviews have been created from this template."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "questionCount",
+          "storedQuestionCount",
           "demo",
           "usageCount",
           "createdAt",

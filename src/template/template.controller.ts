@@ -36,8 +36,13 @@ import { UpdateTemplateDto } from './dto/update-template.dto';
 import {
   DeleteTemplateResponseDto,
   TemplateResponseDto,
+  TemplateSummaryResponseDto,
 } from './dto/template.responses.dto';
-import { TemplateService, TemplateWithQuestions } from './template.service';
+import {
+  TemplateService,
+  TemplateSummary,
+  TemplateWithQuestions,
+} from './template.service';
 
 @ApiTags('templates')
 @ApiCookieAuth('sessionAuth')
@@ -56,13 +61,13 @@ export class TemplateController {
       'first. Each template resolves its stored question ids to live questions ' +
       'for X-Locale; deleted/pending references are excluded from the count.',
   })
-  @ApiOkResponse({ type: [TemplateResponseDto] })
+  @ApiOkResponse({ type: [TemplateSummaryResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   findAll(
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
-  ): Promise<TemplateWithQuestions[]> {
+  ): Promise<TemplateSummary[]> {
     return this.templateService.findAll(locale, { demo: user.demo });
   }
 
