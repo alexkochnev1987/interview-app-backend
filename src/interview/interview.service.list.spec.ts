@@ -4,7 +4,12 @@ import type { QuestionService } from '../question/question.service';
 
 describe('InterviewService list query (findAllPaginated)', () => {
   function makeService() {
-    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const query = jest.fn().mockImplementation((sql: string) => {
+      if (sql.includes('COUNT(*)::text AS total')) {
+        return Promise.resolve({ rows: [{ total: '0' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
     const hydrateStoredQuestionCore = jest.fn();
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {
@@ -24,7 +29,11 @@ describe('InterviewService list query (findAllPaginated)', () => {
       { id: 'admin', role: 'admin', demo: false },
     );
 
-    const [sql] = query.mock.calls[0];
+    const dataCall = query.mock.calls.find(([sql]) =>
+      sql.includes('jsonb_array_length(questions_json)'),
+    );
+    expect(dataCall).toBeDefined();
+    const [sql] = dataCall!;
     expect(sql).toContain('jsonb_array_length(questions_json)');
     expect(sql).toContain("answer.value->>'status' = 'submitted'");
     expect(sql).not.toContain("COALESCE(answer.value->>'status', 'submitted')");
@@ -36,23 +45,27 @@ describe('InterviewService list query (findAllPaginated)', () => {
 
   it('maps list rows without hydrating interviews', async () => {
     const { service, query, hydrateStoredQuestionCore } = makeService();
-    query.mockResolvedValue({
-      rows: [
-        {
-          id: 'interview-1',
-          candidate_name: 'Alice',
-          candidate_email: 'alice@test.local',
-          position: 'Engineer',
-          status: 'completed',
-          created_at: new Date('2026-01-01T00:00:00.000Z'),
-          updated_at: new Date('2026-01-02T00:00:00.000Z'),
-          question_count: 3,
-          submitted_answer_count: 2,
-          overall_score: 88,
-          decision: 'proceed',
-          __total: '1',
-        },
-      ],
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('COUNT(*)::text AS total')) {
+        return Promise.resolve({ rows: [{ total: '1' }] });
+      }
+      return Promise.resolve({
+        rows: [
+          {
+            id: 'interview-1',
+            candidate_name: 'Alice',
+            candidate_email: 'alice@test.local',
+            position: 'Engineer',
+            status: 'completed',
+            created_at: new Date('2026-01-01T00:00:00.000Z'),
+            updated_at: new Date('2026-01-02T00:00:00.000Z'),
+            question_count: 3,
+            submitted_answer_count: 2,
+            overall_score: 88,
+            decision: 'proceed',
+          },
+        ],
+      });
     });
 
     const result = await service.findAllPaginated(
@@ -77,5 +90,25 @@ describe('InterviewService list query (findAllPaginated)', () => {
       },
     ]);
     expect(result.total).toBe(1);
+  });
+
+  it('returns the real total when the requested page is beyond the last page', async () => {
+    const { service, query } = makeService();
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('COUNT(*)::text AS total')) {
+        return Promise.resolve({ rows: [{ total: '25' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const result = await service.findAllPaginated(
+      { page: 3, limit: 10 },
+      { id: 'admin', role: 'admin', demo: false },
+    );
+
+    expect(result.items).toEqual([]);
+    expect(result.total).toBe(25);
+    expect(result.page).toBe(3);
+    expect(result.limit).toBe(10);
   });
 });

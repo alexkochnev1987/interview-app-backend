@@ -5,7 +5,12 @@ import type { QuestionService } from '../question/question.service';
 
 describe('InterviewService demo scoping (findAllPaginated)', () => {
   function makeService() {
-    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const query = jest.fn().mockImplementation((sql: string) => {
+      if (sql.includes('COUNT(*)::text AS total')) {
+        return Promise.resolve({ rows: [{ total: '0' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {} as unknown as QuestionService;
     return {
@@ -21,7 +26,11 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
       { id: 'demo-user', role: 'hr', demo: true },
     );
 
-    const [sql, params] = query.mock.calls[0];
+    const dataCall = query.mock.calls.find(
+      ([sql]) => !sql.includes('COUNT(*)::text AS total'),
+    );
+    expect(dataCall).toBeDefined();
+    const [sql, params] = dataCall!;
     expect(sql).toContain('demo = $1');
     expect(sql).toContain('created_by_id = $2');
     expect(params).toEqual([true, 'demo-user', 20, 0]);
@@ -34,7 +43,11 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
       { id: 'admin', role: 'admin', demo: false },
     );
 
-    const [sql, params] = query.mock.calls[0];
+    const dataCall = query.mock.calls.find(
+      ([sql]) => !sql.includes('COUNT(*)::text AS total'),
+    );
+    expect(dataCall).toBeDefined();
+    const [sql, params] = dataCall!;
     expect(sql).toContain('demo = $1');
     expect(sql).not.toContain('created_by_id = $');
     expect(params).toEqual([false, 20, 0]);

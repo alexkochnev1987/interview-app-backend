@@ -485,17 +485,23 @@ export class InterviewService {
     const page = Math.max(1, options?.page ?? 1);
     const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
 
-    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
-      `
-        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
-        FROM interviews
-        ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2
-      `,
-      [limit, offset],
-    );
+    const [countResult, result] = await Promise.all([
+      this.databaseService.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total FROM interviews`,
+        [],
+      ),
+      this.databaseService.query<InterviewRow>(
+        `
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          FROM interviews
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2
+        `,
+        [limit, offset],
+      ),
+    ]);
 
-    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const total = Number(countResult.rows[0]?.total ?? 0);
     return {
       items: result.rows.map((row) => this.mapRow(row)),
       total,
@@ -561,25 +567,30 @@ export class InterviewService {
 
     const { whereSql, params } = buildInterviewFilterClauses(query, actor);
 
-    params.push(limit);
-    const limitParam = params.length;
-    params.push(offset);
-    const offsetParam = params.length;
+    const countSql = `
+      SELECT COUNT(*)::text AS total
+      FROM interviews
+      ${whereSql}
+    `;
 
-    const sql = `
-      SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
+    const dataParams = [...params, limit, offset];
+    const limitParam = params.length + 1;
+    const offsetParam = params.length + 2;
+
+    const dataSql = `
+      SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
       FROM interviews
       ${whereSql}
       ORDER BY ${sortExpression} ${sortOrder}, id ASC
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
-    const result = await this.databaseService.query<
-      InterviewListRow & { __total: string }
-    >(sql, params);
+    const [countResult, result] = await Promise.all([
+      this.databaseService.query<{ total: string }>(countSql, params),
+      this.databaseService.query<InterviewListRow>(dataSql, dataParams),
+    ]);
 
-    const total =
-      result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const total = Number(countResult.rows[0]?.total ?? 0);
     const items = result.rows.map((row) => fromInterviewListRow(row));
 
     return { items, total, page, limit };
