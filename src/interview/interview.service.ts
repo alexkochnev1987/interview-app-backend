@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { UploadService } from '../upload/upload.service';
 import {
   apiBadRequest,
   apiConflict,
@@ -204,6 +205,8 @@ export class InterviewService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
+    @Inject(forwardRef(() => UploadService))
+    private readonly uploadService: UploadService,
   ) {}
 
   async create(
@@ -336,6 +339,8 @@ export class InterviewService {
           status: interview.status,
         });
       }
+
+      await this.uploadService.deleteInterviewMedia(id);
 
       const questionIds = interview.questions.map((question) => question.id);
       await client.query(`DELETE FROM interviews WHERE id = $1`, [id]);
