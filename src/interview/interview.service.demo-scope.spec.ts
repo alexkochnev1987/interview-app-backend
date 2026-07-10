@@ -2,14 +2,22 @@ import { ForbiddenException } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
+import type { UploadService } from '../upload/upload.service';
 
 describe('InterviewService demo scoping (findAllForActor)', () => {
   function makeService() {
     const query = jest.fn().mockResolvedValue({ rows: [] });
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {} as unknown as QuestionService;
+    const uploadService = {
+      deleteInterviewMedia: jest.fn(),
+    } as unknown as UploadService;
     return {
-      service: new InterviewService(databaseService, questionService),
+      service: new InterviewService(
+        databaseService,
+        questionService,
+        uploadService,
+      ),
       query,
     };
   }
