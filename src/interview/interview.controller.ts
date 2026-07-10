@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -34,7 +35,7 @@ import { CreateInterviewDto } from './dto/create-interview.dto';
 import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
 import {
   Interview,
-  InterviewCancelResult,
+  InterviewCancelResult, InterviewDeleteResult,
   InterviewResult,
 } from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
@@ -54,7 +55,7 @@ import {
   InterviewResultResponseDto,
   PaginatedInterviewListResponseDto,
   StartAllAnswerValidationsResponseDto,
-  StartAnswerValidationResultDto,
+  StartAnswerValidationResultDto, InterviewDeleteResponseDto,
 } from './dto/interview.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
@@ -199,6 +200,22 @@ export class InterviewController {
   ): Promise<InterviewCancelResult> {
     await this.interviewService.findOneForActor(id, user);
     return this.interviewService.cancel(id);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Delete completed interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewDeleteResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async deleteCompleted(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewDeleteResult> {
+    await this.interviewService.findOneForActor(id, user);
+    return this.interviewService.deleteCompleted(id);
   }
 
   @Patch(':id/complete')
