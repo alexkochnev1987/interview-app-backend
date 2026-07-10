@@ -18,7 +18,6 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiConflictResponse,
-  ApiExtraModels,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -29,39 +28,53 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { Locale } from '../locale/locale.constants';
-import { InterviewService } from './interview.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
-import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
-import {
-  Interview,
-  InterviewCancelResult, InterviewDeleteResult,
-  InterviewResult,
-} from './interfaces/interview.interface';
 import { InterviewPresentation, presentInterview } from './present-interview';
-import { presentInterviewListItem } from './present-interview-list';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../user/interfaces/user.interface';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AuthService } from '../auth/auth.service';
+import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
+import { CreateInterviewDto } from './dto/create-interview.dto';
+import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
+import { QueryInterviewsDto } from './dto/query-interviews.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 import {
   CreateInterviewResultDto,
   CandidateLinkResponseDto,
   InterviewCancelResponseDto,
+  InterviewFacetsResponseDto,
   InterviewResponseDto,
   InterviewResultResponseDto,
-  PaginatedInterviewListResponseDto,
+  PaginatedInterviewsResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto, InterviewDeleteResponseDto,
 } from './dto/interview.responses.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
+import {
+  Interview,
+  InterviewCancelResult,
+  InterviewDeleteResult,
+  InterviewResult,
+  INTERVIEW_STATUSES,
+} from './interfaces/interview.interface';
+import {
+  InterviewFacets,
+  InterviewService,
+  PaginatedInterviews,
+} from './interview.service';
 
 type ActingUser = Omit<User, 'passwordHash'>;
+
+const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  transformOptions: { enableImplicitConversion: false },
+});
 
 @ApiTags('interviews')
 @ApiCookieAuth('sessionAuth')
@@ -105,49 +118,54 @@ export class InterviewController {
 
   @Get()
   @RequirePermissions('interviews:read_own')
-  @ApiExtraModels(InterviewResponseDto, PaginatedInterviewListResponseDto)
   @ApiOperation({
-    summary: 'List interviews',
+    summary: 'List interviews (paginated, filterable, sortable)',
     description:
-      'Default: JSON array with full questions[] (legacy clients). ' +
-      'Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. ' +
-      'questions[]/questionsPreview are resolved in interviewLocale.',
+      'Always returns { items, total, page, limit } with slim InterviewListItem rows. ' +
+      'The legacy `paginated` query flag is accepted but ignored for backward compatibility. ' +
+      'Plain-array responses from older clients are no longer supported on this endpoint.',
   })
-  @ApiOkResponse({
-    description: 'Array when paginated is false/omitted; paginated object when paginated=true',
-    schema: {
-      oneOf: [
-        { type: 'array', items: { $ref: '#/components/schemas/InterviewResponseDto' } },
-        { $ref: '#/components/schemas/PaginatedInterviewListResponseDto' },
-      ],
-    },
-  })
+  @ApiOkResponse({ type: PaginatedInterviewsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  async findAll(
-    @Query(new ValidationPipe({ transform: true })) query: ListInterviewsQueryDto,
+  findAll(
+    @Query(INTERVIEW_QUERY_VALIDATION_PIPE) query: QueryInterviewsDto,
     @CurrentUser() user: ActingUser,
-  ): Promise<PaginatedInterviewListResponseDto | InterviewPresentation[]> {
-    if (query.paginated) {
-      const page = query.page ?? 1;
-      const limit = query.limit ?? 50;
-      const result = await this.interviewService.findAllForActor(user, {
-        page,
-        limit,
-      });
-      return {
-        items: result.items.map((interview) =>
-          presentInterviewListItem(interview),
-        ),
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-      };
-    }
+  ): Promise<PaginatedInterviews> {
+    return this.interviewService.findAllPaginated(query, user);
+  }
 
-    const result = await this.interviewService.findAllForActor(user, {
-      unbounded: true,
-    });
-    return result.items.map((interview) => presentInterview(interview));
+  @Get('facets')
+  @RequirePermissions('interviews:read_own')
+  @ApiOperation({
+    summary: 'Faceted counts for the interview list sidebar',
+    description:
+      'Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.',
+  })
+  @ApiOkResponse({ type: InterviewFacetsResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search by candidates name',
+  })
+  @ApiQuery({
+    name: 'position',
+    required: false,
+    type: String,
+    description: 'Filter by position (exact match)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: INTERVIEW_STATUSES,
+  })
+  getFacets(
+    @Query() rawQuery: Record<string, unknown>,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewFacets> {
+    const query = parseInterviewFacetsQuery(rawQuery);
+    return this.interviewService.getFacets(query, user);
   }
 
   @Get(':id')

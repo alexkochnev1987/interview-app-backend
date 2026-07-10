@@ -49,6 +49,14 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
       'Candidate/recruiter upload targets a question index other than the interview current step.',
   },
   {
+    code: ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage:
+      'The maximum number of recording attempts for this question has been reached',
+    whenUsed:
+      'Candidate tries to save or upload another answer version beyond MAX_ANSWER_ATTEMPTS_PER_QUESTION.',
+  },
+  {
     code: ApiErrorCode.UNAUTHORIZED,
     httpStatus: HttpStatus.UNAUTHORIZED,
     defaultMessage: 'Unauthorized',
