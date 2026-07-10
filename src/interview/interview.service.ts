@@ -57,7 +57,7 @@ import {
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import {
-  getInterviewCompletedOnlyBlockReason,
+  getInterviewTerminalOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
@@ -396,7 +396,7 @@ export class InterviewService {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
 
-      const blockReason = getInterviewCompletedOnlyBlockReason(interview.status);
+      const blockReason = getInterviewTerminalOnlyBlockReason(interview.status);
       if (blockReason) {
         throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
           interviewId: id,

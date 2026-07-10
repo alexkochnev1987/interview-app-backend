@@ -1,6 +1,7 @@
 import { InterviewService } from './interview.service';
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
+import type { UploadService } from '../upload/upload.service';
 
 describe('InterviewService list query (findAllPaginated)', () => {
   function makeService() {
@@ -15,8 +16,15 @@ describe('InterviewService list query (findAllPaginated)', () => {
     const questionService = {
       hydrateStoredQuestionCore,
     } as unknown as QuestionService;
+    const uploadService = {
+      deleteInterviewMedia: jest.fn(),
+    } as unknown as UploadService;
     return {
-      service: new InterviewService(databaseService, questionService),
+      service: new InterviewService(
+        databaseService,
+        questionService,
+        uploadService,
+      ),
       query,
       hydrateStoredQuestionCore,
     };
@@ -120,8 +128,15 @@ describe('InterviewService facets query (getFacets)', () => {
     const questionService = {
       hydrateStoredQuestionCore: jest.fn(),
     } as unknown as QuestionService;
+    const uploadService = {
+      deleteInterviewMedia: jest.fn(),
+    } as unknown as UploadService;
     return {
-      service: new InterviewService(databaseService, questionService),
+      service: new InterviewService(
+        databaseService,
+        questionService,
+        uploadService,
+      ),
       query,
     };
   }

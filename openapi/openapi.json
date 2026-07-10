@@ -3142,7 +3142,7 @@
       },
       "delete": {
         "operationId": "InterviewController_deleteCompleted",
-        "summary": "Delete completed interview",
+        "summary": "Delete completed or failed interview",
         "parameters": [
           {
             "name": "id",

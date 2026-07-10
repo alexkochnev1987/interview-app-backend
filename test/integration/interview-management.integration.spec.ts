@@ -1,5 +1,7 @@
+import { INestApplication } from '@nestjs/common';
 import { DatabaseService } from '../../src/database/database.service';
 import { InterviewService } from '../../src/interview/interview.service';
+import { UploadService } from '../../src/upload/upload.service';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
@@ -42,6 +44,11 @@ async function createPendingInterview(
     .expect(201);
 
   return response.body.id as string;
+}
+
+function stubInterviewMediaDeletion(app: INestApplication): void {
+  const uploadService = app.get(UploadService);
+  jest.spyOn(uploadService, 'deleteInterviewMedia').mockResolvedValue(undefined);
 }
 
 describe('Interview management (integration)', () => {
@@ -115,6 +122,7 @@ describe('Interview management (integration)', () => {
 
     const databaseService = app.get(DatabaseService);
     await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
 
     const response = await agent
       .delete(`/interviews/${interviewId}`)
@@ -129,7 +137,38 @@ describe('Interview management (integration)', () => {
       .expect(404);
   });
 
-  it('rejects delete when interview is not completed', async () => {
+  it('deletes a failed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for failed delete wiring.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'failed');
+    stubInterviewMediaDeletion(app);
+
+    const response = await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(response.body).toEqual({ id: interviewId, deleted: true });
+
+    await agent
+      .get(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(404);
+  });
+
+  it('rejects delete when interview is not terminal', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
     const questionId = await createQuestion(
@@ -165,6 +204,7 @@ describe('Interview management (integration)', () => {
 
     const databaseService = app.get(DatabaseService);
     await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
 
     await agent
       .delete(`/interviews/${interviewId}`)
@@ -193,6 +233,7 @@ describe('Interview management (integration)', () => {
 
     const databaseService = app.get(DatabaseService);
     await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
 
     await agent
       .delete(`/questions/${questionId}`)

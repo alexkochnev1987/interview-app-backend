@@ -222,7 +222,7 @@ export class InterviewController {
 
   @Delete(':id')
   @RequirePermissions('interviews:update_own')
-  @ApiOperation({ summary: 'Delete completed interview' })
+  @ApiOperation({ summary: 'Delete completed or failed interview' })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewDeleteResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
