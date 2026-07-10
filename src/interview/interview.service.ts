@@ -97,6 +97,7 @@ export interface FacetCount {
 }
 
 export interface InterviewFacets {
+  totalQuestionCount: number;
   positions: FacetCount[];
   statuses: FacetCount[];
 }
@@ -615,12 +616,34 @@ export class InterviewService {
   ): Promise<InterviewFacets> {
     this.assertActorCanList(actor);
 
-    const [positions, statuses] = await Promise.all([
+    const [totalQuestionCount, positions, statuses] = await Promise.all([
+      this.queryInterviewTotalQuestionCount(query, actor),
       this.queryInterviewPositionFacet(query, actor),
       this.queryInterviewStatusFacet(query, actor),
     ]);
 
-    return { positions, statuses };
+    return { totalQuestionCount, positions, statuses };
+  }
+
+  private async queryInterviewTotalQuestionCount(
+    query: QueryInterviewFacetsDto,
+    actor: InterviewActor,
+  ): Promise<number> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor);
+
+    const result = await this.databaseService.query<{ total: string }>(
+      `
+        SELECT COALESCE(
+          SUM(COALESCE(jsonb_array_length(questions_json), 0)),
+          0
+        )::text AS total
+        FROM interviews
+        ${whereSql}
+      `,
+      params,
+    );
+
+    return Number(result.rows[0]?.total ?? 0);
   }
 
   private async queryInterviewPositionFacet(

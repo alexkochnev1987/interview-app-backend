@@ -137,6 +137,7 @@ describe('Interview list API (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
+    expect(facets.body.totalQuestionCount).toBe(1);
     expect(facets.body.positions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ value: 'Designer', count: 1 }),

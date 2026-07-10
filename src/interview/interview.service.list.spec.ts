@@ -112,3 +112,42 @@ describe('InterviewService list query (findAllPaginated)', () => {
     expect(result.limit).toBe(10);
   });
 });
+
+describe('InterviewService facets query (getFacets)', () => {
+  function makeService() {
+    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const databaseService = { query } as unknown as DatabaseService;
+    const questionService = {
+      hydrateStoredQuestionCore: jest.fn(),
+    } as unknown as QuestionService;
+    return {
+      service: new InterviewService(databaseService, questionService),
+      query,
+    };
+  }
+
+  it('sums question counts with all current filters applied', async () => {
+    const { service, query } = makeService();
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))')) {
+        return Promise.resolve({ rows: [{ total: '5' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const result = await service.getFacets(
+      { status: 'completed', position: 'Engineer' },
+      { id: 'admin', role: 'admin', demo: false },
+    );
+
+    const totalCall = query.mock.calls.find(([sql]) =>
+      sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))'),
+    );
+    expect(totalCall).toBeDefined();
+    const [sql, params] = totalCall!;
+    expect(sql).toContain('status = $');
+    expect(sql).toContain('lower(position) = $');
+    expect(params).toEqual(expect.arrayContaining(['completed', 'engineer']));
+    expect(result.totalQuestionCount).toBe(5);
+  });
+});

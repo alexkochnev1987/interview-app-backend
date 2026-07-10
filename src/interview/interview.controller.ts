@@ -137,7 +137,7 @@ export class InterviewController {
   @ApiOperation({
     summary: 'Faceted counts for the interview list sidebar',
     description:
-      'Returns position and status counts. Counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking.',
+      'Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.',
   })
   @ApiOkResponse({ type: InterviewFacetsResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

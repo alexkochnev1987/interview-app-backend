@@ -476,6 +476,12 @@ export class InterviewFacetCountDto {
 
 export class InterviewFacetsResponseDto {
   @ApiProperty({
+    description:
+        'Sum of question counts across interviews matching all current filters.',
+  })
+  totalQuestionCount: number;
+
+  @ApiProperty({
     type: [InterviewFacetCountDto],
     description:
         'Position value + count, given all OTHER current filters (position itself is not applied).',
