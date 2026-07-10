@@ -11,6 +11,10 @@ export const ALL_PERMISSIONS = [
   'interviews:read_own',
   'interviews:update_own',
   'interviews:assign',
+  'templates:create',
+  'templates:read',
+  'templates:update',
+  'templates:delete',
   'feedback:create_share_link',
   'feedback:revoke_share_link',
 ] as const;
@@ -29,6 +33,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'interviews:read_own',
     'interviews:update_own',
     'interviews:assign',
+    'templates:create',
+    'templates:read',
+    'templates:update',
+    'templates:delete',
     'feedback:create_share_link',
     'feedback:revoke_share_link',
   ],
@@ -38,6 +46,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'interviews:read_own',
     'interviews:update_own',
     'interviews:assign',
+    'templates:create',
+    'templates:read',
+    'templates:update',
+    'templates:delete',
     'feedback:create_share_link',
     'feedback:revoke_share_link',
   ],
@@ -49,6 +61,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
 export const READ_ONLY_PERMISSIONS: readonly Permission[] = [
   'questions:read',
   'interviews:read_own',
+  'templates:read',
 ];
 
 // Read-style permissions deliberately withheld from demo accounts. Every

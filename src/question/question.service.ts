@@ -968,6 +968,49 @@ export class QuestionService {
     );
   }
 
+  // Resolve ids to current active rows for a locale, preserving order and dropping ids that no longer resolve; never throws on gaps (powers templates' live references).
+  async resolveExistingByIds(
+    ids: string[],
+    locale: Locale,
+    options: { demo?: boolean; includeTranslations?: boolean } = {},
+  ): Promise<ResolvedQuestion[]> {
+    const uniqueIds = Array.from(
+      new Set(ids.map((id) => id.trim()).filter(Boolean)),
+    );
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const params: unknown[] = [uniqueIds];
+    const demoClause = demoScopeClause(params, options.demo === true);
+    const result = await this.databaseService.query<QuestionRow>(
+      `
+        ${QUESTION_SELECT}
+        WHERE id = ANY($1::uuid[])
+          AND ${demoClause}
+          AND deleted = FALSE
+          AND pending_deletion = FALSE
+      `,
+      params,
+    );
+
+    const byId = new Map(
+      result.rows.map(
+        (row) =>
+          [
+            row.id,
+            this.toResolvedQuestion(this.mapRow(row), locale, {
+              includeTranslations: options.includeTranslations === true,
+            }),
+          ] as const,
+      ),
+    );
+
+    return uniqueIds
+      .map((id) => byId.get(id))
+      .filter((question): question is ResolvedQuestion => question !== undefined);
+  }
+
   private async lockQuestionForDelete(
     client: PoolClient,
     id: string,
