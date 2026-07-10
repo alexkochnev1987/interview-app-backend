@@ -16,6 +16,7 @@ import {
   seedDemoData,
   type DemoSeedCounts,
 } from '../database/demo-seed-core';
+import { seedOnboardingLitePack, shouldSeedOnboardingLitePack } from '../database/onboarding-lite-seed';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 
 interface UserRow {
@@ -84,7 +85,16 @@ export class UserService implements OnModuleInit {
       ],
     );
 
-    return this.toPublicUser(this.mapRow(result.rows[0]));
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException('Failed to create user');
+    }
+
+    if (shouldSeedOnboardingLitePack(dto.role)) {
+      await seedOnboardingLitePack(this.databaseService, row.id);
+    }
+
+    return this.toPublicUser(this.mapRow(row));
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
