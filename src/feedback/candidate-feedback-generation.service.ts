@@ -389,7 +389,7 @@ export class CandidateFeedbackGenerationService {
   private async resolveQuestionRegenerationSkipReason(
     interviewId: string,
     questionIndex: number,
-  ): Promise<QuestionGenerationSkipReason> {
+  ): Promise<CandidateFeedbackRegenerationBlockReason | null> {
     const feedback = await this.candidateFeedbackService.findByInterviewId(
       interviewId,
     );
@@ -404,7 +404,7 @@ export class CandidateFeedbackGenerationService {
       );
     }
 
-    return getRegenerationBlockReason(question.state) ?? 'in_progress';
+    return getRegenerationBlockReason(question.state);
   }
 
   private withFeedbackLock<T>(

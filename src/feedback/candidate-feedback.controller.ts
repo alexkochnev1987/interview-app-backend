@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -122,6 +124,7 @@ export class CandidateFeedbackController {
   }
 
   @Post(':id/candidate-feedback/generate')
+  @HttpCode(HttpStatus.OK)
   @RequirePermissions('interviews:update_own')
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for the whole interview',
@@ -153,6 +156,7 @@ export class CandidateFeedbackController {
   }
 
   @Post(':id/candidate-feedback/questions/:questionIndex/generate')
+  @HttpCode(HttpStatus.OK)
   @RequirePermissions('interviews:update_own')
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for one question',
