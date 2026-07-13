@@ -8,7 +8,6 @@ import {
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import {
-  Answer,
   AnswerEvaluation,
   AnswerTranscript,
   AnswerValidationStatus,
