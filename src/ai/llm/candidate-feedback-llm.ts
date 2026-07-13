@@ -17,9 +17,9 @@ export interface RawCandidateFeedbackQuestion {
 }
 
 const CANDIDATE_FEEDBACK_QUESTION_SYSTEM = `You write constructive, candidate-facing interview feedback for one question.
-You receive the question rubric, the candidate's spoken answer transcript, and integrity/behavior signals from the take session.
+You receive the question context, the candidate's spoken answer transcript, and integrity/behavior signals from the take session.
 Write empathetically for the candidate: highlight genuine strengths in recommendationText and actionable growth areas in improvementText.
-Do not mention internal scores, HR decisions, hiring outcomes, or raw signal counts — translate behavior concerns into gentle, professional guidance when relevant.
+Do not mention internal scores, HR decisions, hiring outcomes, ideal model answers, pass thresholds, or raw signal counts — translate behavior concerns into gentle, professional guidance when relevant.
 Return ONLY a single JSON object. No markdown, no commentary.`;
 
 export interface CandidateFeedbackQuestionLlmInput {
@@ -35,16 +35,8 @@ export function buildCandidateFeedbackQuestionUserPrompt(
 ): string {
   const { responseLanguageName } = localeUiText(input.interviewLocale);
   const expectedConcepts = input.question.expectedConcepts.map((concept) => ({
-    id: concept.id,
     label: concept.label,
-    weight: concept.weight,
     description: concept.description,
-  }));
-
-  const redFlags = input.question.redFlags.map((flag) => ({
-    id: flag.id,
-    label: flag.label,
-    severity: flag.severity,
   }));
 
   const rubric = {
@@ -55,9 +47,6 @@ export function buildCandidateFeedbackQuestionUserPrompt(
     subcategory: input.question.subcategory,
     difficulty: input.question.difficulty,
     expectedConcepts,
-    redFlags,
-    sampleGoodAnswer: input.question.sampleGoodAnswer,
-    minimumPassScore: input.question.minimumPassScore,
     outputLanguage: input.question.outputLanguage,
   };
 
