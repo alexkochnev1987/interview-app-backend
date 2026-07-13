@@ -7,6 +7,7 @@ const TRUNCATE_TABLES = [
   'feedback_links',
   'question_embeddings',
   'interviews',
+  'interview_templates',
   'questions',
   'users',
 ] as const;
