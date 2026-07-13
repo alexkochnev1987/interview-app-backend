@@ -10,11 +10,10 @@ import {
   PutObjectCommand,
   S3Client,
   UploadPartCommand,
-  DeleteObjectsCommand,
-  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { InterviewService } from '../interview/interview.service';
+import { MediaCleanupService } from './media-cleanup.service';
 import {
   ConfirmUploadResponseDto,
   MultipartUploadAbortResponseDto,
@@ -47,6 +46,7 @@ export class UploadService {
   constructor(
     @Inject(forwardRef(() => InterviewService))
     private readonly interviewService: InterviewService,
+    private readonly mediaCleanupService: MediaCleanupService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
@@ -307,39 +307,7 @@ export class UploadService {
   }
 
   async deleteInterviewMedia(interviewId: string): Promise<void> {
-    const prefix = `${this.prefix.replace(/^\/+|\/+$/g, '')}/interviews/${interviewId}/`;
-
-    let continuationToken: string | undefined;
-    do {
-      const listed = await this.s3Client.send(
-          new ListObjectsV2Command({
-            Bucket: this.bucket,
-            Prefix: prefix,
-            ContinuationToken: continuationToken,
-          }),
-      );
-
-      const keys = (listed.Contents ?? [])
-          .map((object) => object.Key)
-          .filter((key): key is string => Boolean(key));
-
-      for (let i = 0; i < keys.length; i += 1000) {
-        const chunk = keys.slice(i, i + 1000);
-        await this.s3Client.send(
-            new DeleteObjectsCommand({
-              Bucket: this.bucket,
-              Delete: {
-                Objects: chunk.map((Key) => ({ Key })),
-                Quiet: true,
-              },
-            }),
-        );
-      }
-
-      continuationToken = listed.IsTruncated
-          ? listed.NextContinuationToken
-          : undefined;
-    } while (continuationToken);
+    return this.mediaCleanupService.deleteInterviewMedia(interviewId);
   }
 
   private async assertCurrentQuestionUploadAllowed(

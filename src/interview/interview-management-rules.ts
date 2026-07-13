@@ -24,3 +24,14 @@ export function getInterviewTerminalOnlyBlockReason(
 export function isTerminalInterviewStatus(status: InterviewStatus): boolean {
   return (TERMINAL_INTERVIEW_STATUSES as readonly string[]).includes(status);
 }
+
+export const INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE =
+  'Demo interviews cannot be deleted';
+
+export function getInterviewDemoDeleteBlockReason(
+  interview: { demo: boolean },
+): string | null {
+  return interview.demo === true
+    ? INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE
+    : null;
+}

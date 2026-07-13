@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DatabaseService } from '../../src/database/database.service';
 import { InterviewService } from '../../src/interview/interview.service';
-import { UploadService } from '../../src/upload/upload.service';
+import { MediaCleanupService } from '../../src/upload/media-cleanup.service';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
@@ -47,8 +47,10 @@ async function createPendingInterview(
 }
 
 function stubInterviewMediaDeletion(app: INestApplication): void {
-  const uploadService = app.get(UploadService);
-  jest.spyOn(uploadService, 'deleteInterviewMedia').mockResolvedValue(undefined);
+  const mediaCleanupService = app.get(MediaCleanupService);
+  jest
+    .spyOn(mediaCleanupService, 'deleteInterviewMedia')
+    .mockResolvedValue(undefined);
 }
 
 describe('Interview management (integration)', () => {
@@ -166,6 +168,34 @@ describe('Interview management (integration)', () => {
       .get(`/interviews/${interviewId}`)
       .set(authCookie(session))
       .expect(404);
+  });
+
+  it('rejects delete of a demo completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for demo delete block.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'completed');
+    await databaseService.query(
+      'UPDATE interviews SET demo = TRUE WHERE id = $1',
+      [interviewId],
+    );
+    stubInterviewMediaDeletion(app);
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(403);
   });
 
   it('rejects delete when interview is not terminal', async () => {

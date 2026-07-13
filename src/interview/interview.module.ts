@@ -1,5 +1,5 @@
-import {forwardRef, Module} from '@nestjs/common';
-import { UploadModule } from '../upload/upload.module'
+import { Module } from '@nestjs/common';
+import { MediaCleanupModule } from '../upload/media-cleanup.module';
 import { InterviewController } from './interview.controller';
 import { InterviewService } from './interview.service';
 import { AuthModule } from '../auth/auth.module';
@@ -8,7 +8,7 @@ import { QuestionModule } from '../question/question.module';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, QuestionModule, forwardRef(()=> UploadModule)],
+  imports: [AuthModule, DatabaseModule, QuestionModule, MediaCleanupModule],
   controllers: [InterviewController],
   providers: [InterviewService, AnswerValidationWorkflowService],
   exports: [InterviewService, AnswerValidationWorkflowService],
