@@ -672,6 +672,51 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   },
   {
     version: '0036',
+    name: 'create_interview_templates',
+    statements: [
+      // Reusable templates; question_ids_json holds ordered live references resolved on read. demo scopes rows like other content.
+      `
+        CREATE TABLE IF NOT EXISTS interview_templates (
+          id UUID PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NULL,
+          position TEXT NULL,
+          question_ids_json JSONB NOT NULL DEFAULT '[]',
+          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+          demo BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `CREATE INDEX IF NOT EXISTS interview_templates_demo_idx ON interview_templates (demo);`,
+    ],
+    rollbackStatements: [`DROP TABLE IF EXISTS interview_templates;`],
+  },
+  {
+    version: '0037',
+    name: 'add_interview_templates_usage_count',
+    statements: [
+      // Popularity: incremented each time an interview is created from the template.
+      `ALTER TABLE interview_templates ADD COLUMN IF NOT EXISTS usage_count INTEGER NOT NULL DEFAULT 0;`,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE interview_templates DROP COLUMN IF EXISTS usage_count;`,
+    ],
+  },
+  {
+    version: '0038',
+    name: 'index_interview_templates_demo_updated_at',
+    statements: [
+      // The list query filters by demo and orders by updated_at DESC; a composite
+      // index serves that ordered scan (and still covers demo-only lookups).
+      `CREATE INDEX IF NOT EXISTS interview_templates_demo_updated_at_idx ON interview_templates (demo, updated_at DESC);`,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS interview_templates_demo_updated_at_idx;`,
+    ],
+  },
+  {
+    version: '0039',
     name: 'create_candidate_feedback',
     statements: [
       `
@@ -760,51 +805,6 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           END IF;
         END $$;
       `,
-    ],
-  },
-  {
-    version: '0037',
-    name: 'create_interview_templates',
-    statements: [
-      // Reusable templates; question_ids_json holds ordered live references resolved on read. demo scopes rows like other content.
-      `
-        CREATE TABLE IF NOT EXISTS interview_templates (
-          id UUID PRIMARY KEY,
-          name TEXT NOT NULL,
-          description TEXT NULL,
-          position TEXT NULL,
-          question_ids_json JSONB NOT NULL DEFAULT '[]',
-          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
-          demo BOOLEAN NOT NULL DEFAULT FALSE,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-      `,
-      `CREATE INDEX IF NOT EXISTS interview_templates_demo_idx ON interview_templates (demo);`,
-    ],
-    rollbackStatements: [`DROP TABLE IF EXISTS interview_templates;`],
-  },
-  {
-    version: '0038',
-    name: 'add_interview_templates_usage_count',
-    statements: [
-      // Popularity: incremented each time an interview is created from the template.
-      `ALTER TABLE interview_templates ADD COLUMN IF NOT EXISTS usage_count INTEGER NOT NULL DEFAULT 0;`,
-    ],
-    rollbackStatements: [
-      `ALTER TABLE interview_templates DROP COLUMN IF EXISTS usage_count;`,
-    ],
-  },
-  {
-    version: '0039',
-    name: 'index_interview_templates_demo_updated_at',
-    statements: [
-      // The list query filters by demo and orders by updated_at DESC; a composite
-      // index serves that ordered scan (and still covers demo-only lookups).
-      `CREATE INDEX IF NOT EXISTS interview_templates_demo_updated_at_idx ON interview_templates (demo, updated_at DESC);`,
-    ],
-    rollbackStatements: [
-      `DROP INDEX IF EXISTS interview_templates_demo_updated_at_idx;`,
     ],
   },
 ];
