@@ -1,5 +1,6 @@
 import {
   canRegenerateCandidateFeedbackBlock,
+  getHrPatchBlockReason,
   isCandidateFeedbackBlockProtected,
 } from './candidate-feedback-block-rules';
 import { resolveCandidateFeedbackQuestionSourceText } from './candidate-feedback-source-text';
@@ -12,6 +13,8 @@ describe('candidate feedback rules', () => {
     expect(canRegenerateCandidateFeedbackBlock('generating')).toBe(false);
     expect(canRegenerateCandidateFeedbackBlock('generated')).toBe(true);
     expect(canRegenerateCandidateFeedbackBlock('failed')).toBe(true);
+    expect(getHrPatchBlockReason('generating')).toBe('in_progress');
+    expect(getHrPatchBlockReason('generated')).toBeNull();
   });
 
   it('picks best-available per-question texts for overall synthesis', () => {

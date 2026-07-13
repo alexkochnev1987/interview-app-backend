@@ -41,6 +41,15 @@ export function getRegenerationBlockReason(
   return null;
 }
 
+export function getHrPatchBlockReason(
+  state: CandidateFeedbackBlockState,
+): 'in_progress' | null {
+  if (state === 'generating') {
+    return 'in_progress';
+  }
+  return null;
+}
+
 export function isHrPatchableCandidateFeedbackBlockState(
   state: string,
 ): state is HrPatchableCandidateFeedbackBlockState {

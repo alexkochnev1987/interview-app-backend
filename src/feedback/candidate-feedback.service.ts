@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
+import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
 import { DatabaseService } from '../database/database.service';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { isHrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
 import type { HrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
+import { getHrPatchBlockReason } from './candidate-feedback-block-rules';
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
@@ -183,6 +184,7 @@ export class CandidateFeedbackService {
         const feedback = await this.requireByInterviewId(interviewId);
 
         if (patch.overall && this.hasHrOverallPatchFields(patch.overall)) {
+          this.assertBlockOpenForHrPatch(feedback.overallState, { interviewId });
           this.assertHrPatchableState(patch.overall.state);
           await this.updateOverallBlock(interviewId, {
             overallRecommendationText: patch.overall.recommendationText,
@@ -212,6 +214,11 @@ export class CandidateFeedbackService {
                 },
               );
             }
+
+            this.assertBlockOpenForHrPatch(question.state, {
+              interviewId,
+              questionIndex: question.questionIndex,
+            });
 
             await this.applyQuestionBlockUpdate(question, {
               recommendationText: questionPatch.recommendationText,
@@ -544,6 +551,19 @@ export class CandidateFeedbackService {
         ApiErrorCode.VALIDATION_ERROR,
         'HR can only set block state to accepted or edited',
         { state },
+      );
+    }
+  }
+
+  private assertBlockOpenForHrPatch(
+    state: CandidateFeedbackBlockState,
+    context: { interviewId: string; questionIndex?: number },
+  ): void {
+    if (getHrPatchBlockReason(state) === 'in_progress') {
+      throw apiConflict(
+        ApiErrorCode.CONFLICT,
+        'Candidate feedback generation is in progress for this block',
+        context,
       );
     }
   }
