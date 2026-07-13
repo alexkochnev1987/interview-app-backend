@@ -716,7 +716,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0039',
+    version: '0040',
     name: 'create_candidate_feedback',
     statements: [
       `
