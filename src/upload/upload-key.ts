@@ -24,6 +24,13 @@ function normalizePrefix(prefix: string): string {
   return trimmed ? `${trimmed}/` : '';
 }
 
+export function getInterviewMediaPrefix(
+  prefix: string,
+  interviewId: string,
+): string {
+  return `${normalizePrefix(prefix)}interviews/${interviewId}/`;
+}
+
 export function buildInterviewMediaKey({
   prefix,
   interviewId,
