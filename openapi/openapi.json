@@ -304,6 +304,7 @@
       "patch": {
         "operationId": "AuthController_completeOnboarding",
         "summary": "Mark first-time onboarding as completed or skipped",
+        "description": "Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -322,16 +323,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CompleteOnboardingDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "",
@@ -5221,20 +5212,6 @@
         "required": [
           "ok"
         ]
-      },
-      "CompleteOnboardingDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "completed",
-              "skipped"
-            ],
-            "description": "How the user closed onboarding. Both values persist the same completion timestamp.",
-            "example": "completed"
-          }
-        }
       },
       "ApiErrorCode": {
         "type": "string",

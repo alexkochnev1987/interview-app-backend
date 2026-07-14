@@ -62,39 +62,42 @@ export class UserService implements OnModuleInit {
   async create(dto: CreateUserDto): Promise<Omit<User, 'passwordHash'>> {
     const email = this.normalizeEmail(dto.email);
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const result = await this.databaseService.query<UserRow>(
-      `
-        INSERT INTO users (
-          id,
+
+    return this.databaseService.withTransaction(async (client) => {
+      const result = await client.query<UserRow>(
+        `
+          INSERT INTO users (
+            id,
+            email,
+            name,
+            role,
+            organization_id,
+            password_hash
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING ${USER_COLUMNS}
+        `,
+        [
+          crypto.randomUUID(),
           email,
-          name,
-          role,
-          organization_id,
-          password_hash
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING ${USER_COLUMNS}
-      `,
-      [
-        crypto.randomUUID(),
-        email,
-        dto.name,
-        dto.role,
-        dto.organizationId ?? null,
-        passwordHash,
-      ],
-    );
+          dto.name,
+          dto.role,
+          dto.organizationId ?? null,
+          passwordHash,
+        ],
+      );
 
-    const row = result.rows[0];
-    if (!row) {
-      throw new NotFoundException('Failed to create user');
-    }
+      const row = result.rows[0];
+      if (!row) {
+        throw new NotFoundException('Failed to create user');
+      }
 
-    if (shouldSeedOnboardingLitePack(dto.role)) {
-      await seedOnboardingLitePack(this.databaseService, row.id);
-    }
+      if (shouldSeedOnboardingLitePack(dto.role, row.demo)) {
+        await seedOnboardingLitePack(client, row.id);
+      }
 
-    return this.toPublicUser(this.mapRow(row));
+      return this.toPublicUser(this.mapRow(row));
+    });
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
@@ -244,6 +247,11 @@ export class UserService implements OnModuleInit {
       if (!updatedRow) {
         throw new NotFoundException(`User ${targetId} not found`);
       }
+
+      if (shouldSeedOnboardingLitePack(newRole, updatedRow.demo)) {
+        await seedOnboardingLitePack(client, targetId);
+      }
+
       return this.toPublicUser(this.mapRow(updatedRow));
     });
   }
@@ -255,20 +263,14 @@ export class UserService implements OnModuleInit {
   async completeOnboarding(
     userId: string,
   ): Promise<Omit<User, 'passwordHash'>> {
-    const existing = await this.findById(userId);
-    if (!existing) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
-
-    if (existing.onboardingCompletedAt) {
-      return this.toPublicUser(existing);
-    }
-
     const result = await this.databaseService.query<UserRow>(
       `
         UPDATE users
-        SET onboarding_completed_at = NOW(),
-            updated_at = NOW()
+        SET onboarding_completed_at = COALESCE(onboarding_completed_at, NOW()),
+            updated_at = CASE
+              WHEN onboarding_completed_at IS NULL THEN NOW()
+              ELSE updated_at
+            END
         WHERE id = $1
         RETURNING ${USER_COLUMNS}
       `,

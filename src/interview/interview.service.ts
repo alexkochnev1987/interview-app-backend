@@ -52,6 +52,7 @@ import {
   isTerminalInterviewStatus,
 } from './interview-management-rules';
 import { demoScopeClause } from '../common/demo-scope';
+import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
 import {
@@ -139,6 +140,7 @@ export interface InterviewActor {
   id: string;
   role: UserRole;
   demo: boolean;
+  onboardingCompletedAt?: Date | null;
 }
 
 interface AddAnswerInput {
@@ -570,6 +572,9 @@ export class InterviewService {
     if (actor.role === 'hr') {
       params.push(actor.id);
       clauses.push(`created_by_id = $${params.length}`);
+    }
+    if (actor.onboardingCompletedAt != null) {
+      clauses.push(excludeOnboardingStarterClause(params));
     }
     return `WHERE ${clauses.join(' AND ')}`;
   }

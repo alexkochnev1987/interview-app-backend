@@ -8,14 +8,25 @@ import type {
 import type { Locale } from '../locale/locale.constants';
 import type { UserRole } from '../user/interfaces/user.interface';
 import type { DemoSeedExecutor } from './demo-seed-core';
+import {
+  ONBOARDING_STARTER_EMAIL_SUFFIX,
+  isOnboardingStarterEmail,
+} from '../common/onboarding-starter';
 
-export const ONBOARDING_STARTER_EMAIL_SUFFIX = '@onboarding-starter.sample';
+export { ONBOARDING_STARTER_EMAIL_SUFFIX, isOnboardingStarterEmail };
 
 const LOCALE: Locale = 'en';
 const STARTED_AT = new Date('2026-06-15T10:00:00.000Z');
 const SUBMITTED_AT = new Date('2026-06-15T10:18:00.000Z');
 
-export function shouldSeedOnboardingLitePack(role: UserRole): boolean {
+export function shouldSeedOnboardingLitePack(
+  role: UserRole,
+  demo = false,
+): boolean {
+  if (demo) {
+    return false;
+  }
+
   return role === 'hr' || role === 'admin' || role === 'super_admin';
 }
 
@@ -64,7 +75,6 @@ function embeddedQuestion(
 }
 
 function submittedAwaitingAnswer(
-  interviewId: string,
   questionId: string,
   index: number,
   transcript: string,
@@ -73,8 +83,6 @@ function submittedAwaitingAnswer(
     questionIndex: index,
     questionId,
     status: 'submitted',
-    mediaKey: `onboarding-sample/${interviewId}/q${index}/camera.webm`,
-    screenMediaKey: `onboarding-sample/${interviewId}/q${index}/screen.webm`,
     uploadedAt: SUBMITTED_AT,
     durationSeconds: 90 + index * 10,
     retakeCount: 0,
@@ -98,7 +106,7 @@ function submittedAwaitingAnswer(
     validation: {
       status: 'idle',
     },
-  };
+  } as Answer;
 }
 
 export function buildOnboardingLiteInterview(userId: string): Interview {
@@ -125,13 +133,11 @@ export function buildOnboardingLiteInterview(userId: string): Interview {
     questions,
     answers: [
       submittedAwaitingAnswer(
-        interviewId,
         questions[0].id,
         0,
         'A closure keeps access to its lexical scope. I use them for private state and factory helpers.',
       ),
       submittedAwaitingAnswer(
-        interviewId,
         questions[1].id,
         1,
         'Props are read-only from the parent; state is local and updated with a setter, which triggers a re-render.',
