@@ -383,23 +383,26 @@ describe('Candidate feedback (integration)', () => {
 
     const deadline = Date.now() + 10_000;
     let finalFeedback = started.body.feedback;
+    const isFullyGenerated = (feedback: {
+      questions: Array<{ state: string }>;
+      overall: { state: string };
+    }) =>
+      feedback.questions.every((question) => question.state === 'generated') &&
+      feedback.overall.state === 'generated';
+
     while (Date.now() < deadline) {
       const polled = await agent
         .get(`/interviews/${interviewId}/candidate-feedback`)
         .set(authCookie(session))
         .expect(200);
       finalFeedback = polled.body;
-      const stillGenerating =
-        finalFeedback.overall.state === 'generating' ||
-        finalFeedback.questions.some(
-          (question: { state: string }) => question.state === 'generating',
-        );
-      if (!stillGenerating) {
+      if (isFullyGenerated(finalFeedback)) {
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
+    expect(isFullyGenerated(finalFeedback)).toBe(true);
     expect(finalFeedback.questions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
