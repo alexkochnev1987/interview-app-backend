@@ -232,6 +232,11 @@ export interface InterviewWorkflow {
   errorMessage?: string;
 }
 
+export interface InterviewDeleteResult {
+  id: string;
+  deleted: true;
+}
+
 export interface InterviewCancelResult {
   id: string;
   canceled: true;

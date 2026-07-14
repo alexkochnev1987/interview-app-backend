@@ -514,6 +514,14 @@ export class InterviewCancelResponseDto {
   canceled: true;
 }
 
+export class InterviewDeleteResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: true })
+  deleted: true;
+}
+
 export class InterviewQuestionPreviewDto {
   @ApiProperty()
   id: string;
