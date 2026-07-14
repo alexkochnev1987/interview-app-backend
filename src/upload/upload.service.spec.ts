@@ -14,9 +14,14 @@ describe('UploadService multipart attempt limits', () => {
     mockGetSignedUrl.mockReset();
     mockGetSignedUrl.mockResolvedValue('https://example.test/upload');
 
-    service = new UploadService({
-      findOne: jest.fn(),
-    } as unknown as ConstructorParameters<typeof UploadService>[0]);
+    service = new UploadService(
+      {
+        findOne: jest.fn(),
+      } as unknown as ConstructorParameters<typeof UploadService>[0],
+      {
+        deleteInterviewMedia: jest.fn(),
+      } as unknown as ConstructorParameters<typeof UploadService>[1],
+    );
 
     (service as unknown as { assertCurrentQuestionUploadAllowed: jest.Mock })
       .assertCurrentQuestionUploadAllowed = jest

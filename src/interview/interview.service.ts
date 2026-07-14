@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { MediaCleanupService } from '../upload/media-cleanup.service';
 import {
   apiBadRequest,
   apiConflict,
@@ -37,6 +38,7 @@ import {
   InterviewWorkflow,
   MediaArtifact,
   InterviewCancelResult,
+  InterviewDeleteResult,
   InterviewListItem,
   InterviewActor,
 } from './interfaces/interview.interface';
@@ -55,7 +57,9 @@ import {
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
 import {
+  getInterviewTerminalOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
+  getInterviewDemoDeleteBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
@@ -250,9 +254,12 @@ interface FailAnswerValidationInput {
 
 @Injectable()
 export class InterviewService {
+  private readonly logger = new Logger(InterviewService.name);
+
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
+    private readonly mediaCleanupService: MediaCleanupService,
   ) {}
 
   async create(
@@ -356,10 +363,11 @@ export class InterviewService {
     });
   }
 
-  async cancel(id: string): Promise<InterviewCancelResult> {
+  async cancel(id: string, actor: InterviewActor): Promise<InterviewCancelResult> {
     return this.databaseService.withTransaction(async (client) => {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
+      this.assertActorCanManageInterview(interview, actor);
 
       const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
       if (blockReason) {
@@ -369,21 +377,71 @@ export class InterviewService {
         });
       }
 
-      const questionIds = interview.questions.map((question) => question.id);
-      await client.query(`DELETE FROM interviews WHERE id = $1`, [id]);
-      if (questionIds.length > 0) {
-        await client.query(
-          `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
-          [questionIds],
-        );
-      }
-
-      await this.questionService.processPendingDeletionsAfterTerminalInterview(
-        client,
-        questionIds,
-      );
+      await this.removeInterview(client, interview);
       return { id, canceled: true };
     });
+  }
+
+  async deleteCompleted(
+    id: string,
+    actor: InterviewActor,
+  ): Promise<InterviewDeleteResult> {
+    const result = await this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+      this.assertActorCanManageInterview(interview, actor);
+
+      const blockReason = getInterviewTerminalOnlyBlockReason(interview.status);
+      if (blockReason) {
+        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+          interviewId: id,
+          status: interview.status,
+        });
+      }
+
+      const demoBlockReason = getInterviewDemoDeleteBlockReason(interview);
+      if (demoBlockReason) {
+        throw apiForbidden(ApiErrorCode.FORBIDDEN, demoBlockReason, {
+          interviewId: id,
+        });
+      }
+
+      await this.removeInterview(client, interview);
+      return { id, deleted: true as const };
+    });
+
+    await this.purgeInterviewMediaBestEffort(id);
+    return result;
+  }
+
+  private async purgeInterviewMediaBestEffort(interviewId: string): Promise<void> {
+    try {
+      await this.mediaCleanupService.deleteInterviewMedia(interviewId);
+    } catch (error) {
+      this.logger.error(
+        `Best-effort S3 cleanup failed after interview ${interviewId} was deleted`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  private async removeInterview(
+    client: PoolClient,
+    interview: Interview,
+  ): Promise<void> {
+    const questionIds = interview.questions.map((question) => question.id);
+    await client.query(`DELETE FROM interviews WHERE id = $1`, [interview.id]);
+    if (questionIds.length > 0) {
+      await client.query(
+        `UPDATE questions SET usage_count = GREATEST(usage_count - 1, 0) WHERE id = ANY($1::uuid[])`,
+        [questionIds],
+      );
+    }
+
+    await this.questionService.processPendingDeletionsAfterTerminalInterview(
+      client,
+      questionIds,
+    );
   }
 
   async update(id: string, dto: UpdateInterviewDto): Promise<Interview> {
@@ -808,6 +866,14 @@ export class InterviewService {
 
       return { ok: true as const, interviewId, placeholderRemoved };
     });
+  }
+
+  private assertActorCanManageInterview(
+    interview: Interview,
+    actor: InterviewActor,
+  ): void {
+    this.assertActorCanAccess(interview, actor);
+    this.assertActorDemoScope(interview, actor);
   }
 
   private assertActorCanAccess(
