@@ -129,7 +129,7 @@ export class CandidateFeedbackController {
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for the whole interview',
     description:
-      'Loops question blocks sequentially (skips accepted/edited), then regenerates overall from best-available per-question texts. Overall accepted/edited blocks are not overwritten.',
+      'Starts generation in the background and returns immediately with queued/skipped plan. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiQuery({
@@ -142,6 +142,7 @@ export class CandidateFeedbackController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
   @ApiServiceUnavailableResponse({ type: ApiErrorResponseDto })
   async generateAllCandidateFeedback(
     @Param('id', ParseUUIDPipe) interviewId: string,
@@ -152,7 +153,10 @@ export class CandidateFeedbackController {
       interviewId,
       user,
     );
-    return this.candidateFeedbackGenerationService.generateAll(interview);
+    return this.candidateFeedbackGenerationService.startGenerateAll(
+      interview,
+      query.scope,
+    );
   }
 
   @Post(':id/candidate-feedback/questions/:questionIndex/generate')

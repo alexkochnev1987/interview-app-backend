@@ -1,7 +1,9 @@
 import {
   canRegenerateCandidateFeedbackBlock,
   getHrPatchBlockReason,
+  hasPublishableCandidateFeedbackText,
   isCandidateFeedbackBlockProtected,
+  resolveHrPatchFeedbackText,
 } from './candidate-feedback-block-rules';
 import { resolveCandidateFeedbackQuestionSourceText } from './candidate-feedback-source-text';
 import { CandidateFeedbackQuestion } from './interfaces/candidate-feedback.interface';
@@ -15,6 +17,29 @@ describe('candidate feedback rules', () => {
     expect(canRegenerateCandidateFeedbackBlock('failed')).toBe(true);
     expect(getHrPatchBlockReason('generating')).toBe('in_progress');
     expect(getHrPatchBlockReason('generated')).toBeNull();
+  });
+
+  it('requires publishable text when locking a block via HR patch', () => {
+    expect(
+      hasPublishableCandidateFeedbackText({
+        recommendationText: ' Strengths ',
+      }),
+    ).toBe(true);
+    expect(
+      hasPublishableCandidateFeedbackText({
+        recommendationText: '   ',
+        improvementText: '',
+      }),
+    ).toBe(false);
+    expect(
+      resolveHrPatchFeedbackText(
+        { recommendationText: 'Stored recommendation' },
+        { improvementText: 'Patched improvement' },
+      ),
+    ).toEqual({
+      recommendationText: 'Stored recommendation',
+      improvementText: 'Patched improvement',
+    });
   });
 
   it('picks best-available per-question texts for overall synthesis', () => {

@@ -185,6 +185,12 @@ describe('Candidate feedback (integration)', () => {
     });
     expect(empty.body.updatedAt).toEqual(expect.any(String));
 
+    await agent
+      .patch(`/interviews/${interviewId}/candidate-feedback`)
+      .set(authCookie(session))
+      .send({})
+      .expect(400);
+
     const acceptedQ0 = await agent
       .patch(`/interviews/${interviewId}/candidate-feedback`)
       .set(authCookie(session))
@@ -271,6 +277,8 @@ describe('Candidate feedback (integration)', () => {
       .send({})
       .expect(200);
 
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     expect(generateAll.body).toEqual(
       expect.objectContaining({
         feedback: expect.objectContaining({
@@ -317,5 +325,101 @@ describe('Candidate feedback (integration)', () => {
 
     expect(questionLlmSpy).toHaveBeenCalledTimes(1);
     expect(overallLlmSpy).not.toHaveBeenCalled();
+  });
+
+  it('starts generate-all in the background and completes via GET polling', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionIdA = await createQuestion(
+      agent,
+      session,
+      'Async candidate feedback question A.',
+    );
+    const questionIdB = await createQuestion(
+      agent,
+      session,
+      'Async candidate feedback question B.',
+    );
+    const { interviewId } = await createTwoQuestionCompletedInterview(
+      app,
+      agent,
+      session,
+      questionIdA,
+      questionIdB,
+    );
+
+    let releaseFirstQuestion: (() => void) | undefined;
+    const firstQuestionGate = new Promise<void>((resolve) => {
+      releaseFirstQuestion = resolve;
+    });
+    questionLlmSpy.mockImplementationOnce(async () => {
+      await firstQuestionGate;
+      return {
+        recommendationText: 'Mock recommendation for Q0.',
+        improvementText: 'Mock improvement for Q0.',
+      };
+    });
+    questionLlmSpy.mockResolvedValueOnce({
+      recommendationText: 'Mock recommendation for Q1.',
+      improvementText: 'Mock improvement for Q1.',
+    });
+
+    const started = await agent
+      .post(`/interviews/${interviewId}/candidate-feedback/generate`)
+      .query({ scope: 'all' })
+      .set(authCookie(session))
+      .send({})
+      .expect(200);
+
+    expect(started.body.questions).toEqual(
+      expect.arrayContaining([
+        { status: 'queued', questionIndex: 0 },
+        { status: 'queued', questionIndex: 1 },
+      ]),
+    );
+    expect(started.body.overall).toEqual({ status: 'queued' });
+
+    releaseFirstQuestion?.();
+
+    const deadline = Date.now() + 10_000;
+    let finalFeedback = started.body.feedback;
+    while (Date.now() < deadline) {
+      const polled = await agent
+        .get(`/interviews/${interviewId}/candidate-feedback`)
+        .set(authCookie(session))
+        .expect(200);
+      finalFeedback = polled.body;
+      const stillGenerating =
+        finalFeedback.overall.state === 'generating' ||
+        finalFeedback.questions.some(
+          (question: { state: string }) => question.state === 'generating',
+        );
+      if (!stillGenerating) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    expect(finalFeedback.questions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          questionIndex: 0,
+          state: 'generated',
+          recommendationText: 'Mock recommendation for Q0.',
+        }),
+        expect.objectContaining({
+          questionIndex: 1,
+          state: 'generated',
+          recommendationText: 'Mock recommendation for Q1.',
+        }),
+      ]),
+    );
+    expect(finalFeedback.overall).toMatchObject({
+      state: 'generated',
+      recommendationText: 'Mock overall recommendation.',
+      improvementText: 'Mock overall improvement.',
+    });
+    expect(questionLlmSpy).toHaveBeenCalledTimes(2);
+    expect(overallLlmSpy).toHaveBeenCalledTimes(1);
   });
 });

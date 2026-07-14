@@ -936,7 +936,7 @@ export interface paths {
         put?: never;
         /**
          * Generate candidate-facing feedback for the whole interview
-         * @description Loops question blocks sequentially (skips accepted/edited), then regenerates overall from best-available per-question texts. Overall accepted/edited blocks are not overwritten.
+         * @description Starts generation in the background and returns immediately with queued/skipped plan. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.
          */
         post: operations["CandidateFeedbackController_generateAllCandidateFeedback"];
         delete?: never;
@@ -2060,7 +2060,7 @@ export interface components {
             /** @description Candidate-facing growth areas / improvement text. */
             improvementText?: string;
             /**
-             * @description HR may accept generated text or mark manual edits.
+             * @description HR may accept generated text or mark manual edits. `accepted` and `edited` require at least one non-empty text on the block (from the request or already stored).
              * @enum {string}
              */
             state?: "accepted" | "edited";
@@ -2072,7 +2072,7 @@ export interface components {
             /** @description Candidate-facing growth areas / improvement text. */
             improvementText?: string;
             /**
-             * @description HR may accept generated text or mark manual edits.
+             * @description HR may accept generated text or mark manual edits. `accepted` and `edited` require at least one non-empty text on the block (from the request or already stored).
              * @enum {string}
              */
             state?: "accepted" | "edited";
@@ -2085,7 +2085,7 @@ export interface components {
         };
         GenerateAllCandidateFeedbackQuestionResultDto: {
             /** @enum {string} */
-            status: "generated" | "skipped" | "failed";
+            status: "queued" | "generated" | "skipped" | "failed";
             questionIndex: number;
             /** @enum {string} */
             reason?: "locked" | "in_progress" | "not_submitted" | "missing_answer" | "missing_transcript" | "missing_question";
@@ -2093,7 +2093,7 @@ export interface components {
         };
         GenerateAllCandidateFeedbackOverallResultDto: {
             /** @enum {string} */
-            status: "generated" | "skipped" | "failed";
+            status: "queued" | "generated" | "skipped" | "failed";
             /** @enum {string} */
             reason?: "locked" | "in_progress" | "no_question_texts";
             errorMessage?: string;
@@ -4872,6 +4872,14 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

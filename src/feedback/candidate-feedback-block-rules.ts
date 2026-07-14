@@ -13,6 +13,42 @@ export const HR_PATCHABLE_CANDIDATE_FEEDBACK_BLOCK_STATES = [
 export type HrPatchableCandidateFeedbackBlockState =
   (typeof HR_PATCHABLE_CANDIDATE_FEEDBACK_BLOCK_STATES)[number];
 
+export const CANDIDATE_FEEDBACK_TEXT_MAX_LENGTH = 10_000;
+
+export function resolveHrPatchFeedbackText(
+  existing: {
+    recommendationText?: string;
+    improvementText?: string;
+  },
+  patch: {
+    recommendationText?: string;
+    improvementText?: string;
+  },
+): {
+  recommendationText?: string;
+  improvementText?: string;
+} {
+  return {
+    recommendationText:
+      patch.recommendationText !== undefined
+        ? patch.recommendationText
+        : existing.recommendationText,
+    improvementText:
+      patch.improvementText !== undefined
+        ? patch.improvementText
+        : existing.improvementText,
+  };
+}
+
+export function hasPublishableCandidateFeedbackText(texts: {
+  recommendationText?: string;
+  improvementText?: string;
+}): boolean {
+  return Boolean(
+    texts.recommendationText?.trim() || texts.improvementText?.trim(),
+  );
+}
+
 export function isCandidateFeedbackBlockProtected(
   state: CandidateFeedbackBlockState,
 ): boolean {

@@ -29,6 +29,7 @@ import {
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import { collectCandidateFeedbackQuestionSourceTexts } from './candidate-feedback-source-text';
 import { CandidateFeedbackQuestionBlockDto } from './dto/candidate-feedback.responses.dto';
+import type { CandidateFeedbackGenerateScope } from './dto/generate-candidate-feedback-query.dto';
 import {
   presentCandidateFeedback,
   presentCandidateFeedbackQuestionBlock,
@@ -42,11 +43,13 @@ export type QuestionGenerationSkipReason =
   | 'missing_question';
 
 export type QuestionGenerationBatchResult =
+  | { status: 'queued'; questionIndex: number }
   | { status: 'generated'; questionIndex: number }
   | { status: 'skipped'; questionIndex: number; reason: QuestionGenerationSkipReason }
   | { status: 'failed'; questionIndex: number; errorMessage: string };
 
 export type OverallGenerationBatchResult =
+  | { status: 'queued' }
   | { status: 'generated' }
   | {
       status: 'skipped';
@@ -73,6 +76,7 @@ interface QuestionGenerationContext {
 @Injectable()
 export class CandidateFeedbackGenerationService {
   private readonly logger = new Logger(CandidateFeedbackGenerationService.name);
+  private readonly generateAllInFlight = new Set<string>();
 
   constructor(
     private readonly candidateFeedbackService: CandidateFeedbackService,
@@ -85,6 +89,14 @@ export class CandidateFeedbackGenerationService {
   ): Promise<CandidateFeedbackQuestionBlockDto> {
     const provider = this.requireProvider();
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
+
+    if (this.generateAllInFlight.has(interview.id)) {
+      throw apiConflict(
+        ApiErrorCode.CONFLICT,
+        'Candidate feedback generation is already in progress for this interview',
+        { interviewId: interview.id, questionIndex },
+      );
+    }
 
     const result = await this.generateQuestionBlockBatch(
       interview,
@@ -115,27 +127,133 @@ export class CandidateFeedbackGenerationService {
     return presentCandidateFeedbackQuestionBlock(block);
   }
 
-  async generateAll(
+  async startGenerateAll(
     interview: Interview,
+    scope: CandidateFeedbackGenerateScope,
   ): Promise<GenerateAllCandidateFeedbackResult> {
-    const provider = this.requireProvider();
-    await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
-
-    const questionResults: QuestionGenerationBatchResult[] = [];
-    for (let questionIndex = 0; questionIndex < interview.questions.length; questionIndex++) {
-      questionResults.push(
-        await this.generateQuestionBlockBatch(interview, questionIndex, provider),
+    if (scope !== 'all') {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Unsupported candidate feedback generation scope',
+        { interviewId: interview.id, scope },
       );
     }
 
-    const overall = await this.generateOverallBlockBatch(interview, provider);
-    const finalFeedback = await this.requireFeedback(interview.id);
+    this.requireProvider();
+    await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
 
+    const feedback = await this.requireFeedback(interview.id);
+    if (this.hasActiveGeneration(feedback)) {
+      throw apiConflict(
+        ApiErrorCode.CONFLICT,
+        'Candidate feedback generation is already in progress for this interview',
+        { interviewId: interview.id },
+      );
+    }
+
+    const questionResults = await this.planGenerateAllQuestions(interview);
+    const overall = await this.planOverallGeneration(
+      interview,
+      questionResults
+        .filter((result) => result.status === 'queued')
+        .map((result) => result.questionIndex),
+    );
+    const willRun =
+      questionResults.some((result) => result.status === 'queued') ||
+      overall.status === 'queued';
+
+    if (willRun) {
+      this.generateAllInFlight.add(interview.id);
+      void this.runGenerateAll(interview).catch((error) => {
+        this.logger.error(
+          `[generate-all] unhandled rejection interview=${interview.id}: ${this.formatError(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }).finally(() => {
+        this.generateAllInFlight.delete(interview.id);
+      });
+    }
+
+    const currentFeedback = await this.requireFeedback(interview.id);
     return {
-      feedback: presentCandidateFeedback(finalFeedback),
+      feedback: presentCandidateFeedback(currentFeedback),
       questions: questionResults,
       overall,
     };
+  }
+
+  private async runGenerateAll(
+    interview: Interview,
+  ): Promise<void> {
+    const provider = this.requireProvider();
+
+    for (let questionIndex = 0; questionIndex < interview.questions.length; questionIndex++) {
+      await this.generateQuestionBlockBatch(interview, questionIndex, provider);
+    }
+
+    await this.generateOverallBlockBatch(interview, provider);
+  }
+
+  private async planGenerateAllQuestions(
+    interview: Interview,
+  ): Promise<QuestionGenerationBatchResult[]> {
+    const results: QuestionGenerationBatchResult[] = [];
+    for (let questionIndex = 0; questionIndex < interview.questions.length; questionIndex++) {
+      results.push(await this.planQuestionGeneration(interview, questionIndex));
+    }
+    return results;
+  }
+
+  private async planQuestionGeneration(
+    interview: Interview,
+    questionIndex: number,
+  ): Promise<QuestionGenerationBatchResult> {
+    const context = this.buildQuestionGenerationContext(interview, questionIndex);
+    if ('reason' in context) {
+      return { status: 'skipped', questionIndex, reason: context.reason };
+    }
+
+    const skipReason = await this.resolveQuestionRegenerationSkipReason(
+      interview.id,
+      questionIndex,
+    );
+    if (skipReason) {
+      return { status: 'skipped', questionIndex, reason: skipReason };
+    }
+
+    return { status: 'queued', questionIndex };
+  }
+
+  private async planOverallGeneration(
+    interview: Interview,
+    queuedQuestionIndexes: number[],
+  ): Promise<OverallGenerationBatchResult> {
+    const feedback = await this.requireFeedback(interview.id);
+    const blockReason = getRegenerationBlockReason(feedback.overallState);
+    if (blockReason) {
+      return { status: 'skipped', reason: blockReason };
+    }
+
+    const sourceTexts = collectCandidateFeedbackQuestionSourceTexts(
+      feedback.questions,
+    );
+    if (sourceTexts.length > 0 || queuedQuestionIndexes.length > 0) {
+      return { status: 'queued' };
+    }
+
+    return { status: 'skipped', reason: 'no_question_texts' };
+  }
+
+  private hasActiveGeneration(feedback: {
+    interviewId: string;
+    overallState: string;
+    questions: Array<{ state: string }>;
+  }): boolean {
+    return (
+      this.generateAllInFlight.has(feedback.interviewId) ||
+      feedback.overallState === 'generating' ||
+      feedback.questions.some((question) => question.state === 'generating')
+    );
   }
 
   private async generateQuestionBlockBatch(

@@ -6,7 +6,11 @@ import { DatabaseService } from '../database/database.service';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { isHrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
 import type { HrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
-import { getHrPatchBlockReason } from './candidate-feedback-block-rules';
+import {
+  getHrPatchBlockReason,
+  hasPublishableCandidateFeedbackText,
+  resolveHrPatchFeedbackText,
+} from './candidate-feedback-block-rules';
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
@@ -160,7 +164,10 @@ export class CandidateFeedbackService {
               question_id
             )
             VALUES ${placeholders.join(', ')}
-            ON CONFLICT (candidate_feedback_id, question_index) DO NOTHING
+            ON CONFLICT (candidate_feedback_id, question_index) DO UPDATE
+            SET
+              question_id = EXCLUDED.question_id,
+              updated_at = NOW()
           `,
           values,
         );
@@ -183,9 +190,25 @@ export class CandidateFeedbackService {
       async () => {
         const feedback = await this.requireByInterviewId(interviewId);
 
+        if (!this.hasHrPatch(patch)) {
+          throw apiBadRequest(
+            ApiErrorCode.BAD_REQUEST,
+            'Candidate feedback patch must include at least one field to update',
+            { interviewId },
+          );
+        }
+
         if (patch.overall && this.hasHrOverallPatchFields(patch.overall)) {
           this.assertBlockOpenForHrPatch(feedback.overallState, { interviewId });
           this.assertHrPatchableState(patch.overall.state);
+          this.assertHrLockedBlockHasPublishableText(
+            {
+              recommendationText: feedback.overallRecommendationText,
+              improvementText: feedback.overallImprovementText,
+            },
+            patch.overall,
+            { interviewId },
+          );
           await this.updateOverallBlock(interviewId, {
             overallRecommendationText: patch.overall.recommendationText,
             overallImprovementText: patch.overall.improvementText,
@@ -219,6 +242,18 @@ export class CandidateFeedbackService {
               interviewId,
               questionIndex: question.questionIndex,
             });
+
+            this.assertHrLockedBlockHasPublishableText(
+              {
+                recommendationText: question.recommendationText,
+                improvementText: question.improvementText,
+              },
+              questionPatch,
+              {
+                interviewId,
+                questionIndex: question.questionIndex,
+              },
+            );
 
             await this.applyQuestionBlockUpdate(question, {
               recommendationText: questionPatch.recommendationText,
@@ -563,6 +598,43 @@ export class CandidateFeedbackService {
       throw apiConflict(
         ApiErrorCode.CONFLICT,
         'Candidate feedback generation is in progress for this block',
+        context,
+      );
+    }
+  }
+
+  private hasHrPatch(patch: CandidateFeedbackHrPatch): boolean {
+    if (patch.overall && this.hasHrOverallPatchFields(patch.overall)) {
+      return true;
+    }
+
+    return (
+      patch.questions?.some((item) => this.hasHrQuestionPatchFields(item)) ??
+      false
+    );
+  }
+
+  private assertHrLockedBlockHasPublishableText(
+    existing: {
+      recommendationText?: string;
+      improvementText?: string;
+    },
+    patch: {
+      recommendationText?: string;
+      improvementText?: string;
+      state?: HrPatchableCandidateFeedbackBlockState;
+    },
+    context: { interviewId: string; questionIndex?: number },
+  ): void {
+    if (patch.state !== 'accepted' && patch.state !== 'edited') {
+      return;
+    }
+
+    const merged = resolveHrPatchFeedbackText(existing, patch);
+    if (!hasPublishableCandidateFeedbackText(merged)) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Accepted or edited candidate feedback blocks must include at least one non-empty text',
         context,
       );
     }

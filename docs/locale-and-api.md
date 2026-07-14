@@ -139,7 +139,7 @@ curl -s -X POST "http://localhost:3000/questions/ai/draft" \
 |--------|------|--------------|----------|
 | `GET` | `/interviews/{id}/candidate-feedback` | — | `CandidateFeedbackResponseDto` |
 | `PATCH` | `/interviews/{id}/candidate-feedback` | `PatchCandidateFeedbackDto` (partial) | `CandidateFeedbackResponseDto` |
-| `POST` | `/interviews/{id}/candidate-feedback/generate` | `?scope=all` | `GenerateAllCandidateFeedbackResponseDto` |
+| `POST` | `/interviews/{id}/candidate-feedback/generate` | `?scope=all` | `GenerateAllCandidateFeedbackResponseDto` — starts background generation; poll GET for progress (`queued` in POST body, then `generating` → `generated` on GET) |
 | `POST` | `/interviews/{id}/candidate-feedback/questions/{questionIndex}/generate` | — | `CandidateFeedbackQuestionBlockDto` |
 
 Block `state`: `not_generated | generating | generated | accepted | edited | failed`. HR PATCH may set `state` to `accepted` or `edited` only. Regeneration skips `accepted`/`edited` blocks.
