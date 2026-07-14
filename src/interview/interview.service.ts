@@ -13,7 +13,12 @@ import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { QuestionService } from '../question/question.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { UserRole } from '../user/interfaces/user.interface';
+import {
+  QueryInterviewsDto,
+  InterviewSortField,
+  InterviewSortOrder,
+} from './dto/query-interviews.dto';
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import { matchesInterviewMediaKey } from '../upload/upload-key';
 import {
   Answer,
@@ -32,6 +37,8 @@ import {
   InterviewWorkflow,
   MediaArtifact,
   InterviewCancelResult,
+  InterviewListItem,
+  InterviewActor,
 } from './interfaces/interview.interface';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
@@ -51,8 +58,6 @@ import {
   getInterviewPendingOnlyBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
-import { demoScopeClause } from '../common/demo-scope';
-import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
 import { buildInterviewSummary } from './build-interview-summary';
 import {
@@ -64,16 +69,43 @@ import {
   DEMO_PLACEHOLDER_INTERVIEW_ID,
   DEMO_USER_ID,
 } from '../database/demo-seed-data';
+import { buildInterviewFilterClauses } from './interview-list-filters';
+import { fromInterviewListRow, InterviewListRow } from './interview-list-item';
 
-const DEFAULT_INTERVIEW_LIST_LIMIT = 50;
-const MAX_INTERVIEW_LIST_LIMIT = 100;
+export const DEFAULT_INTERVIEWS_PAGE = 1;
+export const DEFAULT_INTERVIEWS_LIMIT = 20;
+export const MAX_INTERVIEWS_LIMIT = 100;
+export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
+export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
+
+const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
+  candidateName: 'lower(candidate_name)',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+};
 
 export interface PaginatedInterviews {
-  items: Interview[];
+  items: InterviewListItem[];
   total: number;
   page: number;
   limit: number;
 }
+
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface InterviewFacets {
+  totalQuestionCount: number;
+  positions: FacetCount[];
+  statuses: FacetCount[];
+}
+
+export type { InterviewFacetFields } from './interview-list-filters';
+
+const DEFAULT_INTERVIEW_LIST_LIMIT = 50;
+const MAX_INTERVIEW_LIST_LIMIT = 100;
 
 export type { InterviewLocaleWarning } from './interview-locale-warnings';
 
@@ -101,6 +133,27 @@ const INTERVIEW_SELECT_COLUMNS = `
   demo,
   created_at,
   updated_at
+`;
+
+const INTERVIEW_LIST_SELECT_COLUMNS = `
+  id,
+  candidate_name,
+  candidate_email,
+  position,
+  status,
+  created_at,
+  updated_at,
+  COALESCE(jsonb_array_length(questions_json), 0) AS question_count,
+  (
+    SELECT COUNT(*)::int
+    FROM jsonb_array_elements(COALESCE(answers_json, '[]'::jsonb)) AS answer(value)
+    WHERE answer.value->>'status' = 'submitted'
+  ) AS submitted_answer_count,
+  CASE
+    WHEN result_json IS NULL THEN NULL
+    ELSE COALESCE((result_json->>'overallScore')::double precision, 0)
+  END AS overall_score,
+  result_json->>'decision' AS decision
 `;
 
 const INTERVIEW_UPDATE_SQL = `
@@ -134,13 +187,6 @@ interface InterviewRow {
   demo: boolean;
   created_at: Date;
   updated_at: Date;
-}
-
-export interface InterviewActor {
-  id: string;
-  role: UserRole;
-  demo: boolean;
-  onboardingCompletedAt?: Date | null;
 }
 
 interface AddAnswerInput {
@@ -446,25 +492,30 @@ export class InterviewService {
     limit?: number;
     offset?: number;
     page?: number;
-  }): Promise<PaginatedInterviews> {
-    const limit = Math.min(
-      MAX_INTERVIEW_LIST_LIMIT,
+  }): Promise<{ items: Interview[]; total: number; page: number; limit: number }> {
+    const limit = Math.min(MAX_INTERVIEW_LIST_LIMIT,
       Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
     );
     const page = Math.max(1, options?.page ?? 1);
     const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
 
-    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
-      `
-        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
-        FROM interviews
-        ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2
-      `,
-      [limit, offset],
-    );
+    const [countResult, result] = await Promise.all([
+      this.databaseService.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total FROM interviews`,
+        [],
+      ),
+      this.databaseService.query<InterviewRow>(
+        `
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          FROM interviews
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2
+        `,
+        [limit, offset],
+      ),
+    ]);
 
-    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    const total = Number(countResult.rows[0]?.total ?? 0);
     return {
       items: result.rows.map((row) => this.mapRow(row)),
       total,
@@ -495,69 +546,162 @@ export class InterviewService {
     return this.mapRow(result.rows[0]);
   }
 
-  async findAllForActor(
-    actor: InterviewActor,
-    options?: {
-      limit?: number;
-      offset?: number;
-      page?: number;
-      unbounded?: boolean;
-    },
-  ): Promise<PaginatedInterviews> {
-    if (actor.role !== 'super_admin' && actor.role !== 'admin' && actor.role !== 'hr') {
+  private assertActorCanList(actor: InterviewActor): void {
+    if (
+      actor.role !== 'super_admin' &&
+      actor.role !== 'admin' &&
+      actor.role !== 'hr'
+    ) {
       throw apiForbidden(
         ApiErrorCode.INSUFFICIENT_PERMISSIONS,
         'You do not have access to interviews',
       );
     }
+  }
 
-    if (options?.unbounded) {
-      const params: unknown[] = [];
-      const whereSql = this.buildActorInterviewWhere(actor, params);
-      const result = await this.databaseService.query<InterviewRow>(
-        `
-          SELECT ${INTERVIEW_SELECT_COLUMNS}
-          FROM interviews
-          ${whereSql}
-          ORDER BY created_at DESC
-        `,
-        params,
-      );
-      const items = result.rows.map((row) => this.mapRow(row));
-      return { items, total: items.length, page: 1, limit: items.length };
-    }
+  async findAllPaginated(
+    query: QueryInterviewsDto = {},
+    actor: InterviewActor,
+  ): Promise<PaginatedInterviews> {
+    this.assertActorCanList(actor);
 
+    const page = Math.max(1, query.page ?? DEFAULT_INTERVIEWS_PAGE);
     const limit = Math.min(
-      MAX_INTERVIEW_LIST_LIMIT,
-      Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
+      MAX_INTERVIEWS_LIMIT,
+      Math.max(1, query.limit ?? DEFAULT_INTERVIEWS_LIMIT),
     );
-    const page = Math.max(1, options?.page ?? 1);
-    const offset = Math.max(0, options?.offset ?? (page - 1) * limit);
+    const offset = (page - 1) * limit;
 
-    const params: unknown[] = [];
-    const whereSql = this.buildActorInterviewWhere(actor, params);
-    params.push(limit);
-    const limitParam = params.length;
-    params.push(offset);
-    const offsetParam = params.length;
+    const sortBy = query.sortBy ?? DEFAULT_INTERVIEWS_SORT_BY;
+    const sortOrder =
+      (query.sortOrder ?? DEFAULT_INTERVIEWS_SORT_ORDER) === 'asc'
+        ? 'ASC'
+        : 'DESC';
+    const sortExpression = SORT_FIELD_TO_SQL[sortBy];
 
-    const result = await this.databaseService.query<InterviewRow & { __total: string }>(
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor);
+
+    const countSql = `
+      SELECT COUNT(*)::text AS total
+      FROM interviews
+      ${whereSql}
+    `;
+
+    const dataParams = [...params, limit, offset];
+    const limitParam = params.length + 1;
+    const offsetParam = params.length + 2;
+
+    const dataSql = `
+      SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
+      FROM interviews
+      ${whereSql}
+      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
+
+    const [countResult, result] = await Promise.all([
+      this.databaseService.query<{ total: string }>(countSql, params),
+      this.databaseService.query<InterviewListRow>(dataSql, dataParams),
+    ]);
+
+    const total = Number(countResult.rows[0]?.total ?? 0);
+    const items = result.rows.map((row) => fromInterviewListRow(row));
+
+    return { items, total, page, limit };
+  }
+
+  async getFacets(
+    query: QueryInterviewFacetsDto = {},
+    actor: InterviewActor,
+  ): Promise<InterviewFacets> {
+    this.assertActorCanList(actor);
+
+    const [totalQuestionCount, positions, statuses] = await Promise.all([
+      this.queryInterviewTotalQuestionCount(query, actor),
+      this.queryInterviewPositionFacet(query, actor),
+      this.queryInterviewStatusFacet(query, actor),
+    ]);
+
+    return { totalQuestionCount, positions, statuses };
+  }
+
+  private async queryInterviewTotalQuestionCount(
+    query: QueryInterviewFacetsDto,
+    actor: InterviewActor,
+  ): Promise<number> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor);
+
+    const result = await this.databaseService.query<{ total: string }>(
       `
-        SELECT ${INTERVIEW_SELECT_COLUMNS}, COUNT(*) OVER() AS __total
+        SELECT COALESCE(
+          SUM(COALESCE(jsonb_array_length(questions_json), 0)),
+          0
+        )::text AS total
         FROM interviews
         ${whereSql}
-        ORDER BY created_at DESC
-        LIMIT $${limitParam} OFFSET $${offsetParam}
       `,
       params,
     );
-    const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
-    return {
-      items: result.rows.map((row) => this.mapRow(row)),
-      total,
-      page,
-      limit,
-    };
+
+    return Number(result.rows[0]?.total ?? 0);
+  }
+
+  private async queryInterviewPositionFacet(
+    query: QueryInterviewFacetsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
+      excludeField: 'position',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT MIN(position) AS value, COUNT(*)::text AS count
+        FROM interviews
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} position IS NOT NULL AND trim(position) <> ''
+        GROUP BY lower(position)
+        ORDER BY COUNT(*) DESC, MIN(position) ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
+  }
+
+  private async queryInterviewStatusFacet(
+    query: QueryInterviewFacetsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
+      excludeField: 'status',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT status AS value, COUNT(*)::text AS count
+        FROM interviews
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} status IS NOT NULL
+        GROUP BY status
+        ORDER BY COUNT(*) DESC, status ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
   }
 
   async findOneForActor(id: string, actor: InterviewActor): Promise<Interview> {
@@ -565,18 +709,6 @@ export class InterviewService {
     this.assertActorCanAccess(interview, actor);
     this.assertActorDemoScope(interview, actor);
     return interview;
-  }
-
-  private buildActorInterviewWhere(actor: InterviewActor, params: unknown[]): string {
-    const clauses = [demoScopeClause(params, actor.demo === true)];
-    if (actor.role === 'hr') {
-      params.push(actor.id);
-      clauses.push(`created_by_id = $${params.length}`);
-    }
-    if (actor.onboardingCompletedAt != null) {
-      clauses.push(excludeOnboardingStarterClause(params));
-    }
-    return `WHERE ${clauses.join(' AND ')}`;
   }
 
   private assertActorDemoScope(

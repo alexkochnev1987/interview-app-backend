@@ -2885,17 +2885,77 @@
       },
       "get": {
         "operationId": "InterviewController_findAll",
-        "summary": "List interviews",
-        "description": "Default: JSON array with full questions[] (legacy clients). Pass paginated=true for { items, total, page, limit } with lightweight questionsPreview. questions[]/questionsPreview are resolved in interviewLocale.",
+        "summary": "List interviews (paginated, filterable, sortable)",
+        "description": "Always returns { items, total, page, limit } with slim InterviewListItem rows. The legacy `paginated` query flag is accepted but ignored for backward compatibility. Plain-array responses from older clients are no longer supported on this endpoint.",
         "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search by candidates name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "position",
+            "required": false,
+            "in": "query",
+            "description": "Filter by position (exact match)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "in_progress",
+                "processing",
+                "completed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
           {
             "name": "paginated",
             "required": false,
             "in": "query",
-            "description": "When true, response is { items, total, page, limit }. When false or omitted, returns a plain array (legacy clients).",
+            "deprecated": true,
+            "description": "Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.",
             "schema": {
-              "default": false,
               "type": "boolean"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "enum": [
+                "candidateName",
+                "createdAt",
+                "updatedAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
             }
           },
           {
@@ -2915,7 +2975,7 @@
             "schema": {
               "minimum": 1,
               "maximum": 100,
-              "default": 50,
+              "default": 20,
               "type": "number"
             }
           },
@@ -2938,21 +2998,99 @@
         ],
         "responses": {
           "200": {
-            "description": "Array when paginated is false/omitted; paginated object when paginated=true",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/InterviewResponseDto"
-                      }
-                    },
-                    {
-                      "$ref": "#/components/schemas/PaginatedInterviewListResponseDto"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/PaginatedInterviewsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/facets": {
+      "get": {
+        "operationId": "InterviewController_getFacets",
+        "summary": "Faceted counts for the interview list sidebar",
+        "description": "Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "in_progress",
+                "processing",
+                "completed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "position",
+            "required": false,
+            "in": "query",
+            "description": "Filter by position (exact match)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search by candidates name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewFacetsResponseDto"
                 }
               }
             }
@@ -7345,6 +7483,142 @@
           "localeWarnings"
         ]
       },
+      "InterviewListItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "questionCount": {
+            "type": "number",
+            "description": "Total questions in this interview."
+          },
+          "submittedAnswerCount": {
+            "type": "number",
+            "description": "Number of submitted answers."
+          },
+          "overallScore": {
+            "type": "number",
+            "description": "Present when a result has been computed."
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "proceed",
+              "review",
+              "reject"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "status",
+          "questionCount",
+          "submittedAnswerCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedInterviewsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total rows matching the filter, ignoring page/limit."
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "InterviewFacetCountDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number",
+            "description": "Number of interviews with this value, given all OTHER current filters."
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ]
+      },
+      "InterviewFacetsResponseDto": {
+        "type": "object",
+        "properties": {
+          "totalQuestionCount": {
+            "type": "number",
+            "description": "Sum of question counts across interviews matching all current filters."
+          },
+          "positions": {
+            "description": "Position value + count, given all OTHER current filters (position itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewFacetCountDto"
+            }
+          },
+          "statuses": {
+            "description": "Status value + count, given all OTHER current filters (status itself is not applied).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewFacetCountDto"
+            }
+          }
+        },
+        "required": [
+          "totalQuestionCount",
+          "positions",
+          "statuses"
+        ]
+      },
       "InterviewResponseDto": {
         "type": "object",
         "properties": {
@@ -7427,144 +7701,6 @@
           "status",
           "createdAt",
           "updatedAt"
-        ]
-      },
-      "InterviewQuestionPreviewDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "questionText": {
-            "type": "string"
-          },
-          "resolvedLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "questionText",
-          "resolvedLocale"
-        ]
-      },
-      "InterviewListItemResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "candidateEmail": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "interviewLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          },
-          "questionsDisplayLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ],
-            "description": "Locale used for questionsPreview (always interviewLocale)."
-          },
-          "questionCount": {
-            "type": "number"
-          },
-          "questionsPreview": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/InterviewQuestionPreviewDto"
-            }
-          },
-          "answers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AnswerDto"
-            }
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "in_progress",
-              "processing",
-              "completed",
-              "failed"
-            ]
-          },
-          "result": {
-            "$ref": "#/components/schemas/InterviewResultResponseDto"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "workflow": {
-            "$ref": "#/components/schemas/InterviewWorkflowDto"
-          }
-        },
-        "required": [
-          "id",
-          "candidateName",
-          "position",
-          "interviewLocale",
-          "questionCount",
-          "questionsPreview",
-          "answers",
-          "status",
-          "createdAt",
-          "updatedAt"
-        ]
-      },
-      "PaginatedInterviewListResponseDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/InterviewListItemResponseDto"
-            }
-          },
-          "total": {
-            "type": "number"
-          },
-          "page": {
-            "type": "number"
-          },
-          "limit": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "limit"
         ]
       },
       "CandidateLinkResponseDto": {
