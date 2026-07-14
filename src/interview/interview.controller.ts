@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -52,10 +53,13 @@ import {
   PaginatedInterviewsResponseDto,
   StartAllAnswerValidationsResponseDto,
   StartAnswerValidationResultDto,
+  InterviewDeleteResponseDto,
 } from './dto/interview.responses.dto';
 import {
   Interview,
+  InterviewActor,
   InterviewCancelResult,
+  InterviewDeleteResult,
   InterviewResult,
   INTERVIEW_STATUSES,
 } from './interfaces/interview.interface';
@@ -66,6 +70,10 @@ import {
 } from './interview.service';
 
 type ActingUser = Omit<User, 'passwordHash'>;
+
+function toInterviewActor(user: ActingUser): InterviewActor {
+  return { id: user.id, role: user.role, demo: user.demo };
+}
 
 const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,
@@ -208,14 +216,30 @@ export class InterviewController {
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: InterviewCancelResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   @ApiConflictResponse({ type: ApiErrorResponseDto })
   async cancel(
     @Param('id') id: string,
     @CurrentUser() user: ActingUser,
   ): Promise<InterviewCancelResult> {
-    await this.interviewService.findOneForActor(id, user);
-    return this.interviewService.cancel(id);
+    return this.interviewService.cancel(id, toInterviewActor(user));
+  }
+
+  @Delete(':id')
+  @RequirePermissions('interviews:update_own')
+  @ApiOperation({ summary: 'Delete completed or failed interview' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: InterviewDeleteResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async deleteCompleted(
+    @Param('id') id: string,
+    @CurrentUser() user: ActingUser,
+  ): Promise<InterviewDeleteResult> {
+    return this.interviewService.deleteCompleted(id, toInterviewActor(user));
   }
 
   @Patch(':id/complete')

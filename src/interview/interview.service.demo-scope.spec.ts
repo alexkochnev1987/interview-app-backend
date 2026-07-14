@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
+import type { MediaCleanupService } from '../upload/media-cleanup.service';
 
 describe('InterviewService demo scoping (findAllPaginated)', () => {
   function makeService() {
@@ -13,8 +14,15 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
     });
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {} as unknown as QuestionService;
+    const mediaCleanupService = {
+      deleteInterviewMedia: jest.fn(),
+    } as unknown as MediaCleanupService;
     return {
-      service: new InterviewService(databaseService, questionService),
+      service: new InterviewService(
+        databaseService,
+        questionService,
+        mediaCleanupService,
+      ),
       query,
     };
   }
