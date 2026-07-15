@@ -807,4 +807,20 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0041',
+    name: 'add_interview_assigned_hr',
+    statements: [
+      `
+        ALTER TABLE interviews
+          ADD COLUMN IF NOT EXISTS assigned_hr_id UUID NULL
+          REFERENCES users(id) ON DELETE SET NULL;
+      `,
+      `
+      CREATE INDEX IF NOT EXISTS interviews_assigned_hr_idx
+      ON interviews (assigned_hr_id)
+      WHERE assigned_hr_id IS NOT NULL;
+    `,
+    ],
+  },
 ];
