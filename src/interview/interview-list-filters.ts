@@ -20,7 +20,9 @@ export function buildInterviewFilterClauses(
 
   if (actor.role === 'hr') {
     params.push(actor.id);
-    whereClauses.push(`created_by_id = $${params.length}`);
+    whereClauses.push(
+      `(created_by_id = $${params.length} OR assigned_hr_id = $${params.length})`,
+    );
   }
 
   if (query.q) {

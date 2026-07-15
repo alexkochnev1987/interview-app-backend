@@ -7273,6 +7273,10 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "HR reviewer assigned to this interview. Admin/super_admin only."
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -7299,6 +7303,25 @@
           "candidateName",
           "position",
           "questionIds"
+        ]
+      },
+      "AssignedHrDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
         ]
       },
       "MediaArtifactDto": {
@@ -7843,6 +7866,18 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -8074,6 +8109,18 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -8197,6 +8244,11 @@
           },
           "position": {
             "type": "string"
+          },
+          "assignedHrId": {
+            "type": "object",
+            "description": "HR reviewer UUID, or null to clear assignment. Admin/super_admin only.",
+            "nullable": true
           },
           "questionIds": {
             "type": "array",

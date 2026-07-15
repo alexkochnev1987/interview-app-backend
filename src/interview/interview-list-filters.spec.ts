@@ -5,10 +5,12 @@ describe('buildInterviewFilterClauses', () => {
   const adminActor: InterviewActor = { id: 'admin-id', role: 'admin', demo: false };
   const hrActor: InterviewActor = { id: 'hr-id', role: 'hr', demo: false };
 
-  it('scopes HR actors to their own interviews', () => {
+  it('scopes HR actors to interviews they created or are assigned to', () => {
     const { whereSql, params } = buildInterviewFilterClauses({}, hrActor);
 
-    expect(whereSql).toBe('WHERE demo = $1 AND created_by_id = $2');
+    expect(whereSql).toBe(
+      'WHERE demo = $1 AND (created_by_id = $2 OR assigned_hr_id = $2)',
+    );
     expect(params).toEqual([false, 'hr-id']);
   });
 
