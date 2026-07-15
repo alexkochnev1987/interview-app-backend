@@ -14,6 +14,7 @@ export const CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS = [
   'not_submitted',
   'missing_answer',
   'missing_transcript',
+  'unusable_transcript',
   'missing_question',
 ] as const;
 
@@ -33,7 +34,10 @@ export class GenerateAllCandidateFeedbackQuestionResultDto {
   @ApiPropertyOptional({ enum: CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS })
   reason?: (typeof CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS)[number];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Present for failed generation. Eligibility skips use reason only; the question block is prefilled with edited template text.',
+  })
   errorMessage?: string;
 }
 

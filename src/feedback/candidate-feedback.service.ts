@@ -8,14 +8,17 @@ import { isHrPatchableCandidateFeedbackBlockState } from './candidate-feedback-b
 import type { HrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
 import {
   getHrPatchBlockReason,
+  getRegenerationBlockReason,
   hasPublishableCandidateFeedbackText,
   resolveHrPatchFeedbackText,
 } from './candidate-feedback-block-rules';
+import { QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS } from './candidate-feedback-eligibility';
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
   CandidateFeedbackQuestion,
 } from './interfaces/candidate-feedback.interface';
+import type { QuestionFeedbackEligibilitySkipReason } from './candidate-feedback-skip-templates';
 
 interface CandidateFeedbackRow {
   id: string;
@@ -441,6 +444,65 @@ export class CandidateFeedbackService {
             `,
             [question.id, outcome.errorMessage],
           );
+
+    if ((result.rowCount ?? 0) === 0) {
+      return false;
+    }
+
+    await this.touchFeedback(feedback.id);
+    return true;
+  }
+
+  async prefillQuestionBlockSkipTemplate(
+    interviewId: string,
+    questionIndex: number,
+    template: {
+      recommendationText: string;
+      improvementText: string;
+      skipReason: QuestionFeedbackEligibilitySkipReason;
+    },
+  ): Promise<boolean> {
+    const feedback = await this.requireByInterviewId(interviewId);
+    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+
+    if (
+      getRegenerationBlockReason(question.state, {
+        errorMessage: question.errorMessage,
+      }) === 'locked'
+    ) {
+      return false;
+    }
+    if (question.state === 'generating') {
+      return false;
+    }
+
+    const result = await this.databaseService.query(
+      `
+        UPDATE candidate_feedback_questions
+        SET
+          recommendation_text = $2,
+          improvement_text = $3,
+          state = 'edited',
+          error_message = $4,
+          updated_at = NOW()
+        WHERE id = $1
+          AND (
+            state IN ('not_generated', 'generated', 'failed')
+            OR (
+              state = 'edited'
+              AND error_message = ANY($5::text[])
+            )
+          )
+        RETURNING id
+      `,
+      [
+        question.id,
+        template.recommendationText,
+        template.improvementText,
+        template.skipReason,
+        [...QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS],
+      ],
+    );
 
     if ((result.rowCount ?? 0) === 0) {
       return false;

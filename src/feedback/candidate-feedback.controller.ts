@@ -32,7 +32,11 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiConflict } from '../common/errors/api-error';
 import { InterviewService } from '../interview/interview.service';
+import { Interview } from '../interview/interfaces/interview.interface';
+import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feedback-eligibility';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import { CandidateFeedbackGenerationService } from './candidate-feedback-generation.service';
@@ -80,6 +84,7 @@ export class CandidateFeedbackController {
   @ApiOkResponse({ type: CandidateFeedbackResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
   async getCandidateFeedback(
     @Param('id', ParseUUIDPipe) interviewId: string,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
@@ -88,6 +93,7 @@ export class CandidateFeedbackController {
       interviewId,
       user,
     );
+    this.assertCandidateFeedbackInterviewReady(interview);
     const feedback =
       await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
     return presentCandidateFeedback(feedback);
@@ -106,6 +112,7 @@ export class CandidateFeedbackController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
   async patchCandidateFeedback(
     @Param('id', ParseUUIDPipe) interviewId: string,
     @Body() dto: PatchCandidateFeedbackDto,
@@ -115,6 +122,7 @@ export class CandidateFeedbackController {
       interviewId,
       user,
     );
+    this.assertCandidateFeedbackInterviewReady(interview);
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
     const feedback = await this.candidateFeedbackService.patchForHr(
       interviewId,
@@ -129,7 +137,7 @@ export class CandidateFeedbackController {
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for the whole interview',
     description:
-      'Starts generation in the background and returns immediately with queued/skipped plan. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.',
+      'Starts generation in the background and returns immediately with queued/skipped plan. Eligibility skips (no answer, missing transcript, unusable transcript) prefill candidate-facing template text with state `edited` and no LLM call. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiQuery({
@@ -153,6 +161,7 @@ export class CandidateFeedbackController {
       interviewId,
       user,
     );
+    this.assertCandidateFeedbackInterviewReady(interview);
     return this.candidateFeedbackGenerationService.startGenerateAll(
       interview,
       query.scope,
@@ -165,7 +174,7 @@ export class CandidateFeedbackController {
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for one question',
     description:
-      'Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Locked blocks (accepted/edited) are not overwritten.',
+      'Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Eligibility skips prefill template text with state `edited` instead of calling the LLM. Locked blocks (accepted/edited) are not overwritten.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiParam({ name: 'questionIndex', description: 'Zero-based question index' })
@@ -184,9 +193,22 @@ export class CandidateFeedbackController {
       interviewId,
       user,
     );
+    this.assertCandidateFeedbackInterviewReady(interview);
     return this.candidateFeedbackGenerationService.generateQuestionBlock(
       interview,
       questionIndex,
     );
+  }
+
+  private assertCandidateFeedbackInterviewReady(interview: Interview): void {
+    const blockReason = getCandidateFeedbackInterviewStatusBlockReason(
+      interview.status,
+    );
+    if (blockReason) {
+      throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+        interviewId: interview.id,
+        status: interview.status,
+      });
+    }
   }
 }

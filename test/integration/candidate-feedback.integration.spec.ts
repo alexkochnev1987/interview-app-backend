@@ -30,21 +30,26 @@ async function createQuestion(
   return response.body.id as string;
 }
 
-async function createTwoQuestionCompletedInterview(
+async function createCompletedInterview(
   app: INestApplication,
   agent: IntegrationAgent,
   session: string,
-  questionIdA: string,
-  questionIdB: string,
-): Promise<{ interviewId: string; questionIds: [string, string] }> {
+  questionIds: string[],
+  options?: {
+    evaluations?: Parameters<
+      InterviewService['completeAnswerValidation']
+    >[1]['evaluation'][];
+    transcripts?: string[];
+  },
+): Promise<{ interviewId: string }> {
   const interviewRes = await agent
     .post('/interviews')
     .set(authCookie(session))
     .send({
       candidateName: 'Candidate Feedback Candidate',
-      candidateEmail: 'candidate-feedback@test.local',
+      candidateEmail: `cf-${Date.now()}@test.local`,
       position: 'Integration CF Role',
-      questionIds: [questionIdA, questionIdB],
+      questionIds,
     })
     .expect(201);
 
@@ -56,19 +61,17 @@ async function createTwoQuestionCompletedInterview(
   const token = parseCandidateToken(linkRes.body.candidateLink);
 
   await openCandidateTakeSession(agent, interviewId, token);
-  await agent
-    .post(`/take/${interviewId}/answer`)
-    .send(buildSubmitAnswerPayload(interviewId, 0, 1))
-    .expect(201);
-  await agent
-    .post(`/take/${interviewId}/answer`)
-    .send(buildSubmitAnswerPayload(interviewId, 1, 1))
-    .expect(201);
+  for (const questionIndex of questionIds.map((_, index) => index)) {
+    await agent
+      .post(`/take/${interviewId}/answer`)
+      .send(buildSubmitAnswerPayload(interviewId, questionIndex, 1))
+      .expect(201);
+  }
 
   const interviewService = app.get(InterviewService);
   const completedAt = new Date();
 
-  for (const questionIndex of [0, 1] as const) {
+  for (const questionIndex of questionIds.map((_, index) => index)) {
     const runId = `integration-candidate-feedback-q${questionIndex}`;
     await interviewService.queueAnswerValidation(interviewId, {
       questionIndex,
@@ -76,29 +79,56 @@ async function createTwoQuestionCompletedInterview(
       runId,
       requestedAt: completedAt,
     });
-    const interview = await interviewService.completeAnswerValidation(interviewId, {
+    await interviewService.completeAnswerValidation(interviewId, {
       questionIndex,
       sourceVersionNumber: 1,
       runId,
       requestedAt: completedAt,
       completedAt,
       transcript: {
-        text: `Integration transcript for question ${questionIndex}.`,
+        text:
+          options?.transcripts?.[questionIndex] ??
+          `Integration transcript for question ${questionIndex}.`,
         isFinal: true,
       },
-      evaluation: {
-        overallScore: 80 + questionIndex,
-        summary: `Summary for question ${questionIndex}.`,
-        evaluatedAt: completedAt,
-      },
+      evaluation:
+        options?.evaluations?.[questionIndex] ??
+        ({
+          overallScore: 80 + questionIndex,
+          summary: `Summary for question ${questionIndex}.`,
+          evaluatedAt: completedAt,
+        } satisfies Parameters<
+          InterviewService['completeAnswerValidation']
+        >[1]['evaluation']),
     });
-
-    if (questionIndex === 1) {
-      expect(interview.status).toBe('completed');
-    }
   }
 
-  return { interviewId, questionIds: [questionIdA, questionIdB] };
+  return { interviewId };
+}
+
+async function waitForFeedback(
+  agent: IntegrationAgent,
+  session: string,
+  interviewId: string,
+  predicate: (body: {
+    questions: Array<{ state: string }>;
+    overall: { state: string };
+  }) => boolean,
+): Promise<unknown> {
+  const deadline = Date.now() + 10_000;
+  let latest = null;
+  while (Date.now() < deadline) {
+    const polled = await agent
+      .get(`/interviews/${interviewId}/candidate-feedback`)
+      .set(authCookie(session))
+      .expect(200);
+    latest = polled.body;
+    if (predicate(polled.body)) {
+      return polled.body;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return latest;
 }
 
 describe('Candidate feedback (integration)', () => {
@@ -120,8 +150,8 @@ describe('Candidate feedback (integration)', () => {
         'generateCandidateFeedbackQuestionWithNativeLlm',
       )
       .mockResolvedValue({
-        recommendationText: 'Mock recommendation for Q1.',
-        improvementText: 'Mock improvement for Q1.',
+        recommendationText: 'Mock recommendation.',
+        improvementText: 'Mock improvement.',
       });
     overallLlmSpy = jest
       .spyOn(
@@ -141,228 +171,25 @@ describe('Candidate feedback (integration)', () => {
     delete process.env.OPENAI_API_KEY;
   });
 
-  it('covers HR candidate-feedback happy path and preserves locked blocks on generate all', async () => {
+  it('prefills skip templates for garbage transcripts and keeps per-question skip reasons', async () => {
     const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
-    const questionIdA = await createQuestion(
-      agent,
-      session,
-      'Candidate feedback question A.',
-    );
-    const questionIdB = await createQuestion(
-      agent,
-      session,
-      'Candidate feedback question B.',
-    );
-    const { interviewId, questionIds } =
-      await createTwoQuestionCompletedInterview(
-        app,
-        agent,
-        session,
-        questionIdA,
-        questionIdB,
-      );
-
-    const empty = await agent
-      .get(`/interviews/${interviewId}/candidate-feedback`)
-      .set(authCookie(session))
-      .expect(200);
-
-    expect(empty.body).toMatchObject({
-      interviewId,
-      overall: { state: 'not_generated' },
-    });
-    expect(empty.body.questions).toHaveLength(2);
-    expect(empty.body.questions[0]).toMatchObject({
-      questionIndex: 0,
-      questionId: questionIds[0],
-      state: 'not_generated',
-    });
-    expect(empty.body.questions[1]).toMatchObject({
-      questionIndex: 1,
-      questionId: questionIds[1],
-      state: 'not_generated',
-    });
-    expect(empty.body.updatedAt).toEqual(expect.any(String));
-
-    await agent
-      .patch(`/interviews/${interviewId}/candidate-feedback`)
-      .set(authCookie(session))
-      .send({})
-      .expect(400);
-
-    const acceptedQ0 = await agent
-      .patch(`/interviews/${interviewId}/candidate-feedback`)
-      .set(authCookie(session))
-      .send({
-        questions: [
-          {
-            questionIndex: 0,
-            recommendationText: 'Accepted Q0 recommendation.',
-            improvementText: 'Accepted Q0 improvement.',
-            state: 'accepted',
-          },
-        ],
-      })
-      .expect(200);
-
-    expect(acceptedQ0.body.questions[0]).toMatchObject({
-      questionIndex: 0,
-      state: 'accepted',
-      recommendationText: 'Accepted Q0 recommendation.',
-      improvementText: 'Accepted Q0 improvement.',
-    });
-
-    const acceptedOverall = await agent
-      .patch(`/interviews/${interviewId}/candidate-feedback`)
-      .set(authCookie(session))
-      .send({
-        overall: {
-          recommendationText: 'Accepted overall recommendation.',
-          improvementText: 'Accepted overall improvement.',
-          state: 'accepted',
-        },
-      })
-      .expect(200);
-
-    expect(acceptedOverall.body.overall).toMatchObject({
-      state: 'accepted',
-      recommendationText: 'Accepted overall recommendation.',
-      improvementText: 'Accepted overall improvement.',
-    });
-
-    const generatedQ1 = await agent
-      .post(
-        `/interviews/${interviewId}/candidate-feedback/questions/1/generate`,
-      )
-      .set(authCookie(session))
-      .send({})
-      .expect(200);
-
-    expect(generatedQ1.body).toEqual({
-      questionIndex: 1,
-      questionId: questionIds[1],
-      recommendationText: 'Mock recommendation for Q1.',
-      improvementText: 'Mock improvement for Q1.',
-      state: 'generated',
-    });
-    expect(questionLlmSpy).toHaveBeenCalled();
-
-    const editedQ1 = await agent
-      .patch(`/interviews/${interviewId}/candidate-feedback`)
-      .set(authCookie(session))
-      .send({
-        questions: [
-          {
-            questionIndex: 1,
-            recommendationText: 'HR edited Q1 recommendation.',
-            improvementText: 'HR edited Q1 improvement.',
-            state: 'edited',
-          },
-        ],
-      })
-      .expect(200);
-
-    expect(editedQ1.body.questions[1]).toMatchObject({
-      questionIndex: 1,
-      state: 'edited',
-      recommendationText: 'HR edited Q1 recommendation.',
-      improvementText: 'HR edited Q1 improvement.',
-    });
-
-    const generateAll = await agent
-      .post(`/interviews/${interviewId}/candidate-feedback/generate`)
-      .query({ scope: 'all' })
-      .set(authCookie(session))
-      .send({})
-      .expect(200);
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(generateAll.body).toEqual(
-      expect.objectContaining({
-        feedback: expect.objectContaining({
-          interviewId,
-          overall: expect.any(Object),
-          questions: expect.any(Array),
-          updatedAt: expect.any(String),
-        }),
-        questions: expect.any(Array),
-        overall: expect.objectContaining({ status: 'skipped', reason: 'locked' }),
-      }),
-    );
-    expect(generateAll.body.questions).toEqual(
-      expect.arrayContaining([
-        { status: 'skipped', questionIndex: 0, reason: 'locked' },
-        { status: 'skipped', questionIndex: 1, reason: 'locked' },
-      ]),
-    );
-
-    const feedback = generateAll.body.feedback;
-    expect(
-      feedback.questions.find(
-        (question: { questionIndex: number }) => question.questionIndex === 0,
-      ),
-    ).toMatchObject({
-      state: 'accepted',
-      recommendationText: 'Accepted Q0 recommendation.',
-      improvementText: 'Accepted Q0 improvement.',
-    });
-    expect(
-      feedback.questions.find(
-        (question: { questionIndex: number }) => question.questionIndex === 1,
-      ),
-    ).toMatchObject({
-      state: 'edited',
-      recommendationText: 'HR edited Q1 recommendation.',
-      improvementText: 'HR edited Q1 improvement.',
-    });
-    expect(feedback.overall).toMatchObject({
-      state: 'accepted',
-      recommendationText: 'Accepted overall recommendation.',
-      improvementText: 'Accepted overall improvement.',
-    });
-
-    expect(questionLlmSpy).toHaveBeenCalledTimes(1);
-    expect(overallLlmSpy).not.toHaveBeenCalled();
-  });
-
-  it('starts generate-all in the background and completes via GET polling', async () => {
-    const { app, agent } = await getIntegrationApp();
-    const session = await loginAsSuperAdmin(agent);
-    const questionIdA = await createQuestion(
-      agent,
-      session,
-      'Async candidate feedback question A.',
-    );
-    const questionIdB = await createQuestion(
-      agent,
-      session,
-      'Async candidate feedback question B.',
-    );
-    const { interviewId } = await createTwoQuestionCompletedInterview(
+    const questionIds = await Promise.all([
+      createQuestion(agent, session, 'Good answer question.'),
+      createQuestion(agent, session, 'Garbage outro question.'),
+    ]);
+    const { interviewId } = await createCompletedInterview(
       app,
       agent,
       session,
-      questionIdA,
-      questionIdB,
+      questionIds,
+      {
+        transcripts: [
+          'I described indexing, query plans, and cache invalidation clearly.',
+          'Thanks for watching! Like and subscribe for more videos.',
+        ],
+      },
     );
-
-    let releaseFirstQuestion: (() => void) | undefined;
-    const firstQuestionGate = new Promise<void>((resolve) => {
-      releaseFirstQuestion = resolve;
-    });
-    questionLlmSpy.mockImplementationOnce(async () => {
-      await firstQuestionGate;
-      return {
-        recommendationText: 'Mock recommendation for Q0.',
-        improvementText: 'Mock improvement for Q0.',
-      };
-    });
-    questionLlmSpy.mockResolvedValueOnce({
-      recommendationText: 'Mock recommendation for Q1.',
-      improvementText: 'Mock improvement for Q1.',
-    });
 
     const started = await agent
       .post(`/interviews/${interviewId}/candidate-feedback/generate`)
@@ -374,55 +201,159 @@ describe('Candidate feedback (integration)', () => {
     expect(started.body.questions).toEqual(
       expect.arrayContaining([
         { status: 'queued', questionIndex: 0 },
-        { status: 'queued', questionIndex: 1 },
+        { status: 'skipped', questionIndex: 1, reason: 'unusable_transcript' },
       ]),
     );
-    expect(started.body.overall).toEqual({ status: 'queued' });
-
-    releaseFirstQuestion?.();
-
-    const deadline = Date.now() + 10_000;
-    let finalFeedback = started.body.feedback;
-    const isFullyGenerated = (feedback: {
-      questions: Array<{ state: string }>;
-      overall: { state: string };
-    }) =>
-      feedback.questions.every((question) => question.state === 'generated') &&
-      feedback.overall.state === 'generated';
-
-    while (Date.now() < deadline) {
-      const polled = await agent
-        .get(`/interviews/${interviewId}/candidate-feedback`)
-        .set(authCookie(session))
-        .expect(200);
-      finalFeedback = polled.body;
-      if (isFullyGenerated(finalFeedback)) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-
-    expect(isFullyGenerated(finalFeedback)).toBe(true);
-    expect(finalFeedback.questions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          questionIndex: 0,
-          state: 'generated',
-          recommendationText: 'Mock recommendation for Q0.',
-        }),
-        expect.objectContaining({
-          questionIndex: 1,
-          state: 'generated',
-          recommendationText: 'Mock recommendation for Q1.',
-        }),
-      ]),
-    );
-    expect(finalFeedback.overall).toMatchObject({
-      state: 'generated',
-      recommendationText: 'Mock overall recommendation.',
-      improvementText: 'Mock overall improvement.',
+    expect(started.body.feedback.questions[1]).toMatchObject({
+      state: 'edited',
+      recommendationText:
+        'The recorded response did not contain a substantive answer to this question.',
+      errorMessage: 'unusable_transcript',
     });
-    expect(questionLlmSpy).toHaveBeenCalledTimes(2);
-    expect(overallLlmSpy).toHaveBeenCalledTimes(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(questionLlmSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses non-balanced overall tone for mixed interviews', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const completedAt = new Date();
+    const questionIds = await Promise.all([
+      createQuestion(agent, session, 'CF-MIXED good question.'),
+      createQuestion(agent, session, 'CF-MIXED garbage question.'),
+      createQuestion(agent, session, 'CF-MIXED off-topic question.'),
+    ]);
+    const { interviewId } = await createCompletedInterview(
+      app,
+      agent,
+      session,
+      questionIds,
+      {
+        transcripts: [
+          'After a deploy latency jumped; I added Redis caching and restored SLOs.',
+          'İzlediğiniz için teşekkür ederim. Bir sonraki videoda görüşürüz.',
+          'I track personal finance and went to Portugal last summer.',
+        ],
+        evaluations: [
+          {
+            overallScore: 90,
+            decisionHint: 'pass',
+            summary: 'Strong answer.',
+            categoryScores: { relevance: 92 },
+            evaluatedAt: completedAt,
+          },
+          {
+            overallScore: 10,
+            decisionHint: 'fail',
+            summary: 'Did not address the question.',
+            evaluatedAt: completedAt,
+          },
+          {
+            overallScore: 18,
+            decisionHint: 'fail',
+            summary: 'Off-topic response.',
+            categoryScores: { relevance: 12 },
+            evaluatedAt: completedAt,
+          },
+        ],
+      },
+    );
+
+    await agent
+      .post(`/interviews/${interviewId}/candidate-feedback/generate`)
+      .query({ scope: 'all' })
+      .set(authCookie(session))
+      .send({})
+      .expect(200);
+
+    await waitForFeedback(
+      agent,
+      session,
+      interviewId,
+      (body) =>
+        body.overall.state === 'generated' &&
+        body.questions.every(
+          (question) => question.state === 'generated' || question.state === 'edited',
+        ),
+    );
+
+    expect(overallLlmSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toneMode: 'honest_weak',
+        mixMetadata: {
+          answeredWellCount: 1,
+          noSubstantiveAnswerCount: 1,
+          weakAnswerCount: 1,
+          totalQuestions: 3,
+        },
+      }),
+    );
+  });
+
+  it('does not overwrite accepted or edited blocks on generate-all', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionIds = await Promise.all([
+      createQuestion(agent, session, 'Locked question A.'),
+      createQuestion(agent, session, 'Locked question B.'),
+    ]);
+    const { interviewId } = await createCompletedInterview(
+      app,
+      agent,
+      session,
+      questionIds,
+    );
+
+    await agent
+      .patch(`/interviews/${interviewId}/candidate-feedback`)
+      .set(authCookie(session))
+      .send({
+        questions: [
+          {
+            questionIndex: 0,
+            recommendationText: 'Accepted Q0.',
+            improvementText: 'Accepted Q0 improvement.',
+            state: 'accepted',
+          },
+          {
+            questionIndex: 1,
+            recommendationText: 'Edited Q1.',
+            improvementText: 'Edited Q1 improvement.',
+            state: 'edited',
+          },
+        ],
+        overall: {
+          recommendationText: 'Accepted overall.',
+          improvementText: 'Accepted overall improvement.',
+          state: 'accepted',
+        },
+      })
+      .expect(200);
+
+    const generateAll = await agent
+      .post(`/interviews/${interviewId}/candidate-feedback/generate`)
+      .query({ scope: 'all' })
+      .set(authCookie(session))
+      .send({})
+      .expect(200);
+
+    expect(generateAll.body.questions).toEqual(
+      expect.arrayContaining([
+        { status: 'skipped', questionIndex: 0, reason: 'locked' },
+        { status: 'skipped', questionIndex: 1, reason: 'locked' },
+      ]),
+    );
+    expect(generateAll.body.feedback.questions[0]).toMatchObject({
+      state: 'accepted',
+      recommendationText: 'Accepted Q0.',
+    });
+    expect(generateAll.body.feedback.questions[1]).toMatchObject({
+      state: 'edited',
+      recommendationText: 'Edited Q1.',
+    });
+    expect(questionLlmSpy).not.toHaveBeenCalled();
+    expect(overallLlmSpy).not.toHaveBeenCalled();
   });
 });

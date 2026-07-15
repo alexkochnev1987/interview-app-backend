@@ -937,7 +937,7 @@ export interface paths {
         put?: never;
         /**
          * Generate candidate-facing feedback for the whole interview
-         * @description Starts generation in the background and returns immediately with queued/skipped plan. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.
+         * @description Starts generation in the background and returns immediately with queued/skipped plan. Eligibility skips (no answer, missing transcript, unusable transcript) prefill candidate-facing template text with state `edited` and no LLM call. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.
          */
         post: operations["CandidateFeedbackController_generateAllCandidateFeedback"];
         delete?: never;
@@ -957,7 +957,7 @@ export interface paths {
         put?: never;
         /**
          * Generate candidate-facing feedback for one question
-         * @description Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Locked blocks (accepted/edited) are not overwritten.
+         * @description Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Eligibility skips prefill template text with state `edited` instead of calling the LLM. Locked blocks (accepted/edited) are not overwritten.
          */
         post: operations["CandidateFeedbackController_generateQuestionFeedback"];
         delete?: never;
@@ -2029,11 +2029,11 @@ export interface components {
             /** @description Candidate-facing growth areas / improvement text. */
             improvementText?: string;
             /**
-             * @description Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors.
+             * @description Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors. Eligibility skips prefill candidate-facing template text with state edited.
              * @enum {string}
              */
             state: "not_generated" | "generating" | "generated" | "accepted" | "edited" | "failed";
-            /** @description Present when generation failed for this block. */
+            /** @description Present when generation failed, or when an eligibility skip stored an HR-only skip-reason hint (not candidate-facing text). */
             errorMessage?: string;
         };
         CandidateFeedbackQuestionBlockDto: {
@@ -2042,11 +2042,11 @@ export interface components {
             /** @description Candidate-facing growth areas / improvement text. */
             improvementText?: string;
             /**
-             * @description Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors.
+             * @description Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors. Eligibility skips prefill candidate-facing template text with state edited.
              * @enum {string}
              */
             state: "not_generated" | "generating" | "generated" | "accepted" | "edited" | "failed";
-            /** @description Present when generation failed for this block. */
+            /** @description Present when generation failed, or when an eligibility skip stored an HR-only skip-reason hint (not candidate-facing text). */
             errorMessage?: string;
             questionIndex: number;
             /** Format: uuid */
@@ -2094,7 +2094,8 @@ export interface components {
             status: "queued" | "generated" | "skipped" | "failed";
             questionIndex: number;
             /** @enum {string} */
-            reason?: "locked" | "in_progress" | "not_submitted" | "missing_answer" | "missing_transcript" | "missing_question";
+            reason?: "locked" | "in_progress" | "not_submitted" | "missing_answer" | "missing_transcript" | "unusable_transcript" | "missing_question";
+            /** @description Present for failed generation. Eligibility skips use reason only; the question block is prefilled with edited template text. */
             errorMessage?: string;
         };
         GenerateAllCandidateFeedbackOverallResultDto: {
@@ -4844,6 +4845,14 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorResponseDto"];
                 };
             };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
         };
     };
     CandidateFeedbackController_patchCandidateFeedback: {
@@ -4890,6 +4899,14 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
