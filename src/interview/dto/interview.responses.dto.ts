@@ -3,6 +3,17 @@ import { Locale, SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { ResolvedQuestionResponseDto } from '../../question/dto/question.responses.dto';
 import { INTERVIEW_STATUSES } from '../interfaces/interview.interface';
 
+export class AssignedHrDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  email: string;
+}
+
 export class CandidateLinkResponseDto {
   @ApiProperty()
   candidateLink: string;
@@ -377,6 +388,17 @@ export class InterviewResponseDto {
 
   @ApiProperty()
   position: string;
+
+  @ApiPropertyOptional({
+    description: 'Assigned HR reviewer user id. Omitted when unassigned.',
+  })
+  assignedHrId?: string;
+
+  @ApiPropertyOptional({
+    type: AssignedHrDto,
+    description: 'Assigned HR reviewer details for display.',
+  })
+  assignedHr?: AssignedHrDto;
 
   @ApiProperty({ enum: SUPPORTED_LOCALES })
   interviewLocale: Locale;
