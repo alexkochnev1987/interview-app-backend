@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { DraftQuestionDto } from '../ai/dto/ai.dto';
 import { CreateInterviewDto } from '../interview/dto/create-interview.dto';
+import { UpdateInterviewDto } from '../interview/dto/update-interview.dto';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import { CreateTemplateDto } from '../template/dto/create-template.dto';
 
@@ -51,6 +52,33 @@ describe('DTO validation', () => {
       candidateName: 'Alex',
       position: 'Engineer',
       questionIds: ['question-1'],
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts CreateInterviewDto with optional assignedHrId UUID', async () => {
+    const errors = await validateDto(CreateInterviewDto, {
+      candidateName: 'Alex',
+      position: 'Engineer',
+      questionIds: ['question-1'],
+      assignedHrId: UUID_A,
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects CreateInterviewDto with invalid assignedHrId', async () => {
+    const errors = await validateDto(CreateInterviewDto, {
+      candidateName: 'Alex',
+      position: 'Engineer',
+      questionIds: ['question-1'],
+      assignedHrId: 'not-a-uuid',
+    });
+    expect(errors.some((error) => error.property === 'assignedHrId')).toBe(true);
+  });
+
+  it('accepts UpdateInterviewDto with assignedHrId null to clear', async () => {
+    const errors = await validateDto(UpdateInterviewDto, {
+      assignedHrId: null,
     });
     expect(errors).toHaveLength(0);
   });

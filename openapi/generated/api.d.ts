@@ -1468,6 +1468,8 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description HR reviewer assigned to this interview. Admin/super_admin only. */
+            assignedHrId?: string;
             /**
              * @description Locale for interview UI and feedback. Defaults to en when omitted.
              * @default en
@@ -1477,6 +1479,11 @@ export interface components {
             /** @description Template this interview was started from. When set, the template popularity (usage_count) is incremented in the same transaction, so usage is recorded server-side rather than by a separate client call. */
             templateId?: string;
             questionIds: string[];
+        };
+        AssignedHrDto: {
+            id: string;
+            name: string;
+            email: string;
         };
         MediaArtifactDto: {
             mediaKey: string;
@@ -1640,6 +1647,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1706,6 +1717,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1742,6 +1757,8 @@ export interface components {
             candidateName?: string;
             candidateEmail?: string;
             position?: string;
+            /** @description HR reviewer UUID, or null to clear assignment. Admin/super_admin only. */
+            assignedHrId?: Record<string, never> | null;
             questionIds?: string[];
         };
         StartAnswerValidationResultDto: {
