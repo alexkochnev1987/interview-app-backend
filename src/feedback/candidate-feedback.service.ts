@@ -8,14 +8,17 @@ import { isHrPatchableCandidateFeedbackBlockState } from './candidate-feedback-b
 import type { HrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
 import {
   getHrPatchBlockReason,
+  getRegenerationBlockReason,
   hasPublishableCandidateFeedbackText,
   resolveHrPatchFeedbackText,
 } from './candidate-feedback-block-rules';
+import { QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS } from './candidate-feedback-eligibility';
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
   CandidateFeedbackQuestion,
 } from './interfaces/candidate-feedback.interface';
+import type { QuestionFeedbackEligibilitySkipReason } from './candidate-feedback-skip-templates';
 
 interface CandidateFeedbackRow {
   id: string;
@@ -259,6 +262,9 @@ export class CandidateFeedbackService {
               recommendationText: questionPatch.recommendationText,
               improvementText: questionPatch.improvementText,
               state: questionPatch.state,
+              // Drop eligibility skip hints so HR-customized text is locked
+              // and not overwritten by a later auto-prefill template pass.
+              errorMessage: null,
             });
           }
 
@@ -381,10 +387,16 @@ export class CandidateFeedbackService {
         UPDATE candidate_feedback_questions
         SET state = 'generating', error_message = NULL, updated_at = NOW()
         WHERE id = $1
-          AND state IN ('not_generated', 'generated', 'failed')
+          AND (
+            state IN ('not_generated', 'generated', 'failed')
+            OR (
+              state = 'edited'
+              AND error_message = ANY($2::text[])
+            )
+          )
         RETURNING id
       `,
-      [question.id],
+      [question.id, [...QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS]],
     );
 
     if ((result.rowCount ?? 0) === 0) {
@@ -448,6 +460,114 @@ export class CandidateFeedbackService {
 
     await this.touchFeedback(feedback.id);
     return true;
+  }
+
+  async prefillQuestionBlockSkipTemplate(
+    interviewId: string,
+    questionIndex: number,
+    template: {
+      recommendationText: string;
+      improvementText: string;
+      skipReason: QuestionFeedbackEligibilitySkipReason;
+    },
+  ): Promise<boolean> {
+    const feedback = await this.requireByInterviewId(interviewId);
+    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+
+    if (
+      getRegenerationBlockReason(question.state, {
+        errorMessage: question.errorMessage,
+      }) === 'locked'
+    ) {
+      return false;
+    }
+    if (question.state === 'generating') {
+      return false;
+    }
+
+    const result = await this.databaseService.query(
+      `
+        UPDATE candidate_feedback_questions
+        SET
+          recommendation_text = $2,
+          improvement_text = $3,
+          state = 'edited',
+          error_message = $4,
+          updated_at = NOW()
+        WHERE id = $1
+          AND (
+            state IN ('not_generated', 'generated', 'failed')
+            OR (
+              state = 'edited'
+              AND error_message = ANY($5::text[])
+            )
+          )
+        RETURNING id
+      `,
+      [
+        question.id,
+        template.recommendationText,
+        template.improvementText,
+        template.skipReason,
+        [...QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS],
+      ],
+    );
+
+    if ((result.rowCount ?? 0) === 0) {
+      return false;
+    }
+
+    await this.touchFeedback(feedback.id);
+    return true;
+  }
+
+  async failStuckGeneration(
+    interviewId: string,
+    errorMessage: string,
+  ): Promise<{ recoveredQuestionCount: number; recoveredOverall: boolean }> {
+    return this.databaseService.withAdvisoryLock(
+      `candidate-feedback:${interviewId}`,
+      async () => {
+        const feedback = await this.requireByInterviewId(interviewId);
+
+        const recoveredQuestions = await this.databaseService.query<{ id: string }>(
+          `
+            UPDATE candidate_feedback_questions
+            SET
+              state = 'failed',
+              error_message = $2,
+              updated_at = NOW()
+            WHERE candidate_feedback_id = $1
+              AND state = 'generating'
+            RETURNING id
+          `,
+          [feedback.id, errorMessage],
+        );
+
+        const recoveredOverall = await this.databaseService.query<{ id: string }>(
+          `
+            UPDATE candidate_feedback
+            SET
+              overall_state = 'failed',
+              overall_error_message = $2,
+              updated_at = NOW()
+            WHERE id = $1
+              AND overall_state = 'generating'
+            RETURNING id
+          `,
+          [feedback.id, errorMessage],
+        );
+
+        if ((recoveredQuestions.rowCount ?? 0) > 0 && (recoveredOverall.rowCount ?? 0) === 0) {
+          await this.touchFeedback(feedback.id);
+        }
+
+        return {
+          recoveredQuestionCount: recoveredQuestions.rowCount ?? 0,
+          recoveredOverall: (recoveredOverall.rowCount ?? 0) > 0,
+        };
+      },
+    );
   }
 
   async beginOverallBlockGeneration(interviewId: string): Promise<boolean> {
