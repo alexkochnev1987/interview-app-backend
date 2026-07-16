@@ -262,6 +262,9 @@ export class CandidateFeedbackService {
               recommendationText: questionPatch.recommendationText,
               improvementText: questionPatch.improvementText,
               state: questionPatch.state,
+              // Drop eligibility skip hints so HR-customized text is locked
+              // and not overwritten by a later auto-prefill template pass.
+              errorMessage: null,
             });
           }
 
@@ -384,10 +387,16 @@ export class CandidateFeedbackService {
         UPDATE candidate_feedback_questions
         SET state = 'generating', error_message = NULL, updated_at = NOW()
         WHERE id = $1
-          AND state IN ('not_generated', 'generated', 'failed')
+          AND (
+            state IN ('not_generated', 'generated', 'failed')
+            OR (
+              state = 'edited'
+              AND error_message = ANY($2::text[])
+            )
+          )
         RETURNING id
       `,
-      [question.id],
+      [question.id, [...QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS]],
     );
 
     if ((result.rowCount ?? 0) === 0) {
