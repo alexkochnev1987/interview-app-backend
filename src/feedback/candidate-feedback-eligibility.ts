@@ -1,4 +1,5 @@
 import { getAnswerValidationSubmissionBlockReason } from '../interview/answer-validation-rules';
+import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 import {
   Answer,
   AnswerEvaluation,
@@ -88,6 +89,7 @@ const OFF_TOPIC_SUMMARY_PATTERNS: RegExp[] = [
 export type QuestionFeedbackGenerationSkipReason =
   | 'not_submitted'
   | 'missing_answer'
+  | 'stale_validation'
   | 'missing_transcript'
   | 'unusable_transcript'
   | 'missing_question';
@@ -354,6 +356,16 @@ export function classifyQuestionFeedbackGeneration(
   );
   if (submissionBlock) {
     return { action: 'skip', reason: 'not_submitted' };
+  }
+
+  const selectedVersion = resolveSelectedAnswerVersion(answer);
+  const validatedVersionNumber = answer.validation?.sourceVersionNumber;
+  if (
+    selectedVersion &&
+    validatedVersionNumber !== undefined &&
+    validatedVersionNumber !== selectedVersion.versionNumber
+  ) {
+    return { action: 'skip', reason: 'stale_validation' };
   }
 
   const rawTranscript = answer.transcript?.text;

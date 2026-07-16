@@ -512,6 +512,55 @@ export class CandidateFeedbackService {
     return true;
   }
 
+  async failStuckGeneration(
+    interviewId: string,
+    errorMessage: string,
+  ): Promise<{ recoveredQuestionCount: number; recoveredOverall: boolean }> {
+    return this.databaseService.withAdvisoryLock(
+      `candidate-feedback:${interviewId}`,
+      async () => {
+        const feedback = await this.requireByInterviewId(interviewId);
+
+        const recoveredQuestions = await this.databaseService.query<{ id: string }>(
+          `
+            UPDATE candidate_feedback_questions
+            SET
+              state = 'failed',
+              error_message = $2,
+              updated_at = NOW()
+            WHERE candidate_feedback_id = $1
+              AND state = 'generating'
+            RETURNING id
+          `,
+          [feedback.id, errorMessage],
+        );
+
+        const recoveredOverall = await this.databaseService.query<{ id: string }>(
+          `
+            UPDATE candidate_feedback
+            SET
+              overall_state = 'failed',
+              overall_error_message = $2,
+              updated_at = NOW()
+            WHERE id = $1
+              AND overall_state = 'generating'
+            RETURNING id
+          `,
+          [feedback.id, errorMessage],
+        );
+
+        if ((recoveredQuestions.rowCount ?? 0) > 0 && (recoveredOverall.rowCount ?? 0) === 0) {
+          await this.touchFeedback(feedback.id);
+        }
+
+        return {
+          recoveredQuestionCount: recoveredQuestions.rowCount ?? 0,
+          recoveredOverall: (recoveredOverall.rowCount ?? 0) > 0,
+        };
+      },
+    );
+  }
+
   async beginOverallBlockGeneration(interviewId: string): Promise<boolean> {
     const feedback = await this.requireByInterviewId(interviewId);
 

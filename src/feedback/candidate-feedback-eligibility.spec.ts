@@ -100,6 +100,40 @@ describe('candidate-feedback-eligibility', () => {
       classifyQuestionFeedbackGeneration(
         baseInterview(),
         submittedAnswer({
+          selectedVersionNumber: 2,
+          versions: [
+            {
+              versionNumber: 1,
+              mediaKey: 'media-v1',
+              uploadedAt: new Date(),
+            },
+            {
+              versionNumber: 2,
+              mediaKey: 'media-v2',
+              uploadedAt: new Date(),
+              behaviorSignals: {
+                tabHiddenCount: 1,
+                windowBlurCount: 0,
+                pasteCount: 0,
+                keydownCount: 0,
+                copyCount: 0,
+                resizeCount: 0,
+              },
+            },
+          ],
+          validation: {
+            status: 'completed',
+            sourceVersionNumber: 1,
+          },
+        }),
+        0,
+      ),
+    ).toEqual({ action: 'skip', reason: 'stale_validation' });
+
+    expect(
+      classifyQuestionFeedbackGeneration(
+        baseInterview(),
+        submittedAnswer({
           evaluation: {
             decisionHint: 'fail',
             overallScore: 25,

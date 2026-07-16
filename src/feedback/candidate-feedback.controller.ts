@@ -27,6 +27,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
+import { StaffAiThrottlerGuard } from '../ai/guards/staff-ai-throttler.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -134,10 +136,17 @@ export class CandidateFeedbackController {
   @Post(':id/candidate-feedback/generate')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('interviews:update_own')
+  @UseGuards(StaffAiThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 10,
+      ttl: minutes(5),
+    },
+  })
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for the whole interview',
     description:
-      'Starts generation in the background and returns immediately with queued/skipped plan. Eligibility skips (no answer, missing transcript, unusable transcript) prefill candidate-facing template text with state `edited` and no LLM call. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.',
+      'Starts generation in the background and returns immediately with queued/skipped plan. Eligibility skips (no answer, missing transcript, unusable transcript) prefill candidate-facing template text with state `edited` and no LLM call. If the selected answer version changed after validation, the question is skipped until AI evaluation is re-run for that version. Poll GET `/interviews/{id}/candidate-feedback` for `generating` → `generated` progress. Locked accepted/edited blocks are not overwritten.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiQuery({
@@ -171,10 +180,17 @@ export class CandidateFeedbackController {
   @Post(':id/candidate-feedback/questions/:questionIndex/generate')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('interviews:update_own')
+  @UseGuards(StaffAiThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 20,
+      ttl: minutes(5),
+    },
+  })
   @ApiOperation({
     summary: 'Generate candidate-facing feedback for one question',
     description:
-      'Uses answer.transcript.text and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Eligibility skips prefill template text with state `edited` instead of calling the LLM. Locked blocks (accepted/edited) are not overwritten.',
+      'Uses the current answer transcript and behaviorSignals to produce recommendationText and improvementText in interviewLocale. Eligibility skips prefill template text with state `edited` instead of calling the LLM. If the selected answer version changed after validation, re-run AI evaluation first so transcript/evaluation match the current take. Locked blocks (accepted/edited) are not overwritten.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiParam({ name: 'questionIndex', description: 'Zero-based question index' })
