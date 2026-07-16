@@ -15,12 +15,13 @@ export class CandidateFeedbackBlockDto {
   @ApiProperty({
     enum: CANDIDATE_FEEDBACK_BLOCK_STATES,
     description:
-      'Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors.',
+      'Block lifecycle: not_generated → generating → generated; HR may lock via accepted/edited; failed when AI errors. Eligibility skips prefill candidate-facing template text with state edited.',
   })
   state: (typeof CANDIDATE_FEEDBACK_BLOCK_STATES)[number];
 
   @ApiPropertyOptional({
-    description: 'Present when generation failed for this block.',
+    description:
+      'Present when generation failed, or when an eligibility skip stored an HR-only skip-reason hint (not candidate-facing text).',
   })
   errorMessage?: string;
 }
