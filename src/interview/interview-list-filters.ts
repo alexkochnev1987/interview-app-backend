@@ -1,6 +1,5 @@
 import { demoScopeClause } from '../common/demo-scope';
 import {
-  ASSIGNED_HR_FILTER_UNASSIGNED,
   isAssignedHrFilterUnassigned,
 } from './assigned-hr-filter';
 import { InterviewListFiltersDto } from './dto/query-interviews.dto';
