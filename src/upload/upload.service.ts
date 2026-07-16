@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest } from '../common/errors/api-error';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { InterviewService } from '../interview/interview.service';
+import { MediaCleanupService } from './media-cleanup.service';
 import {
   ConfirmUploadResponseDto,
   MultipartUploadAbortResponseDto,
@@ -42,7 +43,11 @@ export class UploadService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor(private readonly interviewService: InterviewService) {
+  constructor(
+    @Inject(forwardRef(() => InterviewService))
+    private readonly interviewService: InterviewService,
+    private readonly mediaCleanupService: MediaCleanupService,
+  ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
 
@@ -299,6 +304,10 @@ export class UploadService {
     });
 
     return { downloadUrl, mediaKey };
+  }
+
+  async deleteInterviewMedia(interviewId: string): Promise<void> {
+    return this.mediaCleanupService.deleteInterviewMedia(interviewId);
   }
 
   private async assertCurrentQuestionUploadAllowed(

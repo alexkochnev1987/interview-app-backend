@@ -5,6 +5,7 @@
 | What | Where |
 |------|--------|
 | Committed spec | [`openapi/openapi.json`](../openapi/openapi.json) |
+| Frontend TS types | [`openapi/generated/api.d.ts`](../openapi/generated/api.d.ts) (`npm run openapi:types`) |
 | Live | `GET /openapi.json`, Swagger `GET /docs` |
 | Regenerate | `npm run openapi:check` |
 | Error codes | `src/common/errors/api-error.registry.ts` |
@@ -68,6 +69,7 @@ Interview responses include `questionsDisplayLocale` (always `interviewLocale`) 
 | `GET/POST/PUT/PATCH` `/questions…`, `POST /questions/similar`, `POST /questions/bulk-delete` | yes |
 | `GET /questions/facets` | yes (filters only; no rubric text) |
 | `GET/POST/PATCH` `/interviews…` (incl. `questions[]` in body) | no (resolved by `interviewLocale`) |
+| `GET/PATCH/POST` `/interviews/{id}/candidate-feedback…` | no (texts in `interviewLocale`) |
 | `GET /take/:id` | optional `?contentLocale=` for `currentQuestion` (fallback: `interviewLocale` → `primaryLocale` → any); `X-Locale` ignored |
 | `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate`. **Translate** requires body `locale`, `question.primaryLocale`, and full primary rubric; returns target-locale content block with 1:1 concept/red-flag ids. **Generate** returns identity fields (`externalId`, `role`, `focus`, `category`, `subcategory`, `difficulty`, `weight`, `minimumPassScore`, `tags`) plus full rubric content; seed metadata is LLM context, not echoed. Auto: locale mismatch + full primary content → translate. |
 | `POST /ai/question-draft` | same as above, **deprecated compatibility endpoint** |
@@ -129,3 +131,17 @@ curl -s -X POST "http://localhost:3000/questions/ai/draft" \
 | Resolve input helper | `src/question/to-resolve-question-input.ts` |
 | AI eval | `src/interview/prepare-evaluation-question.ts` |
 | Feedback | `src/feedback/feedback-text.ts` |
+| Candidate feedback (HR) | `src/feedback/candidate-feedback.controller.ts`, `src/feedback/dto/` |
+
+### Candidate feedback (HR)
+
+| Method | Path | Body / query | Response |
+|--------|------|--------------|----------|
+| `GET` | `/interviews/{id}/candidate-feedback` | — | `CandidateFeedbackResponseDto` |
+| `PATCH` | `/interviews/{id}/candidate-feedback` | `PatchCandidateFeedbackDto` (partial) | `CandidateFeedbackResponseDto` |
+| `POST` | `/interviews/{id}/candidate-feedback/generate` | `?scope=all` | `GenerateAllCandidateFeedbackResponseDto` — starts background generation; poll GET for progress (`queued` in POST body, then `generating` → `generated` on GET) |
+| `POST` | `/interviews/{id}/candidate-feedback/questions/{questionIndex}/generate` | — | `CandidateFeedbackQuestionBlockDto` |
+
+Block `state`: `not_generated | generating | generated | accepted | edited | failed`. HR PATCH may set `state` to `accepted` or `edited` only. Regeneration skips `accepted`/`edited` blocks.
+
+Frontend: copy or import types from `openapi/generated/api.d.ts` after `npm run openapi:types`.

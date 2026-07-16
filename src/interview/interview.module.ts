@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MediaCleanupModule } from '../upload/media-cleanup.module';
 import { InterviewController } from './interview.controller';
 import { InterviewService } from './interview.service';
 import { AuthModule } from '../auth/auth.module';
@@ -7,7 +8,7 @@ import { QuestionModule } from '../question/question.module';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, QuestionModule],
+  imports: [AuthModule, DatabaseModule, QuestionModule, MediaCleanupModule],
   controllers: [InterviewController],
   providers: [InterviewService, AnswerValidationWorkflowService],
   exports: [InterviewService, AnswerValidationWorkflowService],

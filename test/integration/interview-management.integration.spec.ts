@@ -1,5 +1,7 @@
+import { INestApplication } from '@nestjs/common';
 import { DatabaseService } from '../../src/database/database.service';
 import { InterviewService } from '../../src/interview/interview.service';
+import { MediaCleanupService } from '../../src/upload/media-cleanup.service';
 import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
@@ -42,6 +44,13 @@ async function createPendingInterview(
     .expect(201);
 
   return response.body.id as string;
+}
+
+function stubInterviewMediaDeletion(app: INestApplication): void {
+  const mediaCleanupService = app.get(MediaCleanupService);
+  jest
+    .spyOn(mediaCleanupService, 'deleteInterviewMedia')
+    .mockResolvedValue(undefined);
 }
 
 describe('Interview management (integration)', () => {
@@ -97,6 +106,182 @@ describe('Interview management (integration)', () => {
       .patch(`/interviews/${interviewId}/cancel`)
       .set(authCookie(session))
       .expect(404);
+  });
+
+  it('deletes a completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for delete wiring.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
+
+    const response = await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(response.body).toEqual({ id: interviewId, deleted: true });
+
+    await agent
+      .get(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(404);
+  });
+
+  it('deletes a failed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for failed delete wiring.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'failed');
+    stubInterviewMediaDeletion(app);
+
+    const response = await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(response.body).toEqual({ id: interviewId, deleted: true });
+
+    await agent
+      .get(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(404);
+  });
+
+  it('rejects delete of a demo completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for demo delete block.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'completed');
+    await databaseService.query(
+      'UPDATE interviews SET demo = TRUE WHERE id = $1',
+      [interviewId],
+    );
+    stubInterviewMediaDeletion(app);
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(403);
+  });
+
+  it('rejects delete when interview is not terminal', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for delete conflict.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(409);
+  });
+
+  it('rejects delete when interview no longer exists', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question for delete not found.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(404);
+  });
+
+  it('flushes pending question deletions when a completed interview is deleted', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+    const questionId = await createQuestion(
+      agent,
+      session,
+      'Question pending deletion on delete.',
+    );
+    const interviewId = await createPendingInterview(
+      agent,
+      session,
+      questionId,
+    );
+
+    const databaseService = app.get(DatabaseService);
+    await updateInterviewStatus(databaseService, interviewId, 'completed');
+    stubInterviewMediaDeletion(app);
+
+    await agent
+      .delete(`/questions/${questionId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    await agent
+      .delete(`/interviews/${interviewId}`)
+      .set(authCookie(session))
+      .expect(200);
+
+    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
+      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
+      [questionId],
+    );
+
+    expect(row.rows[0]?.deleted).toBe(true);
+    expect(row.rows[0]?.pending_deletion).toBe(false);
   });
 
   it('updates a pending interview', async () => {
