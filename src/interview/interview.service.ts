@@ -327,13 +327,19 @@ export class InterviewService {
       assertActorCanSetAssignedHr(context.actor, dto.assignedHrId);
 
       let assignedHrId: string | null = null;
-      if (dto.assignedHrId) {
-        await this.assertAssignableHrUser(
-          client,
-          dto.assignedHrId,
-          context.demo === true,
-        );
-        assignedHrId = dto.assignedHrId;
+
+      if (context.actor.role === 'hr') {
+        assignedHrId = context.actor.id;
+      } else {
+        assertActorCanSetAssignedHr(context.actor, dto.assignedHrId);
+        if (dto.assignedHrId) {
+          await this.assertAssignableHrUser(
+              client,
+              dto.assignedHrId,
+              context.demo === true,
+          );
+          assignedHrId = dto.assignedHrId;
+        }
       }
 
       const questions = await this.questionService.findManyByIdsForUpdate(
