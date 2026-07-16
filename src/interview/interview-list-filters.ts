@@ -41,6 +41,11 @@ export function buildInterviewFilterClauses(
     whereClauses.push(`status = $${params.length}`);
   }
 
+  if (query.assignedHrId) {
+    params.push(query.assignedHrId);
+    whereClauses.push(`assigned_hr_id = $${params.length}`);
+  }
+
   const whereSql =
     whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   return { whereSql, params };

@@ -2874,6 +2874,15 @@
             }
           },
           {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer user id (exact UUID match).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "paginated",
             "required": false,
             "in": "query",
@@ -2986,6 +2995,15 @@
         "summary": "Faceted counts for the interview list sidebar",
         "description": "Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.",
         "parameters": [
+          {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer user id",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "status",
             "required": false,
@@ -8001,6 +8019,18 @@
               "proceed",
               "review",
               "reject"
+            ]
+          },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
             ]
           },
           "createdAt": {

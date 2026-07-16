@@ -18,6 +18,9 @@ function listRow(partial: Partial<InterviewListRow> = {}): InterviewListRow {
     submitted_answer_count: 0,
     overall_score: null,
     decision: null,
+    assigned_hr_id: null,
+    assigned_hr_name: null,
+    assigned_hr_email: null,
     ...partial,
   };
 }
@@ -55,6 +58,8 @@ describe('fromInterviewListRow', () => {
       submittedAnswerCount: 0,
       overallScore: undefined,
       decision: undefined,
+      assignedHrId: undefined,
+      assignedHr: undefined,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-02T00:00:00.000Z'),
     });
@@ -93,6 +98,23 @@ describe('fromInterviewListRow', () => {
 
     expect(item.decision).toBeUndefined();
   });
+
+  it('maps assigned HR when present on the row', () => {
+    const item = fromInterviewListRow(
+      listRow({
+        assigned_hr_id: 'hr-1',
+        assigned_hr_name: 'Pat',
+        assigned_hr_email: 'pat@example.com',
+      }),
+    );
+
+    expect(item.assignedHrId).toBe('hr-1');
+    expect(item.assignedHr).toEqual({
+      id: 'hr-1',
+      name: 'Pat',
+      email: 'pat@example.com',
+    });
+  });
 });
 
 describe('toInterviewListItem', () => {
@@ -113,6 +135,8 @@ describe('toInterviewListItem', () => {
       submittedAnswerCount: 0,
       overallScore: undefined,
       decision: undefined,
+      assignedHrId: undefined,
+      assignedHr: undefined,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-02T00:00:00.000Z'),
     });

@@ -57,6 +57,17 @@ describe('buildInterviewFilterClauses', () => {
     expect(params).toEqual([false, 'completed']);
   });
 
+  it('filters by assigned HR id', () => {
+    const hrUuid = '00000000-0000-4000-8000-000000000001';
+    const { whereSql, params } = buildInterviewFilterClauses(
+      { assignedHrId: hrUuid },
+      adminActor,
+    );
+
+    expect(whereSql).toContain('assigned_hr_id = $2');
+    expect(params).toEqual([false, hrUuid]);
+  });
+
   it('excludes position when computing the position facet', () => {
     const { whereSql } = buildInterviewFilterClauses(
       { position: 'Engineer', status: 'pending' },

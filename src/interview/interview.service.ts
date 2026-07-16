@@ -184,7 +184,14 @@ const INTERVIEW_LIST_SELECT_COLUMNS = `
     WHEN result_json IS NULL THEN NULL
     ELSE COALESCE((result_json->>'overallScore')::double precision, 0)
   END AS overall_score,
-  result_json->>'decision' AS decision
+  result_json->>'decision' AS decision,
+  assigned_hr_id,
+  (
+    SELECT name FROM users WHERE id = interviews.assigned_hr_id
+  ) AS assigned_hr_name,
+  (
+    SELECT email FROM users WHERE id = interviews.assigned_hr_id
+  ) AS assigned_hr_email
 `;
 
 const INTERVIEW_UPDATE_SQL = `

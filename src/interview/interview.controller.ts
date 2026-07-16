@@ -167,6 +167,12 @@ export class InterviewController {
     required: false,
     enum: INTERVIEW_STATUSES,
   })
+  @ApiQuery({
+    name: 'assignedHrId',
+    required: false,
+    type: String,
+    description: 'Filter by assigned HR reviewer user id',
+  })
   getFacets(
     @Query() rawQuery: Record<string, unknown>,
     @CurrentUser() user: ActingUser,

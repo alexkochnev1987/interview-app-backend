@@ -102,6 +102,8 @@ export interface InterviewListItem {
   submittedAnswerCount: number;
   overallScore?: number;
   decision?: InterviewDecision;
+  assignedHrId?: string;
+  assignedHr?: AssignedHrSummary;
   createdAt: Date;
   updatedAt: Date;
 }

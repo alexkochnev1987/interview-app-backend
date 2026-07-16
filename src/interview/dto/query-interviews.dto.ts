@@ -9,6 +9,7 @@ import {
   Max,
   MaxLength,
   Min,
+  IsUUID,
 } from 'class-validator';
 import {
   INTERVIEW_STATUSES,
@@ -54,6 +55,14 @@ export class InterviewListFiltersDto {
   @IsOptional()
   @IsIn([...INTERVIEW_STATUSES])
   status?: InterviewStatus;
+
+  @ApiPropertyOptional({
+    description: 'Filter by assigned HR reviewer user id (exact UUID match).',
+  })
+  @IsOptional()
+  @Transform(({ value }) => trimToUndefined(value))
+  @IsUUID()
+  assignedHrId?: string;
 }
 
 export class QueryInterviewsDto extends InterviewListFiltersDto {

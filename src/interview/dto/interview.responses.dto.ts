@@ -464,6 +464,17 @@ export class InterviewListItemDto {
   @ApiPropertyOptional({ enum: ['proceed', 'review', 'reject'] })
   decision?: string;
 
+  @ApiPropertyOptional({
+    description: 'Assigned HR reviewer user id. Omitted when unassigned.',
+  })
+  assignedHrId?: string;
+
+  @ApiPropertyOptional({
+    type: AssignedHrDto,
+    description: 'Assigned HR reviewer details for display.',
+  })
+  assignedHr?: AssignedHrDto;
+
   @ApiProperty()
   createdAt: Date;
 
