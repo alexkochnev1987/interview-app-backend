@@ -1,4 +1,8 @@
 import { demoScopeClause } from '../common/demo-scope';
+import {
+  ASSIGNED_HR_FILTER_UNASSIGNED,
+  isAssignedHrFilterUnassigned,
+} from './assigned-hr-filter';
 import { InterviewListFiltersDto } from './dto/query-interviews.dto';
 import type { InterviewActor } from './interfaces/interview.interface';
 
@@ -42,8 +46,12 @@ export function buildInterviewFilterClauses(
   }
 
   if (query.assignedHrId) {
-    params.push(query.assignedHrId);
-    whereClauses.push(`assigned_hr_id = $${params.length}`);
+    if (isAssignedHrFilterUnassigned(query.assignedHrId)) {
+      whereClauses.push('assigned_hr_id IS NULL');
+    } else {
+      params.push(query.assignedHrId);
+      whereClauses.push(`assigned_hr_id = $${params.length}`);
+    }
   }
 
   const whereSql =

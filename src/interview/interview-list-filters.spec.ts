@@ -68,6 +68,16 @@ describe('buildInterviewFilterClauses', () => {
     expect(params).toEqual([false, hrUuid]);
   });
 
+  it('filters unassigned interviews when assignedHrId is unassigned', () => {
+    const { whereSql, params } = buildInterviewFilterClauses(
+      { assignedHrId: 'unassigned' },
+      adminActor,
+    );
+
+    expect(whereSql).toContain('assigned_hr_id IS NULL');
+    expect(params).toEqual([false]);
+  });
+
   it('excludes position when computing the position facet', () => {
     const { whereSql } = buildInterviewFilterClauses(
       { position: 'Engineer', status: 'pending' },

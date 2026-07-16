@@ -6,15 +6,17 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
-  IsUUID,
+  ValidateIf,
 } from 'class-validator';
 import {
   INTERVIEW_STATUSES,
   InterviewStatus,
 } from '../interfaces/interview.interface';
+import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../assigned-hr-filter';
 import { parseBooleanQuery } from './list-interviews-query.dto';
 
 export const INTERVIEW_SORT_FIELDS = [
@@ -57,10 +59,15 @@ export class InterviewListFiltersDto {
   status?: InterviewStatus;
 
   @ApiPropertyOptional({
-    description: 'Filter by assigned HR reviewer user id (exact UUID match).',
+    description:
+      'Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee.',
+    enum: [ASSIGNED_HR_FILTER_UNASSIGNED],
   })
   @IsOptional()
   @Transform(({ value }) => trimToUndefined(value))
+  @ValidateIf((o) => o.assignedHrId === ASSIGNED_HR_FILTER_UNASSIGNED)
+  @IsIn([ASSIGNED_HR_FILTER_UNASSIGNED])
+  @ValidateIf((o) => o.assignedHrId !== ASSIGNED_HR_FILTER_UNASSIGNED)
   @IsUUID()
   assignedHrId?: string;
 }
