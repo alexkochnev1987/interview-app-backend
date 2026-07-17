@@ -1538,7 +1538,7 @@ export class InterviewService {
 
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
-      INTERVIEW_UPDATE_SQL,
+      INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL,
       this.interviewUpdateParams(interview),
     );
 
@@ -1749,43 +1749,6 @@ export class InterviewService {
         { assignedHrId: userId },
       );
     }
-  }
-
-  private async hydrateAssignedHr(
-    client: PoolClient,
-    interview: Interview,
-  ): Promise<Interview> {
-    if (!interview.assignedHrId || interview.assignedHr) {
-      return interview;
-    }
-
-    const result = await client.query<{
-      id: string;
-      name: string;
-      email: string;
-    }>(
-      `
-        SELECT id, name, email
-        FROM users
-        WHERE id = $1
-        LIMIT 1
-      `,
-      [interview.assignedHrId],
-    );
-
-    const hr = result.rows[0];
-    if (!hr) {
-      return interview;
-    }
-
-    return {
-      ...interview,
-      assignedHr: {
-        id: hr.id,
-        name: hr.name,
-        email: hr.email,
-      },
-    };
   }
 
   private mapRow(row: InterviewRow): Interview {
