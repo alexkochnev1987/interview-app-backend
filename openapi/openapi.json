@@ -2877,8 +2877,11 @@
             "name": "assignedHrId",
             "required": false,
             "in": "query",
-            "description": "Filter by assigned HR reviewer user id (exact UUID match).",
+            "description": "Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee.",
             "schema": {
+              "enum": [
+                "unassigned"
+              ],
               "type": "string"
             }
           },

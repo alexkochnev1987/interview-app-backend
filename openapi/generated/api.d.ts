@@ -1687,6 +1687,10 @@ export interface components {
             overallScore?: number;
             /** @enum {string} */
             decision?: "proceed" | "review" | "reject";
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3457,6 +3461,8 @@ export interface operations {
                 /** @description Filter by position (exact match) */
                 position?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
+                /** @description Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee. */
+                assignedHrId?: "unassigned";
                 /**
                  * @deprecated
                  * @description Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.
@@ -3547,6 +3553,8 @@ export interface operations {
     InterviewController_getFacets: {
         parameters: {
             query?: {
+                /** @description Filter by assigned HR reviewer user id */
+                assignedHrId?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
                 /** @description Filter by position (exact match) */
                 position?: string;
