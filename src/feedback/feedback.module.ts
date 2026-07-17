@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { StaffAiThrottlerGuard } from '../ai/guards/staff-ai-throttler.guard';
 import { AuthGuardsModule } from '../auth/auth-guards.module';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
@@ -24,6 +25,7 @@ import { FeedbackService } from './feedback.service';
     FeedbackService,
     CandidateFeedbackService,
     CandidateFeedbackGenerationService,
+    StaffAiThrottlerGuard,
   ],
   exports: [CandidateFeedbackService],
 })

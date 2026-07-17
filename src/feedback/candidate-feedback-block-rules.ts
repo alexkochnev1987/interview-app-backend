@@ -1,4 +1,5 @@
 import { CandidateFeedbackBlockState } from './interfaces/candidate-feedback.interface';
+import { isQuestionFeedbackEligibilitySkipReason } from './candidate-feedback-eligibility';
 
 export const PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES = [
   'accepted',
@@ -59,16 +60,26 @@ export function isCandidateFeedbackBlockProtected(
 
 export function canRegenerateCandidateFeedbackBlock(
   state: CandidateFeedbackBlockState,
+  context?: { errorMessage?: string | null },
 ): boolean {
-  return getRegenerationBlockReason(state) === null;
+  return getRegenerationBlockReason(state, context) === null;
 }
 
 export type CandidateFeedbackRegenerationBlockReason = 'locked' | 'in_progress';
 
 export function getRegenerationBlockReason(
   state: CandidateFeedbackBlockState,
+  context?: { errorMessage?: string | null },
 ): CandidateFeedbackRegenerationBlockReason | null {
   if (isCandidateFeedbackBlockProtected(state)) {
+    const skipHint = context?.errorMessage?.trim();
+    if (
+      state === 'edited' &&
+      skipHint &&
+      isQuestionFeedbackEligibilitySkipReason(skipHint)
+    ) {
+      return null;
+    }
     return 'locked';
   }
   if (state === 'generating') {
