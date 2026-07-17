@@ -715,4 +715,96 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `DROP INDEX IF EXISTS interview_templates_demo_updated_at_idx;`,
     ],
   },
+  {
+    version: '0040',
+    name: 'create_candidate_feedback',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS candidate_feedback (
+          id UUID PRIMARY KEY,
+          interview_id UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+          overall_recommendation_text TEXT NULL,
+          overall_improvement_text TEXT NULL,
+          overall_state TEXT NOT NULL DEFAULT 'not_generated',
+          overall_error_message TEXT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_interview_idx
+        ON candidate_feedback (interview_id);
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'candidate_feedback'::regclass
+              AND conname = 'candidate_feedback_overall_state_check'
+          ) THEN
+            ALTER TABLE candidate_feedback
+            ADD CONSTRAINT candidate_feedback_overall_state_check
+            CHECK (
+              overall_state IN (
+                'not_generated',
+                'generating',
+                'generated',
+                'accepted',
+                'edited',
+                'failed'
+              )
+            ); -- CANDIDATE_FEEDBACK_BLOCK_STATES
+          END IF;
+        END $$;
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS candidate_feedback_questions (
+          id UUID PRIMARY KEY,
+          candidate_feedback_id UUID NOT NULL REFERENCES candidate_feedback(id) ON DELETE CASCADE,
+          question_index INT NOT NULL CHECK (question_index >= 0),
+          question_id UUID NOT NULL,
+          recommendation_text TEXT NULL,
+          improvement_text TEXT NULL,
+          state TEXT NOT NULL DEFAULT 'not_generated',
+          error_message TEXT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_questions_feedback_question_idx
+        ON candidate_feedback_questions (candidate_feedback_id, question_index);
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS candidate_feedback_questions_feedback_idx
+        ON candidate_feedback_questions (candidate_feedback_id);
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'candidate_feedback_questions'::regclass
+              AND conname = 'candidate_feedback_questions_state_check'
+          ) THEN
+            ALTER TABLE candidate_feedback_questions
+            ADD CONSTRAINT candidate_feedback_questions_state_check
+            CHECK (
+              state IN (
+                'not_generated',
+                'generating',
+                'generated',
+                'accepted',
+                'edited',
+                'failed'
+              )
+            ); -- CANDIDATE_FEEDBACK_BLOCK_STATES
+          END IF;
+        END $$;
+      `,
+    ],
+  },
 ];
