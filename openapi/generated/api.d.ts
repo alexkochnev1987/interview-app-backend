@@ -3462,8 +3462,8 @@ export interface operations {
                 /** @description Filter by position (exact match) */
                 position?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
-                /** @description Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee. */
-                assignedHrId?: "unassigned";
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
+                assignedHrId?: string;
                 /**
                  * @deprecated
                  * @description Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.
@@ -3554,7 +3554,7 @@ export interface operations {
     InterviewController_getFacets: {
         parameters: {
             query?: {
-                /** @description Filter by assigned HR reviewer user id */
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
                 assignedHrId?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
                 /** @description Filter by position (exact match) */
