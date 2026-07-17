@@ -1761,8 +1761,11 @@ export interface components {
             candidateName?: string;
             candidateEmail?: string;
             position?: string;
-            /** @description HR reviewer UUID, or null to clear assignment. Admin/super_admin only. */
-            assignedHrId?: Record<string, never> | null;
+            /**
+             * Format: uuid
+             * @description HR reviewer UUID, or null to clear assignment. Admin/super_admin only.
+             */
+            assignedHrId?: string | null;
             questionIds?: string[];
         };
         StartAnswerValidationResultDto: {
@@ -2340,6 +2343,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                role?: "super_admin" | "admin" | "hr" | "candidate";
             };
             header?: {
                 /** @description Response language for localized content. Defaults to `en` when omitted. */
