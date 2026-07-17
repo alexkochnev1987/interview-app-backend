@@ -162,8 +162,8 @@ describe('InterviewService facets query (getFacets)', () => {
     );
     expect(totalCall).toBeDefined();
     const [sql, params] = totalCall!;
-    expect(sql).toContain('interviews.status = $');
-    expect(sql).toContain('lower(interviews.position) = $');
+    expect(sql).toContain('i.status = $');
+    expect(sql).toContain('lower(i.position) = $');
     expect(params).toEqual(expect.arrayContaining(['completed', 'engineer']));
     expect(result.totalQuestionCount).toBe(5);
   });

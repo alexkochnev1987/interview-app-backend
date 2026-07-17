@@ -19,39 +19,37 @@ export function buildInterviewFilterClauses(
   const whereClauses: string[] = [];
   const params: unknown[] = [];
 
-  whereClauses.push(
-    demoScopeClause(params, actor.demo === true, 'interviews.demo'),
-  );
+  whereClauses.push(demoScopeClause(params, actor.demo === true, 'i.demo'));
 
   if (actor.role === 'hr') {
     params.push(actor.id);
     whereClauses.push(
-      `(interviews.created_by_id = $${params.length} OR interviews.assigned_hr_id = $${params.length})`,
+      `(i.created_by_id = $${params.length} OR i.assigned_hr_id = $${params.length})`,
     );
   }
 
   if (query.q) {
     params.push(`%${escapeLike(query.q)}%`);
     const i = params.length;
-    whereClauses.push(`interviews.candidate_name ILIKE $${i}`);
+    whereClauses.push(`i.candidate_name ILIKE $${i}`);
   }
 
   if (query.position && options.excludeField !== 'position') {
     params.push(query.position.toLowerCase());
-    whereClauses.push(`lower(interviews.position) = $${params.length}`);
+    whereClauses.push(`lower(i.position) = $${params.length}`);
   }
 
   if (query.status && options.excludeField !== 'status') {
     params.push(query.status);
-    whereClauses.push(`interviews.status = $${params.length}`);
+    whereClauses.push(`i.status = $${params.length}`);
   }
 
   if (query.assignedHrId) {
     if (isAssignedHrFilterUnassigned(query.assignedHrId)) {
-      whereClauses.push('interviews.assigned_hr_id IS NULL');
+      whereClauses.push('i.assigned_hr_id IS NULL');
     } else {
       params.push(query.assignedHrId);
-      whereClauses.push(`interviews.assigned_hr_id = $${params.length}`);
+      whereClauses.push(`i.assigned_hr_id = $${params.length}`);
     }
   }
 

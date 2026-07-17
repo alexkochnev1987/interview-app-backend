@@ -84,9 +84,9 @@ export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
 export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
 
 const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
-  candidateName: 'lower(interviews.candidate_name)',
-  createdAt: 'interviews.created_at',
-  updatedAt: 'interviews.updated_at',
+  candidateName: 'lower(i.candidate_name)',
+  createdAt: 'i.created_at',
+  updatedAt: 'i.updated_at',
 };
 
 export interface PaginatedInterviews {
@@ -730,7 +730,7 @@ export class InterviewService {
 
     const countSql = `
       SELECT COUNT(*)::text AS total
-      FROM interviews
+      FROM interviews i
       ${whereSql}
     `;
 
@@ -782,10 +782,10 @@ export class InterviewService {
     const result = await this.databaseService.query<{ total: string }>(
       `
         SELECT COALESCE(
-          SUM(COALESCE(jsonb_array_length(questions_json), 0)),
+          SUM(COALESCE(jsonb_array_length(i.questions_json), 0)),
           0
         )::text AS total
-        FROM interviews
+        FROM interviews i
         ${whereSql}
       `,
       params,
@@ -807,12 +807,12 @@ export class InterviewService {
       count: string;
     }>(
       `
-        SELECT MIN(position) AS value, COUNT(*)::text AS count
-        FROM interviews
+        SELECT MIN(i.position) AS value, COUNT(*)::text AS count
+        FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} position IS NOT NULL AND trim(position) <> ''
-        GROUP BY lower(position)
-        ORDER BY COUNT(*) DESC, MIN(position) ASC
+        ${whereSql ? 'AND' : 'WHERE'} i.position IS NOT NULL AND trim(i.position) <> ''
+        GROUP BY lower(i.position)
+        ORDER BY COUNT(*) DESC, MIN(i.position) ASC
       `,
       params,
     );
@@ -836,12 +836,12 @@ export class InterviewService {
       count: string;
     }>(
       `
-        SELECT status AS value, COUNT(*)::text AS count
-        FROM interviews
+        SELECT i.status AS value, COUNT(*)::text AS count
+        FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} status IS NOT NULL
-        GROUP BY status
-        ORDER BY COUNT(*) DESC, status ASC
+        ${whereSql ? 'AND' : 'WHERE'} i.status IS NOT NULL
+        GROUP BY i.status
+        ORDER BY COUNT(*) DESC, i.status ASC
       `,
       params,
     );
