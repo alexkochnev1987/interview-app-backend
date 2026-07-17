@@ -39,8 +39,8 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
     );
     expect(dataCall).toBeDefined();
     const [sql, params] = dataCall!;
-    expect(sql).toContain('demo = $1');
-    expect(sql).toContain('created_by_id = $2');
+    expect(sql).toContain('interviews.demo = $1');
+    expect(sql).toContain('interviews.created_by_id = $2');
     expect(params).toEqual([true, 'demo-user', 20, 0]);
   });
 
@@ -56,8 +56,8 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
     );
     expect(dataCall).toBeDefined();
     const [sql, params] = dataCall!;
-    expect(sql).toContain('demo = $1');
-    expect(sql).not.toContain('created_by_id = $');
+    expect(sql).toContain('interviews.demo = $1');
+    expect(sql).not.toContain('interviews.created_by_id = $');
     expect(params).toEqual([false, 20, 0]);
   });
 

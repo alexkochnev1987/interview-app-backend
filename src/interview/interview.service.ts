@@ -84,9 +84,9 @@ export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
 export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
 
 const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
-  candidateName: 'lower(candidate_name)',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  candidateName: 'lower(interviews.candidate_name)',
+  createdAt: 'interviews.created_at',
+  updatedAt: 'interviews.updated_at',
 };
 
 export interface PaginatedInterviews {
@@ -167,31 +167,27 @@ const INTERVIEW_SELECT_FROM = `
 `;
 
 const INTERVIEW_LIST_SELECT_COLUMNS = `
-  id,
-  candidate_name,
-  candidate_email,
-  position,
-  status,
-  created_at,
-  updated_at,
-  COALESCE(jsonb_array_length(questions_json), 0) AS question_count,
+  i.id,
+  i.candidate_name,
+  i.candidate_email,
+  i.position,
+  i.status,
+  i.created_at,
+  i.updated_at,
+  COALESCE(jsonb_array_length(i.questions_json), 0) AS question_count,
   (
     SELECT COUNT(*)::int
-    FROM jsonb_array_elements(COALESCE(answers_json, '[]'::jsonb)) AS answer(value)
+    FROM jsonb_array_elements(COALESCE(i.answers_json, '[]'::jsonb)) AS answer(value)
     WHERE answer.value->>'status' = 'submitted'
   ) AS submitted_answer_count,
   CASE
-    WHEN result_json IS NULL THEN NULL
-    ELSE COALESCE((result_json->>'overallScore')::double precision, 0)
+    WHEN i.result_json IS NULL THEN NULL
+    ELSE COALESCE((i.result_json->>'overallScore')::double precision, 0)
   END AS overall_score,
-  result_json->>'decision' AS decision,
-  assigned_hr_id,
-  (
-    SELECT name FROM users WHERE id = interviews.assigned_hr_id
-  ) AS assigned_hr_name,
-  (
-    SELECT email FROM users WHERE id = interviews.assigned_hr_id
-  ) AS assigned_hr_email
+  i.result_json->>'decision' AS decision,
+  i.assigned_hr_id,
+  ah.name AS assigned_hr_name,
+  ah.email AS assigned_hr_email
 `;
 
 const INTERVIEW_UPDATE_SQL = `
@@ -209,6 +205,15 @@ const INTERVIEW_UPDATE_SQL = `
     updated_at = NOW()
   WHERE id = $1
   RETURNING ${INTERVIEW_TABLE_COLUMNS}
+`;
+
+const INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL = `
+  WITH updated AS (
+    ${INTERVIEW_UPDATE_SQL.trim()}
+  )
+  SELECT ${INTERVIEW_SELECT_COLUMNS}
+  FROM updated i
+  LEFT JOIN users ah ON ah.id = i.assigned_hr_id
 `;
 
 interface InterviewRow {
@@ -330,16 +335,13 @@ export class InterviewService {
 
       if (context.actor.role === 'hr') {
         assignedHrId = context.actor.id;
-      } else {
-        assertActorCanSetAssignedHr(context.actor, dto.assignedHrId);
-        if (dto.assignedHrId) {
-          await this.assertAssignableHrUser(
-              client,
-              dto.assignedHrId,
-              context.demo === true,
-          );
-          assignedHrId = dto.assignedHrId;
-        }
+      } else if (dto.assignedHrId) {
+        await this.assertAssignableHrUser(
+            client,
+            dto.assignedHrId,
+            context.demo === true,
+        );
+        assignedHrId = dto.assignedHrId;
       }
 
       const questions = await this.questionService.findManyByIdsForUpdate(
@@ -363,22 +365,27 @@ export class InterviewService {
 
       const result = await client.query<InterviewRow>(
         `
-          INSERT INTO interviews (
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            interview_locale,
-            questions_json,
-            answers_json,
-            status,
-            workflow_json,
-            created_by_id,
-            assigned_hr_id,
-            demo
+          WITH inserted AS (
+            INSERT INTO interviews (
+              id,
+              candidate_name,
+              candidate_email,
+              position,
+              interview_locale,
+              questions_json,
+              answers_json,
+              status,
+              workflow_json,
+              created_by_id,
+              assigned_hr_id,
+              demo
+            )
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11, $12)
+            RETURNING ${INTERVIEW_TABLE_COLUMNS}
           )
-          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11, $12)
-          RETURNING ${INTERVIEW_TABLE_COLUMNS}
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          FROM inserted i
+          LEFT JOIN users ah ON ah.id = i.assigned_hr_id
         `,
         [
           randomUUID(),
@@ -415,10 +422,7 @@ export class InterviewService {
       }
 
       return {
-        interview: await this.hydrateAssignedHr(
-          client,
-          this.mapRow(result.rows[0]),
-        ),
+        interview: this.mapRow(result.rows[0]),
         localeWarnings,
       };
     });
@@ -529,6 +533,7 @@ export class InterviewService {
 
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
+      this.assertActorCanManageInterview(interview, actor);
 
       const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
       if (blockReason) {
@@ -626,7 +631,7 @@ export class InterviewService {
       };
 
       const saved = await this.saveInterviewInTransaction(client, updated);
-      return this.hydrateAssignedHr(client, saved);
+      return saved;
     });
   }
 
@@ -735,9 +740,10 @@ export class InterviewService {
 
     const dataSql = `
       SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
-      FROM interviews
+      FROM interviews i
+      LEFT JOIN users ah ON ah.id = i.assigned_hr_id
       ${whereSql}
-      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      ORDER BY ${sortExpression} ${sortOrder}, i.id ASC
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
@@ -1496,7 +1502,7 @@ export class InterviewService {
     interview: Interview,
   ): Promise<Interview> {
     const result = await client.query<InterviewRow>(
-      INTERVIEW_UPDATE_SQL,
+      INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL,
       this.interviewUpdateParams(interview),
     );
 

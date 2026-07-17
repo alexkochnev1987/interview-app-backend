@@ -2877,11 +2877,16 @@
             "name": "assignedHrId",
             "required": false,
             "in": "query",
-            "description": "Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee.",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
+            "examples": {
+              "byHr": {
+                "value": "00000000-0000-4000-8000-000000000001"
+              },
+              "unassigned": {
+                "value": "unassigned"
+              }
+            },
             "schema": {
-              "enum": [
-                "unassigned"
-              ],
               "type": "string"
             }
           },
@@ -3002,7 +3007,7 @@
             "name": "assignedHrId",
             "required": false,
             "in": "query",
-            "description": "Filter by assigned HR reviewer user id",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
             "schema": {
               "type": "string"
             }

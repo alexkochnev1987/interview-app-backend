@@ -171,7 +171,8 @@ export class InterviewController {
     name: 'assignedHrId',
     required: false,
     type: String,
-    description: 'Filter by assigned HR reviewer user id',
+    description:
+      'Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.',
   })
   getFacets(
     @Query() rawQuery: Record<string, unknown>,
@@ -283,7 +284,6 @@ export class InterviewController {
     @Body() dto: UpdateInterviewDto,
     @CurrentUser() user: ActingUser,
   ): Promise<Interview> {
-    await this.interviewService.findOneForActor(id, user);
     return this.interviewService.update(id, dto, toInterviewActor(user));
   }
 

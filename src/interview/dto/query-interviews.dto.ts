@@ -60,8 +60,12 @@ export class InterviewListFiltersDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter by assigned HR reviewer UUID, or `unassigned` for interviews with no assignee.',
-    enum: [ASSIGNED_HR_FILTER_UNASSIGNED],
+      'Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.',
+    type: String,
+    examples: {
+      byHr: { value: '00000000-0000-4000-8000-000000000001' },
+      unassigned: { value: ASSIGNED_HR_FILTER_UNASSIGNED },
+    },
   })
   @IsOptional()
   @Transform(({ value }) => trimToUndefined(value))

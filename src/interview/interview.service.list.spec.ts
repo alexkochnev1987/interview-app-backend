@@ -38,17 +38,19 @@ describe('InterviewService list query (findAllPaginated)', () => {
     );
 
     const dataCall = query.mock.calls.find(([sql]) =>
-      sql.includes('jsonb_array_length(questions_json)'),
+      sql.includes('jsonb_array_length(i.questions_json)'),
     );
     expect(dataCall).toBeDefined();
     const [sql] = dataCall!;
-    expect(sql).toContain('jsonb_array_length(questions_json)');
+    expect(sql).toContain('jsonb_array_length(i.questions_json)');
     expect(sql).toContain("answer.value->>'status' = 'submitted'");
     expect(sql).not.toContain("COALESCE(answer.value->>'status', 'submitted')");
-    expect(sql).toContain("result_json->>'overallScore'");
-    expect(sql).toContain("result_json->>'decision'");
-    expect(sql).not.toContain('workflow_json');
-    expect(sql).not.toContain('interview_locale');
+    expect(sql).toContain("i.result_json->>'overallScore'");
+    expect(sql).toContain("i.result_json->>'decision'");
+    expect(sql).toContain('FROM interviews i');
+    expect(sql).toContain('LEFT JOIN users ah ON ah.id = i.assigned_hr_id');
+    expect(sql).toContain('ah.name AS assigned_hr_name');
+    expect(sql).not.toContain('SELECT name FROM users WHERE id = interviews.assigned_hr_id');
   });
 
   it('maps list rows without hydrating interviews', async () => {
@@ -160,8 +162,8 @@ describe('InterviewService facets query (getFacets)', () => {
     );
     expect(totalCall).toBeDefined();
     const [sql, params] = totalCall!;
-    expect(sql).toContain('status = $');
-    expect(sql).toContain('lower(position) = $');
+    expect(sql).toContain('interviews.status = $');
+    expect(sql).toContain('lower(interviews.position) = $');
     expect(params).toEqual(expect.arrayContaining(['completed', 'engineer']));
     expect(result.totalQuestionCount).toBe(5);
   });
