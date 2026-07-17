@@ -327,6 +327,20 @@
             }
           },
           {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "super_admin",
+                "admin",
+                "hr",
+                "candidate"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Locale",
             "in": "header",
             "required": false,
@@ -8304,7 +8318,8 @@
             "type": "string"
           },
           "assignedHrId": {
-            "type": "object",
+            "type": "string",
+            "format": "uuid",
             "description": "HR reviewer UUID, or null to clear assignment. Admin/super_admin only.",
             "nullable": true
           },

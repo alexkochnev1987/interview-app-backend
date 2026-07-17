@@ -146,7 +146,7 @@ describe('InterviewService facets query (getFacets)', () => {
   it('sums question counts with all current filters applied', async () => {
     const { service, query } = makeService();
     query.mockImplementation((sql: string) => {
-      if (sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))')) {
+      if (sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))')) {
         return Promise.resolve({ rows: [{ total: '5' }] });
       }
       return Promise.resolve({ rows: [] });
@@ -158,7 +158,7 @@ describe('InterviewService facets query (getFacets)', () => {
     );
 
     const totalCall = query.mock.calls.find(([sql]) =>
-      sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))'),
+      sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))'),
     );
     expect(totalCall).toBeDefined();
     const [sql, params] = totalCall!;

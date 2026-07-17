@@ -31,6 +31,8 @@ export class UpdateInterviewDto {
   position?: string;
 
   @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
     description:
       'HR reviewer UUID, or null to clear assignment. Admin/super_admin only.',
     nullable: true,
