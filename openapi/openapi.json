@@ -5097,6 +5097,91 @@
         ]
       }
     },
+    "/ai/recruiter-assistant/chat": {
+      "post": {
+        "operationId": "RecruiterAssistantController_chat",
+        "summary": "Recruiter assistant chat",
+        "description": "Scoped assistant for interview and question-bank workflows. The route can read question-bank data with questions:read; write actions are confirmed by the user and checked against the current user permissions before execution.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecruiterAssistantChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruiterAssistantResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/feedback/{id}": {
       "get": {
         "operationId": "FeedbackController_getFeedback",
@@ -9046,6 +9131,180 @@
           "questionIndex",
           "sourceVersionNumber",
           "reused"
+        ]
+      },
+      "RecruiterAssistantSuggestedQuestionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "existingQuestionId": {
+            "type": "string"
+          },
+          "existingQuestionText": {
+            "type": "string"
+          },
+          "needsCreation": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "questionText"
+        ]
+      },
+      "RecruiterAssistantPendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "create_questions",
+              "create_interview"
+            ]
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "position",
+          "questions"
+        ]
+      },
+      "RecruiterAssistantChatDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "pendingAction": {
+            "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "RecruiterAssistantCreatedInterviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateLink": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateLink"
+        ]
+      },
+      "RecruiterAssistantResponseDto": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "needs_confirmation",
+              "executed",
+              "refused"
+            ]
+          },
+          "suggestedQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
+            }
+          },
+          "pendingAction": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
+              }
+            ],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
+              }
+            ]
+          },
+          "createdInterview": {
+            "$ref": "#/components/schemas/RecruiterAssistantCreatedInterviewDto"
+          }
+        },
+        "required": [
+          "response",
+          "status"
         ]
       },
       "FeedbackQuestionResultDto": {
