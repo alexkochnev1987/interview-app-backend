@@ -113,6 +113,7 @@ export class InterviewController {
     const created = await this.interviewService.create(dto, {
       createdById: user.id,
       demo: user.demo,
+      actor: toInterviewActor(user),
     });
     const token = this.authService.generateCandidateToken(created.interview.id);
     return {
@@ -165,6 +166,13 @@ export class InterviewController {
     name: 'status',
     required: false,
     enum: INTERVIEW_STATUSES,
+  })
+  @ApiQuery({
+    name: 'assignedHrId',
+    required: false,
+    type: String,
+    description:
+      'Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.',
   })
   getFacets(
     @Query() rawQuery: Record<string, unknown>,
@@ -276,8 +284,7 @@ export class InterviewController {
     @Body() dto: UpdateInterviewDto,
     @CurrentUser() user: ActingUser,
   ): Promise<Interview> {
-    await this.interviewService.findOneForActor(id, user);
-    return this.interviewService.update(id, dto);
+    return this.interviewService.update(id, dto, toInterviewActor(user));
   }
 
   @Post(':id/validate')

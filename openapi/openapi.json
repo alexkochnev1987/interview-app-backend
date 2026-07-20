@@ -375,6 +375,20 @@
             }
           },
           {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "super_admin",
+                "admin",
+                "hr",
+                "candidate"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Locale",
             "in": "header",
             "required": false,
@@ -2922,6 +2936,23 @@
             }
           },
           {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
+            "examples": {
+              "byHr": {
+                "value": "00000000-0000-4000-8000-000000000001"
+              },
+              "unassigned": {
+                "value": "unassigned"
+              }
+            },
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "paginated",
             "required": false,
             "in": "query",
@@ -3034,6 +3065,15 @@
         "summary": "Faceted counts for the interview list sidebar",
         "description": "Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.",
         "parameters": [
+          {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "status",
             "required": false,
@@ -7348,6 +7388,10 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "HR reviewer assigned to this interview. Admin/super_admin only."
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -7374,6 +7418,25 @@
           "candidateName",
           "position",
           "questionIds"
+        ]
+      },
+      "AssignedHrDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
         ]
       },
       "MediaArtifactDto": {
@@ -7918,6 +7981,18 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -8043,6 +8118,18 @@
               "reject"
             ]
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -8148,6 +8235,18 @@
           },
           "position": {
             "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
           },
           "interviewLocale": {
             "type": "string",
@@ -8272,6 +8371,12 @@
           },
           "position": {
             "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "HR reviewer UUID, or null to clear assignment. Admin/super_admin only.",
+            "nullable": true
           },
           "questionIds": {
             "type": "array",

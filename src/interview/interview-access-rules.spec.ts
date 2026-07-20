@@ -18,12 +18,18 @@ describe('interview-access-rules', () => {
     ).toBeNull();
   });
 
-  it('allows HR only for interviews they created', () => {
+  it('allows HR for interviews they created or are assigned to', () => {
     expect(
       getInterviewAccessDenialReason(interview, {
         id: 'hr-owner',
         role: 'hr',
       }),
+    ).toBeNull();
+    expect(
+      getInterviewAccessDenialReason(
+        { assignedHrId: 'assigned-hr' },
+        { id: 'assigned-hr', role: 'hr' },
+      ),
     ).toBeNull();
     expect(
       getInterviewAccessDenialReason(interview, {
