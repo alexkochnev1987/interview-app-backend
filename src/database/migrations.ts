@@ -716,6 +716,25 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
+    version: '0039',
+    name: 'add_users_onboarding_completed_at',
+    statements: [
+      `
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ NULL;
+      `,
+      `
+        UPDATE users
+        SET onboarding_completed_at = NOW()
+        WHERE onboarding_completed_at IS NULL
+          AND role IN ('hr', 'admin', 'super_admin');
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_completed_at;`,
+    ],
+  },
+  {
     version: '0040',
     name: 'create_candidate_feedback',
     statements: [

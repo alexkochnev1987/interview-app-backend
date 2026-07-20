@@ -1,6 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import * as cookieParser from 'cookie-parser';
+import cookieParser = require('cookie-parser');
 import supertest = require('supertest');
 import { AppModule } from '../../src/app.module';
 import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
@@ -116,6 +116,10 @@ export async function seedIntegrationFixtures(
   const hr = await userService.create({
     ...INTEGRATION_USERS.hr,
   });
+
+  await userService.completeOnboarding(superAdmin.id);
+  await userService.completeOnboarding(admin.id);
+  await userService.completeOnboarding(hr.id);
 
   const seedQuestion = await questionService.create(
     buildCreateQuestionPayload(

@@ -1,4 +1,5 @@
 import { demoScopeClause } from '../common/demo-scope';
+import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
 import {
   isAssignedHrFilterUnassigned,
 } from './assigned-hr-filter';
@@ -26,6 +27,10 @@ export function buildInterviewFilterClauses(
     whereClauses.push(
       `(i.created_by_id = $${params.length} OR i.assigned_hr_id = $${params.length})`,
     );
+  }
+
+  if (actor.onboardingCompletedAt != null) {
+    whereClauses.push(excludeOnboardingStarterClause(params));
   }
 
   if (query.q) {

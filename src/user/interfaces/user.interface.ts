@@ -9,4 +9,5 @@ export interface User {
   passwordHash: string;
   demo: boolean;
   createdAt: Date;
+  onboardingCompletedAt?: Date;
 }

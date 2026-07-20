@@ -58,7 +58,29 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
     const [sql, params] = dataCall!;
     expect(sql).toContain('i.demo = $1');
     expect(sql).not.toContain('i.created_by_id = $');
+    expect(sql).not.toContain('onboarding-starter.sample');
     expect(params).toEqual([false, 20, 0]);
+  });
+
+  it('excludes onboarding starter rows after onboarding is completed', async () => {
+    const { service, query } = makeService();
+    await service.findAllPaginated(
+      {},
+      {
+        id: 'admin',
+        role: 'admin',
+        demo: false,
+        onboardingCompletedAt: new Date('2026-07-01T00:00:00.000Z'),
+      },
+    );
+
+    const dataCall = query.mock.calls.find(
+      ([sql]) => !sql.includes('COUNT(*)::text AS total'),
+    );
+    expect(dataCall).toBeDefined();
+    const [sql, params] = dataCall!;
+    expect(sql).toContain('NOT LIKE');
+    expect(params).toEqual([false, '%@onboarding-starter.sample', 20, 0]);
   });
 
   it('rejects roles without interview access before querying', async () => {
