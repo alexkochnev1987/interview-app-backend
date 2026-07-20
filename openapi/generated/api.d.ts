@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark first-time onboarding as completed or skipped
+         * @description Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.
+         */
+        patch: operations["AuthController_completeOnboarding"];
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -997,6 +1017,12 @@ export interface components {
              * @example 2026-05-05T12:00:00.000Z
              */
             createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the user finished or skipped first-time onboarding. Null means onboarding is pending.
+             * @example 2026-06-10T14:30:00.000Z
+             */
+            onboardingCompletedAt?: string | null;
         };
         RegisterDto: {
             email: string;
@@ -2286,6 +2312,35 @@ export interface operations {
         };
     };
     AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserResponseDto"];
+                };
+            };
+            /** @description Missing or invalid session cookie */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_completeOnboarding: {
         parameters: {
             query?: never;
             header?: {
