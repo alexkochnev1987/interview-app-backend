@@ -17,6 +17,8 @@ import {
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiNotFoundResponse,
+  ApiParam
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -45,6 +47,20 @@ export class UserController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   list(@Query() query: ListUsersQueryDto): Promise<Omit<User, 'passwordHash'>[]> {
     return this.userService.listAll({ limit: query.limit, offset: query.offset });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user profile by id' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  findOne(
+      @Param('id', ParseUUIDPipe) id: string,
+      @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.userService.findOneForActor(actor, id);
   }
 
   @Patch(':id/role')

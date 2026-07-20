@@ -17,6 +17,7 @@ import {
   type DemoSeedCounts,
 } from '../database/demo-seed-core';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
+import {getUserProfileReadDenialReason} from "./user-access-rules";
 
 interface UserRow {
   id: string;
@@ -140,6 +141,29 @@ export class UserService implements OnModuleInit {
     );
 
     return result.rows[0] ? this.mapRow(result.rows[0]) : undefined;
+  }
+
+  async findOneForActor(
+      actor: Omit<User, 'passwordHash'>,
+      targetId: string
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const target = await this.findById(targetId);
+
+    if(!target){
+      throw new NotFoundException(`User ${targetId} not found`);
+    }
+
+    const denial = getUserProfileReadDenialReason(
+        { id: target.id, role:target.role},
+        {id: actor.id, role: actor.role}
+    );
+
+    if(denial){
+      throw new ForbiddenException(denial);
+    }
+
+    return this.toPublicUser(target);
+
   }
 
   async listAll(
