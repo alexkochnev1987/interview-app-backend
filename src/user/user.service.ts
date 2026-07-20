@@ -169,18 +169,21 @@ export class UserService implements OnModuleInit {
   }
 
   async listAll(
-    options: { limit?: number; offset?: number } = {},
+    options: { limit?: number; offset?: number; role?: UserRole } = {},
   ): Promise<Omit<User, 'passwordHash'>[]> {
     const limit = options.limit ?? 50;
     const offset = options.offset ?? 0;
+    const role = options.role ?? null;
+    const orderBy = role ? 'name ASC, created_at DESC' : 'created_at DESC';
     const result = await this.databaseService.query<UserRow>(
       `
         SELECT ${USER_COLUMNS}
         FROM users
-        ORDER BY created_at DESC
+        WHERE ($3::text IS NULL OR role = $3)
+        ORDER BY ${orderBy}
         LIMIT $1 OFFSET $2
       `,
-      [limit, offset],
+      [limit, offset, role],
     );
     return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
   }

@@ -5,17 +5,19 @@ describe('buildInterviewFilterClauses', () => {
   const adminActor: InterviewActor = { id: 'admin-id', role: 'admin', demo: false };
   const hrActor: InterviewActor = { id: 'hr-id', role: 'hr', demo: false };
 
-  it('scopes HR actors to their own interviews', () => {
+  it('scopes HR actors to interviews they created or are assigned to', () => {
     const { whereSql, params } = buildInterviewFilterClauses({}, hrActor);
 
-    expect(whereSql).toBe('WHERE demo = $1 AND created_by_id = $2');
+    expect(whereSql).toBe(
+      'WHERE i.demo = $1 AND (i.created_by_id = $2 OR i.assigned_hr_id = $2)',
+    );
     expect(params).toEqual([false, 'hr-id']);
   });
 
   it('does not scope admin actors to created_by_id', () => {
     const { whereSql, params } = buildInterviewFilterClauses({}, adminActor);
 
-    expect(whereSql).toBe('WHERE demo = $1');
+    expect(whereSql).toBe('WHERE i.demo = $1');
     expect(params).toEqual([false]);
   });
 
@@ -25,7 +27,7 @@ describe('buildInterviewFilterClauses', () => {
       adminActor,
     );
 
-    expect(whereSql).toContain('candidate_name ILIKE $2');
+    expect(whereSql).toContain('i.candidate_name ILIKE $2');
     expect(params).toEqual([false, '%alice%']);
   });
 
@@ -41,7 +43,7 @@ describe('buildInterviewFilterClauses', () => {
       adminActor,
     );
 
-    expect(whereSql).toContain('lower(position) = $2');
+    expect(whereSql).toContain('lower(i.position) = $2');
     expect(params).toEqual([false, 'engineer']);
   });
 
@@ -51,8 +53,29 @@ describe('buildInterviewFilterClauses', () => {
       adminActor,
     );
 
-    expect(whereSql).toContain('status = $2');
+    expect(whereSql).toContain('i.status = $2');
     expect(params).toEqual([false, 'completed']);
+  });
+
+  it('filters by assigned HR id', () => {
+    const hrUuid = '00000000-0000-4000-8000-000000000001';
+    const { whereSql, params } = buildInterviewFilterClauses(
+      { assignedHrId: hrUuid },
+      adminActor,
+    );
+
+    expect(whereSql).toContain('i.assigned_hr_id = $2');
+    expect(params).toEqual([false, hrUuid]);
+  });
+
+  it('filters unassigned interviews when assignedHrId is unassigned', () => {
+    const { whereSql, params } = buildInterviewFilterClauses(
+      { assignedHrId: 'unassigned' },
+      adminActor,
+    );
+
+    expect(whereSql).toContain('i.assigned_hr_id IS NULL');
+    expect(params).toEqual([false]);
   });
 
   it('excludes position when computing the position facet', () => {
@@ -62,8 +85,8 @@ describe('buildInterviewFilterClauses', () => {
       { excludeField: 'position' },
     );
 
-    expect(whereSql).not.toContain('lower(position)');
-    expect(whereSql).toContain('status = $2');
+    expect(whereSql).not.toContain('lower(i.position)');
+    expect(whereSql).toContain('i.status = $2');
   });
 
   it('excludes status when computing the status facet', () => {
@@ -73,7 +96,7 @@ describe('buildInterviewFilterClauses', () => {
       { excludeField: 'status' },
     );
 
-    expect(whereSql).toContain('lower(position) = $2');
-    expect(whereSql).not.toMatch(/status =/);
+    expect(whereSql).toContain('lower(i.position) = $2');
+    expect(whereSql).not.toMatch(/i\.status =/);
   });
 });

@@ -16,7 +16,11 @@ async function createInterview(
   agent: IntegrationAgent,
   session: string,
   questionId: string,
-  overrides: { candidateName?: string; position?: string } = {},
+  overrides: {
+    candidateName?: string;
+    position?: string;
+    assignedHrId?: string;
+  } = {},
 ): Promise<string> {
   const response = await agent
     .post('/interviews')
@@ -25,6 +29,9 @@ async function createInterview(
       candidateName: overrides.candidateName ?? 'List Test Candidate',
       position: overrides.position ?? 'Engineer',
       questionIds: [questionId],
+      ...(overrides.assignedHrId
+        ? { assignedHrId: overrides.assignedHrId }
+        : {}),
     })
     .expect(201);
 
@@ -35,10 +42,12 @@ async function createInterview(
 // Filter and projection rules live in unit specs under src/interview/.
 describe('Interview list API (integration)', () => {
   let seedQuestionId = '';
+  let hrUserId = '';
 
   useIntegrationHarness({
     onFixtures: (fixtures) => {
       seedQuestionId = fixtures.seedQuestionId;
+      hrUserId = fixtures.hr.id;
     },
   });
 
@@ -183,5 +192,27 @@ describe('Interview list API (integration)', () => {
 
     expect(hrList.body.total).toBe(1);
     expect(hrList.body.items[0].candidateName).toBe('HR Owned Interview');
+  });
+
+  it('filters list by assigned HR id', async () => {
+    const { agent } = await getIntegrationApp();
+    const session = await loginAsSuperAdmin(agent);
+
+    await createInterview(agent, session, seedQuestionId, {
+      candidateName: 'Unassigned Interview',
+    });
+    await createInterview(agent, session, seedQuestionId, {
+      candidateName: 'Assigned To HR',
+      assignedHrId: hrUserId,
+    });
+
+    const filtered = await agent
+      .get('/interviews')
+      .query({ assignedHrId: hrUserId })
+      .set(authCookie(session))
+      .expect(200);
+
+    expect(filtered.body.total).toBe(1);
+    expect(filtered.body.items[0].candidateName).toBe('Assigned To HR');
   });
 });
