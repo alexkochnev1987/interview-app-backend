@@ -1,4 +1,5 @@
 import { demoScopeClause } from '../common/demo-scope';
+import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
 import { InterviewListFiltersDto } from './dto/query-interviews.dto';
 import type { InterviewActor } from './interfaces/interview.interface';
 
@@ -21,6 +22,10 @@ export function buildInterviewFilterClauses(
   if (actor.role === 'hr') {
     params.push(actor.id);
     whereClauses.push(`created_by_id = $${params.length}`);
+  }
+
+  if (actor.onboardingCompletedAt != null) {
+    whereClauses.push(excludeOnboardingStarterClause(params));
   }
 
   if (query.q) {

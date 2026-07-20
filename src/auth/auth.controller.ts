@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -22,6 +23,7 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
+import { UserService } from '../user/user.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -44,7 +46,17 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
+
+  private toMeResponse(user: Omit<User, 'passwordHash'>): MeResponse {
+    return {
+      ...user,
+      permissions: getEffectivePermissions(user.role, user.demo),
+    };
+  }
 
   @Post('login')
   @HttpCode(200)
@@ -156,9 +168,24 @@ export class AuthController {
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
-    return {
-      ...user,
-      permissions: getEffectivePermissions(user.role, user.demo),
-    };
+    return this.toMeResponse(user);
+  }
+
+  @Patch('me/onboarding')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('sessionAuth')
+  @ApiOperation({
+    summary: 'Mark first-time onboarding as completed or skipped',
+    description:
+      'Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.',
+  })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
+  async completeOnboarding(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<MeResponse> {
+    const updated = await this.userService.completeOnboarding(user.id);
+    return this.toMeResponse(updated);
   }
 }

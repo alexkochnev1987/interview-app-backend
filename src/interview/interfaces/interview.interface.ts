@@ -82,6 +82,7 @@ export interface InterviewActor {
   id: string;
   role: UserRole;
   demo: boolean;
+  onboardingCompletedAt?: Date | null;
 }
 
 export interface InterviewListItem {
