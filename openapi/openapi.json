@@ -300,6 +300,54 @@
         ]
       }
     },
+    "/auth/me/onboarding": {
+      "patch": {
+        "operationId": "AuthController_completeOnboarding",
+        "summary": "Mark first-time onboarding as completed or skipped",
+        "description": "Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session cookie"
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "UserController_list",
@@ -5769,6 +5817,13 @@
             "format": "date-time",
             "type": "string",
             "example": "2026-05-05T12:00:00.000Z"
+          },
+          "onboardingCompletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-10T14:30:00.000Z",
+            "description": "When the user finished or skipped first-time onboarding. Null means onboarding is pending.",
+            "nullable": true
           }
         },
         "required": [

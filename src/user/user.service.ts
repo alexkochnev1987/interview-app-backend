@@ -16,6 +16,7 @@ import {
   seedDemoData,
   type DemoSeedCounts,
 } from '../database/demo-seed-core';
+import { seedOnboardingLitePack, shouldSeedOnboardingLitePack } from '../database/onboarding-lite-seed';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 
 interface UserRow {
@@ -27,7 +28,20 @@ interface UserRow {
   password_hash: string;
   demo: boolean;
   created_at: Date;
+  onboarding_completed_at: Date | null;
 }
+
+const USER_COLUMNS = `
+  id,
+  email,
+  name,
+  role,
+  organization_id,
+  password_hash,
+  demo,
+  created_at,
+  onboarding_completed_at
+`;
 
 @Injectable()
 export class UserService implements OnModuleInit {
@@ -48,37 +62,49 @@ export class UserService implements OnModuleInit {
   async create(dto: CreateUserDto): Promise<Omit<User, 'passwordHash'>> {
     const email = this.normalizeEmail(dto.email);
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const result = await this.databaseService.query<UserRow>(
-      `
-        INSERT INTO users (
-          id,
-          email,
-          name,
-          role,
-          organization_id,
-          password_hash
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
-      `,
-      [
-        crypto.randomUUID(),
-        email,
-        dto.name,
-        dto.role,
-        dto.organizationId ?? null,
-        passwordHash,
-      ],
-    );
 
-    return this.toPublicUser(this.mapRow(result.rows[0]));
+    return this.databaseService.withTransaction(async (client) => {
+      const result = await client.query<UserRow>(
+        `
+          INSERT INTO users (
+            id,
+            email,
+            name,
+            role,
+            organization_id,
+            password_hash
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING ${USER_COLUMNS}
+        `,
+        [
+          crypto.randomUUID(),
+          email,
+          dto.name,
+          dto.role,
+          dto.organizationId ?? null,
+          passwordHash,
+        ],
+      );
+
+      const row = result.rows[0];
+      if (!row) {
+        throw new NotFoundException('Failed to create user');
+      }
+
+      if (shouldSeedOnboardingLitePack(dto.role, row.demo)) {
+        await seedOnboardingLitePack(client, row.id);
+      }
+
+      return this.toPublicUser(this.mapRow(row));
+    });
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
     const normalizedEmail = this.normalizeEmail(email);
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_COLUMNS}
         FROM users
         WHERE email = $1
         LIMIT 1
@@ -92,7 +118,7 @@ export class UserService implements OnModuleInit {
   async findDemoUser(): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_COLUMNS}
         FROM users
         WHERE demo = TRUE
         ORDER BY created_at ASC
@@ -131,7 +157,7 @@ export class UserService implements OnModuleInit {
   async findById(id: string): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_COLUMNS}
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -149,7 +175,7 @@ export class UserService implements OnModuleInit {
     const offset = options.offset ?? 0;
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_COLUMNS}
         FROM users
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
@@ -184,7 +210,7 @@ export class UserService implements OnModuleInit {
     return this.databaseService.withTransaction(async (client) => {
       const targetResult = await client.query<UserRow>(
         `
-          SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+          SELECT ${USER_COLUMNS}
           FROM users
           WHERE id = $1
           FOR UPDATE
@@ -213,7 +239,7 @@ export class UserService implements OnModuleInit {
           SET role = $2,
               updated_at = NOW()
           WHERE id = $1
-          RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
+          RETURNING ${USER_COLUMNS}
         `,
         [targetId, newRole],
       );
@@ -221,12 +247,42 @@ export class UserService implements OnModuleInit {
       if (!updatedRow) {
         throw new NotFoundException(`User ${targetId} not found`);
       }
+
+      if (shouldSeedOnboardingLitePack(newRole, updatedRow.demo)) {
+        await seedOnboardingLitePack(client, targetId);
+      }
+
       return this.toPublicUser(this.mapRow(updatedRow));
     });
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.passwordHash);
+  }
+
+  async completeOnboarding(
+    userId: string,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const result = await this.databaseService.query<UserRow>(
+      `
+        UPDATE users
+        SET onboarding_completed_at = COALESCE(onboarding_completed_at, NOW()),
+            updated_at = CASE
+              WHEN onboarding_completed_at IS NULL THEN NOW()
+              ELSE updated_at
+            END
+        WHERE id = $1
+        RETURNING ${USER_COLUMNS}
+      `,
+      [userId],
+    );
+
+    const updatedRow = result.rows[0];
+    if (!updatedRow) {
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+
+    return this.toPublicUser(this.mapRow(updatedRow));
   }
 
   toPublicUser(user: User): Omit<User, 'passwordHash'> {
@@ -238,6 +294,7 @@ export class UserService implements OnModuleInit {
       organizationId: user.organizationId,
       demo: user.demo,
       createdAt: user.createdAt,
+      onboardingCompletedAt: user.onboardingCompletedAt,
     };
   }
 
@@ -255,6 +312,9 @@ export class UserService implements OnModuleInit {
       passwordHash: row.password_hash,
       demo: row.demo ?? false,
       createdAt: new Date(row.created_at),
+      onboardingCompletedAt: row.onboarding_completed_at
+        ? new Date(row.onboarding_completed_at)
+        : undefined,
     };
   }
 }
