@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
   apiBadRequest,
@@ -14,7 +14,6 @@ import {
   generateCandidateFeedbackOverallWithNativeLlm,
 } from '../ai/llm/candidate-feedback-overall-llm';
 import { DatabaseService } from '../database/database.service';
-import { getAnswerValidationSubmissionBlockReason } from '../interview/answer-validation-rules';
 import { prepareQuestionForEvaluation } from '../interview/prepare-evaluation-question';
 import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 import {
@@ -26,6 +25,13 @@ import {
   CandidateFeedbackRegenerationBlockReason,
   getRegenerationBlockReason,
 } from './candidate-feedback-block-rules';
+import {
+  classifyQuestionFeedbackGeneration,
+  isQuestionFeedbackEligibilitySkipReason,
+  type QuestionFeedbackGenerationSkipReason,
+} from './candidate-feedback-eligibility';
+import { resolveOverallFeedbackTone } from './candidate-feedback-overall-tone';
+import { buildSkipTemplateTexts } from './candidate-feedback-skip-templates';
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import { collectCandidateFeedbackQuestionSourceTexts } from './candidate-feedback-source-text';
 import { CandidateFeedbackQuestionBlockDto } from './dto/candidate-feedback.responses.dto';
@@ -37,10 +43,7 @@ import {
 
 export type QuestionGenerationSkipReason =
   | CandidateFeedbackRegenerationBlockReason
-  | 'not_submitted'
-  | 'missing_answer'
-  | 'missing_transcript'
-  | 'missing_question';
+  | QuestionFeedbackGenerationSkipReason;
 
 export type QuestionGenerationBatchResult =
   | { status: 'queued'; questionIndex: number }
@@ -67,14 +70,16 @@ export interface GenerateAllCandidateFeedbackResult {
 
 interface QuestionGenerationContext {
   questionIndex: number;
-  transcriptText: string;
-  behaviorSignals: AnswerBehaviorSignals;
-  durationSeconds?: number;
   llmInput: Parameters<typeof generateCandidateFeedbackQuestionWithNativeLlm>[1];
 }
 
+const CANDIDATE_FEEDBACK_STUCK_GENERATION_ERROR =
+  'Candidate feedback worker restarted before this run completed. Re-run generation to retry.';
+const CANDIDATE_FEEDBACK_PREFILL_FAILED_ERROR =
+  'Candidate feedback skip template could not be saved. Retry generation.';
+
 @Injectable()
-export class CandidateFeedbackGenerationService {
+export class CandidateFeedbackGenerationService implements OnApplicationBootstrap {
   private readonly logger = new Logger(CandidateFeedbackGenerationService.name);
   private readonly generateAllInFlight = new Set<string>();
 
@@ -82,6 +87,44 @@ export class CandidateFeedbackGenerationService {
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly databaseService: DatabaseService,
   ) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    const result = await this.databaseService.query<{ interview_id: string }>(
+      `
+        SELECT DISTINCT interview_id
+        FROM (
+          SELECT interview_id
+          FROM candidate_feedback
+          WHERE overall_state = 'generating'
+          UNION
+          SELECT feedback.interview_id
+          FROM candidate_feedback_questions question
+          INNER JOIN candidate_feedback feedback
+            ON feedback.id = question.candidate_feedback_id
+          WHERE question.state = 'generating'
+        ) stuck
+      `,
+    );
+
+    for (const row of result.rows) {
+      try {
+        const recovered = await this.candidateFeedbackService.failStuckGeneration(
+          row.interview_id,
+          CANDIDATE_FEEDBACK_STUCK_GENERATION_ERROR,
+        );
+        if (recovered.recoveredOverall || recovered.recoveredQuestionCount > 0) {
+          this.logger.log(
+            `Marked stuck candidate feedback as failed: interview=${row.interview_id} overall=${recovered.recoveredOverall} questions=${recovered.recoveredQuestionCount}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to mark stuck candidate feedback: interview=${row.interview_id}: ${this.formatError(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+  }
 
   async generateQuestionBlock(
     interview: Interview,
@@ -105,6 +148,18 @@ export class CandidateFeedbackGenerationService {
     );
 
     if (result.status === 'skipped') {
+      if (isQuestionFeedbackEligibilitySkipReason(result.reason)) {
+        const feedback = await this.candidateFeedbackService.findByInterviewId(
+          interview.id,
+        );
+        const block = feedback?.questions.find(
+          (item) => item.questionIndex === questionIndex,
+        );
+        if (!block) {
+          throw new Error('Prefilled candidate feedback question block is missing');
+        }
+        return presentCandidateFeedbackQuestionBlock(block);
+      }
       this.throwForSkippedQuestion(interview.id, questionIndex, result.reason);
     }
     if (result.status === 'failed') {
@@ -151,35 +206,42 @@ export class CandidateFeedbackGenerationService {
       );
     }
 
-    const questionResults = await this.planGenerateAllQuestions(interview);
-    const overall = await this.planOverallGeneration(
-      interview,
-      questionResults
-        .filter((result) => result.status === 'queued')
-        .map((result) => result.questionIndex),
-    );
-    const willRun =
-      questionResults.some((result) => result.status === 'queued') ||
-      overall.status === 'queued';
+    this.generateAllInFlight.add(interview.id);
+    try {
+      const questionResults = await this.planGenerateAllQuestions(interview);
+      const overall = await this.planOverallGeneration(
+        interview,
+        questionResults
+          .filter((result) => result.status === 'queued')
+          .map((result) => result.questionIndex),
+      );
+      const willRun =
+        questionResults.some((result) => result.status === 'queued') ||
+        overall.status === 'queued';
 
-    if (willRun) {
-      this.generateAllInFlight.add(interview.id);
-      void this.runGenerateAll(interview).catch((error) => {
-        this.logger.error(
-          `[generate-all] unhandled rejection interview=${interview.id}: ${this.formatError(error)}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-      }).finally(() => {
+      if (willRun) {
+        void this.runGenerateAll(interview).catch((error) => {
+          this.logger.error(
+            `[generate-all] unhandled rejection interview=${interview.id}: ${this.formatError(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }).finally(() => {
+          this.generateAllInFlight.delete(interview.id);
+        });
+      } else {
         this.generateAllInFlight.delete(interview.id);
-      });
-    }
+      }
 
-    const currentFeedback = await this.requireFeedback(interview.id);
-    return {
-      feedback: presentCandidateFeedback(currentFeedback),
-      questions: questionResults,
-      overall,
-    };
+      const currentFeedback = await this.requireFeedback(interview.id);
+      return {
+        feedback: presentCandidateFeedback(currentFeedback),
+        questions: questionResults,
+        overall,
+      };
+    } catch (error) {
+      this.generateAllInFlight.delete(interview.id);
+      throw error;
+    }
   }
 
   private async runGenerateAll(
@@ -210,6 +272,14 @@ export class CandidateFeedbackGenerationService {
   ): Promise<QuestionGenerationBatchResult> {
     const context = this.buildQuestionGenerationContext(interview, questionIndex);
     if ('reason' in context) {
+      const prefillResult = await this.prefillEligibilitySkipTemplate(
+        interview,
+        questionIndex,
+        context.reason,
+      );
+      if (prefillResult.status !== 'prefilled') {
+        return prefillResult.result;
+      }
       return { status: 'skipped', questionIndex, reason: context.reason };
     }
 
@@ -266,6 +336,14 @@ export class CandidateFeedbackGenerationService {
       questionIndex,
     );
     if ('reason' in context) {
+      const prefillResult = await this.prefillEligibilitySkipTemplate(
+        interview,
+        questionIndex,
+        context.reason,
+      );
+      if (prefillResult.status !== 'prefilled') {
+        return prefillResult.result;
+      }
       return { status: 'skipped', questionIndex, reason: context.reason };
     }
 
@@ -389,6 +467,11 @@ export class CandidateFeedbackGenerationService {
         ]),
       );
 
+      const { toneMode, mixMetadata } = resolveOverallFeedbackTone(
+        interview,
+        feedback.questions,
+      );
+
       return {
         kind: 'ready' as const,
         llmInput: {
@@ -399,6 +482,8 @@ export class CandidateFeedbackGenerationService {
             questionTextByIndex,
           ),
           interviewLocale: interview.interviewLocale,
+          toneMode,
+          mixMetadata,
         },
       };
     });
@@ -451,6 +536,68 @@ export class CandidateFeedbackGenerationService {
     }
   }
 
+  private async prefillEligibilitySkipTemplate(
+    interview: Interview,
+    questionIndex: number,
+    reason: QuestionGenerationSkipReason,
+  ): Promise<
+    | { status: 'prefilled' }
+    | { status: 'not_applied'; result: QuestionGenerationBatchResult }
+  > {
+    if (!isQuestionFeedbackEligibilitySkipReason(reason)) {
+      return { status: 'prefilled' };
+    }
+
+    const interviewQuestion = interview.questions[questionIndex];
+    const questionText = interviewQuestion
+      ? prepareQuestionForEvaluation(interviewQuestion, interview.interviewLocale)
+          .questionText
+      : undefined;
+    const template = buildSkipTemplateTexts(
+      reason,
+      questionText,
+      interview.interviewLocale,
+    );
+    if (!template) {
+      return { status: 'prefilled' };
+    }
+
+    const applied = await this.withFeedbackLock(interview.id, () =>
+      this.candidateFeedbackService.prefillQuestionBlockSkipTemplate(
+        interview.id,
+        questionIndex,
+        {
+          recommendationText: template.recommendationText,
+          improvementText: template.improvementText,
+          skipReason: template.hrHint,
+        },
+      ),
+    );
+    if (applied) {
+      return { status: 'prefilled' };
+    }
+
+    const blockReason = await this.resolveQuestionRegenerationSkipReason(
+      interview.id,
+      questionIndex,
+    );
+    if (blockReason) {
+      return {
+        status: 'not_applied',
+        result: { status: 'skipped', questionIndex, reason: blockReason },
+      };
+    }
+
+    return {
+      status: 'not_applied',
+      result: {
+        status: 'failed',
+        questionIndex,
+        errorMessage: CANDIDATE_FEEDBACK_PREFILL_FAILED_ERROR,
+      },
+    };
+  }
+
   private buildQuestionGenerationContext(
     interview: Interview,
     questionIndex: number,
@@ -460,46 +607,44 @@ export class CandidateFeedbackGenerationService {
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );
-    const submissionBlock = getAnswerValidationSubmissionBlockReason(
-      questionIndex,
+    const classification = classifyQuestionFeedbackGeneration(
+      interview,
       answer,
+      questionIndex,
     );
-    if (submissionBlock) {
-      return { reason: 'not_submitted' };
-    }
-    if (!answer) {
-      return { reason: 'missing_answer' };
-    }
-
-    const transcriptText = answer.transcript?.text?.trim();
-    if (!transcriptText) {
-      return { reason: 'missing_transcript' };
+    if (classification.action === 'skip') {
+      return { reason: classification.reason };
     }
 
     const interviewQuestion = interview.questions[questionIndex];
-    if (!interviewQuestion) {
-      return { reason: 'missing_question' };
-    }
-
-    const selectedVersion = resolveSelectedAnswerVersion(answer);
+    const selectedVersion = resolveSelectedAnswerVersion(answer!);
     const behaviorSignals = this.resolveBehaviorSignals(
       selectedVersion,
-      answer,
+      answer!,
     );
+    const evaluation = answer?.evaluation;
+
     return {
       questionIndex,
-      transcriptText,
-      behaviorSignals,
-      durationSeconds: selectedVersion?.durationSeconds,
       llmInput: {
         question: prepareQuestionForEvaluation(
           interviewQuestion,
           interview.interviewLocale,
         ),
-        transcriptText,
+        transcriptText: classification.transcriptText,
         behaviorSignals,
         durationSeconds: selectedVersion?.durationSeconds,
         interviewLocale: interview.interviewLocale,
+        toneMode: classification.toneMode,
+        evaluationContext:
+          classification.toneMode === 'transcript_only'
+            ? undefined
+            : {
+                summary: evaluation?.summary,
+                decisionHint: evaluation?.decisionHint,
+                categoryScores: evaluation?.categoryScores,
+                overallScore: evaluation?.overallScore,
+              },
       },
     };
   }
@@ -522,7 +667,9 @@ export class CandidateFeedbackGenerationService {
       );
     }
 
-    return getRegenerationBlockReason(question.state);
+    return getRegenerationBlockReason(question.state, {
+      errorMessage: question.errorMessage,
+    });
   }
 
   private withFeedbackLock<T>(
@@ -580,20 +727,15 @@ export class CandidateFeedbackGenerationService {
       );
     }
 
-    const messageByReason: Record<
-      Exclude<QuestionGenerationSkipReason, 'locked' | 'in_progress'>,
-      string
-    > = {
-      not_submitted: `Question ${questionIndex} must be submitted before feedback generation`,
-      missing_answer: `Answer for question ${questionIndex} is not available`,
-      missing_transcript: `Answer transcript is not available for question ${questionIndex}. Run validation first.`,
-      missing_question: `Question ${questionIndex} is not part of this interview`,
-    };
-
-    throw apiBadRequest(ApiErrorCode.BAD_REQUEST, messageByReason[reason], {
-      interviewId,
-      questionIndex,
-    });
+    throw apiBadRequest(
+      ApiErrorCode.BAD_REQUEST,
+      reason === 'missing_question'
+        ? `Question ${questionIndex} is not part of this interview`
+        : reason === 'stale_validation'
+          ? `Question ${questionIndex} must be re-validated for the currently selected answer version before candidate feedback can be generated`
+        : `Question ${questionIndex} is not eligible for AI feedback generation`,
+      { interviewId, questionIndex, reason },
+    );
   }
 
   private resolveBehaviorSignals(

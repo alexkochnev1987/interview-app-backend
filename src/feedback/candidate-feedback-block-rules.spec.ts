@@ -1,6 +1,7 @@
 import {
   canRegenerateCandidateFeedbackBlock,
   getHrPatchBlockReason,
+  getRegenerationBlockReason,
   hasPublishableCandidateFeedbackText,
   isCandidateFeedbackBlockProtected,
   resolveHrPatchFeedbackText,
@@ -17,6 +18,27 @@ describe('candidate feedback rules', () => {
     expect(canRegenerateCandidateFeedbackBlock('failed')).toBe(true);
     expect(getHrPatchBlockReason('generating')).toBe('in_progress');
     expect(getHrPatchBlockReason('generated')).toBeNull();
+  });
+
+  it('allows regeneration for auto-prefilled eligibility skip templates', () => {
+    expect(
+      getRegenerationBlockReason('edited', {
+        errorMessage: 'unusable_transcript',
+      }),
+    ).toBeNull();
+    expect(
+      canRegenerateCandidateFeedbackBlock('edited', {
+        errorMessage: 'missing_transcript',
+      }),
+    ).toBe(true);
+    expect(
+      getRegenerationBlockReason('edited', {
+        errorMessage: 'HR manually edited',
+      }),
+    ).toBe('locked');
+    expect(getRegenerationBlockReason('accepted', { errorMessage: 'unusable_transcript' })).toBe(
+      'locked',
+    );
   });
 
   it('requires publishable text when locking a block via HR patch', () => {
