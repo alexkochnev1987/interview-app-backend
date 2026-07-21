@@ -271,7 +271,11 @@ export class InterviewController {
 
   @Patch(':id')
   @RequirePermissions('interviews:update_own')
-  @ApiOperation({ summary: 'Update pending interview' })
+  @ApiOperation({
+    summary: 'Update interview',
+    description:
+      'Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).',
+  })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: UpdateInterviewDto })
   @ApiOkResponse({ type: InterviewResponseDto })

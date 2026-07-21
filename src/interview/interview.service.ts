@@ -60,6 +60,7 @@ import { assertActorCanSetAssignedHr } from './interview-assignment-rules';
 import {
   getInterviewTerminalOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
+  getInterviewPendingOnlyBlockReasonForFields,
   getInterviewDemoDeleteBlockReason,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
@@ -535,7 +536,15 @@ export class InterviewService {
       const interview = this.mapRow(row);
       this.assertActorCanManageInterview(interview, actor);
 
-      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      const hasPendingOnlyUpdates =
+        dto.candidateName !== undefined ||
+        dto.candidateEmail !== undefined ||
+        dto.position !== undefined ||
+        dto.questionIds !== undefined;
+      const blockReason = getInterviewPendingOnlyBlockReasonForFields(
+        interview.status,
+        hasPendingOnlyUpdates,
+      );
       if (blockReason) {
         throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
           interviewId: id,

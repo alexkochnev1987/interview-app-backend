@@ -12,6 +12,16 @@ export function getInterviewPendingOnlyBlockReason(
   return status === 'pending' ? null : INTERVIEW_PENDING_ONLY_MESSAGE;
 }
 
+export function getInterviewPendingOnlyBlockReasonForFields(
+  status: InterviewStatus,
+  hasPendingOnlyFieldUpdates: boolean,
+): string | null {
+  if (!hasPendingOnlyFieldUpdates) {
+    return null;
+  }
+  return getInterviewPendingOnlyBlockReason(status);
+}
+
 export const INTERVIEW_TERMINAL_ONLY_MESSAGE =
   'Interview can only be deleted while status is completed or failed';
 

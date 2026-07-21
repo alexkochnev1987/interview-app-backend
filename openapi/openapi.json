@@ -3320,7 +3320,8 @@
       },
       "patch": {
         "operationId": "InterviewController_update",
-        "summary": "Update pending interview",
+        "summary": "Update interview",
+        "description": "Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).",
         "parameters": [
           {
             "name": "id",
@@ -8375,7 +8376,7 @@
           "assignedHrId": {
             "type": "string",
             "format": "uuid",
-            "description": "HR reviewer UUID, or null to clear assignment. Admin/super_admin only.",
+            "description": "HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.",
             "nullable": true
           },
           "questionIds": {
