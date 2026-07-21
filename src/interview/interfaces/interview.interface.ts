@@ -66,6 +66,8 @@ export interface Interview {
   candidateName: string;
   candidateEmail?: string;
   position: string;
+  assignedHrId?: string;
+  assignedHr?: AssignedHrSummary;
   interviewLocale: Locale;
   questions: InterviewQuestion[];
   answers: Answer[];
@@ -76,6 +78,12 @@ export interface Interview {
   demo: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface AssignedHrSummary {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export interface InterviewActor {
@@ -95,6 +103,8 @@ export interface InterviewListItem {
   submittedAnswerCount: number;
   overallScore?: number;
   decision?: InterviewDecision;
+  assignedHrId?: string;
+  assignedHr?: AssignedHrSummary;
   createdAt: Date;
   updatedAt: Date;
 }
