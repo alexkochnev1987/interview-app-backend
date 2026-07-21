@@ -300,6 +300,63 @@
         ]
       }
     },
+    "/auth/me/onboarding": {
+      "patch": {
+        "operationId": "AuthController_completeOnboarding",
+        "summary": "Mark the staff onboarding tour as completed or skipped",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session cookie"
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "UserController_list",
@@ -5847,6 +5904,20 @@
             "example": false,
             "description": "Read-only demo account."
           },
+          "onboardingCompletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-05-05T12:00:00.000Z",
+            "description": "Set when the staff onboarding tour was completed or skipped."
+          },
+          "onboardingStatus": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "description": "How the staff onboarding tour was dismissed."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -5891,6 +5962,22 @@
         },
         "required": [
           "ok"
+        ]
+      },
+      "CompleteOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "example": "completed"
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "ApiErrorCode": {

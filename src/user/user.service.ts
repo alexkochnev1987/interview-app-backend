@@ -18,6 +18,20 @@ import {
 } from '../database/demo-seed-core';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 import {getUserProfileReadDenialReason} from "./user-access-rules";
+import { OnboardingStatus } from './interfaces/user.interface';
+
+const USER_SELECT_COLUMNS = `
+  id,
+  email,
+  name,
+  role,
+  organization_id,
+  password_hash,
+  demo,
+  onboarding_completed_at,
+  onboarding_status,
+  created_at
+`;
 
 interface UserRow {
   id: string;
@@ -27,6 +41,8 @@ interface UserRow {
   organization_id: string | null;
   password_hash: string;
   demo: boolean;
+  onboarding_completed_at: Date | null;
+  onboarding_status: OnboardingStatus | null;
   created_at: Date;
 }
 
@@ -60,7 +76,7 @@ export class UserService implements OnModuleInit {
           password_hash
         )
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
+        RETURNING ${USER_SELECT_COLUMNS}
       `,
       [
         crypto.randomUUID(),
@@ -79,7 +95,7 @@ export class UserService implements OnModuleInit {
     const normalizedEmail = this.normalizeEmail(email);
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_SELECT_COLUMNS}
         FROM users
         WHERE email = $1
         LIMIT 1
@@ -93,7 +109,7 @@ export class UserService implements OnModuleInit {
   async findDemoUser(): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_SELECT_COLUMNS}
         FROM users
         WHERE demo = TRUE
         ORDER BY created_at ASC
@@ -132,7 +148,7 @@ export class UserService implements OnModuleInit {
   async findById(id: string): Promise<User | undefined> {
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_SELECT_COLUMNS}
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -173,7 +189,7 @@ export class UserService implements OnModuleInit {
     const offset = options.offset ?? 0;
     const result = await this.databaseService.query<UserRow>(
       `
-        SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+        SELECT ${USER_SELECT_COLUMNS}
         FROM users
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
@@ -208,7 +224,7 @@ export class UserService implements OnModuleInit {
     return this.databaseService.withTransaction(async (client) => {
       const targetResult = await client.query<UserRow>(
         `
-          SELECT id, email, name, role, organization_id, password_hash, demo, created_at
+          SELECT ${USER_SELECT_COLUMNS}
           FROM users
           WHERE id = $1
           FOR UPDATE
@@ -237,7 +253,7 @@ export class UserService implements OnModuleInit {
           SET role = $2,
               updated_at = NOW()
           WHERE id = $1
-          RETURNING id, email, name, role, organization_id, password_hash, demo, created_at
+          RETURNING ${USER_SELECT_COLUMNS}
         `,
         [targetId, newRole],
       );
@@ -253,6 +269,28 @@ export class UserService implements OnModuleInit {
     return bcrypt.compare(password, user.passwordHash);
   }
 
+  async completeOnboarding(
+    userId: string,
+    status: OnboardingStatus,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const result = await this.databaseService.query<UserRow>(
+      `
+        UPDATE users
+        SET onboarding_completed_at = NOW(),
+            onboarding_status = $2,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${USER_SELECT_COLUMNS}
+      `,
+      [userId, status],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+    return this.toPublicUser(this.mapRow(row));
+  }
+
   toPublicUser(user: User): Omit<User, 'passwordHash'> {
     return {
       id: user.id,
@@ -261,6 +299,8 @@ export class UserService implements OnModuleInit {
       role: user.role,
       organizationId: user.organizationId,
       demo: user.demo,
+      onboardingCompletedAt: user.onboardingCompletedAt,
+      onboardingStatus: user.onboardingStatus,
       createdAt: user.createdAt,
     };
   }
@@ -278,6 +318,10 @@ export class UserService implements OnModuleInit {
       organizationId: row.organization_id ?? undefined,
       passwordHash: row.password_hash,
       demo: row.demo ?? false,
+      onboardingCompletedAt: row.onboarding_completed_at
+        ? new Date(row.onboarding_completed_at)
+        : undefined,
+      onboardingStatus: row.onboarding_status ?? undefined,
       createdAt: new Date(row.created_at),
     };
   }

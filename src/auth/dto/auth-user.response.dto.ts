@@ -19,6 +19,18 @@ export class AuthUserResponseDto {
   @ApiProperty({ example: false, description: 'Read-only demo account.' })
   demo: boolean;
 
+  @ApiPropertyOptional({
+    example: '2026-05-05T12:00:00.000Z',
+    description: 'Set when the staff onboarding tour was completed or skipped.',
+  })
+  onboardingCompletedAt?: Date;
+
+  @ApiPropertyOptional({
+    enum: ['completed', 'skipped'],
+    description: 'How the staff onboarding tour was dismissed.',
+  })
+  onboardingStatus?: 'completed' | 'skipped';
+
   @ApiProperty({ example: '2026-05-05T12:00:00.000Z' })
   createdAt: Date;
 }
