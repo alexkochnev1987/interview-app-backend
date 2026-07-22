@@ -34,7 +34,7 @@ export class UpdateInterviewDto {
     type: String,
     format: 'uuid',
     description:
-      'HR reviewer UUID, or null to clear assignment. Admin/super_admin only.',
+      'HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.',
     nullable: true,
   })
   @IsOptional()

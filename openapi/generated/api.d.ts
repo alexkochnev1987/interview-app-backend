@@ -511,7 +511,10 @@ export interface paths {
         delete: operations["InterviewController_deleteCompleted"];
         options?: never;
         head?: never;
-        /** Update pending interview */
+        /**
+         * Update interview
+         * @description Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).
+         */
         patch: operations["InterviewController_update"];
         trace?: never;
     };
@@ -1789,7 +1792,7 @@ export interface components {
             position?: string;
             /**
              * Format: uuid
-             * @description HR reviewer UUID, or null to clear assignment. Admin/super_admin only.
+             * @description HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.
              */
             assignedHrId?: string | null;
             questionIds?: string[];
