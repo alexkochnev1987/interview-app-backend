@@ -842,4 +842,34 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     `,
     ],
   },
+  {
+    version: '0042',
+    name: 'create_candidate_feedback_share_links',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS candidate_feedback_share_links (
+          id UUID PRIMARY KEY,
+          interview_id UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+          token TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NULL,
+          revoked_at TIMESTAMPTZ NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_share_links_active_per_interview_idx
+        ON candidate_feedback_share_links (interview_id)
+        WHERE revoked_at IS NULL;
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_share_links_token_idx
+        ON candidate_feedback_share_links (token);
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS candidate_feedback_share_links_interview_idx
+        ON candidate_feedback_share_links (interview_id);
+      `,
+    ],
+  },
 ];

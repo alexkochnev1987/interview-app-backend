@@ -884,6 +884,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback/share/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get published candidate feedback using a share token
+         * @description Public endpoint (no JWT). Returns only accepted/edited blocks with publishable text. Invalid, expired, or revoked tokens yield 404.
+         */
+        get: operations["CandidateFeedbackShareController_getSharedCandidateFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback/{id}": {
         parameters: {
             query?: never;
@@ -944,6 +964,30 @@ export interface paths {
          * @description Partial update: HR may set recommendation/improvement texts and move blocks to accepted or edited.
          */
         patch: operations["CandidateFeedbackController_patchCandidateFeedback"];
+        trace?: never;
+    };
+    "/interviews/{id}/candidate-feedback/share-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get active candidate-feedback share link status
+         * @description Returns expiresAt for a non-revoked, non-expired link that still has publishable feedback. Does not return the share URL (DB stores sha256 only). 404 when no usable active link exists.
+         */
+        get: operations["CandidateFeedbackController_getCandidateFeedbackShareLinkStatus"];
+        put?: never;
+        /**
+         * Create a shareable candidate-feedback link
+         * @description Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.
+         */
+        post: operations["CandidateFeedbackController_createCandidateFeedbackShareLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/interviews/{id}/candidate-feedback/generate": {
@@ -2038,6 +2082,35 @@ export interface components {
             sourceVersionNumber: number;
             reused: boolean;
         };
+        PublicCandidateFeedbackTextBlockDto: {
+            /** @description Candidate-facing strengths / recommendations text. */
+            recommendationText?: string;
+            /** @description Candidate-facing growth areas / improvement text. */
+            improvementText?: string;
+        };
+        PublicCandidateFeedbackQuestionBlockDto: {
+            /** @description Candidate-facing strengths / recommendations text. */
+            recommendationText?: string;
+            /** @description Candidate-facing growth areas / improvement text. */
+            improvementText?: string;
+            questionIndex: number;
+            /** Format: uuid */
+            questionId: string;
+        };
+        PublicCandidateFeedbackResponseDto: {
+            /**
+             * @description Locale of the shared candidate-facing feedback text.
+             * @enum {string}
+             */
+            interviewLocale: "en" | "be" | "ru" | "pl";
+            position: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description Present only when overall is accepted/edited with publishable text. */
+            overall?: components["schemas"]["PublicCandidateFeedbackTextBlockDto"];
+            /** @description Only accepted/edited question blocks with publishable text; omitted when empty. */
+            questions?: components["schemas"]["PublicCandidateFeedbackQuestionBlockDto"][];
+        };
         FeedbackQuestionResultDto: {
             questionIndex: number;
             questionId: string;
@@ -2159,6 +2232,19 @@ export interface components {
             feedback: components["schemas"]["CandidateFeedbackResponseDto"];
             questions: components["schemas"]["GenerateAllCandidateFeedbackQuestionResultDto"][];
             overall: components["schemas"]["GenerateAllCandidateFeedbackOverallResultDto"];
+        };
+        CandidateFeedbackShareLinkResponseDto: {
+            /** @description Absolute frontend URL embedding the one-time plaintext share token. */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CandidateFeedbackShareLinkStatusResponseDto: {
+            /**
+             * Format: date-time
+             * @description Expiry of a usable share link (non-revoked, not expired, with publishable feedback). URL is never reconstructed from storage (DB stores sha256 only).
+             */
+            expiresAt: string;
         };
     };
     responses: never;
@@ -4789,6 +4875,39 @@ export interface operations {
             };
         };
     };
+    CandidateFeedbackShareController_getSharedCandidateFeedback: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Plaintext share token from the candidate-feedback share URL */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCandidateFeedbackResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
     FeedbackController_getFeedback: {
         parameters: {
             query: {
@@ -4972,6 +5091,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_getCandidateFeedbackShareLinkStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFeedbackShareLinkStatusResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_createCandidateFeedbackShareLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFeedbackShareLinkResponseDto"];
                 };
             };
             401: {

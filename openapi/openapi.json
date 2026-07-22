@@ -5185,6 +5185,65 @@
         ]
       }
     },
+    "/feedback/share/{token}": {
+      "get": {
+        "operationId": "CandidateFeedbackShareController_getSharedCandidateFeedback",
+        "summary": "Get published candidate feedback using a share token",
+        "description": "Public endpoint (no JWT). Returns only accepted/edited blocks with publishable text. Invalid, expired, or revoked tokens yield 404.",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "description": "Plaintext share token from the candidate-feedback share URL",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCandidateFeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
     "/feedback/{id}": {
       "get": {
         "operationId": "FeedbackController_getFeedback",
@@ -5511,6 +5570,172 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/interviews/{id}/candidate-feedback/share-link": {
+      "post": {
+        "operationId": "CandidateFeedbackController_createCandidateFeedbackShareLink",
+        "summary": "Create a shareable candidate-feedback link",
+        "description": "Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackShareLinkResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CandidateFeedbackController_getCandidateFeedbackShareLinkStatus",
+        "summary": "Get active candidate-feedback share link status",
+        "description": "Returns expiresAt for a non-revoked, non-expired link that still has publishable feedback. Does not return the share URL (DB stores sha256 only). 404 when no usable active link exists.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackShareLinkStatusResponseDto"
                 }
               }
             }
@@ -9208,6 +9433,86 @@
           "reused"
         ]
       },
+      "PublicCandidateFeedbackTextBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          }
+        }
+      },
+      "PublicCandidateFeedbackQuestionBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "questionIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
+      },
+      "PublicCandidateFeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale of the shared candidate-facing feedback text."
+          },
+          "position": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "overall": {
+            "description": "Present only when overall is accepted/edited with publishable text.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicCandidateFeedbackTextBlockDto"
+              }
+            ]
+          },
+          "questions": {
+            "description": "Only accepted/edited question blocks with publishable text; omitted when empty.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCandidateFeedbackQuestionBlockDto"
+            }
+          }
+        },
+        "required": [
+          "interviewLocale",
+          "position",
+          "expiresAt"
+        ]
+      },
       "FeedbackQuestionResultDto": {
         "type": "object",
         "properties": {
@@ -9577,6 +9882,36 @@
           "feedback",
           "questions",
           "overall"
+        ]
+      },
+      "CandidateFeedbackShareLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Absolute frontend URL embedding the one-time plaintext share token."
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
+        ]
+      },
+      "CandidateFeedbackShareLinkStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Expiry of a usable share link (non-revoked, not expired, with publishable feedback). URL is never reconstructed from storage (DB stores sha256 only)."
+          }
+        },
+        "required": [
+          "expiresAt"
         ]
       }
     }
