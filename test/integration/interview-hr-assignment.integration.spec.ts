@@ -1,5 +1,7 @@
 import supertest = require('supertest');
 
+import { DatabaseService } from '../../src/database/database.service';
+import type { InterviewStatus } from '../../src/interview/interfaces/interview.interface';
 import {
   getIntegrationApp,
   type IntegrationAgent,
@@ -9,6 +11,7 @@ import {
   loginAsHr,
   loginAsSuperAdmin,
 } from '../helpers/integration-auth';
+import { updateInterviewStatus } from '../helpers/integration-db';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 
 function createInterview(
@@ -168,5 +171,90 @@ describe('Interview HR assignment (integration)', () => {
     await createInterview(agent, adminSession, seedQuestionId, {
       assignedHrId: superAdminUserId,
     }).expect(400);
+  });
+
+  it.each([
+    'in_progress',
+    'processing',
+    'completed',
+    'failed',
+  ] as InterviewStatus[])(
+    'allows admin to assign HR on %s interview',
+    async (status) => {
+      const { app, agent } = await getIntegrationApp();
+      const adminSession = await loginAsSuperAdmin(agent);
+
+      const created = await createInterview(
+        agent,
+        adminSession,
+        seedQuestionId,
+      ).expect(201);
+
+      await updateInterviewStatus(
+        app.get(DatabaseService),
+        created.body.id,
+        status,
+      );
+
+      const response = await agent
+        .patch(`/interviews/${created.body.id}`)
+        .set(authCookie(adminSession))
+        .send({ assignedHrId: hrUserId })
+        .expect(200);
+
+      expect(response.body.assignedHrId).toBe(hrUserId);
+      expect(response.body.status).toBe(status);
+    },
+  );
+
+  it('allows admin to clear HR assignment on completed interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const adminSession = await loginAsSuperAdmin(agent);
+
+    const created = await createInterview(
+      agent,
+      adminSession,
+      seedQuestionId,
+      { assignedHrId: hrUserId },
+    ).expect(201);
+
+    await updateInterviewStatus(
+      app.get(DatabaseService),
+      created.body.id,
+      'completed',
+    );
+
+    const response = await agent
+      .patch(`/interviews/${created.body.id}`)
+      .set(authCookie(adminSession))
+      .send({ assignedHrId: null })
+      .expect(200);
+
+    expect(response.body.assignedHrId).toBeUndefined();
+    expect(response.body.assignedHr).toBeUndefined();
+    expect(response.body.status).toBe('completed');
+  });
+
+  it('rejects mixed HR and candidate updates on non-pending interview', async () => {
+    const { app, agent } = await getIntegrationApp();
+    const adminSession = await loginAsSuperAdmin(agent);
+
+    const created = await createInterview(
+      agent,
+      adminSession,
+      seedQuestionId,
+    ).expect(201);
+
+    await updateInterviewStatus(
+      app.get(DatabaseService),
+      created.body.id,
+      'in_progress',
+    );
+
+    await agent
+      .patch(`/interviews/${created.body.id}`)
+      .set(authCookie(adminSession))
+      .send({ assignedHrId: hrUserId, candidateName: 'Too Late' })
+      .expect(409);
   });
 });
