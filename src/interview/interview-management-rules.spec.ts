@@ -3,6 +3,7 @@ import {
   getInterviewPendingOnlyBlockReasonForFields,
   getInterviewTerminalOnlyBlockReason,
   getInterviewDemoDeleteBlockReason,
+  hasInterviewPendingOnlyFieldUpdates,
   INTERVIEW_PENDING_ONLY_MESSAGE,
   INTERVIEW_TERMINAL_ONLY_MESSAGE,
   INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE,
@@ -26,6 +27,23 @@ describe('interview-management-rules', () => {
           INTERVIEW_PENDING_ONLY_MESSAGE,
         );
       }
+    });
+  });
+
+  describe('hasInterviewPendingOnlyFieldUpdates', () => {
+    it('detects pending-only field updates', () => {
+      expect(hasInterviewPendingOnlyFieldUpdates({ candidateName: 'Ada' })).toBe(
+        true,
+      );
+      expect(
+        hasInterviewPendingOnlyFieldUpdates({
+          candidateName: undefined,
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when no fields are present', () => {
+      expect(hasInterviewPendingOnlyFieldUpdates({})).toBe(false);
     });
   });
 
