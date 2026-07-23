@@ -9491,6 +9491,25 @@
             "type": "string",
             "format": "date-time"
           },
+          "overallScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Interview overall score (0–100) when a result exists; omitted otherwise."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "description": "Candidate-facing next-step outcome when HR selected one; omitted otherwise."
+          },
+          "outcomeMessage": {
+            "type": "string",
+            "description": "Custom next-step message when outcome is `custom`; omitted for presets."
+          },
           "overall": {
             "description": "Present only when overall is accepted/edited with publishable text.",
             "allOf": [
@@ -9710,6 +9729,19 @@
               "$ref": "#/components/schemas/CandidateFeedbackQuestionBlockDto"
             }
           },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "description": "Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message."
+          },
+          "outcomeMessage": {
+            "type": "string",
+            "description": "Present when outcome is `custom`. Preset outcomes use client i18n instead."
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -9792,6 +9824,22 @@
             "items": {
               "$ref": "#/components/schemas/PatchCandidateFeedbackQuestionBlockDto"
             }
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "nullable": true,
+            "description": "Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message."
+          },
+          "outcomeMessage": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 10000,
+            "description": "Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets."
           }
         }
       },

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
+import { CANDIDATE_FEEDBACK_OUTCOMES } from '../interfaces/candidate-feedback.interface';
 
 export class CandidateFeedbackShareLinkResponseDto {
   @ApiProperty({
@@ -54,6 +55,28 @@ export class PublicCandidateFeedbackResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   expiresAt: string;
+
+  @ApiPropertyOptional({
+    minimum: 0,
+    maximum: 100,
+    description:
+      'Interview overall score (0–100) when a result exists; omitted otherwise.',
+  })
+  overallScore?: number;
+
+  @ApiPropertyOptional({
+    enum: CANDIDATE_FEEDBACK_OUTCOMES,
+    description:
+      'Candidate-facing next-step outcome when HR selected one; omitted otherwise.',
+  })
+  outcome?: (typeof CANDIDATE_FEEDBACK_OUTCOMES)[number];
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Custom next-step message when outcome is `custom`; omitted for presets.',
+  })
+  outcomeMessage?: string;
 
   @ApiPropertyOptional({
     type: PublicCandidateFeedbackTextBlockDto,

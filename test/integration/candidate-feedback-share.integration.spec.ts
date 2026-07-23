@@ -161,6 +161,7 @@ describe('Candidate feedback share links (integration)', () => {
             state: 'accepted',
           },
         ],
+        outcome: 'next_stage',
       })
       .expect(200);
 
@@ -183,6 +184,7 @@ describe('Candidate feedback share links (integration)', () => {
 
     expect(publicPayload.body).toMatchObject({
       position: 'Integration CF Share Role',
+      outcome: 'next_stage',
       questions: [
         {
           questionIndex: 0,
@@ -192,6 +194,9 @@ describe('Candidate feedback share links (integration)', () => {
       ],
     });
     expect(publicPayload.body.questions[0].state).toBeUndefined();
+    expect(typeof publicPayload.body.overallScore).toBe('number');
+    expect(publicPayload.body.categoryScores).toBeUndefined();
+    expect(publicPayload.body.decision).toBeUndefined();
 
     const recreated = await agent
       .post(`/interviews/${interviewId}/candidate-feedback/share-link`)

@@ -197,4 +197,107 @@ describe('candidate feedback share publishable helpers', () => {
       },
     });
   });
+
+  it('includes overallScore when interview result has it', () => {
+    const feedback = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+    });
+
+    expect(
+      presentPublicCandidateFeedback(feedback, {
+        interviewLocale: 'en',
+        position: 'Engineer',
+        expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+        overallScore: 62,
+      }),
+    ).toEqual({
+      interviewLocale: 'en',
+      position: 'Engineer',
+      expiresAt: '2026-01-08T00:00:00.000Z',
+      overallScore: 62,
+      overall: {
+        recommendationText: 'Ready',
+      },
+    });
+  });
+
+  it('omits overallScore when interview result score is missing', () => {
+    const feedback = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+    });
+
+    const payload = presentPublicCandidateFeedback(feedback, {
+      interviewLocale: 'en',
+      position: 'Engineer',
+      expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+    });
+
+    expect(payload).not.toHaveProperty('overallScore');
+  });
+
+  it('includes outcome when set and omits when missing', () => {
+    const withOutcome = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+      outcome: 'next_stage',
+    });
+    const withoutOutcome = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+    });
+
+    expect(
+      presentPublicCandidateFeedback(withOutcome, {
+        interviewLocale: 'en',
+        position: 'Engineer',
+        expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+      }),
+    ).toMatchObject({ outcome: 'next_stage' });
+
+    expect(
+      presentPublicCandidateFeedback(withoutOutcome, {
+        interviewLocale: 'en',
+        position: 'Engineer',
+        expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+      }),
+    ).not.toHaveProperty('outcome');
+  });
+
+  it('includes custom outcomeMessage on public payload and omits it for presets', () => {
+    const custom = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+      outcome: 'custom',
+      outcomeMessage: 'HR wrote a custom next-step note.',
+    });
+    const preset = makeFeedback({
+      overallState: 'accepted',
+      overallRecommendationText: 'Ready',
+      outcome: 'next_stage',
+      outcomeMessage: 'Should not leak',
+    });
+
+    expect(
+      presentPublicCandidateFeedback(custom, {
+        interviewLocale: 'en',
+        position: 'Engineer',
+        expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        outcome: 'custom',
+        outcomeMessage: 'HR wrote a custom next-step note.',
+      }),
+    );
+
+    const presetPayload = presentPublicCandidateFeedback(preset, {
+      interviewLocale: 'en',
+      position: 'Engineer',
+      expiresAt: new Date('2026-01-08T00:00:00.000Z'),
+    });
+    expect(presetPayload).toMatchObject({ outcome: 'next_stage' });
+    expect(presetPayload).not.toHaveProperty('outcomeMessage');
+  });
 });

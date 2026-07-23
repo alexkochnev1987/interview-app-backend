@@ -124,6 +124,7 @@ export function presentPublicCandidateFeedback(
     interviewLocale: Locale;
     position: string;
     expiresAt: Date;
+    overallScore?: number;
   },
 ): PublicCandidateFeedbackResponse {
   const response: PublicCandidateFeedbackResponse = {
@@ -131,6 +132,18 @@ export function presentPublicCandidateFeedback(
     position: meta.position,
     expiresAt: meta.expiresAt.toISOString(),
   };
+
+  if (meta.overallScore != null) {
+    response.overallScore = meta.overallScore;
+  }
+
+  if (feedback.outcome) {
+    response.outcome = feedback.outcome;
+  }
+
+  if (feedback.outcome === 'custom' && feedback.outcomeMessage) {
+    response.outcomeMessage = feedback.outcomeMessage;
+  }
 
   const overall = filterPublishableOverall(feedback);
   if (overall) {

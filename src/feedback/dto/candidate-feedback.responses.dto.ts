@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CANDIDATE_FEEDBACK_BLOCK_STATES } from '../interfaces/candidate-feedback.interface';
+import {
+  CANDIDATE_FEEDBACK_BLOCK_STATES,
+  CANDIDATE_FEEDBACK_OUTCOMES,
+} from '../interfaces/candidate-feedback.interface';
 
 export class CandidateFeedbackBlockDto {
   @ApiPropertyOptional({
@@ -43,6 +46,20 @@ export class CandidateFeedbackResponseDto {
 
   @ApiProperty({ type: [CandidateFeedbackQuestionBlockDto] })
   questions: CandidateFeedbackQuestionBlockDto[];
+
+  @ApiPropertyOptional({
+    enum: CANDIDATE_FEEDBACK_OUTCOMES,
+    description:
+      'Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message.',
+  })
+  outcome?: (typeof CANDIDATE_FEEDBACK_OUTCOMES)[number];
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Present when outcome is `custom`. Preset outcomes use client i18n instead.',
+  })
+  outcomeMessage?: string;
 
   @ApiProperty({ format: 'date-time' })
   updatedAt: string;

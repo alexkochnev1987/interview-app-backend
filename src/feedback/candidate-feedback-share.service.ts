@@ -232,6 +232,7 @@ export class CandidateFeedbackShareService {
       interviewLocale: interview.interviewLocale,
       position: interview.position,
       expiresAt: linkRow.expires_at,
+      overallScore: interview.result?.overallScore,
     });
   }
 

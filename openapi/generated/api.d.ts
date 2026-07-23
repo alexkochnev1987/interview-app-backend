@@ -2106,6 +2106,15 @@ export interface components {
             position: string;
             /** Format: date-time */
             expiresAt: string;
+            /** @description Interview overall score (0–100) when a result exists; omitted otherwise. */
+            overallScore?: number;
+            /**
+             * @description Candidate-facing next-step outcome when HR selected one; omitted otherwise.
+             * @enum {string}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom";
+            /** @description Custom next-step message when outcome is `custom`; omitted for presets. */
+            outcomeMessage?: string;
             /** @description Present only when overall is accepted/edited with publishable text. */
             overall?: components["schemas"]["PublicCandidateFeedbackTextBlockDto"];
             /** @description Only accepted/edited question blocks with publishable text; omitted when empty. */
@@ -2180,6 +2189,13 @@ export interface components {
             interviewId: string;
             overall: components["schemas"]["CandidateFeedbackBlockDto"];
             questions: components["schemas"]["CandidateFeedbackQuestionBlockDto"][];
+            /**
+             * @description Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message.
+             * @enum {string}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom";
+            /** @description Present when outcome is `custom`. Preset outcomes use client i18n instead. */
+            outcomeMessage?: string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -2211,6 +2227,13 @@ export interface components {
             overall?: components["schemas"]["PatchCandidateFeedbackOverallBlockDto"];
             /** @description Partial per-question block updates. */
             questions?: components["schemas"]["PatchCandidateFeedbackQuestionBlockDto"][];
+            /**
+             * @description Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message.
+             * @enum {string|null}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom" | null;
+            /** @description Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets. */
+            outcomeMessage?: Record<string, never> | null;
         };
         GenerateAllCandidateFeedbackQuestionResultDto: {
             /** @enum {string} */
