@@ -844,7 +844,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   },
   {
     version: '0042',
-    name: 'add_user_onboarding_status',
+    name: 'add_user_onboarding_state',
     statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status TEXT NULL;`,
       `
