@@ -46,7 +46,11 @@ export class UserController {
   @ApiOkResponse({ type: [AuthUserResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   list(@Query() query: ListUsersQueryDto): Promise<Omit<User, 'passwordHash'>[]> {
-    return this.userService.listAll({ limit: query.limit, offset: query.offset });
+    return this.userService.listAll({
+      limit: query.limit,
+      offset: query.offset,
+      role: query.role,
+    });
   }
 
   @Get(':id')

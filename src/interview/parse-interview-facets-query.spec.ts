@@ -2,17 +2,19 @@ import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
 
 describe('parseInterviewFacetsQuery', () => {
-  it('accepts q, position, and status filters', () => {
+  it('accepts q, position, status, and assignedHrId filters', () => {
     expect(
       parseInterviewFacetsQuery({
         q: 'alice',
         position: 'Engineer',
         status: 'pending',
+        assignedHrId: '00000000-0000-4000-8000-000000000001',
       }),
     ).toEqual({
       q: 'alice',
       position: 'Engineer',
       status: 'pending',
+      assignedHrId: '00000000-0000-4000-8000-000000000001',
     });
   });
 

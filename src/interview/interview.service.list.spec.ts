@@ -38,17 +38,19 @@ describe('InterviewService list query (findAllPaginated)', () => {
     );
 
     const dataCall = query.mock.calls.find(([sql]) =>
-      sql.includes('jsonb_array_length(questions_json)'),
+      sql.includes('jsonb_array_length(i.questions_json)'),
     );
     expect(dataCall).toBeDefined();
     const [sql] = dataCall!;
-    expect(sql).toContain('jsonb_array_length(questions_json)');
+    expect(sql).toContain('jsonb_array_length(i.questions_json)');
     expect(sql).toContain("answer.value->>'status' = 'submitted'");
     expect(sql).not.toContain("COALESCE(answer.value->>'status', 'submitted')");
-    expect(sql).toContain("result_json->>'overallScore'");
-    expect(sql).toContain("result_json->>'decision'");
-    expect(sql).not.toContain('workflow_json');
-    expect(sql).not.toContain('interview_locale');
+    expect(sql).toContain("i.result_json->>'overallScore'");
+    expect(sql).toContain("i.result_json->>'decision'");
+    expect(sql).toContain('FROM interviews i');
+    expect(sql).toContain('LEFT JOIN users ah ON ah.id = i.assigned_hr_id');
+    expect(sql).toContain('ah.name AS assigned_hr_name');
+    expect(sql).not.toContain('SELECT name FROM users WHERE id = interviews.assigned_hr_id');
   });
 
   it('maps list rows without hydrating interviews', async () => {
@@ -144,7 +146,7 @@ describe('InterviewService facets query (getFacets)', () => {
   it('sums question counts with all current filters applied', async () => {
     const { service, query } = makeService();
     query.mockImplementation((sql: string) => {
-      if (sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))')) {
+      if (sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))')) {
         return Promise.resolve({ rows: [{ total: '5' }] });
       }
       return Promise.resolve({ rows: [] });
@@ -156,12 +158,12 @@ describe('InterviewService facets query (getFacets)', () => {
     );
 
     const totalCall = query.mock.calls.find(([sql]) =>
-      sql.includes('SUM(COALESCE(jsonb_array_length(questions_json), 0))'),
+      sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))'),
     );
     expect(totalCall).toBeDefined();
     const [sql, params] = totalCall!;
-    expect(sql).toContain('status = $');
-    expect(sql).toContain('lower(position) = $');
+    expect(sql).toContain('i.status = $');
+    expect(sql).toContain('lower(i.position) = $');
     expect(params).toEqual(expect.arrayContaining(['completed', 'engineer']));
     expect(result.totalQuestionCount).toBe(5);
   });

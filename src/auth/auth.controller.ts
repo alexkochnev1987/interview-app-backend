@@ -48,6 +48,13 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private toMeResponse(user: Omit<User, 'passwordHash'>): MeResponse {
+    return {
+      ...user,
+      permissions: getEffectivePermissions(user.role, user.demo),
+    };
+  }
+
   @Post('login')
   @HttpCode(200)
   @UseGuards(LoginThrottlerGuard)
@@ -158,23 +165,29 @@ export class AuthController {
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
-    return {
-      ...user,
-      permissions: getEffectivePermissions(user.role, user.demo),
-    };
+    return this.toMeResponse(user);
   }
 
   @Patch('me/onboarding')
+  @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   @ApiCookieAuth('sessionAuth')
-  @ApiOperation({ summary: 'Mark the staff onboarding tour as completed or skipped' })
+  @ApiOperation({
+    summary: 'Mark the staff onboarding tour as completed or skipped',
+    description:
+      'Sets onboardingCompletedAt and onboardingStatus. Response matches GET /auth/me.',
+  })
   @ApiBody({ type: CompleteOnboardingDto })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   async completeOnboarding(
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @Body() dto: CompleteOnboardingDto,
-  ): Promise<Omit<User, 'passwordHash'>> {
-    return this.authService.completeOnboarding(user.id, dto.status);
+  ): Promise<MeResponse> {
+    const updated = await this.authService.completeOnboarding(
+      user.id,
+      dto.status,
+    );
+    return this.toMeResponse(updated);
   }
 }

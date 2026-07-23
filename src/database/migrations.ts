@@ -716,6 +716,25 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
+    version: '0039',
+    name: 'add_users_onboarding_completed_at',
+    statements: [
+      `
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ NULL;
+      `,
+      `
+        UPDATE users
+        SET onboarding_completed_at = NOW()
+        WHERE onboarding_completed_at IS NULL
+          AND role IN ('hr', 'admin', 'super_admin');
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_completed_at;`,
+    ],
+  },
+  {
     version: '0040',
     name: 'create_candidate_feedback',
     statements: [
@@ -808,10 +827,25 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0042',
-    name: 'add_user_onboarding_state',
+    version: '0041',
+    name: 'add_interview_assigned_hr',
     statements: [
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ NULL;`,
+      `
+        ALTER TABLE interviews
+          ADD COLUMN IF NOT EXISTS assigned_hr_id UUID NULL
+          REFERENCES users(id) ON DELETE SET NULL;
+      `,
+      `
+      CREATE INDEX IF NOT EXISTS interviews_assigned_hr_idx
+      ON interviews (assigned_hr_id)
+      WHERE assigned_hr_id IS NOT NULL;
+    `,
+    ],
+  },
+  {
+    version: '0042',
+    name: 'add_user_onboarding_status',
+    statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status TEXT NULL;`,
       `
         DO $$
@@ -835,7 +869,6 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     rollbackStatements: [
       `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_onboarding_status_check;`,
       `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_status;`,
-      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_completed_at;`,
     ],
   },
 ];

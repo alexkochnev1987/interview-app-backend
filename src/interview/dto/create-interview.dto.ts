@@ -31,6 +31,13 @@ export class CreateInterviewDto {
   position: string;
 
   @ApiPropertyOptional({
+    description: 'HR reviewer assigned to this interview. Admin/super_admin only.',
+  })
+  @IsOptional()
+  @IsUUID()
+  assignedHrId?: string;
+
+  @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
     default: DEFAULT_LOCALE,
     description: 'Locale for interview UI and feedback. Defaults to en when omitted.',

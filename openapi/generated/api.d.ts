@@ -136,7 +136,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Mark the staff onboarding tour as completed or skipped */
+        /**
+         * Mark the staff onboarding tour as completed or skipped
+         * @description Sets onboardingCompletedAt and onboardingStatus. Response matches GET /auth/me.
+         */
         patch: operations["AuthController_completeOnboarding"];
         trace?: never;
     };
@@ -525,7 +528,10 @@ export interface paths {
         delete: operations["InterviewController_deleteCompleted"];
         options?: never;
         head?: never;
-        /** Update pending interview */
+        /**
+         * Update interview
+         * @description Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).
+         */
         patch: operations["InterviewController_update"];
         trace?: never;
     };
@@ -1028,10 +1034,10 @@ export interface components {
             demo: boolean;
             /**
              * Format: date-time
-             * @description Set when the staff onboarding tour was completed or skipped.
-             * @example 2026-05-05T12:00:00.000Z
+             * @description When the user finished or skipped first-time onboarding. Null means onboarding is pending.
+             * @example 2026-06-10T14:30:00.000Z
              */
-            onboardingCompletedAt?: string;
+            onboardingCompletedAt?: string | null;
             /**
              * @description How the staff onboarding tour was dismissed.
              * @enum {string}
@@ -1520,6 +1526,8 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description HR reviewer assigned to this interview. Admin/super_admin only. */
+            assignedHrId?: string;
             /**
              * @description Locale for interview UI and feedback. Defaults to en when omitted.
              * @default en
@@ -1529,6 +1537,11 @@ export interface components {
             /** @description Template this interview was started from. When set, the template popularity (usage_count) is incremented in the same transaction, so usage is recorded server-side rather than by a separate client call. */
             templateId?: string;
             questionIds: string[];
+        };
+        AssignedHrDto: {
+            id: string;
+            name: string;
+            email: string;
         };
         MediaArtifactDto: {
             mediaKey: string;
@@ -1692,6 +1705,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1728,6 +1745,10 @@ export interface components {
             overallScore?: number;
             /** @enum {string} */
             decision?: "proceed" | "review" | "reject";
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1758,6 +1779,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1794,6 +1819,11 @@ export interface components {
             candidateName?: string;
             candidateEmail?: string;
             position?: string;
+            /**
+             * Format: uuid
+             * @description HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.
+             */
+            assignedHrId?: string | null;
             questionIds?: string[];
         };
         StartAnswerValidationResultDto: {
@@ -2404,6 +2434,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                role?: "super_admin" | "admin" | "hr" | "candidate";
             };
             header?: {
                 /** @description Response language for localized content. Defaults to `en` when omitted. */
@@ -3574,6 +3605,8 @@ export interface operations {
                 /** @description Filter by position (exact match) */
                 position?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
+                assignedHrId?: string;
                 /**
                  * @deprecated
                  * @description Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.
@@ -3664,6 +3697,8 @@ export interface operations {
     InterviewController_getFacets: {
         parameters: {
             query?: {
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
+                assignedHrId?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
                 /** @description Filter by position (exact match) */
                 position?: string;
