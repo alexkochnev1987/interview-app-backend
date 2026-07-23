@@ -135,6 +135,28 @@ export class CandidateFeedbackShareService {
     }
   }
 
+  async revokeActiveLink(
+    interviewId: string,
+    actor: ShareLinkActor,
+  ): Promise<{ revoked: boolean }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      actor,
+    );
+    this.assertInterviewReadyForShare(interview);
+
+    const result = await this.databaseService.query(
+      `
+        UPDATE candidate_feedback_share_links
+        SET revoked_at = NOW()
+        WHERE interview_id = $1 AND revoked_at IS NULL
+      `,
+      [interviewId],
+    );
+
+    return { revoked: (result.rowCount ?? 0) > 0 };
+  }
+
   async getActiveLinkStatus(
     interviewId: string,
     actor: ShareLinkActor,

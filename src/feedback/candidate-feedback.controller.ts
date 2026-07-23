@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -110,7 +111,7 @@ export class CandidateFeedbackController {
   }
 
   @Post(':id/candidate-feedback/share-link')
-  @RequirePermissions('interviews:update_own')
+  @RequirePermissions('feedback:create_share_link')
   @ApiOperation({
     summary: 'Create a shareable candidate-feedback link',
     description:
@@ -140,7 +141,7 @@ export class CandidateFeedbackController {
   }
 
   @Get(':id/candidate-feedback/share-link')
-  @RequirePermissions('interviews:read_own')
+  @RequirePermissions('feedback:create_share_link')
   @ApiOperation({
     summary: 'Get active candidate-feedback share link status',
     description:
@@ -161,6 +162,43 @@ export class CandidateFeedbackController {
     );
     this.assertCandidateFeedbackInterviewReady(interview);
     return this.candidateFeedbackShareService.getActiveLinkStatus(interviewId, {
+      id: user.id,
+      role: user.role,
+      demo: user.demo,
+    });
+  }
+
+  @Delete(':id/candidate-feedback/share-link')
+  @RequirePermissions('feedback:revoke_share_link')
+  @ApiOperation({
+    summary: 'Revoke the active candidate-feedback share link',
+    description:
+      'Invalidates the current share URL without creating a replacement. Safe when a link was leaked and no new share is needed. Returns revoked=false when no active link existed.',
+  })
+  @ApiParam({ name: 'id', description: 'Interview ID' })
+  @ApiOkResponse({
+    description: 'Revoke result',
+    schema: {
+      type: 'object',
+      properties: {
+        revoked: { type: 'boolean' },
+      },
+      required: ['revoked'],
+    },
+  })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async revokeCandidateFeedbackShareLink(
+    @Param('id', ParseUUIDPipe) interviewId: string,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<{ revoked: boolean }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      user,
+    );
+    this.assertCandidateFeedbackInterviewReady(interview);
+    return this.candidateFeedbackShareService.revokeActiveLink(interviewId, {
       id: user.id,
       role: user.role,
       demo: user.demo,

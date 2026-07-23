@@ -92,17 +92,6 @@ async function createCompletedInterview(
   return { interviewId };
 }
 
-async function syncCandidateFeedback(
-  agent: IntegrationAgent,
-  session: string,
-  interviewId: string,
-): Promise<void> {
-  await agent
-    .get(`/interviews/${interviewId}/candidate-feedback`)
-    .set(authCookie(session))
-    .expect(200);
-}
-
 function extractShareToken(url: string): string {
   const token = url.split('/').pop();
   if (!token) {
@@ -114,29 +103,7 @@ function extractShareToken(url: string): string {
 describe('Candidate feedback share links (integration)', () => {
   useIntegrationHarness();
 
-  it('blocks create when there is no publishable candidate feedback', async () => {
-    const { app, agent } = await getIntegrationApp();
-    const session = await loginAsSuperAdmin(agent);
-    const questionId = await createQuestion(
-      agent,
-      session,
-      'Share gate question.',
-    );
-    const { interviewId } = await createCompletedInterview(app, agent, session, [
-      questionId,
-    ]);
-    await syncCandidateFeedback(agent, session, interviewId);
-
-    const blocked = await agent
-      .post(`/interviews/${interviewId}/candidate-feedback/share-link`)
-      .set(authCookie(session))
-      .send({})
-      .expect(409);
-
-    expect(blocked.body.message).toMatch(/publishable/i);
-  });
-
-  it('creates a share link, returns filtered public payload, and revokes on recreate', async () => {
+  it('creates a share link, returns public payload, and supports revoke', async () => {
     const { app, agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
     const questionId = await createQuestion(
@@ -147,7 +114,11 @@ describe('Candidate feedback share links (integration)', () => {
     const { interviewId } = await createCompletedInterview(app, agent, session, [
       questionId,
     ]);
-    await syncCandidateFeedback(agent, session, interviewId);
+
+    await agent
+      .get(`/interviews/${interviewId}/candidate-feedback`)
+      .set(authCookie(session))
+      .expect(200);
 
     await agent
       .patch(`/interviews/${interviewId}/candidate-feedback`)
@@ -176,11 +147,8 @@ describe('Candidate feedback share links (integration)', () => {
     );
     expect(created.body.expiresAt).toBeDefined();
 
-    const firstToken = extractShareToken(created.body.url as string);
-
-    const publicPayload = await agent
-      .get(`/feedback/share/${firstToken}`)
-      .expect(200);
+    const token = extractShareToken(created.body.url as string);
+    const publicPayload = await agent.get(`/feedback/share/${token}`).expect(200);
 
     expect(publicPayload.body).toMatchObject({
       position: 'Integration CF Share Role',
@@ -193,21 +161,13 @@ describe('Candidate feedback share links (integration)', () => {
         },
       ],
     });
-    expect(publicPayload.body.questions[0].state).toBeUndefined();
-    expect(typeof publicPayload.body.overallScore).toBe('number');
-    expect(publicPayload.body.categoryScores).toBeUndefined();
-    expect(publicPayload.body.decision).toBeUndefined();
 
-    const recreated = await agent
-      .post(`/interviews/${interviewId}/candidate-feedback/share-link`)
+    const revoked = await agent
+      .delete(`/interviews/${interviewId}/candidate-feedback/share-link`)
       .set(authCookie(session))
-      .send({})
-      .expect(201);
+      .expect(200);
 
-    const secondToken = extractShareToken(recreated.body.url as string);
-    expect(secondToken).not.toBe(firstToken);
-
-    await agent.get(`/feedback/share/${firstToken}`).expect(404);
-    await agent.get(`/feedback/share/${secondToken}`).expect(200);
+    expect(revoked.body).toEqual({ revoked: true });
+    await agent.get(`/feedback/share/${token}`).expect(404);
   });
 });

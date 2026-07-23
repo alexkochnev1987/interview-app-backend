@@ -987,7 +987,11 @@ export interface paths {
          * @description Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.
          */
         post: operations["CandidateFeedbackController_createCandidateFeedbackShareLink"];
-        delete?: never;
+        /**
+         * Revoke the active candidate-feedback share link
+         * @description Invalidates the current share URL without creating a replacement. Safe when a link was leaked and no new share is needed. Returns revoked=false when no active link existed.
+         */
+        delete: operations["CandidateFeedbackController_revokeCandidateFeedbackShareLink"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5215,6 +5219,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateFeedbackShareLinkResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_revokeCandidateFeedbackShareLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoke result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        revoked: boolean;
+                    };
                 };
             };
             401: {
