@@ -9836,7 +9836,7 @@
             "description": "Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message."
           },
           "outcomeMessage": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "maxLength": 10000,
             "description": "Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets."

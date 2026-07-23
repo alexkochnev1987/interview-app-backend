@@ -2233,7 +2233,7 @@ export interface components {
              */
             outcome?: "next_stage" | "keep_in_touch" | "custom" | null;
             /** @description Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets. */
-            outcomeMessage?: Record<string, never> | null;
+            outcomeMessage?: string | null;
         };
         GenerateAllCandidateFeedbackQuestionResultDto: {
             /** @enum {string} */
