@@ -58,7 +58,6 @@ export class UserController {
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   findOne(
       @Param('id', ParseUUIDPipe) id: string,

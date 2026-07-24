@@ -21,7 +21,7 @@ import {
   shouldSeedOnboardingLitePack,
 } from '../database/onboarding-lite-seed';
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
-import { getUserProfileReadDenialReason } from './user-access-rules';
+import { getUserProfileReadDenialReason, USER_PROFILE_ACCESS_DENIED_MESSAGE } from './user-access-rules';
 
 interface UserRow {
   id: string;
@@ -180,17 +180,15 @@ export class UserService implements OnModuleInit {
   ): Promise<Omit<User, 'passwordHash'>> {
     const target = await this.findById(targetId);
 
-    if (!target) {
+    const denial = target
+      ? getUserProfileReadDenialReason(
+          { id: target.id, role: target.role },
+          { id: actor.id, role: actor.role },
+        )
+      : USER_PROFILE_ACCESS_DENIED_MESSAGE;
+
+    if (!target || denial) {
       throw new NotFoundException(`User ${targetId} not found`);
-    }
-
-    const denial = getUserProfileReadDenialReason(
-      { id: target.id, role: target.role },
-      { id: actor.id, role: actor.role },
-    );
-
-    if (denial) {
-      throw new ForbiddenException(denial);
     }
 
     return this.toPublicUser(target);
@@ -299,8 +297,11 @@ export class UserService implements OnModuleInit {
       `
         UPDATE users
         SET onboarding_completed_at = COALESCE(onboarding_completed_at, NOW()),
-            onboarding_status = $2,
-            updated_at = NOW()
+            onboarding_status = COALESCE(onboarding_status, $2),
+            updated_at = CASE
+              WHEN onboarding_completed_at IS NULL THEN NOW()
+              ELSE updated_at
+            END
         WHERE id = $1
         RETURNING ${USER_COLUMNS}
       `,
