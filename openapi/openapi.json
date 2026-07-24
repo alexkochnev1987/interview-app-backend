@@ -501,16 +501,6 @@
               }
             }
           },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
           "404": {
             "description": "",
             "content": {
