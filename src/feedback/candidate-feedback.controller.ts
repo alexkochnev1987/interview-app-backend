@@ -18,6 +18,7 @@ import {
   ApiBody,
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -118,7 +119,7 @@ export class CandidateFeedbackController {
       'Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.',
   })
   @ApiParam({ name: 'id', description: 'Interview ID' })
-  @ApiOkResponse({ type: CandidateFeedbackShareLinkResponseDto })
+  @ApiCreatedResponse({ type: CandidateFeedbackShareLinkResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   @ApiConflictResponse({ type: ApiErrorResponseDto })

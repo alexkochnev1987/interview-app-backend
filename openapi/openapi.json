@@ -5649,7 +5649,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -9555,6 +9555,10 @@
           "questionId": {
             "type": "string",
             "format": "uuid"
+          },
+          "questionText": {
+            "type": "string",
+            "description": "Interview question snapshot text in interviewLocale when available on the interview."
           }
         },
         "required": [
@@ -9581,6 +9585,11 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "interviewDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the candidate completed the interview (result completion time), when available."
           },
           "overallScore": {
             "type": "number",

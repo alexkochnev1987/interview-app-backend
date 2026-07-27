@@ -278,88 +278,88 @@ export class CandidateQuestionViewDto {
 
 export class CurrentAnswerMetaDto {
   @ApiProperty({ enum: ['recording', 'submitted'] })
-  status: 'recording' | 'submitted';
+  status!: 'recording' | 'submitted';
 
   @ApiProperty()
-  versionCount: number;
+  versionCount!: number;
 
   @ApiProperty()
-  selectedVersionNumber: number;
+  selectedVersionNumber!: number;
 }
 
 export class TakeInterviewResponseDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  position: string;
+  position!: string;
 
   @ApiProperty({ enum: SUPPORTED_LOCALES })
-  interviewLocale: Locale;
+  interviewLocale!: Locale;
 
   @ApiProperty()
-  candidateName: string;
+  candidateName!: string;
 
   @ApiProperty()
-  status: string;
+  status!: string;
 
   @ApiProperty()
-  totalQuestions: number;
+  totalQuestions!: number;
 
   @ApiPropertyOptional({ type: CandidateQuestionViewDto })
-  currentQuestion: CandidateQuestionViewDto | null;
+  currentQuestion!: CandidateQuestionViewDto | null;
 
   @ApiProperty()
-  currentQuestionIndex: number;
+  currentQuestionIndex!: number;
 
   @ApiPropertyOptional({ type: CurrentAnswerMetaDto })
-  currentAnswerMeta: CurrentAnswerMetaDto | null;
+  currentAnswerMeta!: CurrentAnswerMetaDto | null;
 
   @ApiProperty()
-  completed: boolean;
+  completed!: boolean;
 }
 
 export class SubmitTakeAnswerResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty()
-  answeredCount: number;
+  answeredCount!: number;
 
   @ApiProperty()
-  totalQuestions: number;
+  totalQuestions!: number;
 
   @ApiProperty()
-  completed: boolean;
+  completed!: boolean;
 }
 
 export class SaveTakeAnswerProgressResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty({ enum: ['recording', 'submitted'] })
-  status: 'recording' | 'submitted';
+  status!: 'recording' | 'submitted';
 
   @ApiProperty()
-  versionCount: number;
+  versionCount!: number;
 
   @ApiProperty()
-  selectedVersionNumber: number;
+  selectedVersionNumber!: number;
 }
 
 export class StartTakeAnswerValidationResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
-  status: string;
+  status!: string;
 
   @ApiProperty()
-  questionIndex: number;
+  questionIndex!: number;
 
   @ApiProperty()
-  sourceVersionNumber: number;
+  sourceVersionNumber!: number;
 
   @ApiProperty()
-  reused: boolean;
+  reused!: boolean;
 }

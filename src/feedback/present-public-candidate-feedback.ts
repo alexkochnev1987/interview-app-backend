@@ -12,7 +12,27 @@ import {
   PublicCandidateFeedbackResponse,
   PublicCandidateFeedbackTextBlock,
 } from './interfaces/candidate-feedback-share-link.interface';
+import { Interview } from '../interview/interfaces/interview.interface';
 import { Locale } from '../locale/locale.constants';
+
+function resolveSnapshotQuestionText(
+  interview: Interview,
+  question: CandidateFeedbackQuestion,
+): string | undefined {
+  const byIndex = interview.questions[question.questionIndex];
+  if (byIndex?.id === question.questionId) {
+    const text = byIndex.questionText?.trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  const byId = interview.questions.find(
+    (item) => item.id === question.questionId,
+  );
+  const fallbackText = byId?.questionText?.trim();
+  return fallbackText || undefined;
+}
 
 export function isPublishableCandidateFeedbackBlock(
   state: CandidateFeedbackBlockState,
@@ -87,6 +107,7 @@ export function filterPublishableOverall(
 
 export function filterPublishableQuestions(
   questions: CandidateFeedbackQuestion[],
+  interview?: Interview,
 ): PublicCandidateFeedbackQuestionBlock[] {
   const published: PublicCandidateFeedbackQuestionBlock[] = [];
 
@@ -108,11 +129,20 @@ export function filterPublishableQuestions(
       continue;
     }
 
-    published.push({
+    const block: PublicCandidateFeedbackQuestionBlock = {
       questionIndex: question.questionIndex,
       questionId: question.questionId,
       ...texts,
-    });
+    };
+
+    if (interview) {
+      const questionText = resolveSnapshotQuestionText(interview, question);
+      if (questionText) {
+        block.questionText = questionText;
+      }
+    }
+
+    published.push(block);
   }
 
   return published;
@@ -125,6 +155,7 @@ export function presentPublicCandidateFeedback(
     position: string;
     expiresAt: Date;
     overallScore?: number;
+    interview?: Interview;
   },
 ): PublicCandidateFeedbackResponse {
   const response: PublicCandidateFeedbackResponse = {
@@ -132,6 +163,11 @@ export function presentPublicCandidateFeedback(
     position: meta.position,
     expiresAt: meta.expiresAt.toISOString(),
   };
+
+  const completedAt = meta.interview?.result?.completedAt;
+  if (completedAt) {
+    response.interviewDate = completedAt.toISOString();
+  }
 
   if (meta.overallScore != null) {
     response.overallScore = meta.overallScore;
@@ -150,7 +186,10 @@ export function presentPublicCandidateFeedback(
     response.overall = overall;
   }
 
-  const questions = filterPublishableQuestions(feedback.questions);
+  const questions = filterPublishableQuestions(
+    feedback.questions,
+    meta.interview,
+  );
   if (questions.length > 0) {
     response.questions = questions;
   }

@@ -19,6 +19,8 @@ export interface PublicCandidateFeedbackQuestionBlock
   extends PublicCandidateFeedbackTextBlock {
   questionIndex: number;
   questionId: string;
+  /** Interview question snapshot text in interview locale when available. */
+  questionText?: string;
 }
 
 /** Public share payload: publishable texts only; empty sections omitted. */
@@ -26,6 +28,8 @@ export interface PublicCandidateFeedbackResponse {
   interviewLocale: Locale;
   position: string;
   expiresAt: string;
+  /** When the interview was completed (take date), when a result exists. */
+  interviewDate?: string;
   /** Present when the interview has a computed result with an overall score. */
   overallScore?: number;
   /**
