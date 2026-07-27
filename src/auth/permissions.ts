@@ -2,6 +2,7 @@ import { UserRole } from '../user/interfaces/user.interface';
 
 export const ALL_PERMISSIONS = [
   'users:read',
+  'users:read_profile',
   'users:assign_role',
   'questions:create',
   'questions:read',
@@ -25,6 +26,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   super_admin: ALL_PERMISSIONS,
   admin: [
     'users:read',
+    'users:read_profile',
     'users:assign_role',
     'questions:create',
     'questions:read',
@@ -41,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'feedback:revoke_share_link',
   ],
   hr: [
+    'users:read_profile',
     'questions:read',
     'interviews:create',
     'interviews:read_own',
@@ -53,12 +56,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'feedback:create_share_link',
     'feedback:revoke_share_link',
   ],
-  candidate: [],
+  candidate: ['users:read_profile'],
 };
 
 // Permissions a read-only demo account keeps; every other permission is denied.
 // Intentionally excludes users:read (see EXCLUDED_FROM_DEMO_READ below).
 export const READ_ONLY_PERMISSIONS: readonly Permission[] = [
+  'users:read_profile',
   'questions:read',
   'interviews:read_own',
   'templates:read',

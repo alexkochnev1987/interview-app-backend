@@ -921,4 +921,39 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `,
     ],
   },
+  {
+    version: '0045',
+    name: 'add_user_onboarding_state',
+    statements: [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status TEXT NULL;`,
+      `
+        UPDATE users
+        SET onboarding_status = 'completed'
+        WHERE onboarding_completed_at IS NOT NULL
+          AND onboarding_status IS NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'users'::regclass
+              AND conname = 'users_onboarding_status_check'
+          ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_onboarding_status_check
+            CHECK (
+              onboarding_status IS NULL
+              OR onboarding_status IN ('completed', 'skipped')
+            );
+          END IF;
+        END $$;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_onboarding_status_check;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_status;`,
+    ],
+  },
 ];
