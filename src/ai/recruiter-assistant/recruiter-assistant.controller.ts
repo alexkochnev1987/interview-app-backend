@@ -10,7 +10,6 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { ApiErrorResponseDto } from '../../common/dto/api-error.response.dto';
@@ -27,7 +26,7 @@ type ActingUser = Omit<User, 'passwordHash'>;
 
 @ApiTags('ai')
 @ApiCookieAuth('sessionAuth')
-@Controller('ai/recruiter-assistant')
+@Controller('ai')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecruiterAssistantController {
   constructor(
@@ -35,11 +34,10 @@ export class RecruiterAssistantController {
   ) {}
 
   @Post('chat')
-  @RequirePermissions('questions:read')
   @ApiOperation({
-    summary: 'Recruiter assistant chat',
+    summary: 'Global AI chat',
     description:
-      'Scoped assistant for interview and question-bank workflows. The route can read question-bank data with questions:read; write actions are confirmed by the user and checked against the current user permissions before execution.',
+      'Role-aware assistant for interview queries and confirmed actions. All authenticated roles may call this route; each tool enforces the same permissions as the REST API before reading data or mutating.',
   })
   @ApiBody({ type: RecruiterAssistantChatDto })
   @ApiOkResponse({ type: RecruiterAssistantResponseDto })

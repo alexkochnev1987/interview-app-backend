@@ -1,5 +1,5 @@
 import {
-  RecruiterAssistantPendingActionDto,
+  RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantSuggestedQuestionDto,
 } from './dto/recruiter-assistant.dto';
 
@@ -36,7 +36,7 @@ export function buildQuestionPlanResponse(input: {
 }
 
 export function mergeCreatedQuestionSuggestions(
-  questions: RecruiterAssistantPendingActionDto['questions'],
+  questions: RecruiterAssistantCreatePendingActionDto['questions'],
   createdQuestions: RecruiterAssistantSuggestedQuestionDto[],
 ): RecruiterAssistantSuggestedQuestionDto[] {
   return questions.map((question) => {

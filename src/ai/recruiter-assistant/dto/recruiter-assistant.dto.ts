@@ -18,6 +18,7 @@ import { Type } from 'class-transformer';
 import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
+import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
 
 export class RecruiterAssistantSuggestedQuestionDto {
   @ApiProperty()
@@ -87,7 +88,7 @@ export class RecruiterAssistantSuggestedQuestionDto {
   needsCreation?: boolean;
 }
 
-export class RecruiterAssistantPendingActionDto {
+export class RecruiterAssistantCreatePendingActionDto {
   @ApiProperty({ enum: ['create_questions', 'create_interview'] })
   @IsIn(['create_questions', 'create_interview'])
   type: 'create_questions' | 'create_interview';
@@ -118,15 +119,41 @@ export class RecruiterAssistantPendingActionDto {
   questions: RecruiterAssistantSuggestedQuestionDto[];
 }
 
+export class RecruiterAssistantAssignHrPendingActionDto {
+  @ApiProperty({ enum: ['assign_hr'] })
+  @IsIn(['assign_hr'])
+  type: 'assign_hr';
+  @ApiProperty() @IsString() interviewId: string;
+  @ApiProperty() @IsString() assignedHrId: string;
+  @ApiProperty() @IsString() assignedHrName: string;
+  @ApiProperty() @IsString() interviewLabel: string;
+}
+
+export type RecruiterAssistantPendingActionDto =
+    | RecruiterAssistantCreatePendingActionDto
+    | RecruiterAssistantAssignHrPendingActionDto;
+
 export class RecruiterAssistantChatDto {
   @ApiProperty()
   @IsString()
   message: string;
 
-  @ApiPropertyOptional({ type: RecruiterAssistantPendingActionDto })
+  @ApiPropertyOptional({
+    oneOf: [
+      { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
+      { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
+    ],
+  })
   @IsOptional()
   @ValidateNested()
-  @Type(() => RecruiterAssistantPendingActionDto)
+  @Type((options) => {
+    const pendingAction = (options?.object as RecruiterAssistantChatDto | undefined)
+      ?.pendingAction;
+    if (pendingAction?.type === 'assign_hr') {
+      return RecruiterAssistantAssignHrPendingActionDto;
+    }
+    return RecruiterAssistantCreatePendingActionDto;
+  })
   pendingAction?: RecruiterAssistantPendingActionDto;
 }
 
@@ -138,28 +165,60 @@ export class RecruiterAssistantCreatedInterviewDto {
   candidateLink: string;
 }
 
+export class RecruiterAssistantReviewStateDto {
+  @ApiProperty() reviewed: boolean;
+  @ApiPropertyOptional() shareLinkActive?: boolean;
+  @ApiPropertyOptional() outcome?: string;
+}
+
+export class RecruiterAssistantInterviewSummaryDto {
+  @ApiProperty() id: string;
+  @ApiProperty() candidateName: string;
+  @ApiProperty() position: string;
+  @ApiProperty() status: string;
+  @ApiPropertyOptional() candidateLink?: string;
+  @ApiPropertyOptional({ type: RecruiterAssistantReviewStateDto })
+  reviewState?: RecruiterAssistantReviewStateDto;
+}
+
 export class RecruiterAssistantResponseDto {
   @ApiProperty()
   response: string;
 
-  @ApiProperty({ enum: ['answered', 'needs_confirmation', 'executed', 'refused'] })
-  status: 'answered' | 'needs_confirmation' | 'executed' | 'refused';
+  @ApiProperty({ enum: ['answered', 'needs_confirmation', 'executed', 'refused', 'denied'] })
+  status: 'answered' | 'needs_confirmation' | 'executed' | 'refused' | 'denied';
 
   @ApiPropertyOptional({ type: [RecruiterAssistantSuggestedQuestionDto] })
   suggestedQuestions?: RecruiterAssistantSuggestedQuestionDto[];
 
   @ApiPropertyOptional({
-    oneOf: [{ $ref: getSchemaPath(RecruiterAssistantPendingActionDto) }],
+    oneOf: [
+      { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
+      { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
+    ],
   })
   pendingAction?: RecruiterAssistantPendingActionDto;
 
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;
+
+  @ApiPropertyOptional({ enum: ['hr', 'admin', 'super_admin'] })
+  escalateTo?: 'hr' | 'admin' | 'super_admin';
+
+  @ApiPropertyOptional({ type: [InterviewListItemDto] })
+  interviews?: InterviewListItemDto[];
+
+  @ApiPropertyOptional({ type: RecruiterAssistantInterviewSummaryDto })
+  interview?: RecruiterAssistantInterviewSummaryDto;
 }
 
 @ApiExtraModels(
   RecruiterAssistantSuggestedQuestionDto,
-  RecruiterAssistantPendingActionDto,
+  RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantReviewStateDto,
+  RecruiterAssistantInterviewSummaryDto,
+  InterviewListItemDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })

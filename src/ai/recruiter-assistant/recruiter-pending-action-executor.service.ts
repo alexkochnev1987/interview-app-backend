@@ -4,6 +4,8 @@ import { InterviewService } from '../../interview/interview.service';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionService } from '../../question/question.service';
 import {
+  RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantPendingActionDto,
   RecruiterAssistantResponseDto,
   RecruiterAssistantSuggestedQuestionDto,
@@ -23,6 +25,34 @@ export class RecruiterPendingActionExecutorService {
 
   async execute(
     action: RecruiterAssistantPendingActionDto,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (action.type === 'assign_hr') {
+      return this.executeAssignHr(action, user);
+    }
+
+    return this.executeCreate(action, user, locale);
+  }
+
+  private async executeAssignHr(
+    action: RecruiterAssistantAssignHrPendingActionDto,
+    user: ActingUser,
+  ): Promise<RecruiterAssistantResponseDto> {
+    await this.interviewService.update(
+      action.interviewId,
+      { assignedHrId: action.assignedHrId },
+      { id: user.id, role: user.role, demo: user.demo },
+    );
+
+    return {
+      status: 'executed',
+      response: `Assigned ${action.interviewLabel} to ${action.assignedHrName}.`,
+    };
+  }
+
+  private async executeCreate(
+    action: RecruiterAssistantCreatePendingActionDto,
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
@@ -91,7 +121,11 @@ export class RecruiterPendingActionExecutorService {
         interviewLocale: action.interviewLocale ?? locale,
         questionIds: finalQuestionIds,
       },
-      { createdById: user.id, demo: user.demo, actor: { id: user.id, role: user.role, demo: user.demo } },
+      {
+        createdById: user.id,
+        demo: user.demo,
+        actor: { id: user.id, role: user.role, demo: user.demo },
+      },
     );
     const token = this.authService.generateCandidateToken(created.interview.id);
     const candidateLink = `/take/${created.interview.id}?token=${token}`;
