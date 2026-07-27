@@ -1,0 +1,297 @@
+import { Injectable } from '@nestjs/common';
+import { createHash, randomBytes, randomUUID } from 'crypto';
+import { DatabaseError } from 'pg';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import {
+  apiConflict,
+  apiNotFound,
+} from '../common/errors/api-error';
+import { DatabaseService } from '../database/database.service';
+import { InterviewService } from '../interview/interview.service';
+import { Interview } from '../interview/interfaces/interview.interface';
+import { UserRole } from '../user/interfaces/user.interface';
+import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feedback-eligibility';
+import { CandidateFeedbackService } from './candidate-feedback.service';
+import { FEEDBACK_LINK_TTL_DAYS } from './feedback.service';
+import {
+  CandidateFeedbackShareLink,
+  PublicCandidateFeedbackResponse,
+} from './interfaces/candidate-feedback-share-link.interface';
+import {
+  hasAnyPublishableCandidateFeedbackBlock,
+  presentPublicCandidateFeedback,
+} from './present-public-candidate-feedback';
+
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+/** Same TTL as scoring feedback share links. */
+export const CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS = FEEDBACK_LINK_TTL_DAYS;
+
+interface CandidateFeedbackShareLinkRow {
+  id: string;
+  interview_id: string;
+  created_by_id: string | null;
+  expires_at: Date | null;
+  revoked_at: Date | null;
+  created_at: Date;
+}
+
+interface ShareLinkActor {
+  id: string;
+  role: UserRole;
+  demo: boolean;
+}
+
+@Injectable()
+export class CandidateFeedbackShareService {
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly interviewService: InterviewService,
+    private readonly candidateFeedbackService: CandidateFeedbackService,
+  ) {}
+
+  async createLink(
+    interviewId: string,
+    actor: ShareLinkActor,
+  ): Promise<{
+    link: CandidateFeedbackShareLink;
+    url: string;
+    token: string;
+    expiresAt: Date;
+  }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      actor,
+    );
+    this.assertInterviewReadyForShare(interview);
+
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
+
+    if (!feedback || !hasAnyPublishableCandidateFeedbackBlock(feedback)) {
+      throw apiConflict(
+        ApiErrorCode.CONFLICT,
+        'Cannot create a share link without at least one accepted or edited candidate-feedback block that has publishable text',
+        { interviewId },
+      );
+    }
+
+    try {
+      return await this.databaseService.withTransaction(async (client) => {
+        await client.query(
+          `
+            UPDATE candidate_feedback_share_links
+            SET revoked_at = NOW()
+            WHERE interview_id = $1 AND revoked_at IS NULL
+          `,
+          [interviewId],
+        );
+
+        const linkId = randomUUID();
+        const token = this.generateToken();
+        const tokenHash = this.hashToken(token);
+        const expiresAt = new Date(
+          Date.now() +
+            CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
+        );
+
+        // Plaintext token is delivered once via the URL below; the DB only
+        // stores its sha256 hash so a DB compromise does not yield usable
+        // tokens. The unique index on the `token` column is preserved by
+        // storing the (also-unique) hash in the same column.
+        const result = await client.query<CandidateFeedbackShareLinkRow>(
+          `
+            INSERT INTO candidate_feedback_share_links (
+              id,
+              interview_id,
+              created_by_id,
+              expires_at,
+              token
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, interview_id, created_by_id, expires_at, revoked_at, created_at
+          `,
+          [linkId, interviewId, actor.id, expiresAt, tokenHash],
+        );
+
+        const link = this.mapRow(result.rows[0]);
+        const baseUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') ?? '';
+        return {
+          link,
+          token,
+          expiresAt,
+          url: `${baseUrl}/feedback/share/${token}`,
+        };
+      });
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw apiConflict(
+          ApiErrorCode.CONFLICT,
+          'Another candidate-feedback share link was created concurrently. Try again.',
+          { interviewId },
+        );
+      }
+      throw error;
+    }
+  }
+
+  async revokeActiveLink(
+    interviewId: string,
+    actor: ShareLinkActor,
+  ): Promise<{ revoked: boolean }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      actor,
+    );
+    this.assertInterviewReadyForShare(interview);
+
+    const result = await this.databaseService.query(
+      `
+        UPDATE candidate_feedback_share_links
+        SET revoked_at = NOW()
+        WHERE interview_id = $1 AND revoked_at IS NULL
+      `,
+      [interviewId],
+    );
+
+    return { revoked: (result.rowCount ?? 0) > 0 };
+  }
+
+  async getActiveLinkStatus(
+    interviewId: string,
+    actor: ShareLinkActor,
+  ): Promise<{ expiresAt: Date }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      actor,
+    );
+    this.assertInterviewReadyForShare(interview);
+
+    const result = await this.databaseService.query<{
+      expires_at: Date | null;
+    }>(
+      `
+        SELECT expires_at
+        FROM candidate_feedback_share_links
+        WHERE interview_id = $1
+          AND revoked_at IS NULL
+          AND expires_at IS NOT NULL
+          AND expires_at > NOW()
+        LIMIT 1
+      `,
+      [interviewId],
+    );
+
+    const row = result.rows[0];
+    if (!row?.expires_at) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'No active candidate-feedback share link',
+        { interviewId },
+      );
+    }
+
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
+    if (!feedback || !hasAnyPublishableCandidateFeedbackBlock(feedback)) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'No active candidate-feedback share link',
+        { interviewId },
+      );
+    }
+
+    return { expiresAt: row.expires_at };
+  }
+
+  async resolveByToken(token: string): Promise<PublicCandidateFeedbackResponse> {
+    const tokenHash = this.hashToken(token);
+    const result = await this.databaseService.query<CandidateFeedbackShareLinkRow>(
+      `
+        SELECT id, interview_id, created_by_id, expires_at, revoked_at, created_at
+        FROM candidate_feedback_share_links
+        WHERE token = $1
+        LIMIT 1
+      `,
+      [tokenHash],
+    );
+
+    const linkRow = result.rows[0];
+    if (
+      !linkRow ||
+      linkRow.revoked_at !== null ||
+      linkRow.expires_at === null ||
+      linkRow.expires_at.getTime() <= Date.now()
+    ) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'Invalid or expired candidate-feedback share link',
+      );
+    }
+
+    const interview = await this.interviewService.findOne(linkRow.interview_id);
+    if (getCandidateFeedbackInterviewStatusBlockReason(interview.status)) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'Candidate feedback is not available for this share link',
+        { interviewId: linkRow.interview_id },
+      );
+    }
+
+    const feedback = await this.candidateFeedbackService.findByInterviewId(
+      linkRow.interview_id,
+    );
+
+    if (!feedback || !hasAnyPublishableCandidateFeedbackBlock(feedback)) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'Candidate feedback is not available for this share link',
+        { interviewId: linkRow.interview_id },
+      );
+    }
+
+    return presentPublicCandidateFeedback(feedback, {
+      interviewLocale: interview.interviewLocale,
+      position: interview.position,
+      expiresAt: linkRow.expires_at,
+      overallScore: interview.result?.overallScore,
+    });
+  }
+
+  private assertInterviewReadyForShare(interview: Interview): void {
+    const blockReason = getCandidateFeedbackInterviewStatusBlockReason(
+      interview.status,
+    );
+    if (blockReason) {
+      throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+        interviewId: interview.id,
+        status: interview.status,
+      });
+    }
+  }
+
+  private generateToken(): string {
+    return randomBytes(32).toString('base64url');
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      error instanceof DatabaseError && error.code === POSTGRES_UNIQUE_VIOLATION
+    );
+  }
+
+  private mapRow(row: CandidateFeedbackShareLinkRow): CandidateFeedbackShareLink {
+    return {
+      id: row.id,
+      interviewId: row.interview_id,
+      createdById: row.created_by_id ?? undefined,
+      expiresAt: row.expires_at ?? undefined,
+      revokedAt: row.revoked_at ?? undefined,
+      createdAt: row.created_at,
+    };
+  }
+}

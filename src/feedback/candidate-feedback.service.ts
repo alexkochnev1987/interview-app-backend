@@ -16,8 +16,10 @@ import { QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS } from './candidate-feedback
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
+  CandidateFeedbackOutcome,
   CandidateFeedbackQuestion,
 } from './interfaces/candidate-feedback.interface';
+import { resolveCandidateFeedbackOutcomePatch } from './candidate-feedback-outcome';
 import type { QuestionFeedbackEligibilitySkipReason } from './candidate-feedback-skip-templates';
 
 interface CandidateFeedbackRow {
@@ -27,6 +29,8 @@ interface CandidateFeedbackRow {
   overall_improvement_text: string | null;
   overall_state: CandidateFeedbackBlockState;
   overall_error_message: string | null;
+  outcome: CandidateFeedbackOutcome | null;
+  outcome_message: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -51,6 +55,8 @@ const CANDIDATE_FEEDBACK_COLUMNS = `
   overall_improvement_text,
   overall_state,
   overall_error_message,
+  outcome,
+  outcome_message,
   created_at,
   updated_at
 `;
@@ -98,6 +104,10 @@ export interface CandidateFeedbackHrQuestionPatch {
 export interface CandidateFeedbackHrPatch {
   overall?: CandidateFeedbackHrOverallPatch;
   questions?: CandidateFeedbackHrQuestionPatch[];
+  /** Set candidate-facing outcome; null clears it. */
+  outcome?: CandidateFeedbackOutcome | null;
+  /** Required for `custom`; cleared when switching to a preset. */
+  outcomeMessage?: string | null;
 }
 
 @Injectable()
@@ -219,6 +229,13 @@ export class CandidateFeedbackService {
           });
         }
 
+        if (patch.outcome !== undefined || patch.outcomeMessage !== undefined) {
+          await this.updateOutcome(interviewId, {
+            outcome: patch.outcome,
+            outcomeMessage: patch.outcomeMessage,
+          });
+        }
+
         if (patch.questions?.length) {
           for (const questionPatch of patch.questions) {
             if (!this.hasHrQuestionPatchFields(questionPatch)) {
@@ -314,6 +331,40 @@ export class CandidateFeedbackService {
         RETURNING ${CANDIDATE_FEEDBACK_COLUMNS}
       `,
       params,
+    );
+
+    return this.mapFeedbackRow(result.rows[0], feedback.questions);
+  }
+
+  async updateOutcome(
+    interviewId: string,
+    patch: {
+      outcome?: CandidateFeedbackOutcome | null;
+      outcomeMessage?: string | null;
+    },
+  ): Promise<CandidateFeedback> {
+    const feedback = await this.requireByInterviewId(interviewId);
+    const resolved = resolveCandidateFeedbackOutcomePatch(
+      {
+        outcome: feedback.outcome,
+        outcomeMessage: feedback.outcomeMessage,
+      },
+      patch,
+      { interviewId },
+    );
+
+    if (!resolved) {
+      return feedback;
+    }
+
+    const result = await this.databaseService.query<CandidateFeedbackRow>(
+      `
+        UPDATE candidate_feedback
+        SET outcome = $2, outcome_message = $3, updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${CANDIDATE_FEEDBACK_COLUMNS}
+      `,
+      [feedback.id, resolved.outcome, resolved.outcomeMessage],
     );
 
     return this.mapFeedbackRow(result.rows[0], feedback.questions);
@@ -724,6 +775,10 @@ export class CandidateFeedbackService {
   }
 
   private hasHrPatch(patch: CandidateFeedbackHrPatch): boolean {
+    if (patch.outcome !== undefined || patch.outcomeMessage !== undefined) {
+      return true;
+    }
+
     if (patch.overall && this.hasHrOverallPatchFields(patch.overall)) {
       return true;
     }
@@ -823,6 +878,8 @@ export class CandidateFeedbackService {
       overallImprovementText: row.overall_improvement_text ?? undefined,
       overallState: row.overall_state,
       overallErrorMessage: row.overall_error_message ?? undefined,
+      outcome: row.outcome ?? undefined,
+      outcomeMessage: row.outcome_message ?? undefined,
       questions,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
