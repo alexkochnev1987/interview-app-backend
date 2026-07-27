@@ -138,7 +138,7 @@ export interface paths {
         head?: never;
         /**
          * Mark the staff onboarding tour as completed or skipped
-         * @description Sets onboardingCompletedAt and onboardingStatus. Response matches GET /auth/me.
+         * @description Sets onboardingCompletedAt on the first call (never cleared). onboardingStatus reflects the latest dismissal choice and may be updated on subsequent calls. Response matches GET /auth/me.
          */
         patch: operations["AuthController_completeOnboarding"];
         trace?: never;
@@ -1111,7 +1111,7 @@ export interface components {
              * @example completed
              * @enum {string}
              */
-            status: "completed" | "skipped";
+            status?: "completed" | "skipped";
         };
         /** @enum {string} */
         ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
@@ -1133,6 +1133,19 @@ export interface components {
             };
             /** @example /questions/invalid-id */
             path?: string;
+        };
+        UserProfileResponseDto: {
+            /** @example 8d2a6457-7f4b-4cef-9f10-8cff885f7e15 */
+            id: string;
+            /** @example Jane Doe */
+            name: string;
+            /** @example hr */
+            role: string;
+            /**
+             * @description Present when viewing your own profile or when the actor has a privileged role.
+             * @example jane@interview-app.com
+             */
+            email?: string;
         };
         AssignRoleDto: {
             /** @enum {string} */
@@ -2602,7 +2615,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthUserResponseDto"];
+                    "application/json": components["schemas"]["UserProfileResponseDto"];
                 };
             };
             401: {
