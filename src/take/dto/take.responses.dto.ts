@@ -201,6 +201,22 @@ export class ReserveAnswerAttemptDto {
   recordingSessionId!: string;
 }
 
+export class FinalizeAnswerAttemptDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
+}
+
 export class SaveAnswerProgressDto {
   @ApiProperty()
   @Type(() => Number)
@@ -318,17 +334,25 @@ export class CurrentAnswerMetaDto {
   @ApiProperty()
   selectedVersionNumber!: number;
 
-  @ApiProperty({
-    description:
-      'True when the selected (or latest) answer version has uploaded media; false for a reserved stub.',
-  })
-  hasMediaOnSelectedVersion!: boolean;
-
   @ApiPropertyOptional({
     description:
       'Locked recording session id for the current answer, when a reserve has occurred.',
   })
   recordingSessionId?: string;
+
+  @ApiProperty({
+    description:
+      'True when any version in answers_json has a non-empty mediaKey.',
+  })
+  hasSubmittableMedia!: boolean;
+
+  @ApiProperty({
+    description:
+      'Highest versionNumber with uploaded media, or null when no version has media.',
+    nullable: true,
+    type: Number,
+  })
+  latestSubmittableVersionNumber!: number | null;
 }
 
 export class TakeInterviewResponseDto {
@@ -381,6 +405,31 @@ export class SubmitTakeAnswerResponseDto {
 
   @ApiProperty()
   completed!: boolean;
+}
+
+export class FinalizeTakeAnswerResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
+
+  @ApiProperty()
+  answeredCount!: number;
+
+  @ApiProperty()
+  totalQuestions!: number;
+
+  @ApiProperty()
+  completed!: boolean;
+
+  @ApiProperty({
+    description: 'Answer version submitted from stored media in answers_json.',
+  })
+  selectedVersionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'True when the question was already submitted (idempotent finalize).',
+  })
+  alreadySubmitted!: boolean;
 }
 
 export class SaveTakeAnswerProgressResponseDto {

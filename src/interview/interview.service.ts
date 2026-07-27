@@ -50,6 +50,7 @@ import {
   getRecordingSessionLockBlockReason,
   resolveMaxAnswerAttemptsPerQuestion,
 } from './answer-attempt-rules';
+import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
 import {
   getInterviewCompletionBlockReason,
   getSubmittedAnswerCount as countSubmittedAnswers,
@@ -286,6 +287,17 @@ export interface ReserveAnswerAttemptResult {
   selectedVersionNumber: number;
   status: Answer['status'];
   maxAttempts: number;
+}
+
+interface FinalizeAnswerAttemptInput {
+  questionIndex: number;
+  recordingSessionId: string;
+}
+
+export interface FinalizeAnswerAttemptResult {
+  interview: Interview;
+  selectedVersionNumber: number;
+  alreadySubmitted: boolean;
 }
 
 interface QueueAnswerValidationInput {
@@ -1158,6 +1170,140 @@ export class InterviewService {
           savedAnswer?.selectedVersionNumber ?? versionNumber,
         status: savedAnswer?.status ?? 'recording',
         maxAttempts,
+      };
+    });
+  }
+
+  async finalizeAnswer(
+    id: string,
+    input: FinalizeAnswerAttemptInput,
+  ): Promise<FinalizeAnswerAttemptResult> {
+    const { questionIndex, recordingSessionId } = input;
+
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      if (questionIndex >= interview.questions.length) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Question index is out of range',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const existingAnswer = interview.answers.find(
+        (answer) => answer.questionIndex === questionIndex,
+      );
+      if (!existingAnswer) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'No answer is available to finalize',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const sessionLockReason = getRecordingSessionLockBlockReason(
+        existingAnswer.recordingSessionId,
+        recordingSessionId,
+      );
+      if (sessionLockReason) {
+        throw apiConflict(
+          ApiErrorCode.RECORDING_SESSION_MISMATCH,
+          sessionLockReason,
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const versions = this.getAnswerVersions(existingAnswer);
+
+      if (existingAnswer.status === 'submitted') {
+        return {
+          interview,
+          selectedVersionNumber:
+            existingAnswer.selectedVersionNumber ??
+            resolveFinalizeAnswerVersionNumber(existingAnswer, versions) ??
+            versions.reduce(
+              (max, version) => Math.max(max, version.versionNumber),
+              0,
+            ),
+          alreadySubmitted: true,
+        };
+      }
+
+      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
+      if (questionIndex !== currentQuestionIndex) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid question index — must answer in order',
+          { interviewId: id, questionIndex, currentQuestionIndex },
+        );
+      }
+
+      const finalizeVersionNumber = resolveFinalizeAnswerVersionNumber(
+        existingAnswer,
+        versions,
+      );
+      if (finalizeVersionNumber === undefined) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'No uploaded recording is available to submit',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const selectedVersion = versions.find(
+        (version) => version.versionNumber === finalizeVersionNumber,
+      );
+      if (!selectedVersion?.mediaKey?.trim()) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'No uploaded recording is available to submit',
+          { interviewId: id, questionIndex, versionNumber: finalizeVersionNumber },
+        );
+      }
+
+      const now = new Date();
+      const submittedAt = selectedVersion.submittedAt ?? now;
+
+      const nextAnswer: Answer = {
+        ...existingAnswer,
+        status: 'submitted',
+        selectedVersionNumber: finalizeVersionNumber,
+        mediaKey: selectedVersion.mediaKey,
+        screenMediaKey: selectedVersion.screenMediaKey,
+        uploadedAt: selectedVersion.uploadedAt,
+        durationSeconds: selectedVersion.durationSeconds,
+        retakeCount: Math.max(versions.length - 1, 0),
+        startedAt: selectedVersion.startedAt ?? existingAnswer.startedAt,
+        submittedAt,
+        camera: selectedVersion.camera,
+        screen: selectedVersion.screen,
+        behaviorSignals:
+          selectedVersion.behaviorSignals ?? existingAnswer.behaviorSignals,
+        behaviorEvents:
+          selectedVersion.behaviorEvents ?? existingAnswer.behaviorEvents,
+        versions: existingAnswer.versions ?? versions,
+      };
+
+      const nextAnswers = interview.answers.map((answer) =>
+        answer.questionIndex === questionIndex ? nextAnswer : answer,
+      );
+
+      const saved = await this.saveInterviewInTransaction(client, {
+        ...interview,
+        answers: nextAnswers,
+        status: 'in_progress',
+        workflow: this.buildWorkflow('idle', now, {
+          startedAt: interview.workflow?.startedAt,
+        }),
+        updatedAt: now,
+      });
+
+      return {
+        interview: saved,
+        selectedVersionNumber: finalizeVersionNumber,
+        alreadySubmitted: false,
       };
     });
   }

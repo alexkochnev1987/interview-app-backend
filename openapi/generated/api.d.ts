@@ -853,6 +853,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/take/{id}/answer/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalize and submit the current question using stored answer media */
+        post: operations["TakeController_finalizeAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/take/{id}/answer/progress": {
         parameters: {
             query?: never;
@@ -1980,10 +1997,12 @@ export interface components {
             status: "recording" | "submitted";
             versionCount: number;
             selectedVersionNumber: number;
-            /** @description True when the selected (or latest) answer version has uploaded media; false for a reserved stub. */
-            hasMediaOnSelectedVersion: boolean;
             /** @description Locked recording session id for the current answer, when a reserve has occurred. */
             recordingSessionId?: string;
+            /** @description True when any version in answers_json has a non-empty mediaKey. */
+            hasSubmittableMedia: boolean;
+            /** @description Highest versionNumber with uploaded media, or null when no version has media. */
+            latestSubmittableVersionNumber: number | null;
         };
         TakeInterviewResponseDto: {
             id: string;
@@ -2054,6 +2073,22 @@ export interface components {
             answeredCount: number;
             totalQuestions: number;
             completed: boolean;
+        };
+        FinalizeAnswerAttemptDto: {
+            questionIndex: number;
+            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
+            recordingSessionId: string;
+        };
+        FinalizeTakeAnswerResponseDto: {
+            /** @example true */
+            ok: boolean;
+            answeredCount: number;
+            totalQuestions: number;
+            completed: boolean;
+            /** @description Answer version submitted from stored media in answers_json. */
+            selectedVersionNumber: number;
+            /** @description True when the question was already submitted (idempotent finalize). */
+            alreadySubmitted: boolean;
         };
         SaveAnswerProgressDto: {
             questionIndex: number;
@@ -4725,6 +4760,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmitTakeAnswerResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    TakeController_finalizeAnswer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalizeAnswerAttemptDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalizeTakeAnswerResponseDto"];
                 };
             };
             400: {

@@ -39,6 +39,8 @@ import {
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
 import {
+  FinalizeAnswerAttemptDto,
+  FinalizeTakeAnswerResponseDto,
   ReserveAnswerAttemptDto,
   ReserveTakeAnswerResponseDto,
   SaveAnswerProgressDto,
@@ -196,6 +198,48 @@ export class TakeController {
       answeredCount: submittedCount,
       totalQuestions: updated.questions.length,
       completed: isLast,
+    };
+  }
+
+  @Post(':id/answer/finalize')
+  @UseGuards(CandidateSessionGuard)
+  @ApiCookieAuth('candidateSessionAuth')
+  @ApiOperation({
+    summary: 'Finalize and submit the current question using stored answer media',
+  })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: FinalizeAnswerAttemptDto })
+  @ApiOkResponse({ type: FinalizeTakeAnswerResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async finalizeAnswer(
+    @Param('id') id: string,
+    @Body() body: FinalizeAnswerAttemptDto,
+    @Req() req: CandidateRequest,
+  ) {
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
+    }
+
+    const result = await this.interviewService.finalizeAnswer(id, body);
+    const updated = result.interview;
+    const submittedCount = updated.answers.filter(
+      (answer) => answer.status === 'submitted',
+    ).length;
+    const isLast = submittedCount >= updated.questions.length;
+
+    return {
+      ok: true,
+      answeredCount: submittedCount,
+      totalQuestions: updated.questions.length,
+      completed: isLast,
+      selectedVersionNumber: result.selectedVersionNumber,
+      alreadySubmitted: result.alreadySubmitted,
     };
   }
 

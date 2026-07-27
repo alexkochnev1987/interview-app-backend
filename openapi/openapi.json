@@ -5004,6 +5004,98 @@
         ]
       }
     },
+    "/take/{id}/answer/finalize": {
+      "post": {
+        "operationId": "TakeController_finalizeAnswer",
+        "summary": "Finalize and submit the current question using stored answer media",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeAnswerAttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizeTakeAnswerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
     "/take/{id}/answer/progress": {
       "post": {
         "operationId": "TakeController_saveAnswerProgress",
@@ -9003,20 +9095,26 @@
           "selectedVersionNumber": {
             "type": "number"
           },
-          "hasMediaOnSelectedVersion": {
-            "type": "boolean",
-            "description": "True when the selected (or latest) answer version has uploaded media; false for a reserved stub."
-          },
           "recordingSessionId": {
             "type": "string",
             "description": "Locked recording session id for the current answer, when a reserve has occurred."
+          },
+          "hasSubmittableMedia": {
+            "type": "boolean",
+            "description": "True when any version in answers_json has a non-empty mediaKey."
+          },
+          "latestSubmittableVersionNumber": {
+            "type": "number",
+            "description": "Highest versionNumber with uploaded media, or null when no version has media.",
+            "nullable": true
           }
         },
         "required": [
           "status",
           "versionCount",
           "selectedVersionNumber",
-          "hasMediaOnSelectedVersion"
+          "hasSubmittableMedia",
+          "latestSubmittableVersionNumber"
         ]
       },
       "TakeInterviewResponseDto": {
@@ -9254,6 +9352,56 @@
           "answeredCount",
           "totalQuestions",
           "completed"
+        ]
+      },
+      "FinalizeAnswerAttemptDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
+          }
+        },
+        "required": [
+          "questionIndex",
+          "recordingSessionId"
+        ]
+      },
+      "FinalizeTakeAnswerResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "answeredCount": {
+            "type": "number"
+          },
+          "totalQuestions": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "selectedVersionNumber": {
+            "type": "number",
+            "description": "Answer version submitted from stored media in answers_json."
+          },
+          "alreadySubmitted": {
+            "type": "boolean",
+            "description": "True when the question was already submitted (idempotent finalize)."
+          }
+        },
+        "required": [
+          "ok",
+          "answeredCount",
+          "totalQuestions",
+          "completed",
+          "selectedVersionNumber",
+          "alreadySubmitted"
         ]
       },
       "SaveAnswerProgressDto": {

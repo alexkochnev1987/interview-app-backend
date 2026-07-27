@@ -5,7 +5,7 @@ import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
 
-describe('InterviewService answer attempt reserve + lock', () => {
+describe('InterviewService answer attempt reserve + finalize', () => {
   const envBackup = process.env.MAX_ANSWER_ATTEMPTS_PER_QUESTION;
 
   afterEach(() => {
@@ -76,46 +76,8 @@ describe('InterviewService answer attempt reserve + lock', () => {
     updated_at: new Date(),
   };
 
-  it('reserves stub versions up to the limit and rejects the next reserve', async () => {
+  it('reserves up to max, rejects 4th, and enforces session lock / no media overwrite', async () => {
     process.env.MAX_ANSWER_ATTEMPTS_PER_QUESTION = '3';
-    const { service } = makeService(baseRow);
-
-    const first = await service.reserveAnswerAttempt('interview-1', {
-      questionIndex: 0,
-      recordingSessionId: 'session-a',
-    });
-    expect(first).toMatchObject({
-      versionNumber: 1,
-      versionCount: 1,
-      status: 'recording',
-      maxAttempts: 3,
-    });
-
-    await service.reserveAnswerAttempt('interview-1', {
-      questionIndex: 0,
-      recordingSessionId: 'session-other',
-    });
-    const third = await service.reserveAnswerAttempt('interview-1', {
-      questionIndex: 0,
-      recordingSessionId: 'session-other',
-    });
-    expect(third.versionCount).toBe(3);
-
-    await expect(
-      service.reserveAnswerAttempt('interview-1', {
-        questionIndex: 0,
-        recordingSessionId: 'session-other',
-      }),
-    ).rejects.toEqual(
-      expect.objectContaining({
-        response: expect.objectContaining({
-          code: ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
-        }),
-      }),
-    );
-  });
-
-  it('rejects progress without reserve and allows matching session after reserve', async () => {
     const { service } = makeService(baseRow);
     const mediaKey = 'dev/interviews/interview-1/answers/q0-camera-1.webm';
     const progressInput = {
@@ -133,14 +95,31 @@ describe('InterviewService answer attempt reserve + lock', () => {
       recordingSessionId: 'session-a',
     };
 
-    await expect(
-      service.saveAnswerProgress('interview-1', progressInput),
-    ).rejects.toBeInstanceOf(BadRequestException);
-
     await service.reserveAnswerAttempt('interview-1', {
       questionIndex: 0,
       recordingSessionId: 'session-a',
     });
+    await service.reserveAnswerAttempt('interview-1', {
+      questionIndex: 0,
+      recordingSessionId: 'session-other',
+    });
+    await service.reserveAnswerAttempt('interview-1', {
+      questionIndex: 0,
+      recordingSessionId: 'session-other',
+    });
+
+    await expect(
+      service.reserveAnswerAttempt('interview-1', {
+        questionIndex: 0,
+        recordingSessionId: 'session-other',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        response: expect.objectContaining({
+          code: ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+        }),
+      }),
+    );
 
     await expect(
       service.saveAnswerProgress('interview-1', {
@@ -155,10 +134,9 @@ describe('InterviewService answer attempt reserve + lock', () => {
       }),
     );
 
-    const updated = await service.saveAnswerProgress('interview-1', progressInput);
-    const answer = updated.answers.find((item) => item.questionIndex === 0);
-    expect(answer?.versions?.[0]?.mediaKey).toBe(mediaKey);
-    expect(answer?.recordingSessionId).toBe('session-a');
+    await expect(
+      service.saveAnswerProgress('interview-1', progressInput),
+    ).resolves.toBeTruthy();
 
     await expect(
       service.saveAnswerProgress('interview-1', {
@@ -173,9 +151,66 @@ describe('InterviewService answer attempt reserve + lock', () => {
       }),
     );
 
-    // Same mediaKey may still update metadata / finalize the reserved slot.
     await expect(
-      service.saveAnswerProgress('interview-1', progressInput),
-    ).resolves.toBeTruthy();
+      service.saveAnswerProgress('interview-1', {
+        ...progressInput,
+        versionNumber: 4,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('finalizes exhausted attempts with stub last version using earlier media', async () => {
+    const mediaKey = 'dev/interviews/interview-1/answers/q0-camera-2.webm';
+    const { service } = makeService({
+      ...baseRow,
+      status: 'in_progress',
+      answers_json: [
+        {
+          questionIndex: 0,
+          questionId: 'q1',
+          status: 'recording',
+          mediaKey: '',
+          uploadedAt: new Date().toISOString(),
+          selectedVersionNumber: 3,
+          recordingSessionId: 'session-a',
+          versions: [
+            {
+              versionNumber: 1,
+              mediaKey: '',
+              reservedAt: new Date().toISOString(),
+              uploadedAt: new Date().toISOString(),
+            },
+            {
+              versionNumber: 2,
+              mediaKey,
+              uploadedAt: new Date().toISOString(),
+            },
+            {
+              versionNumber: 3,
+              mediaKey: '',
+              reservedAt: new Date().toISOString(),
+              uploadedAt: new Date().toISOString(),
+            },
+          ],
+        },
+      ],
+    });
+
+    const first = await service.finalizeAnswer('interview-1', {
+      questionIndex: 0,
+      recordingSessionId: 'session-a',
+    });
+    expect(first.selectedVersionNumber).toBe(2);
+    expect(first.alreadySubmitted).toBe(false);
+    expect(
+      first.interview.answers.find((item) => item.questionIndex === 0)?.mediaKey,
+    ).toBe(mediaKey);
+
+    const second = await service.finalizeAnswer('interview-1', {
+      questionIndex: 0,
+      recordingSessionId: 'session-a',
+    });
+    expect(second.alreadySubmitted).toBe(true);
+    expect(second.selectedVersionNumber).toBe(2);
   });
 });
