@@ -2,6 +2,7 @@ import { DatabaseService } from '../../src/database/database.service';
 import type { InterviewStatus } from '../../src/interview/interfaces/interview.interface';
 
 const TRUNCATE_TABLES = [
+  'candidate_feedback_share_links',
   'candidate_feedback_questions',
   'candidate_feedback',
   'feedback_links',

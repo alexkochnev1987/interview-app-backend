@@ -40,7 +40,7 @@ export function presentCandidateFeedbackQuestionBlock(
 export function presentCandidateFeedback(
   feedback: CandidateFeedback,
 ): CandidateFeedbackResponseDto {
-  return {
+  const response: CandidateFeedbackResponseDto = {
     interviewId: feedback.interviewId,
     overall: presentBlock(
       feedback.overallRecommendationText,
@@ -53,4 +53,14 @@ export function presentCandidateFeedback(
     ),
     updatedAt: feedback.updatedAt.toISOString(),
   };
+
+  if (feedback.outcome) {
+    response.outcome = feedback.outcome;
+  }
+
+  if (feedback.outcome === 'custom' && feedback.outcomeMessage) {
+    response.outcomeMessage = feedback.outcomeMessage;
+  }
+
+  return response;
 }

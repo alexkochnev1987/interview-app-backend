@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -17,6 +18,7 @@ import {
   ApiBody,
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -42,10 +44,15 @@ import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feed
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import { CandidateFeedbackGenerationService } from './candidate-feedback-generation.service';
+import { CandidateFeedbackShareService } from './candidate-feedback-share.service';
 import {
   CandidateFeedbackQuestionBlockDto,
   CandidateFeedbackResponseDto,
 } from './dto/candidate-feedback.responses.dto';
+import {
+  CandidateFeedbackShareLinkResponseDto,
+  CandidateFeedbackShareLinkStatusResponseDto,
+} from './dto/candidate-feedback-share-link.responses.dto';
 import { PatchCandidateFeedbackDto } from './dto/patch-candidate-feedback.dto';
 import { CANDIDATE_FEEDBACK_GENERATE_SCOPES } from './dto/generate-candidate-feedback-query.dto';
 import { GenerateCandidateFeedbackQueryDto } from './dto/generate-candidate-feedback-query.dto';
@@ -65,6 +72,8 @@ import { presentCandidateFeedback } from './present-candidate-feedback';
   GenerateAllCandidateFeedbackResponseDto,
   GenerateAllCandidateFeedbackQuestionResultDto,
   GenerateAllCandidateFeedbackOverallResultDto,
+  CandidateFeedbackShareLinkResponseDto,
+  CandidateFeedbackShareLinkStatusResponseDto,
 )
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -73,6 +82,7 @@ export class CandidateFeedbackController {
     private readonly interviewService: InterviewService,
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly candidateFeedbackGenerationService: CandidateFeedbackGenerationService,
+    private readonly candidateFeedbackShareService: CandidateFeedbackShareService,
   ) {}
 
   @Get(':id/candidate-feedback')
@@ -99,6 +109,101 @@ export class CandidateFeedbackController {
     const feedback =
       await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
     return presentCandidateFeedback(feedback);
+  }
+
+  @Post(':id/candidate-feedback/share-link')
+  @RequirePermissions('feedback:create_share_link')
+  @ApiOperation({
+    summary: 'Create a shareable candidate-feedback link',
+    description:
+      'Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.',
+  })
+  @ApiParam({ name: 'id', description: 'Interview ID' })
+  @ApiCreatedResponse({ type: CandidateFeedbackShareLinkResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async createCandidateFeedbackShareLink(
+    @Param('id', ParseUUIDPipe) interviewId: string,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<CandidateFeedbackShareLinkResponseDto> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      user,
+    );
+    this.assertCandidateFeedbackInterviewReady(interview);
+    const { url, expiresAt } =
+      await this.candidateFeedbackShareService.createLink(interviewId, {
+        id: user.id,
+        role: user.role,
+        demo: user.demo,
+      });
+    return { url, expiresAt };
+  }
+
+  @Get(':id/candidate-feedback/share-link')
+  @RequirePermissions('feedback:create_share_link')
+  @ApiOperation({
+    summary: 'Get active candidate-feedback share link status',
+    description:
+      'Returns expiresAt for a non-revoked, non-expired link that still has publishable feedback. Does not return the share URL (DB stores sha256 only). 404 when no usable active link exists.',
+  })
+  @ApiParam({ name: 'id', description: 'Interview ID' })
+  @ApiOkResponse({ type: CandidateFeedbackShareLinkStatusResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async getCandidateFeedbackShareLinkStatus(
+    @Param('id', ParseUUIDPipe) interviewId: string,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<CandidateFeedbackShareLinkStatusResponseDto> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      user,
+    );
+    this.assertCandidateFeedbackInterviewReady(interview);
+    return this.candidateFeedbackShareService.getActiveLinkStatus(interviewId, {
+      id: user.id,
+      role: user.role,
+      demo: user.demo,
+    });
+  }
+
+  @Delete(':id/candidate-feedback/share-link')
+  @RequirePermissions('feedback:revoke_share_link')
+  @ApiOperation({
+    summary: 'Revoke the active candidate-feedback share link',
+    description:
+      'Invalidates the current share URL without creating a replacement. Safe when a link was leaked and no new share is needed. Returns revoked=false when no active link existed.',
+  })
+  @ApiParam({ name: 'id', description: 'Interview ID' })
+  @ApiOkResponse({
+    description: 'Revoke result',
+    schema: {
+      type: 'object',
+      properties: {
+        revoked: { type: 'boolean' },
+      },
+      required: ['revoked'],
+    },
+  })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async revokeCandidateFeedbackShareLink(
+    @Param('id', ParseUUIDPipe) interviewId: string,
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<{ revoked: boolean }> {
+    const interview = await this.interviewService.findOneForActor(
+      interviewId,
+      user,
+    );
+    this.assertCandidateFeedbackInterviewReady(interview);
+    return this.candidateFeedbackShareService.revokeActiveLink(interviewId, {
+      id: user.id,
+      role: user.role,
+      demo: user.demo,
+    });
   }
 
   @Patch(':id/candidate-feedback')
