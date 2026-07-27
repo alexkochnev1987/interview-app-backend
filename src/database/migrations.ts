@@ -716,6 +716,25 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
+    version: '0039',
+    name: 'add_users_onboarding_completed_at',
+    statements: [
+      `
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ NULL;
+      `,
+      `
+        UPDATE users
+        SET onboarding_completed_at = NOW()
+        WHERE onboarding_completed_at IS NULL
+          AND role IN ('hr', 'admin', 'super_admin');
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_completed_at;`,
+    ],
+  },
+  {
     version: '0040',
     name: 'create_candidate_feedback',
     statements: [
@@ -805,6 +824,136 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           END IF;
         END $$;
       `,
+    ],
+  },
+  {
+    version: '0041',
+    name: 'add_interview_assigned_hr',
+    statements: [
+      `
+        ALTER TABLE interviews
+          ADD COLUMN IF NOT EXISTS assigned_hr_id UUID NULL
+          REFERENCES users(id) ON DELETE SET NULL;
+      `,
+      `
+      CREATE INDEX IF NOT EXISTS interviews_assigned_hr_idx
+      ON interviews (assigned_hr_id)
+      WHERE assigned_hr_id IS NOT NULL;
+    `,
+    ],
+  },
+  {
+    version: '0042',
+    name: 'create_candidate_feedback_share_links',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS candidate_feedback_share_links (
+          id UUID PRIMARY KEY,
+          interview_id UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+          created_by_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+          token TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NULL,
+          revoked_at TIMESTAMPTZ NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_share_links_active_per_interview_idx
+        ON candidate_feedback_share_links (interview_id)
+        WHERE revoked_at IS NULL;
+      `,
+      `
+        CREATE UNIQUE INDEX IF NOT EXISTS candidate_feedback_share_links_token_idx
+        ON candidate_feedback_share_links (token);
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS candidate_feedback_share_links_interview_idx
+        ON candidate_feedback_share_links (interview_id);
+      `,
+    ],
+  },
+  {
+    version: '0043',
+    name: 'add_candidate_feedback_outcome',
+    statements: [
+      `
+        ALTER TABLE candidate_feedback
+          ADD COLUMN IF NOT EXISTS outcome TEXT NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'candidate_feedback_outcome_check'
+          ) THEN
+            ALTER TABLE candidate_feedback
+              ADD CONSTRAINT candidate_feedback_outcome_check
+              CHECK (
+                outcome IS NULL
+                OR outcome IN ('next_stage', 'keep_in_touch')
+              );
+          END IF;
+        END $$;
+      `,
+    ],
+  },
+  {
+    version: '0044',
+    name: 'add_candidate_feedback_custom_outcome_message',
+    statements: [
+      `
+        ALTER TABLE candidate_feedback
+          ADD COLUMN IF NOT EXISTS outcome_message TEXT NULL;
+      `,
+      `
+        ALTER TABLE candidate_feedback
+          DROP CONSTRAINT IF EXISTS candidate_feedback_outcome_check;
+      `,
+      `
+        ALTER TABLE candidate_feedback
+          ADD CONSTRAINT candidate_feedback_outcome_check
+          CHECK (
+            outcome IS NULL
+            OR outcome IN ('next_stage', 'keep_in_touch', 'custom')
+          );
+      `,
+    ],
+  },
+  {
+    version: '0045',
+    name: 'add_user_onboarding_state',
+    statements: [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status TEXT NULL;`,
+      `
+        UPDATE users
+        SET onboarding_status = 'completed'
+        WHERE onboarding_completed_at IS NOT NULL
+          AND onboarding_status IS NULL;
+      `,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'users'::regclass
+              AND conname = 'users_onboarding_status_check'
+          ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_onboarding_status_check
+            CHECK (
+              onboarding_status IS NULL
+              OR onboarding_status IN ('completed', 'skipped')
+            );
+          END IF;
+        END $$;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_onboarding_status_check;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_status;`,
     ],
   },
 ];

@@ -33,8 +33,9 @@ describe('permissions', () => {
     expect(hasPermission('hr', 'users:assign_role')).toBe(false);
   });
 
-  it('grants candidate no staff permissions', () => {
-    expect(getPermissions('candidate')).toEqual([]);
+  it('grants candidate profile read only', () => {
+    expect(getPermissions('candidate')).toEqual(['users:read_profile']);
+    expect(hasPermission('candidate', 'users:read_profile')).toBe(true);
     expect(hasPermission('candidate', 'questions:read')).toBe(false);
   });
 

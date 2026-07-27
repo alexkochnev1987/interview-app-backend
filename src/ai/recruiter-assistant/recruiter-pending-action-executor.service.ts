@@ -91,7 +91,7 @@ export class RecruiterPendingActionExecutorService {
         interviewLocale: action.interviewLocale ?? locale,
         questionIds: finalQuestionIds,
       },
-      { createdById: user.id, demo: user.demo },
+      { createdById: user.id, demo: user.demo, actor: { id: user.id, role: user.role, demo: user.demo } },
     );
     const token = this.authService.generateCandidateToken(created.interview.id);
     const candidateLink = `/take/${created.interview.id}?token=${token}`;

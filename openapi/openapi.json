@@ -300,6 +300,64 @@
         ]
       }
     },
+    "/auth/me/onboarding": {
+      "patch": {
+        "operationId": "AuthController_completeOnboarding",
+        "summary": "Mark the staff onboarding tour as completed or skipped",
+        "description": "Sets onboardingCompletedAt on the first call (never cleared). onboardingStatus reflects the latest dismissal choice and may be updated on subsequent calls. Response matches GET /auth/me.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session cookie"
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "UserController_list",
@@ -324,6 +382,20 @@
               "minimum": 0,
               "default": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "super_admin",
+                "admin",
+                "hr",
+                "candidate"
+              ],
+              "type": "string"
             }
           },
           {
@@ -358,6 +430,78 @@
             }
           },
           "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UserController_findOne",
+        "summary": "Get user profile by id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "",
             "content": {
               "application/json": {
@@ -2874,6 +3018,23 @@
             }
           },
           {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
+            "examples": {
+              "byHr": {
+                "value": "00000000-0000-4000-8000-000000000001"
+              },
+              "unassigned": {
+                "value": "unassigned"
+              }
+            },
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "paginated",
             "required": false,
             "in": "query",
@@ -2986,6 +3147,15 @@
         "summary": "Faceted counts for the interview list sidebar",
         "description": "Returns total question volume plus position and status counts. Facet counts respect every other filter on the request (q, and the other facet) so the UI shows what is still available before clicking. totalQuestionCount sums questions across interviews matching all current filters.",
         "parameters": [
+          {
+            "name": "assignedHrId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "status",
             "required": false,
@@ -3232,7 +3402,8 @@
       },
       "patch": {
         "operationId": "InterviewController_update",
-        "summary": "Update pending interview",
+        "summary": "Update interview",
+        "description": "Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).",
         "parameters": [
           {
             "name": "id",
@@ -5182,6 +5353,65 @@
         ]
       }
     },
+    "/feedback/share/{token}": {
+      "get": {
+        "operationId": "CandidateFeedbackShareController_getSharedCandidateFeedback",
+        "summary": "Get published candidate feedback using a share token",
+        "description": "Public endpoint (no JWT). Returns only accepted/edited blocks with publishable text. Invalid, expired, or revoked tokens yield 404.",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "description": "Plaintext share token from the candidate-feedback share URL",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCandidateFeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
     "/feedback/{id}": {
       "get": {
         "operationId": "FeedbackController_getFeedback",
@@ -5553,6 +5783,262 @@
         ]
       }
     },
+    "/interviews/{id}/candidate-feedback/share-link": {
+      "post": {
+        "operationId": "CandidateFeedbackController_createCandidateFeedbackShareLink",
+        "summary": "Create a shareable candidate-feedback link",
+        "description": "Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackShareLinkResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CandidateFeedbackController_getCandidateFeedbackShareLinkStatus",
+        "summary": "Get active candidate-feedback share link status",
+        "description": "Returns expiresAt for a non-revoked, non-expired link that still has publishable feedback. Does not return the share URL (DB stores sha256 only). 404 when no usable active link exists.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFeedbackShareLinkStatusResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CandidateFeedbackController_revokeCandidateFeedbackShareLink",
+        "summary": "Revoke the active candidate-feedback share link",
+        "description": "Invalidates the current share URL without creating a replacement. Safe when a link was leaked and no new share is needed. Returns revoked=false when no active link existed.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Interview ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoke result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revoked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "revoked"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/interviews/{id}/candidate-feedback/generate": {
       "post": {
         "operationId": "CandidateFeedbackController_generateAllCandidateFeedback",
@@ -5850,6 +6336,21 @@
             "example": false,
             "description": "Read-only demo account."
           },
+          "onboardingCompletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-10T14:30:00.000Z",
+            "description": "When the user finished or skipped first-time onboarding. Null means onboarding is pending.",
+            "nullable": true
+          },
+          "onboardingStatus": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "description": "How the staff onboarding tour was dismissed."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string",
@@ -5895,6 +6396,19 @@
         "required": [
           "ok"
         ]
+      },
+      "CompleteOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "example": "completed"
+          }
+        }
       },
       "ApiErrorCode": {
         "type": "string",
@@ -5963,6 +6477,33 @@
           "statusCode",
           "code",
           "message"
+        ]
+      },
+      "UserProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "8d2a6457-7f4b-4cef-9f10-8cff885f7e15"
+          },
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "role": {
+            "type": "string",
+            "example": "hr"
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@interview-app.com",
+            "description": "Present when viewing your own profile or when the actor has a privileged role."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
         ]
       },
       "AssignRoleDto": {
@@ -7378,6 +7919,10 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "HR reviewer assigned to this interview. Admin/super_admin only."
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -7404,6 +7949,25 @@
           "candidateName",
           "position",
           "questionIds"
+        ]
+      },
+      "AssignedHrDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
         ]
       },
       "MediaArtifactDto": {
@@ -7948,6 +8512,18 @@
           "position": {
             "type": "string"
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "interviewLocale": {
             "type": "string",
             "enum": [
@@ -8073,6 +8649,18 @@
               "reject"
             ]
           },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -8178,6 +8766,18 @@
           },
           "position": {
             "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string",
+            "description": "Assigned HR reviewer user id. Omitted when unassigned."
+          },
+          "assignedHr": {
+            "description": "Assigned HR reviewer details for display.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedHrDto"
+              }
+            ]
           },
           "interviewLocale": {
             "type": "string",
@@ -8302,6 +8902,12 @@
           },
           "position": {
             "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.",
+            "nullable": true
           },
           "questionIds": {
             "type": "array",
@@ -9307,6 +9913,114 @@
           "status"
         ]
       },
+      "PublicCandidateFeedbackTextBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          }
+        }
+      },
+      "PublicCandidateFeedbackQuestionBlockDto": {
+        "type": "object",
+        "properties": {
+          "recommendationText": {
+            "type": "string",
+            "description": "Candidate-facing strengths / recommendations text."
+          },
+          "improvementText": {
+            "type": "string",
+            "description": "Candidate-facing growth areas / improvement text."
+          },
+          "questionIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "questionText": {
+            "type": "string",
+            "description": "Interview question snapshot text in interviewLocale when available on the interview."
+          }
+        },
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
+      },
+      "PublicCandidateFeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
+            "description": "Locale of the shared candidate-facing feedback text."
+          },
+          "position": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "interviewDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the candidate completed the interview (result completion time), when available."
+          },
+          "overallScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Interview overall score (0–100) when a result exists; omitted otherwise."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "description": "Candidate-facing next-step outcome when HR selected one; omitted otherwise."
+          },
+          "outcomeMessage": {
+            "type": "string",
+            "description": "Custom next-step message when outcome is `custom`; omitted for presets."
+          },
+          "overall": {
+            "description": "Present only when overall is accepted/edited with publishable text.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicCandidateFeedbackTextBlockDto"
+              }
+            ]
+          },
+          "questions": {
+            "description": "Only accepted/edited question blocks with publishable text; omitted when empty.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCandidateFeedbackQuestionBlockDto"
+            }
+          }
+        },
+        "required": [
+          "interviewLocale",
+          "position",
+          "expiresAt"
+        ]
+      },
       "FeedbackQuestionResultDto": {
         "type": "object",
         "properties": {
@@ -9504,6 +10218,19 @@
               "$ref": "#/components/schemas/CandidateFeedbackQuestionBlockDto"
             }
           },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "description": "Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message."
+          },
+          "outcomeMessage": {
+            "type": "string",
+            "description": "Present when outcome is `custom`. Preset outcomes use client i18n instead."
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -9586,6 +10313,22 @@
             "items": {
               "$ref": "#/components/schemas/PatchCandidateFeedbackQuestionBlockDto"
             }
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
+            "nullable": true,
+            "description": "Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message."
+          },
+          "outcomeMessage": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 10000,
+            "description": "Candidate-facing custom next-step message. Required when outcome is `custom`. Message-only patches require current outcome `custom`; sending a preset outcome clears any stored message."
           }
         }
       },
@@ -9676,6 +10419,36 @@
           "feedback",
           "questions",
           "overall"
+        ]
+      },
+      "CandidateFeedbackShareLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Absolute frontend URL embedding the one-time plaintext share token."
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
+        ]
+      },
+      "CandidateFeedbackShareLinkStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Expiry of a usable share link (non-revoked, not expired, with publishable feedback). URL is never reconstructed from storage (DB stores sha256 only)."
+          }
+        },
+        "required": [
+          "expiresAt"
         ]
       }
     }

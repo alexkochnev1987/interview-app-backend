@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark the staff onboarding tour as completed or skipped
+         * @description Sets onboardingCompletedAt on the first call (never cleared). onboardingStatus reflects the latest dismissal choice and may be updated on subsequent calls. Response matches GET /auth/me.
+         */
+        patch: operations["AuthController_completeOnboarding"];
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -132,6 +152,23 @@ export interface paths {
         };
         /** List all users */
         get: operations["UserController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user profile by id */
+        get: operations["UserController_findOne"];
         put?: never;
         post?: never;
         delete?: never;
@@ -491,7 +528,10 @@ export interface paths {
         delete: operations["InterviewController_deleteCompleted"];
         options?: never;
         head?: never;
-        /** Update pending interview */
+        /**
+         * Update interview
+         * @description Candidate details and questions can only be changed while pending. HR assignment can be changed in any status (admin/super_admin only).
+         */
         patch: operations["InterviewController_update"];
         trace?: never;
     };
@@ -884,6 +924,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback/share/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get published candidate feedback using a share token
+         * @description Public endpoint (no JWT). Returns only accepted/edited blocks with publishable text. Invalid, expired, or revoked tokens yield 404.
+         */
+        get: operations["CandidateFeedbackShareController_getSharedCandidateFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback/{id}": {
         parameters: {
             query?: never;
@@ -944,6 +1004,34 @@ export interface paths {
          * @description Partial update: HR may set recommendation/improvement texts and move blocks to accepted or edited.
          */
         patch: operations["CandidateFeedbackController_patchCandidateFeedback"];
+        trace?: never;
+    };
+    "/interviews/{id}/candidate-feedback/share-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get active candidate-feedback share link status
+         * @description Returns expiresAt for a non-revoked, non-expired link that still has publishable feedback. Does not return the share URL (DB stores sha256 only). 404 when no usable active link exists.
+         */
+        get: operations["CandidateFeedbackController_getCandidateFeedbackShareLinkStatus"];
+        put?: never;
+        /**
+         * Create a shareable candidate-feedback link
+         * @description Requires at least one accepted/edited block with publishable text. Revokes any previous active link for this interview.
+         */
+        post: operations["CandidateFeedbackController_createCandidateFeedbackShareLink"];
+        /**
+         * Revoke the active candidate-feedback share link
+         * @description Invalidates the current share URL without creating a replacement. Safe when a link was leaked and no new share is needed. Returns revoked=false when no active link existed.
+         */
+        delete: operations["CandidateFeedbackController_revokeCandidateFeedbackShareLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/interviews/{id}/candidate-feedback/generate": {
@@ -1014,6 +1102,17 @@ export interface components {
             demo: boolean;
             /**
              * Format: date-time
+             * @description When the user finished or skipped first-time onboarding. Null means onboarding is pending.
+             * @example 2026-06-10T14:30:00.000Z
+             */
+            onboardingCompletedAt?: string | null;
+            /**
+             * @description How the staff onboarding tour was dismissed.
+             * @enum {string}
+             */
+            onboardingStatus?: "completed" | "skipped";
+            /**
+             * Format: date-time
              * @example 2026-05-05T12:00:00.000Z
              */
             createdAt: string;
@@ -1026,6 +1125,13 @@ export interface components {
         LogoutResponseDto: {
             /** @example true */
             ok: boolean;
+        };
+        CompleteOnboardingDto: {
+            /**
+             * @example completed
+             * @enum {string}
+             */
+            status?: "completed" | "skipped";
         };
         /** @enum {string} */
         ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
@@ -1047,6 +1153,19 @@ export interface components {
             };
             /** @example /questions/invalid-id */
             path?: string;
+        };
+        UserProfileResponseDto: {
+            /** @example 8d2a6457-7f4b-4cef-9f10-8cff885f7e15 */
+            id: string;
+            /** @example Jane Doe */
+            name: string;
+            /** @example hr */
+            role: string;
+            /**
+             * @description Present when viewing your own profile or when the actor has a privileged role.
+             * @example jane@interview-app.com
+             */
+            email?: string;
         };
         AssignRoleDto: {
             /** @enum {string} */
@@ -1488,6 +1607,8 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description HR reviewer assigned to this interview. Admin/super_admin only. */
+            assignedHrId?: string;
             /**
              * @description Locale for interview UI and feedback. Defaults to en when omitted.
              * @default en
@@ -1497,6 +1618,11 @@ export interface components {
             /** @description Template this interview was started from. When set, the template popularity (usage_count) is incremented in the same transaction, so usage is recorded server-side rather than by a separate client call. */
             templateId?: string;
             questionIds: string[];
+        };
+        AssignedHrDto: {
+            id: string;
+            name: string;
+            email: string;
         };
         MediaArtifactDto: {
             mediaKey: string;
@@ -1660,6 +1786,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1696,6 +1826,10 @@ export interface components {
             overallScore?: number;
             /** @enum {string} */
             decision?: "proceed" | "review" | "reject";
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1726,6 +1860,10 @@ export interface components {
             candidateName: string;
             candidateEmail?: string;
             position: string;
+            /** @description Assigned HR reviewer user id. Omitted when unassigned. */
+            assignedHrId?: string;
+            /** @description Assigned HR reviewer details for display. */
+            assignedHr?: components["schemas"]["AssignedHrDto"];
             /** @enum {string} */
             interviewLocale: "en" | "be" | "ru" | "pl";
             /**
@@ -1762,6 +1900,11 @@ export interface components {
             candidateName?: string;
             candidateEmail?: string;
             position?: string;
+            /**
+             * Format: uuid
+             * @description HR reviewer UUID, or null to clear assignment. Can be set in any interview status. Admin/super_admin only.
+             */
+            assignedHrId?: string | null;
             questionIds?: string[];
         };
         StartAnswerValidationResultDto: {
@@ -2050,6 +2193,51 @@ export interface components {
             pendingAction?: components["schemas"]["RecruiterAssistantPendingActionDto"] & components["schemas"]["RecruiterAssistantPendingActionDto"];
             createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
         };
+        PublicCandidateFeedbackTextBlockDto: {
+            /** @description Candidate-facing strengths / recommendations text. */
+            recommendationText?: string;
+            /** @description Candidate-facing growth areas / improvement text. */
+            improvementText?: string;
+        };
+        PublicCandidateFeedbackQuestionBlockDto: {
+            /** @description Candidate-facing strengths / recommendations text. */
+            recommendationText?: string;
+            /** @description Candidate-facing growth areas / improvement text. */
+            improvementText?: string;
+            questionIndex: number;
+            /** Format: uuid */
+            questionId: string;
+            /** @description Interview question snapshot text in interviewLocale when available on the interview. */
+            questionText?: string;
+        };
+        PublicCandidateFeedbackResponseDto: {
+            /**
+             * @description Locale of the shared candidate-facing feedback text.
+             * @enum {string}
+             */
+            interviewLocale: "en" | "be" | "ru" | "pl";
+            position: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /**
+             * Format: date-time
+             * @description When the candidate completed the interview (result completion time), when available.
+             */
+            interviewDate?: string;
+            /** @description Interview overall score (0–100) when a result exists; omitted otherwise. */
+            overallScore?: number;
+            /**
+             * @description Candidate-facing next-step outcome when HR selected one; omitted otherwise.
+             * @enum {string}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom";
+            /** @description Custom next-step message when outcome is `custom`; omitted for presets. */
+            outcomeMessage?: string;
+            /** @description Present only when overall is accepted/edited with publishable text. */
+            overall?: components["schemas"]["PublicCandidateFeedbackTextBlockDto"];
+            /** @description Only accepted/edited question blocks with publishable text; omitted when empty. */
+            questions?: components["schemas"]["PublicCandidateFeedbackQuestionBlockDto"][];
+        };
         FeedbackQuestionResultDto: {
             questionIndex: number;
             questionId: string;
@@ -2119,6 +2307,13 @@ export interface components {
             interviewId: string;
             overall: components["schemas"]["CandidateFeedbackBlockDto"];
             questions: components["schemas"]["CandidateFeedbackQuestionBlockDto"][];
+            /**
+             * @description Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message.
+             * @enum {string}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom";
+            /** @description Present when outcome is `custom`. Preset outcomes use client i18n instead. */
+            outcomeMessage?: string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -2150,6 +2345,13 @@ export interface components {
             overall?: components["schemas"]["PatchCandidateFeedbackOverallBlockDto"];
             /** @description Partial per-question block updates. */
             questions?: components["schemas"]["PatchCandidateFeedbackQuestionBlockDto"][];
+            /**
+             * @description Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message.
+             * @enum {string|null}
+             */
+            outcome?: "next_stage" | "keep_in_touch" | "custom" | null;
+            /** @description Candidate-facing custom next-step message. Required when outcome is `custom`. Message-only patches require current outcome `custom`; sending a preset outcome clears any stored message. */
+            outcomeMessage?: string | null;
         };
         GenerateAllCandidateFeedbackQuestionResultDto: {
             /** @enum {string} */
@@ -2171,6 +2373,19 @@ export interface components {
             feedback: components["schemas"]["CandidateFeedbackResponseDto"];
             questions: components["schemas"]["GenerateAllCandidateFeedbackQuestionResultDto"][];
             overall: components["schemas"]["GenerateAllCandidateFeedbackOverallResultDto"];
+        };
+        CandidateFeedbackShareLinkResponseDto: {
+            /** @description Absolute frontend URL embedding the one-time plaintext share token. */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CandidateFeedbackShareLinkStatusResponseDto: {
+            /**
+             * Format: date-time
+             * @description Expiry of a usable share link (non-revoked, not expired, with publishable feedback). URL is never reconstructed from storage (DB stores sha256 only).
+             */
+            expiresAt: string;
         };
     };
     responses: never;
@@ -2376,11 +2591,45 @@ export interface operations {
             };
         };
     };
+    AuthController_completeOnboarding: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteOnboardingDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserResponseDto"];
+                };
+            };
+            /** @description Missing or invalid session cookie */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     UserController_list: {
         parameters: {
             query?: {
                 limit?: number;
                 offset?: number;
+                role?: "super_admin" | "admin" | "hr" | "candidate";
             };
             header?: {
                 /** @description Response language for localized content. Defaults to `en` when omitted. */
@@ -2400,6 +2649,46 @@ export interface operations {
                 };
             };
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    UserController_findOne: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3503,6 +3792,8 @@ export interface operations {
                 /** @description Filter by position (exact match) */
                 position?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
+                assignedHrId?: string;
                 /**
                  * @deprecated
                  * @description Deprecated legacy flag from the pre-filter list API. Accepted for backward compatibility but ignored; this endpoint always returns a paginated { items, total, page, limit } envelope.
@@ -3593,6 +3884,8 @@ export interface operations {
     InterviewController_getFacets: {
         parameters: {
             query?: {
+                /** @description Filter by assigned HR reviewer UUID, or the literal `unassigned` for interviews with no assignee. */
+                assignedHrId?: string;
                 status?: "pending" | "in_progress" | "processing" | "completed" | "failed";
                 /** @description Filter by position (exact match) */
                 position?: string;
@@ -4817,6 +5110,39 @@ export interface operations {
             };
         };
     };
+    CandidateFeedbackShareController_getSharedCandidateFeedback: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Plaintext share token from the candidate-feedback share URL */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCandidateFeedbackResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
     FeedbackController_getFeedback: {
         parameters: {
             query: {
@@ -5000,6 +5326,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_getCandidateFeedbackShareLinkStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFeedbackShareLinkStatusResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_createCandidateFeedbackShareLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFeedbackShareLinkResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    CandidateFeedbackController_revokeCandidateFeedbackShareLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Interview ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoke result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        revoked: boolean;
+                    };
                 };
             };
             401: {

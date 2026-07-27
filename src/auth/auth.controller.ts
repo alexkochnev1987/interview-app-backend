@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -34,6 +35,7 @@ import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
 import { AuthUserResponseDto } from './dto/auth-user.response.dto';
 import { LogoutResponseDto } from './dto/logout.response.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
@@ -45,6 +47,13 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  private toMeResponse(user: Omit<User, 'passwordHash'>): MeResponse {
+    return {
+      ...user,
+      permissions: getEffectivePermissions(user.role, user.demo),
+    };
+  }
 
   @Post('login')
   @HttpCode(200)
@@ -156,9 +165,31 @@ export class AuthController {
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
-    return {
-      ...user,
-      permissions: getEffectivePermissions(user.role, user.demo),
-    };
+    return this.toMeResponse(user);
+  }
+
+  @Patch('me/onboarding')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('sessionAuth')
+  @ApiOperation({
+    summary: 'Mark the staff onboarding tour as completed or skipped',
+    description:
+      'Sets onboardingCompletedAt on the first call (never cleared). ' +
+      'onboardingStatus reflects the latest dismissal choice and may be updated ' +
+      'on subsequent calls. Response matches GET /auth/me.',
+  })
+  @ApiBody({ type: CompleteOnboardingDto })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
+  async completeOnboarding(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Body() dto: CompleteOnboardingDto,
+  ): Promise<MeResponse> {
+    const updated = await this.authService.completeOnboarding(
+      user.id,
+      dto.status ?? 'completed',
+    );
+    return this.toMeResponse(updated);
   }
 }

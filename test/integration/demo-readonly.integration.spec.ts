@@ -139,6 +139,14 @@ describe('Demo read-only account (integration)', () => {
     await expectStatus(demo.post(`/interviews/${demoInterviewId}/candidate-link`).send({}), 403);
     await expectStatus(demo.post(`/interviews/${demoInterviewId}/feedback-link`).send({}), 403);
     await expectStatus(
+      demo.post(`/interviews/${demoInterviewId}/candidate-feedback/share-link`).send({}),
+      403,
+    );
+    await expectStatus(
+      demo.delete(`/interviews/${demoInterviewId}/candidate-feedback/share-link`),
+      403,
+    );
+    await expectStatus(
       demo.patch(`/interviews/${demoInterviewId}/candidate-feedback`).send({
         overall: { recommendationText: 'Demo edit', state: 'edited' },
       }),

@@ -56,10 +56,13 @@ import {
   getDemoScopeDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
 } from './interview-access-rules';
+import { assertActorCanSetAssignedHr } from './interview-assignment-rules';
 import {
   getInterviewTerminalOnlyBlockReason,
   getInterviewPendingOnlyBlockReason,
+  getInterviewPendingOnlyBlockReasonForFields,
   getInterviewDemoDeleteBlockReason,
+  hasInterviewPendingOnlyFieldUpdates,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
 import { buildFeedbackImprovements } from '../feedback/feedback-text';
@@ -83,9 +86,9 @@ export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
 export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
 
 const SORT_FIELD_TO_SQL: Record<InterviewSortField, string> = {
-  candidateName: 'lower(candidate_name)',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  candidateName: 'lower(i.candidate_name)',
+  createdAt: 'i.created_at',
+  updatedAt: 'i.updated_at',
 };
 
 export interface PaginatedInterviews {
@@ -122,7 +125,7 @@ export type InterviewResultWithLocale = InterviewResult & {
   interviewLocale: Locale;
 };
 
-const INTERVIEW_SELECT_COLUMNS = `
+const INTERVIEW_TABLE_COLUMNS = `
   id,
   candidate_name,
   candidate_email,
@@ -134,30 +137,59 @@ const INTERVIEW_SELECT_COLUMNS = `
   result_json,
   workflow_json,
   created_by_id,
+  assigned_hr_id,
   demo,
   created_at,
   updated_at
 `;
 
+const INTERVIEW_SELECT_COLUMNS = `
+  i.id,
+  i.candidate_name,
+  i.candidate_email,
+  i.position,
+  i.interview_locale,
+  i.questions_json,
+  i.answers_json,
+  i.status,
+  i.result_json,
+  i.workflow_json,
+  i.created_by_id,
+  i.assigned_hr_id,
+  i.demo,
+  i.created_at,
+  i.updated_at,
+  ah.name AS assigned_hr_name,
+  ah.email AS assigned_hr_email
+`;
+
+const INTERVIEW_SELECT_FROM = `
+  FROM interviews i
+  LEFT JOIN users ah ON ah.id = i.assigned_hr_id
+`;
+
 const INTERVIEW_LIST_SELECT_COLUMNS = `
-  id,
-  candidate_name,
-  candidate_email,
-  position,
-  status,
-  created_at,
-  updated_at,
-  COALESCE(jsonb_array_length(questions_json), 0) AS question_count,
+  i.id,
+  i.candidate_name,
+  i.candidate_email,
+  i.position,
+  i.status,
+  i.created_at,
+  i.updated_at,
+  COALESCE(jsonb_array_length(i.questions_json), 0) AS question_count,
   (
     SELECT COUNT(*)::int
-    FROM jsonb_array_elements(COALESCE(answers_json, '[]'::jsonb)) AS answer(value)
+    FROM jsonb_array_elements(COALESCE(i.answers_json, '[]'::jsonb)) AS answer(value)
     WHERE answer.value->>'status' = 'submitted'
   ) AS submitted_answer_count,
   CASE
-    WHEN result_json IS NULL THEN NULL
-    ELSE COALESCE((result_json->>'overallScore')::double precision, 0)
+    WHEN i.result_json IS NULL THEN NULL
+    ELSE COALESCE((i.result_json->>'overallScore')::double precision, 0)
   END AS overall_score,
-  result_json->>'decision' AS decision
+  i.result_json->>'decision' AS decision,
+  i.assigned_hr_id,
+  ah.name AS assigned_hr_name,
+  ah.email AS assigned_hr_email
 `;
 
 const INTERVIEW_UPDATE_SQL = `
@@ -171,9 +203,19 @@ const INTERVIEW_UPDATE_SQL = `
     status = $7,
     result_json = $8::jsonb,
     workflow_json = $9::jsonb,
+    assigned_hr_id = $10,
     updated_at = NOW()
   WHERE id = $1
-  RETURNING ${INTERVIEW_SELECT_COLUMNS}
+  RETURNING ${INTERVIEW_TABLE_COLUMNS}
+`;
+
+const INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL = `
+  WITH updated AS (
+    ${INTERVIEW_UPDATE_SQL.trim()}
+  )
+  SELECT ${INTERVIEW_SELECT_COLUMNS}
+  FROM updated i
+  LEFT JOIN users ah ON ah.id = i.assigned_hr_id
 `;
 
 interface InterviewRow {
@@ -188,6 +230,9 @@ interface InterviewRow {
   result_json: Record<string, unknown> | null;
   workflow_json: Record<string, unknown> | null;
   created_by_id: string | null;
+  assigned_hr_id: string | null;
+  assigned_hr_name?: string | null;
+  assigned_hr_email?: string | null;
   demo: boolean;
   created_at: Date;
   updated_at: Date;
@@ -264,7 +309,7 @@ export class InterviewService {
 
   async create(
     dto: CreateInterviewDto,
-    context: { createdById?: string; demo?: boolean } = {},
+    context: { createdById?: string; demo?: boolean; actor: InterviewActor },
   ): Promise<CreateInterviewResult> {
     const candidateName = dto.candidateName.trim();
     const position = dto.position.trim();
@@ -286,6 +331,21 @@ export class InterviewService {
     const interviewLocale = dto.interviewLocale ?? DEFAULT_LOCALE;
 
     return this.databaseService.withTransaction(async (client) => {
+      assertActorCanSetAssignedHr(context.actor, dto.assignedHrId);
+
+      let assignedHrId: string | null = null;
+
+      if (context.actor.role === 'hr') {
+        assignedHrId = context.actor.id;
+      } else if (dto.assignedHrId) {
+        await this.assertAssignableHrUser(
+            client,
+            dto.assignedHrId,
+            context.demo === true,
+        );
+        assignedHrId = dto.assignedHrId;
+      }
+
       const questions = await this.questionService.findManyByIdsForUpdate(
         client,
         questionIds,
@@ -307,21 +367,27 @@ export class InterviewService {
 
       const result = await client.query<InterviewRow>(
         `
-          INSERT INTO interviews (
-            id,
-            candidate_name,
-            candidate_email,
-            position,
-            interview_locale,
-            questions_json,
-            answers_json,
-            status,
-            workflow_json,
-            created_by_id,
-            demo
+          WITH inserted AS (
+            INSERT INTO interviews (
+              id,
+              candidate_name,
+              candidate_email,
+              position,
+              interview_locale,
+              questions_json,
+              answers_json,
+              status,
+              workflow_json,
+              created_by_id,
+              assigned_hr_id,
+              demo
+            )
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11, $12)
+            RETURNING ${INTERVIEW_TABLE_COLUMNS}
           )
-          VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, $10, $11)
-          RETURNING ${INTERVIEW_SELECT_COLUMNS}
+          SELECT ${INTERVIEW_SELECT_COLUMNS}
+          FROM inserted i
+          LEFT JOIN users ah ON ah.id = i.assigned_hr_id
         `,
         [
           randomUUID(),
@@ -334,6 +400,7 @@ export class InterviewService {
           'pending',
           JSON.stringify(this.buildWorkflow('idle', new Date())),
           context.createdById ?? null,
+          assignedHrId,
           context.demo === true,
         ],
       );
@@ -444,12 +511,14 @@ export class InterviewService {
     );
   }
 
-  async update(id: string, dto: UpdateInterviewDto): Promise<Interview> {
+  async update(
+    id: string,
+    dto: UpdateInterviewDto,
+    actor: InterviewActor,
+  ): Promise<Interview> {
     const hasUpdates =
-      dto.candidateName !== undefined ||
-      dto.candidateEmail !== undefined ||
-      dto.position !== undefined ||
-      dto.questionIds !== undefined;
+      hasInterviewPendingOnlyFieldUpdates(dto) ||
+      dto.assignedHrId !== undefined;
 
     if (!hasUpdates) {
       throw apiBadRequest(
@@ -459,10 +528,16 @@ export class InterviewService {
     }
 
     return this.databaseService.withTransaction(async (client) => {
+      assertActorCanSetAssignedHr(actor, dto.assignedHrId);
+
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
+      this.assertActorCanManageInterview(interview, actor);
 
-      const blockReason = getInterviewPendingOnlyBlockReason(interview.status);
+      const blockReason = getInterviewPendingOnlyBlockReasonForFields(
+        interview.status,
+        hasInterviewPendingOnlyFieldUpdates(dto),
+      );
       if (blockReason) {
         throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
           interviewId: id,
@@ -474,6 +549,7 @@ export class InterviewService {
       let candidateEmail = interview.candidateEmail;
       let position = interview.position;
       let questions = interview.questions;
+      let assignedHrId = interview.assignedHrId;
 
       if (dto.candidateName !== undefined) {
         candidateName = dto.candidateName.trim();
@@ -491,6 +567,19 @@ export class InterviewService {
 
       if (dto.candidateEmail !== undefined) {
         candidateEmail = dto.candidateEmail.trim().toLowerCase() || undefined;
+      }
+
+      if (dto.assignedHrId !== undefined) {
+        if (dto.assignedHrId === null) {
+          assignedHrId = undefined;
+        } else {
+          await this.assertAssignableHrUser(
+            client,
+            dto.assignedHrId,
+            interview.demo === true,
+          );
+          assignedHrId = dto.assignedHrId;
+        }
       }
 
       if (dto.questionIds !== undefined) {
@@ -538,11 +627,13 @@ export class InterviewService {
         candidateName,
         candidateEmail,
         position,
+        assignedHrId,
         questions,
         updatedAt: new Date(),
       };
 
-      return this.saveInterviewInTransaction(client, updated);
+      const saved = await this.saveInterviewInTransaction(client, updated);
+      return saved;
     });
   }
 
@@ -565,8 +656,8 @@ export class InterviewService {
       this.databaseService.query<InterviewRow>(
         `
           SELECT ${INTERVIEW_SELECT_COLUMNS}
-          FROM interviews
-          ORDER BY created_at DESC
+          ${INTERVIEW_SELECT_FROM}
+          ORDER BY i.created_at DESC
           LIMIT $1 OFFSET $2
         `,
         [limit, offset],
@@ -586,8 +677,8 @@ export class InterviewService {
     const result = await this.databaseService.query<InterviewRow>(
       `
         SELECT ${INTERVIEW_SELECT_COLUMNS}
-        FROM interviews
-        WHERE id = $1
+        ${INTERVIEW_SELECT_FROM}
+        WHERE i.id = $1
         LIMIT 1
       `,
       [id],
@@ -641,7 +732,7 @@ export class InterviewService {
 
     const countSql = `
       SELECT COUNT(*)::text AS total
-      FROM interviews
+      FROM interviews i
       ${whereSql}
     `;
 
@@ -651,9 +742,10 @@ export class InterviewService {
 
     const dataSql = `
       SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
-      FROM interviews
+      FROM interviews i
+      LEFT JOIN users ah ON ah.id = i.assigned_hr_id
       ${whereSql}
-      ORDER BY ${sortExpression} ${sortOrder}, id ASC
+      ORDER BY ${sortExpression} ${sortOrder}, i.id ASC
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
@@ -692,10 +784,10 @@ export class InterviewService {
     const result = await this.databaseService.query<{ total: string }>(
       `
         SELECT COALESCE(
-          SUM(COALESCE(jsonb_array_length(questions_json), 0)),
+          SUM(COALESCE(jsonb_array_length(i.questions_json), 0)),
           0
         )::text AS total
-        FROM interviews
+        FROM interviews i
         ${whereSql}
       `,
       params,
@@ -717,12 +809,12 @@ export class InterviewService {
       count: string;
     }>(
       `
-        SELECT MIN(position) AS value, COUNT(*)::text AS count
-        FROM interviews
+        SELECT MIN(i.position) AS value, COUNT(*)::text AS count
+        FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} position IS NOT NULL AND trim(position) <> ''
-        GROUP BY lower(position)
-        ORDER BY COUNT(*) DESC, MIN(position) ASC
+        ${whereSql ? 'AND' : 'WHERE'} i.position IS NOT NULL AND trim(i.position) <> ''
+        GROUP BY lower(i.position)
+        ORDER BY COUNT(*) DESC, MIN(i.position) ASC
       `,
       params,
     );
@@ -746,12 +838,12 @@ export class InterviewService {
       count: string;
     }>(
       `
-        SELECT status AS value, COUNT(*)::text AS count
-        FROM interviews
+        SELECT i.status AS value, COUNT(*)::text AS count
+        FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} status IS NOT NULL
-        GROUP BY status
-        ORDER BY COUNT(*) DESC, status ASC
+        ${whereSql ? 'AND' : 'WHERE'} i.status IS NOT NULL
+        GROUP BY i.status
+        ORDER BY COUNT(*) DESC, i.status ASC
       `,
       params,
     );
@@ -1374,9 +1466,9 @@ export class InterviewService {
     const result = await client.query<InterviewRow>(
       `
         SELECT ${INTERVIEW_SELECT_COLUMNS}
-        FROM interviews
-        WHERE id = $1
-        FOR UPDATE
+        ${INTERVIEW_SELECT_FROM}
+        WHERE i.id = $1
+        FOR UPDATE OF i
       `,
       [id],
     );
@@ -1403,6 +1495,7 @@ export class InterviewService {
       interview.status,
       interview.result ? JSON.stringify(interview.result) : null,
       interview.workflow ? JSON.stringify(interview.workflow) : null,
+      interview.assignedHrId ?? null,
     ];
   }
 
@@ -1411,7 +1504,7 @@ export class InterviewService {
     interview: Interview,
   ): Promise<Interview> {
     const result = await client.query<InterviewRow>(
-      INTERVIEW_UPDATE_SQL,
+      INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL,
       this.interviewUpdateParams(interview),
     );
 
@@ -1447,7 +1540,7 @@ export class InterviewService {
 
   private async saveInterview(interview: Interview): Promise<Interview> {
     const result = await this.databaseService.query<InterviewRow>(
-      INTERVIEW_UPDATE_SQL,
+      INTERVIEW_UPDATE_WITH_ASSIGNEE_SQL,
       this.interviewUpdateParams(interview),
     );
 
@@ -1621,6 +1714,45 @@ export class InterviewService {
     return 100;
   }
 
+  private async assertAssignableHrUser(
+    client: PoolClient,
+    userId: string,
+    interviewDemo: boolean,
+  ): Promise<void> {
+    const result = await client.query<{ id: string; role: string; demo: boolean }>(
+      `
+        SELECT id, role, demo
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    const user = result.rows[0];
+    if (!user) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Assigned HR user not found',
+        { assignedHrId: userId },
+      );
+    }
+    if (user.role !== 'hr') {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Assigned user must have the HR role',
+        { assignedHrId: userId, role: user.role },
+      );
+    }
+    if (Boolean(user.demo) !== interviewDemo) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Assigned HR user must belong to the same demo scope as the interview',
+        { assignedHrId: userId },
+      );
+    }
+  }
+
   private mapRow(row: InterviewRow): Interview {
     const questions = (row.questions_json ?? []).map((question) =>
       this.questionService.hydrateStoredQuestionCore(question),
@@ -1635,6 +1767,17 @@ export class InterviewService {
       candidateName: row.candidate_name,
       candidateEmail: row.candidate_email ?? undefined,
       position: row.position,
+      assignedHrId: row.assigned_hr_id ?? undefined,
+      assignedHr:
+        row.assigned_hr_id &&
+        row.assigned_hr_name &&
+        row.assigned_hr_email
+          ? {
+              id: row.assigned_hr_id,
+              name: row.assigned_hr_name,
+              email: row.assigned_hr_email,
+            }
+          : undefined,
       interviewLocale,
       questions,
       answers: (row.answers_json ?? []).map((answer) =>
