@@ -2239,7 +2239,7 @@ export interface components {
              * @enum {string|null}
              */
             outcome?: "next_stage" | "keep_in_touch" | "custom" | null;
-            /** @description Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets. */
+            /** @description Candidate-facing custom next-step message. Required when outcome is `custom`. Message-only patches require current outcome `custom`; sending a preset outcome clears any stored message. */
             outcomeMessage?: string | null;
         };
         GenerateAllCandidateFeedbackQuestionResultDto: {

@@ -106,7 +106,7 @@ export interface CandidateFeedbackHrPatch {
   questions?: CandidateFeedbackHrQuestionPatch[];
   /** Set candidate-facing outcome; null clears it. */
   outcome?: CandidateFeedbackOutcome | null;
-  /** Required for `custom`; ignored/cleared for presets. */
+  /** Required for `custom`; cleared when switching to a preset. */
   outcomeMessage?: string | null;
 }
 

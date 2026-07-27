@@ -51,9 +51,9 @@ function assertCustomOutcomeMessage(
 /**
  * Resolves outcome + message for an HR patch.
  * - null outcome clears both
- * - presets clear/ignore message
+ * - presets clear any provided/stored custom message
  * - custom requires a non-empty trimmed message (from patch or existing)
- * - message-only patch applies only when current outcome is custom
+ * - message-only patch applies only when current outcome is custom; otherwise 400
  */
 export function resolveCandidateFeedbackOutcomePatch(
   existing: CandidateFeedbackOutcomeState,
@@ -85,17 +85,12 @@ export function resolveCandidateFeedbackOutcomePatch(
   }
 
   // Message-only update.
-  if (existing.outcome == null) {
+  if (existing.outcome == null || isCandidateFeedbackPresetOutcome(existing.outcome)) {
     throw apiBadRequest(
       ApiErrorCode.BAD_REQUEST,
       'outcomeMessage requires outcome to be set to custom',
       context,
     );
-  }
-
-  if (isCandidateFeedbackPresetOutcome(existing.outcome)) {
-    // Presets ignore custom message text.
-    return null;
   }
 
   const message = assertCustomOutcomeMessage(

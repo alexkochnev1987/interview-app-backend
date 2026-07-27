@@ -117,7 +117,7 @@ export class PatchCandidateFeedbackDto {
     nullable: true,
     maxLength: CANDIDATE_FEEDBACK_TEXT_MAX_LENGTH,
     description:
-      'Candidate-facing custom next-step message. Required when outcome is `custom`; ignored/cleared for presets.',
+      'Candidate-facing custom next-step message. Required when outcome is `custom`. Message-only patches require current outcome `custom`; sending a preset outcome clears any stored message.',
   })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)

@@ -32,4 +32,20 @@ describe('resolveCandidateFeedbackOutcomePatch', () => {
       outcomeMessage: 'Keep in touch with details.',
     });
   });
+
+  it('rejects message-only patches when outcome is missing or a preset', () => {
+    expect(() =>
+      resolveCandidateFeedbackOutcomePatch(
+        {},
+        { outcomeMessage: 'Orphan message' },
+      ),
+    ).toThrow(/outcomeMessage requires outcome to be set to custom/i);
+
+    expect(() =>
+      resolveCandidateFeedbackOutcomePatch(
+        { outcome: 'next_stage' },
+        { outcomeMessage: 'Orphan message' },
+      ),
+    ).toThrow(/outcomeMessage requires outcome to be set to custom/i);
+  });
 });
