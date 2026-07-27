@@ -77,30 +77,46 @@ export class CandidateFeedbackShareService {
     }
 
     try {
-      return await this.databaseService.withTransaction(async (client) => {
-        await client.query(
-          `
+      return await this.databaseService.withAdvisoryLock(
+        `candidate-feedback:${interviewId}`,
+        async () => {
+          const lockedFeedback =
+            await this.candidateFeedbackService.findByInterviewId(interviewId);
+          if (
+            !lockedFeedback ||
+            !hasAnyPublishableCandidateFeedbackBlock(lockedFeedback)
+          ) {
+            throw apiConflict(
+              ApiErrorCode.CONFLICT,
+              'Cannot create a share link without at least one accepted or edited candidate-feedback block that has publishable text',
+              { interviewId },
+            );
+          }
+
+          return await this.databaseService.withTransaction(async (client) => {
+            await client.query(
+              `
             UPDATE candidate_feedback_share_links
             SET revoked_at = NOW()
             WHERE interview_id = $1 AND revoked_at IS NULL
           `,
-          [interviewId],
-        );
+              [interviewId],
+            );
 
-        const linkId = randomUUID();
-        const token = this.generateToken();
-        const tokenHash = this.hashToken(token);
-        const expiresAt = new Date(
-          Date.now() +
-            CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
-        );
+            const linkId = randomUUID();
+            const token = this.generateToken();
+            const tokenHash = this.hashToken(token);
+            const expiresAt = new Date(
+              Date.now() +
+                CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
+            );
 
-        // Plaintext token is delivered once via the URL below; the DB only
-        // stores its sha256 hash so a DB compromise does not yield usable
-        // tokens. The unique index on the `token` column is preserved by
-        // storing the (also-unique) hash in the same column.
-        const result = await client.query<CandidateFeedbackShareLinkRow>(
-          `
+            // Plaintext token is delivered once via the URL below; the DB only
+            // stores its sha256 hash so a DB compromise does not yield usable
+            // tokens. The unique index on the `token` column is preserved by
+            // storing the (also-unique) hash in the same column.
+            const result = await client.query<CandidateFeedbackShareLinkRow>(
+              `
             INSERT INTO candidate_feedback_share_links (
               id,
               interview_id,
@@ -111,18 +127,20 @@ export class CandidateFeedbackShareService {
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, interview_id, created_by_id, expires_at, revoked_at, created_at
           `,
-          [linkId, interviewId, actor.id, expiresAt, tokenHash],
-        );
+              [linkId, interviewId, actor.id, expiresAt, tokenHash],
+            );
 
-        const link = this.mapRow(result.rows[0]);
-        const baseUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') ?? '';
-        return {
-          link,
-          token,
-          expiresAt,
-          url: `${baseUrl}/feedback/share/${token}`,
-        };
-      });
+            const link = this.mapRow(result.rows[0]);
+            const baseUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') ?? '';
+            return {
+              link,
+              token,
+              expiresAt,
+              url: `${baseUrl}/feedback/share/${token}`,
+            };
+          });
+        },
+      );
     } catch (error) {
       if (this.isUniqueViolation(error)) {
         throw apiConflict(
@@ -255,6 +273,7 @@ export class CandidateFeedbackShareService {
       position: interview.position,
       expiresAt: linkRow.expires_at,
       overallScore: interview.result?.overallScore,
+      interview,
     });
   }
 

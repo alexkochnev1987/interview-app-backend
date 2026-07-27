@@ -41,6 +41,12 @@ export class PublicCandidateFeedbackQuestionBlockDto extends PublicCandidateFeed
 
   @ApiProperty({ format: 'uuid' })
   questionId: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Interview question snapshot text in interviewLocale when available on the interview.',
+  })
+  questionText?: string;
 }
 
 export class PublicCandidateFeedbackResponseDto {
@@ -55,6 +61,13 @@ export class PublicCandidateFeedbackResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   expiresAt: string;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description:
+      'When the candidate completed the interview (result completion time), when available.',
+  })
+  interviewDate?: string;
 
   @ApiPropertyOptional({
     minimum: 0,

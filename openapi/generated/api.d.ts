@@ -2103,6 +2103,8 @@ export interface components {
             questionIndex: number;
             /** Format: uuid */
             questionId: string;
+            /** @description Interview question snapshot text in interviewLocale when available on the interview. */
+            questionText?: string;
         };
         PublicCandidateFeedbackResponseDto: {
             /**
@@ -2113,6 +2115,11 @@ export interface components {
             position: string;
             /** Format: date-time */
             expiresAt: string;
+            /**
+             * Format: date-time
+             * @description When the candidate completed the interview (result completion time), when available.
+             */
+            interviewDate?: string;
             /** @description Interview overall score (0–100) when a result exists; omitted otherwise. */
             overallScore?: number;
             /**
@@ -5213,7 +5220,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
