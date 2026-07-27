@@ -1,11 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn } from 'class-validator';
-
-export const ONBOARDING_STATUSES = ['completed', 'skipped'] as const;
-export type OnboardingStatus = (typeof ONBOARDING_STATUSES)[number];
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsOptional } from 'class-validator';
+import {
+  ONBOARDING_STATUSES,
+  type OnboardingStatus,
+} from '../../user/interfaces/user.interface';
 
 export class CompleteOnboardingDto {
-  @ApiProperty({ enum: ONBOARDING_STATUSES, example: 'completed' })
+  @ApiPropertyOptional({ enum: ONBOARDING_STATUSES, example: 'completed' })
+  @IsOptional()
   @IsIn(ONBOARDING_STATUSES)
-  status!: OnboardingStatus;
+  status?: OnboardingStatus;
 }

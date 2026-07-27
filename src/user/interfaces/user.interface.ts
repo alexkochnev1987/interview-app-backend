@@ -1,6 +1,7 @@
 export type UserRole = 'super_admin' | 'admin' | 'hr' | 'candidate';
 
-export type OnboardingStatus = 'completed' | 'skipped';
+export const ONBOARDING_STATUSES = ['completed', 'skipped'] as const;
+export type OnboardingStatus = (typeof ONBOARDING_STATUSES)[number];
 
 export interface User {
   id: string;

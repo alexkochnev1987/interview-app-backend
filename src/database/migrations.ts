@@ -848,6 +848,12 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     statements: [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status TEXT NULL;`,
       `
+        UPDATE users
+        SET onboarding_status = 'completed'
+        WHERE onboarding_completed_at IS NOT NULL
+          AND onboarding_status IS NULL;
+      `,
+      `
         DO $$
         BEGIN
           IF NOT EXISTS (

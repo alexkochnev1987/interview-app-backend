@@ -175,7 +175,9 @@ export class AuthController {
   @ApiOperation({
     summary: 'Mark the staff onboarding tour as completed or skipped',
     description:
-      'Sets onboardingCompletedAt and onboardingStatus. Response matches GET /auth/me.',
+      'Sets onboardingCompletedAt on the first call (never cleared). ' +
+      'onboardingStatus reflects the latest dismissal choice and may be updated ' +
+      'on subsequent calls. Response matches GET /auth/me.',
   })
   @ApiBody({ type: CompleteOnboardingDto })
   @ApiOkResponse({ type: AuthUserResponseDto })
@@ -186,7 +188,7 @@ export class AuthController {
   ): Promise<MeResponse> {
     const updated = await this.authService.completeOnboarding(
       user.id,
-      dto.status,
+      dto.status ?? 'completed',
     );
     return this.toMeResponse(updated);
   }
