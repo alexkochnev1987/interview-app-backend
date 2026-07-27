@@ -303,8 +303,8 @@
     "/auth/me/onboarding": {
       "patch": {
         "operationId": "AuthController_completeOnboarding",
-        "summary": "Mark first-time onboarding as completed or skipped",
-        "description": "Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.",
+        "summary": "Mark the staff onboarding tour as completed or skipped",
+        "description": "Sets onboardingCompletedAt on the first call (never cleared). onboardingStatus reflects the latest dismissal choice and may be updated on subsequent calls. Response matches GET /auth/me.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -323,6 +323,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOnboardingDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -420,6 +430,78 @@
             }
           },
           "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UserController_findOne",
+        "summary": "Get user profile by id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "",
             "content": {
               "application/json": {
@@ -6169,17 +6251,25 @@
             "example": false,
             "description": "Read-only demo account."
           },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string",
-            "example": "2026-05-05T12:00:00.000Z"
-          },
           "onboardingCompletedAt": {
             "type": "string",
             "format": "date-time",
             "example": "2026-06-10T14:30:00.000Z",
             "description": "When the user finished or skipped first-time onboarding. Null means onboarding is pending.",
             "nullable": true
+          },
+          "onboardingStatus": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "description": "How the staff onboarding tour was dismissed."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-05-05T12:00:00.000Z"
           }
         },
         "required": [
@@ -6221,6 +6311,19 @@
         "required": [
           "ok"
         ]
+      },
+      "CompleteOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "example": "completed"
+          }
+        }
       },
       "ApiErrorCode": {
         "type": "string",
@@ -6289,6 +6392,33 @@
           "statusCode",
           "code",
           "message"
+        ]
+      },
+      "UserProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "8d2a6457-7f4b-4cef-9f10-8cff885f7e15"
+          },
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "role": {
+            "type": "string",
+            "example": "hr"
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@interview-app.com",
+            "description": "Present when viewing your own profile or when the actor has a privileged role."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
         ]
       },
       "AssignRoleDto": {

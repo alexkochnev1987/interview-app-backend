@@ -117,9 +117,9 @@ export async function seedIntegrationFixtures(
     ...INTEGRATION_USERS.hr,
   });
 
-  await userService.completeOnboarding(superAdmin.id);
-  await userService.completeOnboarding(admin.id);
-  await userService.completeOnboarding(hr.id);
+  await userService.completeOnboarding(superAdmin.id, 'completed');
+  await userService.completeOnboarding(admin.id, 'completed');
+  await userService.completeOnboarding(hr.id, 'completed');
 
   const seedQuestion = await questionService.create(
     buildCreateQuestionPayload(
