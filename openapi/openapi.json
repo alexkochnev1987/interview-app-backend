@@ -5096,6 +5096,98 @@
         ]
       }
     },
+    "/take/{id}/answer/reserve": {
+      "post": {
+        "operationId": "TakeController_reserveAnswerAttempt",
+        "summary": "Reserve a candidate answer recording attempt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveAnswerAttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveTakeAnswerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
     "/take/{id}/questions/{questionIndex}/validate": {
       "post": {
         "operationId": "TakeController_startAnswerValidation",
@@ -5917,6 +6009,9 @@
           "UPLOAD_FAILED",
           "UPLOAD_NOT_ALLOWED",
           "ANSWER_ATTEMPT_LIMIT_REACHED",
+          "ANSWER_VERSION_NOT_RESERVED",
+          "RECORDING_SESSION_MISMATCH",
+          "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -7644,10 +7739,16 @@
             "type": "number"
           },
           "mediaKey": {
-            "type": "string"
+            "type": "string",
+            "description": "Empty until media is uploaded for a reserved attempt."
           },
           "screenMediaKey": {
             "type": "string"
+          },
+          "reservedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Set when the attempt slot is reserved before media upload."
           },
           "uploadedAt": {
             "format": "date-time",
@@ -7681,9 +7782,7 @@
           }
         },
         "required": [
-          "versionNumber",
-          "mediaKey",
-          "uploadedAt"
+          "versionNumber"
         ]
       },
       "AnswerDto": {
@@ -7758,6 +7857,10 @@
             "items": {
               "$ref": "#/components/schemas/AnswerBehaviorEventDto"
             }
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Locked on first reserve for the question."
           }
         },
         "required": [
@@ -8499,12 +8602,18 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
+            "description": "Reserved answer attempt/version being recorded."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
-          "contentType"
+          "contentType",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "PresignedUrlResponseDto": {
@@ -8530,11 +8639,21 @@
           },
           "mediaKey": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Reserved answer attempt/version being confirmed."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
-          "mediaKey"
+          "mediaKey",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "ConfirmUploadResponseDto": {
@@ -8574,12 +8693,18 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
+            "description": "Reserved answer attempt/version being recorded."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
-          "contentType"
+          "contentType",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "MultipartUploadSessionResponseDto": {
@@ -8614,14 +8739,20 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
           "uploadId",
-          "partNumber"
+          "partNumber",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "MultipartUploadPartResponseDto": {
@@ -8661,13 +8792,19 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
-          "uploadId"
+          "uploadId",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "MultipartUploadCompleteResponseDto": {
@@ -8704,13 +8841,19 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
-          "uploadId"
+          "uploadId",
+          "versionNumber",
+          "recordingSessionId"
         ]
       },
       "MultipartUploadAbortResponseDto": {
@@ -8859,12 +9002,21 @@
           },
           "selectedVersionNumber": {
             "type": "number"
+          },
+          "hasMediaOnSelectedVersion": {
+            "type": "boolean",
+            "description": "True when the selected (or latest) answer version has uploaded media; false for a reserved stub."
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Locked recording session id for the current answer, when a reserve has occurred."
           }
         },
         "required": [
           "status",
           "versionCount",
-          "selectedVersionNumber"
+          "selectedVersionNumber",
+          "hasMediaOnSelectedVersion"
         ]
       },
       "TakeInterviewResponseDto": {
@@ -8903,6 +9055,10 @@
           "currentAnswerMeta": {
             "$ref": "#/components/schemas/CurrentAnswerMetaDto"
           },
+          "maxAttempts": {
+            "type": "number",
+            "description": "Maximum recording attempts allowed per question (from MAX_ANSWER_ATTEMPTS_PER_QUESTION)."
+          },
           "completed": {
             "type": "boolean"
           }
@@ -8915,6 +9071,7 @@
           "status",
           "totalQuestions",
           "currentQuestionIndex",
+          "maxAttempts",
           "completed"
         ]
       },
@@ -9057,6 +9214,10 @@
           },
           "clientTranscript": {
             "$ref": "#/components/schemas/ClientTranscriptDto"
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
@@ -9067,7 +9228,8 @@
           "durationSeconds",
           "startedAt",
           "submittedAt",
-          "behaviorSignals"
+          "behaviorSignals",
+          "recordingSessionId"
         ]
       },
       "SubmitTakeAnswerResponseDto": {
@@ -9137,13 +9299,18 @@
           },
           "clientTranscript": {
             "$ref": "#/components/schemas/ClientTranscriptDto"
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Must match the recordingSessionId locked on the answer at reserve time."
           }
         },
         "required": [
           "questionIndex",
           "versionNumber",
           "mediaKey",
-          "behaviorSignals"
+          "behaviorSignals",
+          "recordingSessionId"
         ]
       },
       "SaveTakeAnswerProgressResponseDto": {
@@ -9172,6 +9339,53 @@
           "status",
           "versionCount",
           "selectedVersionNumber"
+        ]
+      },
+      "ReserveAnswerAttemptDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          },
+          "recordingSessionId": {
+            "type": "string",
+            "description": "Client recording session id. Locked on the answer on first reserve."
+          }
+        },
+        "required": [
+          "questionIndex",
+          "recordingSessionId"
+        ]
+      },
+      "ReserveTakeAnswerResponseDto": {
+        "type": "object",
+        "properties": {
+          "versionNumber": {
+            "type": "number"
+          },
+          "versionCount": {
+            "type": "number"
+          },
+          "selectedVersionNumber": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "submitted"
+            ]
+          },
+          "maxAttempts": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "versionNumber",
+          "versionCount",
+          "selectedVersionNumber",
+          "status",
+          "maxAttempts"
         ]
       },
       "StartTakeAnswerValidationResponseDto": {

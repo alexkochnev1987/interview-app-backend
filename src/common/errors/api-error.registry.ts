@@ -57,6 +57,27 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
       'Candidate tries to save or upload another answer version beyond MAX_ANSWER_ATTEMPTS_PER_QUESTION.',
   },
   {
+    code: ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage: 'Recording attempt must be reserved before upload',
+    whenUsed:
+      'Upload/progress targets a versionNumber that was not reserved via POST /take/:id/answer/reserve.',
+  },
+  {
+    code: ApiErrorCode.RECORDING_SESSION_MISMATCH,
+    httpStatus: HttpStatus.CONFLICT,
+    defaultMessage: 'recordingSessionId does not match the locked recording session',
+    whenUsed:
+      'Upload/progress uses a missing or different recordingSessionId than the one locked on the answer.',
+  },
+  {
+    code: ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+    httpStatus: HttpStatus.CONFLICT,
+    defaultMessage: 'This recording attempt already has uploaded media',
+    whenUsed:
+      'Upload or progress tries to replace media on a reserved version that already has a mediaKey.',
+  },
+  {
     code: ApiErrorCode.UNAUTHORIZED,
     httpStatus: HttpStatus.UNAUTHORIZED,
     defaultMessage: 'Unauthorized',

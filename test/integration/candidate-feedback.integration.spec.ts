@@ -14,6 +14,7 @@ import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
   buildSubmitAnswerPayload,
   openCandidateTakeSession,
+  reserveCandidateAnswerAttempt,
 } from '../helpers/take-flow';
 
 async function createQuestion(
@@ -62,9 +63,20 @@ async function createCompletedInterview(
 
   await openCandidateTakeSession(agent, interviewId, token);
   for (const questionIndex of questionIds.map((_, index) => index)) {
+    const reserved = await reserveCandidateAnswerAttempt(
+      agent,
+      interviewId,
+      questionIndex,
+    );
     await agent
       .post(`/take/${interviewId}/answer`)
-      .send(buildSubmitAnswerPayload(interviewId, questionIndex, 1))
+      .send(
+        buildSubmitAnswerPayload(
+          interviewId,
+          questionIndex,
+          reserved.versionNumber,
+        ),
+      )
       .expect(201);
   }
 

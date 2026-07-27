@@ -45,6 +45,10 @@ import {
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import {
   getAnswerAttemptLimitBlockReason,
+  getAnswerVersionNotReservedBlockReason,
+  getAnswerVersionOverwriteBlockReason,
+  getRecordingSessionLockBlockReason,
+  resolveMaxAnswerAttemptsPerQuestion,
 } from './answer-attempt-rules';
 import {
   getInterviewCompletionBlockReason,
@@ -252,6 +256,7 @@ interface AddAnswerInput {
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
   clientTranscript?: AnswerTranscript;
+  recordingSessionId: string;
 }
 
 interface SaveAnswerProgressInput {
@@ -267,6 +272,20 @@ interface SaveAnswerProgressInput {
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
   clientTranscript?: AnswerTranscript;
+  recordingSessionId: string;
+}
+
+interface ReserveAnswerAttemptInput {
+  questionIndex: number;
+  recordingSessionId: string;
+}
+
+export interface ReserveAnswerAttemptResult {
+  versionNumber: number;
+  versionCount: number;
+  selectedVersionNumber: number;
+  status: Answer['status'];
+  maxAttempts: number;
 }
 
 interface QueueAnswerValidationInput {
@@ -1011,6 +1030,138 @@ export class InterviewService {
     );
   }
 
+  async reserveAnswerAttempt(
+    id: string,
+    input: ReserveAnswerAttemptInput,
+  ): Promise<ReserveAnswerAttemptResult> {
+    const { questionIndex, recordingSessionId } = input;
+    const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
+
+    return this.databaseService.withTransaction(async (client) => {
+      const row = await this.lockInterviewForUpdate(client, id);
+      const interview = this.mapRow(row);
+
+      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
+      if (questionIndex !== currentQuestionIndex) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Invalid question index — must answer in order',
+          { interviewId: id, questionIndex, currentQuestionIndex },
+        );
+      }
+      if (questionIndex >= interview.questions.length) {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Question index is out of range',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const question = interview.questions[questionIndex];
+      const existingAnswer =
+        interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
+        undefined;
+      if (existingAnswer?.status === 'submitted') {
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Cannot reserve a recording attempt for a submitted answer',
+          { interviewId: id, questionIndex },
+        );
+      }
+
+      const existingVersions = this.getAnswerVersions(existingAnswer);
+      const versionNumber =
+        existingVersions.reduce(
+          (max, version) => Math.max(max, version.versionNumber),
+          0,
+        ) + 1;
+      const attemptLimitReason = getAnswerAttemptLimitBlockReason(
+        existingVersions.map((version) => ({
+          versionNumber: version.versionNumber,
+        })),
+        versionNumber,
+      );
+      if (attemptLimitReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+          attemptLimitReason,
+          { interviewId: id, questionIndex, versionNumber },
+        );
+      }
+
+      const reservedAt = new Date();
+      const stubVersion: AnswerVersion = {
+        versionNumber,
+        mediaKey: '',
+        reservedAt,
+        uploadedAt: reservedAt,
+      };
+      const nextVersions = [...existingVersions, stubVersion].sort(
+        (left, right) => left.versionNumber - right.versionNumber,
+      );
+      const lockedRecordingSessionId =
+        existingAnswer?.recordingSessionId ?? recordingSessionId;
+      const selectedVersion =
+        nextVersions.find((version) => version.versionNumber === versionNumber) ??
+        stubVersion;
+
+      const nextAnswer: Answer = {
+        questionIndex,
+        questionId: question.id,
+        status: 'recording',
+        mediaKey: selectedVersion.mediaKey,
+        screenMediaKey: selectedVersion.screenMediaKey,
+        uploadedAt: selectedVersion.uploadedAt ?? reservedAt,
+        durationSeconds: selectedVersion.durationSeconds,
+        retakeCount: Math.max(nextVersions.length - 1, 0),
+        startedAt: selectedVersion.startedAt,
+        submittedAt: selectedVersion.submittedAt,
+        camera: selectedVersion.camera,
+        screen: selectedVersion.screen,
+        behaviorSignals: selectedVersion.behaviorSignals,
+        selectedVersionNumber: versionNumber,
+        versions: nextVersions,
+        behaviorEvents: selectedVersion.behaviorEvents,
+        transcript: existingAnswer?.transcript,
+        evaluation: existingAnswer?.evaluation,
+        validation: existingAnswer?.validation,
+        recordingSessionId: lockedRecordingSessionId,
+      };
+
+      const nextAnswers = existingAnswer
+        ? interview.answers.map((answer) =>
+            answer.questionIndex === questionIndex ? nextAnswer : answer,
+          )
+        : [...interview.answers, nextAnswer].sort(
+            (left, right) => left.questionIndex - right.questionIndex,
+          );
+
+      const now = new Date();
+      const saved = await this.saveInterviewInTransaction(client, {
+        ...interview,
+        answers: nextAnswers,
+        status: 'in_progress',
+        workflow: this.buildWorkflow('idle', now, {
+          startedAt: interview.workflow?.startedAt,
+        }),
+        updatedAt: now,
+      });
+
+      const savedAnswer = saved.answers.find(
+        (answer) => answer.questionIndex === questionIndex,
+      );
+
+      return {
+        versionNumber,
+        versionCount: savedAnswer?.versions?.length ?? nextVersions.length,
+        selectedVersionNumber:
+          savedAnswer?.selectedVersionNumber ?? versionNumber,
+        status: savedAnswer?.status ?? 'recording',
+        maxAttempts,
+      };
+    });
+  }
+
   async queueAnswerValidation(
     id: string,
     input: QueueAnswerValidationInput,
@@ -1213,6 +1364,7 @@ export class InterviewService {
       behaviorSignals,
       behaviorEvents,
       clientTranscript,
+      recordingSessionId,
     } = input;
 
     return this.databaseService.withTransaction(async (client) => {
@@ -1284,10 +1436,59 @@ export class InterviewService {
       const existingVersion = existingVersions.find(
         (version) => version.versionNumber === normalizedVersionNumber,
       );
+      const versionRefs = existingVersions.map((version) => ({
+        versionNumber: version.versionNumber,
+      }));
+      const notReservedReason = getAnswerVersionNotReservedBlockReason(
+        versionRefs,
+        normalizedVersionNumber,
+      );
+      if (notReservedReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+          notReservedReason,
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: normalizedVersionNumber,
+          },
+        );
+      }
+
+      const sessionLockReason = getRecordingSessionLockBlockReason(
+        existingAnswer?.recordingSessionId,
+        recordingSessionId,
+      );
+      if (sessionLockReason) {
+        throw apiConflict(
+          ApiErrorCode.RECORDING_SESSION_MISMATCH,
+          sessionLockReason,
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: normalizedVersionNumber,
+          },
+        );
+      }
+
+      const overwriteReason = getAnswerVersionOverwriteBlockReason(
+        existingVersion?.mediaKey,
+        mediaKey,
+      );
+      if (overwriteReason) {
+        throw apiConflict(
+          ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+          overwriteReason,
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: normalizedVersionNumber,
+          },
+        );
+      }
+
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
-        existingVersions.map((version) => ({
-          versionNumber: version.versionNumber,
-        })),
+        versionRefs,
         normalizedVersionNumber,
       );
       if (attemptLimitReason) {
@@ -1347,6 +1548,7 @@ export class InterviewService {
         versionNumber: normalizedVersionNumber,
         mediaKey,
         screenMediaKey,
+        reservedAt: existingVersion?.reservedAt,
         uploadedAt,
         durationSeconds:
           typeof durationSeconds === 'number' && durationSeconds > 0
@@ -1402,7 +1604,7 @@ export class InterviewService {
         status: submitAnswer ? 'submitted' : 'recording',
         mediaKey: selectedVersion.mediaKey,
         screenMediaKey: selectedVersion.screenMediaKey,
-        uploadedAt: selectedVersion.uploadedAt,
+        uploadedAt: selectedVersion.uploadedAt ?? uploadedAt,
         durationSeconds: selectedVersion.durationSeconds,
         retakeCount: Math.max(nextVersions.length - 1, 0),
         startedAt: selectedVersion.startedAt,
@@ -1420,6 +1622,7 @@ export class InterviewService {
             : undefined,
         evaluation: existingAnswer?.evaluation,
         validation: existingAnswer?.validation,
+        recordingSessionId: existingAnswer?.recordingSessionId,
       };
 
       const nextAnswers = existingAnswer
@@ -1865,6 +2068,7 @@ export class InterviewService {
       transcript: this.normalizeTranscript(rawAnswer.transcript),
       evaluation: this.normalizeEvaluation(rawAnswer.evaluation),
       validation: this.normalizeAnswerValidation(rawAnswer.validation),
+      recordingSessionId: this.asString(rawAnswer.recordingSessionId),
     };
   }
 
@@ -1926,34 +2130,45 @@ export class InterviewService {
     rawVersion: Record<string, unknown>,
     fallbackUploadedAt: Date,
   ): AnswerVersion | undefined {
+    const versionNumber = this.asNumber(rawVersion.versionNumber) ?? 1;
     const mediaKey = this.asString(rawVersion.mediaKey);
-    if (!mediaKey) {
+    const reservedAt = this.asDate(rawVersion.reservedAt);
+    if (!mediaKey && !reservedAt) {
       return undefined;
     }
 
+    const uploadedAt =
+      this.asDate(rawVersion.uploadedAt) ??
+      reservedAt ??
+      new Date(fallbackUploadedAt);
+
     return {
-      versionNumber: this.asNumber(rawVersion.versionNumber) ?? 1,
-      mediaKey,
+      versionNumber,
+      mediaKey: mediaKey ?? '',
       screenMediaKey: this.asString(rawVersion.screenMediaKey),
-      uploadedAt:
-        this.asDate(rawVersion.uploadedAt) ?? new Date(fallbackUploadedAt),
+      reservedAt,
+      uploadedAt,
       durationSeconds: this.asNumber(rawVersion.durationSeconds),
       startedAt: this.asDate(rawVersion.startedAt),
       submittedAt: this.asDate(rawVersion.submittedAt),
-      camera: this.normalizeMediaArtifact(
-        rawVersion.camera,
-        mediaKey,
-        fallbackUploadedAt,
-      ),
-      screen: this.normalizeMediaArtifact(
-        rawVersion.screen,
-        this.asString(rawVersion.screenMediaKey),
-        fallbackUploadedAt,
-      ),
+      camera: mediaKey
+        ? this.normalizeMediaArtifact(
+            rawVersion.camera,
+            mediaKey,
+            uploadedAt,
+          )
+        : undefined,
+      screen: mediaKey
+        ? this.normalizeMediaArtifact(
+            rawVersion.screen,
+            this.asString(rawVersion.screenMediaKey),
+            uploadedAt,
+          )
+        : undefined,
       behaviorSignals: this.normalizeBehaviorSignals(rawVersion.behaviorSignals),
       behaviorEvents: this.normalizeBehaviorEvents(
         rawVersion.behaviorEvents,
-        this.asNumber(rawVersion.versionNumber) ?? 1,
+        versionNumber,
       ),
     };
   }
@@ -2382,6 +2597,11 @@ export class InterviewService {
 
     if (answer.versions?.length) {
       return [...answer.versions];
+    }
+
+    // Align with getSavedAnswerVersions: only invent a legacy slot when media exists.
+    if (!answer.mediaKey?.trim()) {
+      return [];
     }
 
     return [

@@ -15,6 +15,7 @@ import {
   buildSubmitAnswerPayload,
   createTakeInterview,
   openCandidateTakeSession,
+  reserveCandidateAnswerAttempt,
 } from '../helpers/take-flow';
 import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
@@ -196,9 +197,12 @@ describe('App wiring (integration)', () => {
     const take = await openCandidateTakeSession(agent, interviewId, token);
     expect(take.body.completed).toBe(false);
 
+    const reserved = await reserveCandidateAnswerAttempt(agent, interviewId, 0);
     const submitted = await agent
       .post(`/take/${interviewId}/answer`)
-      .send(buildSubmitAnswerPayload(interviewId, 0, 1))
+      .send(
+        buildSubmitAnswerPayload(interviewId, 0, reserved.versionNumber),
+      )
       .expect(201);
 
     expect(submitted.body.completed).toBe(true);

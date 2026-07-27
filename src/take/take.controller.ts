@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   ParseIntPipe,
   Param,
   Query,
@@ -15,6 +17,7 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -36,6 +39,8 @@ import {
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
 import {
+  ReserveAnswerAttemptDto,
+  ReserveTakeAnswerResponseDto,
   SaveAnswerProgressDto,
   SaveTakeAnswerProgressResponseDto,
   StartTakeAnswerValidationResponseDto,
@@ -45,6 +50,8 @@ import {
 } from './dto/take.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { getCandidateTokenMismatchReason } from './candidate-interview-access';
+import { buildCurrentAnswerMeta } from './take-answer-meta';
+import { resolveMaxAnswerAttemptsPerQuestion } from '../interview/answer-attempt-rules';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -106,6 +113,7 @@ export class TakeController {
 
     const interview = await this.interviewService.findOne(id);
     const takeContentLocale = resolveTakeContentLocale(contentLocale, interview);
+    const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -127,6 +135,7 @@ export class TakeController {
         currentQuestion: null,
         currentQuestionIndex: answeredCount,
         currentAnswerMeta: null,
+        maxAttempts,
         completed: true,
       };
     }
@@ -146,12 +155,9 @@ export class TakeController {
       currentQuestion,
       currentQuestionIndex: answeredCount,
       currentAnswerMeta: currentAnswer
-        ? {
-            status: currentAnswer.status,
-            versionCount: currentAnswer.versions?.length ?? 0,
-            selectedVersionNumber: currentAnswer.selectedVersionNumber ?? 1,
-          }
+        ? buildCurrentAnswerMeta(currentAnswer)
         : null,
+      maxAttempts,
       completed: false,
     };
   }
@@ -227,6 +233,33 @@ export class TakeController {
       versionCount: currentAnswer?.versions?.length ?? 0,
       selectedVersionNumber: currentAnswer?.selectedVersionNumber ?? body.versionNumber,
     };
+  }
+
+  @Post(':id/answer/reserve')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(CandidateSessionGuard)
+  @ApiCookieAuth('candidateSessionAuth')
+  @ApiOperation({ summary: 'Reserve a candidate answer recording attempt' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({ type: ReserveAnswerAttemptDto })
+  @ApiCreatedResponse({ type: ReserveTakeAnswerResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async reserveAnswerAttempt(
+    @Param('id') id: string,
+    @Body() body: ReserveAnswerAttemptDto,
+    @Req() req: CandidateRequest,
+  ) {
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
+    }
+
+    return this.interviewService.reserveAnswerAttempt(id, body);
   }
 
   @Post(':id/questions/:questionIndex/validate')

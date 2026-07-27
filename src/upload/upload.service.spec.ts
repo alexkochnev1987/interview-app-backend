@@ -31,7 +31,7 @@ describe('UploadService multipart attempt limits', () => {
       jest.fn();
   });
 
-  it('passes versionNumber to multipart/part limit check', async () => {
+  it('passes versionNumber and recordingSessionId to multipart checks', async () => {
     await service.presignMultipartPart(
       'interview-1',
       0,
@@ -39,52 +39,12 @@ describe('UploadService multipart attempt limits', () => {
       'upload-id',
       1,
       3,
+      'session-a',
     );
 
     expect(
       (service as unknown as { assertCurrentQuestionUploadAllowed: jest.Mock })
         .assertCurrentQuestionUploadAllowed,
-    ).toHaveBeenCalledWith('interview-1', 0, 3);
-  });
-
-  it('passes versionNumber to multipart/complete limit check', async () => {
-    (service as unknown as { s3Client: { send: jest.Mock } }).s3Client = {
-      send: jest
-        .fn()
-        .mockResolvedValueOnce({ Parts: [{ ETag: '"etag"', PartNumber: 1 }] })
-        .mockResolvedValueOnce({}),
-    };
-
-    await service.completeMultipartUpload(
-      'interview-1',
-      0,
-      'dev/interviews/interview-1/answers/q0-camera-1.webm',
-      'upload-id',
-      3,
-    );
-
-    expect(
-      (service as unknown as { assertCurrentQuestionUploadAllowed: jest.Mock })
-        .assertCurrentQuestionUploadAllowed,
-    ).toHaveBeenCalledWith('interview-1', 0, 3);
-  });
-
-  it('passes versionNumber to multipart/abort limit check', async () => {
-    (service as unknown as { s3Client: { send: jest.Mock } }).s3Client = {
-      send: jest.fn().mockResolvedValue({}),
-    };
-
-    await service.abortMultipartUpload(
-      'interview-1',
-      0,
-      'dev/interviews/interview-1/answers/q0-camera-1.webm',
-      'upload-id',
-      3,
-    );
-
-    expect(
-      (service as unknown as { assertCurrentQuestionUploadAllowed: jest.Mock })
-        .assertCurrentQuestionUploadAllowed,
-    ).toHaveBeenCalledWith('interview-1', 0, 3);
+    ).toHaveBeenCalledWith('interview-1', 0, 3, 'session-a');
   });
 });

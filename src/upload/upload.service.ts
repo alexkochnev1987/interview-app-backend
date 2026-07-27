@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest } from '../common/errors/api-error';
+import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -29,6 +29,9 @@ import {
 } from './upload-key';
 import {
   getAnswerAttemptLimitBlockReason,
+  getAnswerVersionNotReservedBlockReason,
+  getAnswerVersionOverwriteBlockReason,
+  getRecordingSessionLockBlockReason,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
 
@@ -74,12 +77,16 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
+    recordingSessionId?: string,
+    options?: { requireReservedAttempt?: boolean },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
+      recordingSessionId,
+      options,
     );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
@@ -108,12 +115,14 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
+    recordingSessionId?: string,
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
+      recordingSessionId,
     );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
@@ -151,11 +160,13 @@ export class UploadService {
     uploadId: string,
     partNumber: number,
     versionNumber?: number,
+    recordingSessionId?: string,
   ): Promise<MultipartUploadPartResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
+      recordingSessionId,
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -191,11 +202,13 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     versionNumber?: number,
+    recordingSessionId?: string,
   ): Promise<MultipartUploadCompleteResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
+      recordingSessionId,
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -249,11 +262,13 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     versionNumber?: number,
+    recordingSessionId?: string,
   ): Promise<MultipartUploadAbortResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
+      recordingSessionId,
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -277,11 +292,21 @@ export class UploadService {
     };
   }
 
-  confirmUpload(
+  async confirmUpload(
     interviewId: string,
     questionIndex: number,
     mediaKey: string,
-  ): ConfirmUploadResponseDto {
+    versionNumber?: number,
+    recordingSessionId?: string,
+    options?: { requireReservedAttempt?: boolean },
+  ): Promise<ConfirmUploadResponseDto> {
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      recordingSessionId,
+      options,
+    );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     return { mediaKey, confirmed: true };
@@ -314,6 +339,8 @@ export class UploadService {
     interviewId: string,
     questionIndex: number,
     versionNumber?: number,
+    recordingSessionId?: string,
+    options?: { requireReservedAttempt?: boolean },
   ): Promise<void> {
     const interview = await this.interviewService.findOne(interviewId);
     const currentQuestionIndex = interview.answers.filter(
@@ -333,8 +360,55 @@ export class UploadService {
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );
+    const savedVersions = getSavedAnswerVersions(answer);
+    const requireReservedAttempt = options?.requireReservedAttempt ?? true;
+
+    if (requireReservedAttempt) {
+      const notReservedReason = getAnswerVersionNotReservedBlockReason(
+        savedVersions,
+        versionNumber,
+      );
+      if (notReservedReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+          notReservedReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
+
+      const sessionLockReason = getRecordingSessionLockBlockReason(
+        answer?.recordingSessionId,
+        recordingSessionId,
+      );
+      if (sessionLockReason) {
+        throw apiConflict(
+          ApiErrorCode.RECORDING_SESSION_MISMATCH,
+          sessionLockReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
+
+      const existingVersionMediaKey =
+        answer?.versions?.find(
+          (version) => version.versionNumber === versionNumber,
+        )?.mediaKey ??
+        (answer && answer.selectedVersionNumber === versionNumber
+          ? answer.mediaKey
+          : undefined);
+      const overwriteReason = getAnswerVersionOverwriteBlockReason(
+        existingVersionMediaKey,
+      );
+      if (overwriteReason) {
+        throw apiConflict(
+          ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+          overwriteReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
+    }
+
     const attemptLimitReason = getAnswerAttemptLimitBlockReason(
-      getSavedAnswerVersions(answer),
+      savedVersions,
       versionNumber,
     );
     if (attemptLimitReason) {

@@ -184,14 +184,21 @@ export class AnswerVersionDto {
   @ApiProperty()
   versionNumber: number;
 
-  @ApiProperty()
-  mediaKey: string;
+  @ApiPropertyOptional({
+    description: 'Empty until media is uploaded for a reserved attempt.',
+  })
+  mediaKey?: string;
 
   @ApiPropertyOptional()
   screenMediaKey?: string;
 
-  @ApiProperty()
-  uploadedAt: Date;
+  @ApiPropertyOptional({
+    description: 'Set when the attempt slot is reserved before media upload.',
+  })
+  reservedAt?: Date;
+
+  @ApiPropertyOptional()
+  uploadedAt?: Date;
 
   @ApiPropertyOptional()
   durationSeconds?: number;
@@ -272,6 +279,11 @@ export class AnswerDto {
 
   @ApiPropertyOptional({ type: [AnswerBehaviorEventDto] })
   behaviorEvents?: AnswerBehaviorEventDto[];
+
+  @ApiPropertyOptional({
+    description: 'Locked on first reserve for the question.',
+  })
+  recordingSessionId?: string;
 }
 
 export class InterviewBehaviorSummaryDto {

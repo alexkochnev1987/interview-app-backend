@@ -170,8 +170,10 @@ export interface AnswerValidation {
 
 export interface AnswerVersion {
   versionNumber: number;
+  /** Empty until media is uploaded for a reserved attempt. */
   mediaKey: string;
   screenMediaKey?: string;
+  reservedAt?: Date;
   uploadedAt: Date;
   durationSeconds?: number;
   startedAt?: Date;
@@ -202,6 +204,8 @@ export interface Answer {
   transcript?: AnswerTranscript;
   evaluation?: AnswerEvaluation;
   validation?: AnswerValidation;
+  /** Locked on first reserve for the question; not overwritten by later reserves. */
+  recordingSessionId?: string;
 }
 
 export interface InterviewQuestionResult {

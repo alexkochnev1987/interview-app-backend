@@ -59,6 +59,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 
@@ -68,14 +69,16 @@ export class UploadController {
   @ApiOkResponse({ type: ConfirmUploadResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  complete(
+  async complete(
     @Body() dto: ConfirmUploadDto,
     @Req() req: CandidateRequest,
-  ): ConfirmUploadResponseDto {
+  ): Promise<ConfirmUploadResponseDto> {
     return this.uploadService.confirmUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,
       dto.mediaKey,
+      dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 
@@ -95,6 +98,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 
@@ -115,6 +119,7 @@ export class UploadController {
       dto.uploadId,
       dto.partNumber,
       dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 
@@ -134,6 +139,7 @@ export class UploadController {
       dto.mediaKey,
       dto.uploadId,
       dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 
@@ -153,6 +159,7 @@ export class UploadController {
       dto.mediaKey,
       dto.uploadId,
       dto.versionNumber,
+      dto.recordingSessionId,
     );
   }
 }

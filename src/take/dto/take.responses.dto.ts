@@ -175,6 +175,30 @@ export class SubmitAnswerDto {
   @ValidateNested()
   @Type(() => ClientTranscriptDto)
   clientTranscript?: ClientTranscriptDto;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
+}
+
+export class ReserveAnswerAttemptDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+
+  @ApiProperty({
+    description:
+      'Client recording session id. Locked on the answer on first reserve.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class SaveAnswerProgressDto {
@@ -252,21 +276,29 @@ export class SaveAnswerProgressDto {
   @ValidateNested()
   @Type(() => ClientTranscriptDto)
   clientTranscript?: ClientTranscriptDto;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class CandidateQuestionViewDto {
   @ApiProperty()
-  text: string;
+  text!: string;
 
   @ApiProperty({ type: [String] })
-  followUpQuestions: string[];
+  followUpQuestions!: string[];
 
   @ApiProperty({
     enum: SUPPORTED_LOCALES,
     description:
       'Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation.',
   })
-  resolvedLocale: Locale;
+  resolvedLocale!: Locale;
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
@@ -278,88 +310,123 @@ export class CandidateQuestionViewDto {
 
 export class CurrentAnswerMetaDto {
   @ApiProperty({ enum: ['recording', 'submitted'] })
-  status: 'recording' | 'submitted';
+  status!: 'recording' | 'submitted';
 
   @ApiProperty()
-  versionCount: number;
+  versionCount!: number;
 
   @ApiProperty()
-  selectedVersionNumber: number;
+  selectedVersionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'True when the selected (or latest) answer version has uploaded media; false for a reserved stub.',
+  })
+  hasMediaOnSelectedVersion!: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Locked recording session id for the current answer, when a reserve has occurred.',
+  })
+  recordingSessionId?: string;
 }
 
 export class TakeInterviewResponseDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  position: string;
+  position!: string;
 
   @ApiProperty({ enum: SUPPORTED_LOCALES })
-  interviewLocale: Locale;
+  interviewLocale!: Locale;
 
   @ApiProperty()
-  candidateName: string;
+  candidateName!: string;
 
   @ApiProperty()
-  status: string;
+  status!: string;
 
   @ApiProperty()
-  totalQuestions: number;
+  totalQuestions!: number;
 
   @ApiPropertyOptional({ type: CandidateQuestionViewDto })
-  currentQuestion: CandidateQuestionViewDto | null;
+  currentQuestion!: CandidateQuestionViewDto | null;
 
   @ApiProperty()
-  currentQuestionIndex: number;
+  currentQuestionIndex!: number;
 
   @ApiPropertyOptional({ type: CurrentAnswerMetaDto })
-  currentAnswerMeta: CurrentAnswerMetaDto | null;
+  currentAnswerMeta!: CurrentAnswerMetaDto | null;
+
+  @ApiProperty({
+    description:
+      'Maximum recording attempts allowed per question (from MAX_ANSWER_ATTEMPTS_PER_QUESTION).',
+  })
+  maxAttempts!: number;
 
   @ApiProperty()
-  completed: boolean;
+  completed!: boolean;
 }
 
 export class SubmitTakeAnswerResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty()
-  answeredCount: number;
+  answeredCount!: number;
 
   @ApiProperty()
-  totalQuestions: number;
+  totalQuestions!: number;
 
   @ApiProperty()
-  completed: boolean;
+  completed!: boolean;
 }
 
 export class SaveTakeAnswerProgressResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty({ enum: ['recording', 'submitted'] })
-  status: 'recording' | 'submitted';
+  status!: 'recording' | 'submitted';
 
   @ApiProperty()
-  versionCount: number;
+  versionCount!: number;
 
   @ApiProperty()
-  selectedVersionNumber: number;
+  selectedVersionNumber!: number;
+}
+
+export class ReserveTakeAnswerResponseDto {
+  @ApiProperty()
+  versionNumber!: number;
+
+  @ApiProperty()
+  versionCount!: number;
+
+  @ApiProperty()
+  selectedVersionNumber!: number;
+
+  @ApiProperty({ enum: ['recording', 'submitted'] })
+  status!: 'recording' | 'submitted';
+
+  @ApiProperty()
+  maxAttempts!: number;
 }
 
 export class StartTakeAnswerValidationResponseDto {
   @ApiProperty({ example: true })
-  ok: boolean;
+  ok!: boolean;
 
   @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
-  status: string;
+  status!: string;
 
   @ApiProperty()
-  questionIndex: number;
+  questionIndex!: number;
 
   @ApiProperty()
-  sourceVersionNumber: number;
+  sourceVersionNumber!: number;
 
   @ApiProperty()
-  reused: boolean;
+  reused!: boolean;
 }

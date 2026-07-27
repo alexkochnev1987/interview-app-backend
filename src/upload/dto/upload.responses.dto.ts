@@ -25,15 +25,21 @@ export class PresignRequestDto {
   @IsIn(['camera', 'screen'])
   mediaType?: 'camera' | 'screen';
 
-  @ApiPropertyOptional({
-    description:
-      'Answer attempt/version being recorded. Omit when starting the next attempt.',
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being recorded.',
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  versionNumber?: number;
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class ConfirmUploadDto {
@@ -47,6 +53,22 @@ export class ConfirmUploadDto {
   @IsString()
   @IsNotEmpty()
   mediaKey!: string;
+
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being confirmed.',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class StartMultipartUploadDto {
@@ -65,15 +87,21 @@ export class StartMultipartUploadDto {
   @IsIn(['camera', 'screen'])
   mediaType?: 'camera' | 'screen';
 
-  @ApiPropertyOptional({
-    description:
-      'Answer attempt/version being recorded. Omit when starting the next attempt.',
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being recorded.',
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  versionNumber?: number;
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class PresignMultipartPartDto {
@@ -99,15 +127,21 @@ export class PresignMultipartPartDto {
   @Min(1)
   partNumber!: number;
 
-  @ApiPropertyOptional({
-    description:
-      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being recorded.',
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  versionNumber?: number;
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class CompleteMultipartUploadDto {
@@ -127,15 +161,21 @@ export class CompleteMultipartUploadDto {
   @IsNotEmpty()
   uploadId!: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being recorded.',
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  versionNumber?: number;
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class AbortMultipartUploadDto {
@@ -155,15 +195,21 @@ export class AbortMultipartUploadDto {
   @IsNotEmpty()
   uploadId!: string;
 
-  @ApiPropertyOptional({
-    description:
-      'Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt.',
+  @ApiProperty({
+    description: 'Reserved answer attempt/version being recorded.',
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  versionNumber?: number;
+  versionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'Must match the recordingSessionId locked on the answer at reserve time.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  recordingSessionId!: string;
 }
 
 export class PresignedUrlResponseDto {

@@ -64,11 +64,15 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
+    // Manual recruiter uploads are not part of the candidate reserve/session flow.
     return this.uploadService.generatePresignedUrl(
       id,
       questionIndex,
       dto.contentType,
       dto.mediaType ?? 'camera',
+      undefined,
+      undefined,
+      { requireReservedAttempt: false },
     );
   }
 
@@ -89,7 +93,15 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    return this.uploadService.confirmUpload(id, questionIndex, dto.mediaKey);
+    // Manual recruiter uploads are not part of the candidate reserve/session flow.
+    return this.uploadService.confirmUpload(
+      id,
+      questionIndex,
+      dto.mediaKey,
+      undefined,
+      undefined,
+      { requireReservedAttempt: false },
+    );
   }
 
   @Get(':id/questions/:questionIndex/media')
