@@ -8275,16 +8275,14 @@
             "type": "number"
           },
           "mediaKey": {
-            "type": "string",
-            "description": "Empty until media is uploaded for a reserved attempt."
+            "type": "string"
           },
           "screenMediaKey": {
             "type": "string"
           },
           "reservedAt": {
             "format": "date-time",
-            "type": "string",
-            "description": "Set when the attempt slot is reserved before media upload."
+            "type": "string"
           },
           "uploadedAt": {
             "format": "date-time",

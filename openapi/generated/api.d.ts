@@ -1699,13 +1699,9 @@ export interface components {
         };
         AnswerVersionDto: {
             versionNumber: number;
-            /** @description Empty until media is uploaded for a reserved attempt. */
             mediaKey?: string;
             screenMediaKey?: string;
-            /**
-             * Format: date-time
-             * @description Set when the attempt slot is reserved before media upload.
-             */
+            /** Format: date-time */
             reservedAt?: string;
             /** Format: date-time */
             uploadedAt?: string;
