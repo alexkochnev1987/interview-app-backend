@@ -1071,7 +1071,7 @@ export interface components {
             ok: boolean;
         };
         /** @enum {string} */
-        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "RECORDING_SESSION_MISMATCH" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
+        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
         ApiErrorResponseDto: {
             /** @example 400 */
             statusCode: number;
@@ -1653,8 +1653,6 @@ export interface components {
             validation?: components["schemas"]["AnswerValidationDto"];
             versions?: components["schemas"]["AnswerVersionDto"][];
             behaviorEvents?: components["schemas"]["AnswerBehaviorEventDto"][];
-            /** @description Locked on first reserve for the question. */
-            recordingSessionId?: string;
         };
         InterviewBehaviorSummaryDto: {
             /** @enum {string} */
@@ -1872,8 +1870,6 @@ export interface components {
             mediaType?: "camera" | "screen";
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         PresignedUrlResponseDto: {
             uploadUrl: string;
@@ -1884,8 +1880,6 @@ export interface components {
             mediaKey: string;
             /** @description Reserved answer attempt/version being confirmed. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         ConfirmUploadResponseDto: {
             mediaKey: string;
@@ -1900,8 +1894,6 @@ export interface components {
             mediaType?: "camera" | "screen";
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         MultipartUploadSessionResponseDto: {
             mediaKey: string;
@@ -1914,8 +1906,6 @@ export interface components {
             partNumber: number;
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         MultipartUploadPartResponseDto: {
             mediaKey: string;
@@ -1929,8 +1919,6 @@ export interface components {
             uploadId: string;
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         MultipartUploadCompleteResponseDto: {
             mediaKey: string;
@@ -1944,8 +1932,6 @@ export interface components {
             uploadId: string;
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         MultipartUploadAbortResponseDto: {
             mediaKey: string;
@@ -1997,8 +1983,6 @@ export interface components {
             status: "recording" | "submitted";
             versionCount: number;
             selectedVersionNumber: number;
-            /** @description Locked recording session id for the current answer, when a reserve has occurred. */
-            recordingSessionId?: string;
             /** @description True when any version in answers_json has a non-empty mediaKey. */
             hasSubmittableMedia: boolean;
             /** @description Highest versionNumber with uploaded media, or null when no version has media. */
@@ -2064,8 +2048,6 @@ export interface components {
             behaviorSignals: components["schemas"]["BehaviorSignalsDto"];
             behaviorEvents?: components["schemas"]["BehaviorEventDto"][];
             clientTranscript?: components["schemas"]["ClientTranscriptDto"];
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         SubmitTakeAnswerResponseDto: {
             /** @example true */
@@ -2076,8 +2058,6 @@ export interface components {
         };
         FinalizeAnswerAttemptDto: {
             questionIndex: number;
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         FinalizeTakeAnswerResponseDto: {
             /** @example true */
@@ -2105,8 +2085,6 @@ export interface components {
             behaviorSignals: components["schemas"]["BehaviorSignalsDto"];
             behaviorEvents?: components["schemas"]["BehaviorEventDto"][];
             clientTranscript?: components["schemas"]["ClientTranscriptDto"];
-            /** @description Must match the recordingSessionId locked on the answer at reserve time. */
-            recordingSessionId: string;
         };
         SaveTakeAnswerProgressResponseDto: {
             /** @example true */
@@ -2118,8 +2096,6 @@ export interface components {
         };
         ReserveAnswerAttemptDto: {
             questionIndex: number;
-            /** @description Client recording session id. Locked on the answer on first reserve. */
-            recordingSessionId: string;
         };
         ReserveTakeAnswerResponseDto: {
             versionNumber: number;

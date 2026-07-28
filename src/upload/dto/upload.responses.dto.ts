@@ -32,14 +32,6 @@ export class PresignRequestDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class ConfirmUploadDto {
@@ -61,14 +53,6 @@ export class ConfirmUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class StartMultipartUploadDto {
@@ -94,14 +78,6 @@ export class StartMultipartUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class PresignMultipartPartDto {
@@ -134,14 +110,6 @@ export class PresignMultipartPartDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class CompleteMultipartUploadDto {
@@ -168,14 +136,6 @@ export class CompleteMultipartUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class AbortMultipartUploadDto {
@@ -202,14 +162,6 @@ export class AbortMultipartUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class PresignedUrlResponseDto {

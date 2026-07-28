@@ -32,7 +32,6 @@ import {
   getAnswerAttemptLimitBlockReason,
   getAnswerVersionNotReservedBlockReason,
   getAnswerVersionOverwriteBlockReason,
-  getRecordingSessionLockBlock,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
 
@@ -78,7 +77,6 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
-    recordingSessionId?: string,
     options?: { requireReservedAttempt?: boolean },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
@@ -94,7 +92,6 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       {
         requireReservedAttempt: options?.requireReservedAttempt,
         nextMediaKey: mediaKey,
@@ -120,7 +117,6 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
-    recordingSessionId?: string,
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
 
@@ -135,7 +131,6 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       { nextMediaKey: mediaKey },
     );
 
@@ -167,13 +162,11 @@ export class UploadService {
     uploadId: string,
     partNumber: number,
     versionNumber?: number,
-    recordingSessionId?: string,
   ): Promise<MultipartUploadPartResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
@@ -210,13 +203,11 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     versionNumber?: number,
-    recordingSessionId?: string,
   ): Promise<MultipartUploadCompleteResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
@@ -271,13 +262,11 @@ export class UploadService {
     mediaKey: string,
     uploadId: string,
     versionNumber?: number,
-    recordingSessionId?: string,
   ): Promise<MultipartUploadAbortResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       // Abort must not treat an existing artifact key as overwrite.
       { nextMediaKey: mediaKey, skipOverwriteCheck: true },
     );
@@ -308,14 +297,12 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     versionNumber?: number,
-    recordingSessionId?: string,
     options?: { requireReservedAttempt?: boolean },
   ): Promise<ConfirmUploadResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
       versionNumber,
-      recordingSessionId,
       {
         requireReservedAttempt: options?.requireReservedAttempt,
         nextMediaKey: mediaKey,
@@ -353,7 +340,6 @@ export class UploadService {
     interviewId: string,
     questionIndex: number,
     versionNumber?: number,
-    recordingSessionId?: string,
     options?: {
       requireReservedAttempt?: boolean;
       nextMediaKey?: string;
@@ -390,25 +376,6 @@ export class UploadService {
         throw apiBadRequest(
           ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
           notReservedReason,
-          { interviewId, questionIndex, versionNumber },
-        );
-      }
-
-      const sessionLock = getRecordingSessionLockBlock(
-        answer?.recordingSessionId,
-        recordingSessionId,
-      );
-      if (sessionLock) {
-        if (sessionLock.kind === 'not_reserved') {
-          throw apiBadRequest(
-            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
-            sessionLock.reason,
-            { interviewId, questionIndex, versionNumber },
-          );
-        }
-        throw apiConflict(
-          ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLock.reason,
           { interviewId, questionIndex, versionNumber },
         );
       }

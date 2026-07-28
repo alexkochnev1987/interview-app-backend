@@ -4,8 +4,6 @@ import { authCookie } from './integration-auth';
 
 const now = () => new Date();
 
-export const INTEGRATION_RECORDING_SESSION_ID = 'integration-recording-session';
-
 function buildMediaKey(
   interviewId: string,
   questionIndex: number,
@@ -29,7 +27,6 @@ export function buildAnswerProgressPayload(
   interviewId: string,
   questionIndex = 0,
   versionNumber = 1,
-  recordingSessionId = INTEGRATION_RECORDING_SESSION_ID,
 ) {
   const startedAt = now();
   return {
@@ -47,7 +44,6 @@ export function buildAnswerProgressPayload(
       generatedAt: startedAt.toISOString(),
       isFinal: false,
     },
-    recordingSessionId,
   };
 }
 
@@ -55,7 +51,6 @@ export function buildSubmitAnswerPayload(
   interviewId: string,
   questionIndex = 0,
   versionNumber = 1,
-  recordingSessionId = INTEGRATION_RECORDING_SESSION_ID,
 ) {
   const startedAt = now();
   const submittedAt = new Date(startedAt.getTime() + 12_000);
@@ -78,7 +73,6 @@ export function buildSubmitAnswerPayload(
       generatedAt: submittedAt.toISOString(),
       isFinal: true,
     },
-    recordingSessionId,
   };
 }
 
@@ -123,11 +117,10 @@ export async function reserveCandidateAnswerAttempt(
   agent: IntegrationAgent,
   interviewId: string,
   questionIndex = 0,
-  recordingSessionId = INTEGRATION_RECORDING_SESSION_ID,
 ) {
   const response = await agent
     .post(`/take/${interviewId}/answer/reserve`)
-    .send({ questionIndex, recordingSessionId })
+    .send({ questionIndex })
     .expect(201);
 
   return response.body as {
@@ -149,13 +142,6 @@ export async function submitCandidateAnswer(
 
   await agent
     .post(`/take/${interviewId}/answer`)
-    .send(
-      buildSubmitAnswerPayload(
-        interviewId,
-        0,
-        reserved.versionNumber,
-        INTEGRATION_RECORDING_SESSION_ID,
-      ),
-    )
+    .send(buildSubmitAnswerPayload(interviewId, 0, reserved.versionNumber))
     .expect(201);
 }

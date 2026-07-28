@@ -175,14 +175,6 @@ export class SubmitAnswerDto {
   @ValidateNested()
   @Type(() => ClientTranscriptDto)
   clientTranscript?: ClientTranscriptDto;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class ReserveAnswerAttemptDto {
@@ -191,14 +183,6 @@ export class ReserveAnswerAttemptDto {
   @IsInt()
   @Min(0)
   questionIndex!: number;
-
-  @ApiProperty({
-    description:
-      'Client recording session id. Locked on the answer on first reserve.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class FinalizeAnswerAttemptDto {
@@ -207,14 +191,6 @@ export class FinalizeAnswerAttemptDto {
   @IsInt()
   @Min(0)
   questionIndex!: number;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class SaveAnswerProgressDto {
@@ -292,14 +268,6 @@ export class SaveAnswerProgressDto {
   @ValidateNested()
   @Type(() => ClientTranscriptDto)
   clientTranscript?: ClientTranscriptDto;
-
-  @ApiProperty({
-    description:
-      'Must match the recordingSessionId locked on the answer at reserve time.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  recordingSessionId!: string;
 }
 
 export class CandidateQuestionViewDto {
@@ -333,12 +301,6 @@ export class CurrentAnswerMetaDto {
 
   @ApiProperty()
   selectedVersionNumber!: number;
-
-  @ApiPropertyOptional({
-    description:
-      'Locked recording session id for the current answer, when a reserve has occurred.',
-  })
-  recordingSessionId?: string;
 
   @ApiProperty({
     description:

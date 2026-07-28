@@ -59,7 +59,6 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 
@@ -78,7 +77,6 @@ export class UploadController {
       dto.questionIndex,
       dto.mediaKey,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 
@@ -98,7 +96,6 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 
@@ -119,7 +116,6 @@ export class UploadController {
       dto.uploadId,
       dto.partNumber,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 
@@ -139,7 +135,6 @@ export class UploadController {
       dto.mediaKey,
       dto.uploadId,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 
@@ -159,7 +154,6 @@ export class UploadController {
       dto.mediaKey,
       dto.uploadId,
       dto.versionNumber,
-      dto.recordingSessionId,
     );
   }
 }

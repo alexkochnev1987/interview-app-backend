@@ -6,7 +6,6 @@ export interface CurrentAnswerMeta {
   status: 'recording' | 'submitted';
   versionCount: number;
   selectedVersionNumber: number;
-  recordingSessionId?: string;
   hasSubmittableMedia: boolean;
   latestSubmittableVersionNumber: number | null;
 }
@@ -45,8 +44,5 @@ export function buildCurrentAnswerMeta(answer: Answer): CurrentAnswerMeta {
     selectedVersionNumber,
     hasSubmittableMedia: latestSubmittableVersionNumber !== null,
     latestSubmittableVersionNumber,
-    ...(answer.recordingSessionId
-      ? { recordingSessionId: answer.recordingSessionId }
-      : {}),
   };
 }

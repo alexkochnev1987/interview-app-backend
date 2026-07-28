@@ -47,7 +47,6 @@ import {
   getAnswerAttemptLimitBlockReason,
   getAnswerVersionNotReservedBlockReason,
   getAnswerVersionOverwriteBlockReason,
-  getRecordingSessionLockBlock,
   resolveMaxAnswerAttemptsPerQuestion,
 } from './answer-attempt-rules';
 import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
@@ -257,7 +256,6 @@ interface AddAnswerInput {
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
   clientTranscript?: AnswerTranscript;
-  recordingSessionId: string;
 }
 
 interface SaveAnswerProgressInput {
@@ -273,12 +271,10 @@ interface SaveAnswerProgressInput {
   behaviorSignals?: AnswerBehaviorSignals;
   behaviorEvents?: AnswerBehaviorEvent[];
   clientTranscript?: AnswerTranscript;
-  recordingSessionId: string;
 }
 
 interface ReserveAnswerAttemptInput {
   questionIndex: number;
-  recordingSessionId: string;
 }
 
 export interface ReserveAnswerAttemptResult {
@@ -291,7 +287,6 @@ export interface ReserveAnswerAttemptResult {
 
 interface FinalizeAnswerAttemptInput {
   questionIndex: number;
-  recordingSessionId: string;
 }
 
 export interface FinalizeAnswerAttemptResult {
@@ -1046,7 +1041,7 @@ export class InterviewService {
     id: string,
     input: ReserveAnswerAttemptInput,
   ): Promise<ReserveAnswerAttemptResult> {
-    const { questionIndex, recordingSessionId } = input;
+    const { questionIndex } = input;
     const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
 
     return this.databaseService.withTransaction(async (client) => {
@@ -1111,8 +1106,6 @@ export class InterviewService {
       const nextVersions = [...existingVersions, stubVersion].sort(
         (left, right) => left.versionNumber - right.versionNumber,
       );
-      const lockedRecordingSessionId =
-        existingAnswer?.recordingSessionId ?? recordingSessionId;
       const selectedVersion =
         nextVersions.find((version) => version.versionNumber === versionNumber) ??
         stubVersion;
@@ -1137,7 +1130,6 @@ export class InterviewService {
         transcript: existingAnswer?.transcript,
         evaluation: existingAnswer?.evaluation,
         validation: existingAnswer?.validation,
-        recordingSessionId: lockedRecordingSessionId,
       };
 
       const nextAnswers = existingAnswer
@@ -1178,7 +1170,7 @@ export class InterviewService {
     id: string,
     input: FinalizeAnswerAttemptInput,
   ): Promise<FinalizeAnswerAttemptResult> {
-    const { questionIndex, recordingSessionId } = input;
+    const { questionIndex } = input;
 
     return this.databaseService.withTransaction(async (client) => {
       const row = await this.lockInterviewForUpdate(client, id);
@@ -1205,7 +1197,6 @@ export class InterviewService {
 
       const versions = this.getAnswerVersions(existingAnswer);
 
-      // Idempotent before session lock so a lost session id still returns alreadySubmitted.
       if (existingAnswer.status === 'submitted') {
         return {
           interview,
@@ -1218,25 +1209,6 @@ export class InterviewService {
             ),
           alreadySubmitted: true,
         };
-      }
-
-      const sessionLock = getRecordingSessionLockBlock(
-        existingAnswer.recordingSessionId,
-        recordingSessionId,
-      );
-      if (sessionLock) {
-        if (sessionLock.kind === 'not_reserved') {
-          throw apiBadRequest(
-            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
-            sessionLock.reason,
-            { interviewId: id, questionIndex },
-          );
-        }
-        throw apiConflict(
-          ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLock.reason,
-          { interviewId: id, questionIndex },
-        );
       }
 
       const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
@@ -1518,7 +1490,6 @@ export class InterviewService {
       behaviorSignals,
       behaviorEvents,
       clientTranscript,
-      recordingSessionId,
     } = input;
 
     return this.databaseService.withTransaction(async (client) => {
@@ -1601,33 +1572,6 @@ export class InterviewService {
         throw apiBadRequest(
           ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
           notReservedReason,
-          {
-            interviewId: id,
-            questionIndex,
-            versionNumber: normalizedVersionNumber,
-          },
-        );
-      }
-
-      const sessionLock = getRecordingSessionLockBlock(
-        existingAnswer?.recordingSessionId,
-        recordingSessionId,
-      );
-      if (sessionLock) {
-        if (sessionLock.kind === 'not_reserved') {
-          throw apiBadRequest(
-            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
-            sessionLock.reason,
-            {
-              interviewId: id,
-              questionIndex,
-              versionNumber: normalizedVersionNumber,
-            },
-          );
-        }
-        throw apiConflict(
-          ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLock.reason,
           {
             interviewId: id,
             questionIndex,
@@ -1807,7 +1751,6 @@ export class InterviewService {
             : undefined,
         evaluation: existingAnswer?.evaluation,
         validation: existingAnswer?.validation,
-        recordingSessionId: existingAnswer?.recordingSessionId,
       };
 
       const nextAnswers = existingAnswer
@@ -2253,7 +2196,6 @@ export class InterviewService {
       transcript: this.normalizeTranscript(rawAnswer.transcript),
       evaluation: this.normalizeEvaluation(rawAnswer.evaluation),
       validation: this.normalizeAnswerValidation(rawAnswer.validation),
-      recordingSessionId: this.asString(rawAnswer.recordingSessionId),
     };
   }
 

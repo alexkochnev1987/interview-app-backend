@@ -64,13 +64,12 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Recruiter manual upload bypasses candidate reserve/session lock.
+    // Recruiter manual upload bypasses candidate reserve gates.
     return this.uploadService.generatePresignedUrl(
       id,
       questionIndex,
       dto.contentType,
       dto.mediaType ?? 'camera',
-      undefined,
       undefined,
       { requireReservedAttempt: false },
     );
@@ -93,12 +92,11 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Recruiter manual upload bypasses candidate reserve/session lock.
+    // Recruiter manual upload bypasses candidate reserve gates.
     return this.uploadService.confirmUpload(
       id,
       questionIndex,
       dto.mediaKey,
-      undefined,
       undefined,
       { requireReservedAttempt: false },
     );

@@ -204,8 +204,6 @@ export interface Answer {
   transcript?: AnswerTranscript;
   evaluation?: AnswerEvaluation;
   validation?: AnswerValidation;
-  /** Locked on first reserve for the question; not overwritten by later reserves. */
-  recordingSessionId?: string;
 }
 
 export interface InterviewQuestionResult {

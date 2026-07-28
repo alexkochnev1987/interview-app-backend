@@ -279,11 +279,6 @@ export class AnswerDto {
 
   @ApiPropertyOptional({ type: [AnswerBehaviorEventDto] })
   behaviorEvents?: AnswerBehaviorEventDto[];
-
-  @ApiPropertyOptional({
-    description: 'Locked on first reserve for the question.',
-  })
-  recordingSessionId?: string;
 }
 
 export class InterviewBehaviorSummaryDto {

@@ -83,40 +83,6 @@ export function getAnswerVersionNotReservedBlockReason(
   return null;
 }
 
-export type RecordingSessionLockBlock = {
-  kind: 'missing_id' | 'not_reserved' | 'mismatch';
-  reason: string;
-};
-
-export function getRecordingSessionLockBlock(
-  lockedRecordingSessionId: string | undefined,
-  recordingSessionId: string | undefined,
-): RecordingSessionLockBlock | null {
-  const provided = recordingSessionId?.trim();
-  if (!provided) {
-    return {
-      kind: 'missing_id',
-      reason: 'recordingSessionId is required',
-    };
-  }
-
-  if (!lockedRecordingSessionId?.trim()) {
-    return {
-      kind: 'not_reserved',
-      reason: 'Recording attempt must be reserved before upload',
-    };
-  }
-
-  if (lockedRecordingSessionId !== provided) {
-    return {
-      kind: 'mismatch',
-      reason: 'recordingSessionId does not match the locked recording session',
-    };
-  }
-
-  return null;
-}
-
 /** Blocks replacing an already-uploaded key for the same artifact (camera or screen). */
 export function getAnswerVersionOverwriteBlockReason(
   existingMediaKey: string | undefined,

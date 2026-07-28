@@ -103,7 +103,6 @@ function buildSubmitPayload(
   questionIndex: number,
   answerText: string,
   versionNumber: number,
-  recordingSessionId: string,
 ) {
   const startedAt = new Date();
   const submittedAt = new Date(startedAt.getTime() + 8_000);
@@ -136,7 +135,6 @@ function buildSubmitPayload(
       generatedAt: submittedAt.toISOString(),
       isFinal: true,
     },
-    recordingSessionId,
   };
 }
 
@@ -261,7 +259,6 @@ async function main(): Promise<void> {
   await readJson(takeOpenRes);
 
   for (const questionIndex of [0, 1]) {
-    const recordingSessionId = `seed-session-q${questionIndex}`;
     const reserveRes = await fetch(
       `${BASE}/take/${interviewId}/answer/reserve`,
       {
@@ -270,7 +267,7 @@ async function main(): Promise<void> {
           'Content-Type': 'application/json',
           Cookie: candidateCookie,
         },
-        body: JSON.stringify({ questionIndex, recordingSessionId }),
+        body: JSON.stringify({ questionIndex }),
       },
     );
     candidateCookie = mergeCookies(candidateCookie, reserveRes);
@@ -288,7 +285,6 @@ async function main(): Promise<void> {
           questionIndex,
           cases[questionIndex].answerText,
           reserved.versionNumber,
-          recordingSessionId,
         ),
       ),
     });
