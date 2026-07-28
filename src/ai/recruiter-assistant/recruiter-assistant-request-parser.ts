@@ -1,4 +1,5 @@
 import { Locale } from '../../locale/locale.constants';
+import { extractCandidateNameFromCreateRequest } from './recruiter-assistant-name-extract';
 import { ParsedRecruiterRequest } from './recruiter-assistant.types';
 
 export function parseRecruiterRequest(
@@ -19,10 +20,7 @@ export function parseRecruiterRequest(
 }
 
 function extractCandidateName(message: string): string | undefined {
-  const candidateMatch = message.match(
-    /(?:candidate|кандидат(?:а|у)?|для кандидата)\s+([A-ZА-ЯЁ][\p{L}'-]+(?:\s+[A-ZА-ЯЁ][\p{L}'-]+){0,2})/u,
-  );
-  return candidateMatch?.[1]?.trim();
+  return extractCandidateNameFromCreateRequest(message);
 }
 
 function extractPosition(message: string): string {

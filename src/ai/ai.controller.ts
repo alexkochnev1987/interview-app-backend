@@ -39,7 +39,7 @@ import {
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
-  @Post('chat')
+  @Post('take/chat')
   @UseGuards(CandidateSessionGuard, CandidateAiThrottlerGuard)
   @ApiCookieAuth('candidateSessionAuth')
   @Throttle({
@@ -48,7 +48,7 @@ export class AiController {
       ttl: minutes(5),
     },
   })
-  @ApiOperation({ summary: 'Candidate chat assistant' })
+  @ApiOperation({ summary: 'Take-session candidate chat assistant' })
   @ApiBody({ type: ChatDto })
   @ApiOkResponse({ type: AiTextResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

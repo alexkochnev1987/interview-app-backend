@@ -1,4 +1,5 @@
 import { UserService } from '../../user/user.service';
+import { pickUniqueByPersonName } from './recruiter-assistant-name-match';
 import { HrRef } from './recruiter-assistant.types';
 
 export async function resolveHrRef(
@@ -18,15 +19,11 @@ export async function resolveHrRef(
     return null;
   }
 
-  const normalizedName = ref.name.trim().toLowerCase();
   const hrUsers = await userService.listAll({ role: 'hr', limit: 50 });
-  const matches = hrUsers.filter(
-    (user) => user.name.toLowerCase() === normalizedName,
-  );
-
-  if (matches.length !== 1) {
+  const match = pickUniqueByPersonName(hrUsers, ref.name, (user) => user.name);
+  if (!match || match.demo !== demo) {
     return null;
   }
 
-  return { id: matches[0].id, name: matches[0].name };
+  return { id: match.id, name: match.name };
 }

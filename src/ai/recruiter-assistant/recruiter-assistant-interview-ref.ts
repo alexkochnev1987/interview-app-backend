@@ -1,6 +1,6 @@
-import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { InterviewService } from '../../interview/interview.service';
 import { InterviewActor } from '../../interview/interfaces/interview.interface';
+import { pickUniqueByPersonName } from './recruiter-assistant-name-match';
 import { InterviewRef } from './recruiter-assistant.types';
 
 export async function resolveInterviewRef(
@@ -31,23 +31,25 @@ export async function resolveInterviewRef(
     }
   }
 
-  const query: QueryInterviewsDto = { limit: 5 };
-
-  if (ref.candidateName) {
-    query.q = ref.candidateName;
-  } else if (options?.candidateEmail) {
-    query.q = options.candidateEmail.split('@')[0];
-  } else {
+  const searchTerm = ref.candidateName ?? options?.candidateEmail?.split('@')[0];
+  if (!searchTerm) {
     return null;
   }
 
-  const { items } = await interviewService.findAllPaginated(query, actor);
+  const { items } = await interviewService.findAllPaginated(
+    { q: searchTerm, limit: 20 },
+    actor,
+  );
 
-  if (items.length !== 1) {
+  const item = pickUniqueByPersonName(
+    items,
+    searchTerm,
+    (entry) => entry.candidateName,
+  );
+  if (!item) {
     return null;
   }
 
-  const [item] = items;
   return {
     id: item.id,
     candidateName: item.candidateName,
