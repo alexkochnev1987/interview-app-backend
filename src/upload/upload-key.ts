@@ -59,3 +59,43 @@ export function matchesInterviewMediaKey({
 
   return pattern.test(normalizedMediaKey);
 }
+
+/**
+ * Existing artifact key on a version for overwrite checks: camera → mediaKey,
+ * screen → screenMediaKey. Unknown key shapes yield undefined (no overwrite block).
+ */
+export function resolveVersionMediaKeyForArtifact(params: {
+  interviewId: string;
+  questionIndex: number;
+  mediaKey: string;
+  version?: { mediaKey?: string; screenMediaKey?: string };
+}): string | undefined {
+  const { interviewId, questionIndex, mediaKey, version } = params;
+  if (!version) {
+    return undefined;
+  }
+
+  if (
+    matchesInterviewMediaKey({
+      mediaKey,
+      interviewId,
+      questionIndex,
+      mediaType: 'screen',
+    })
+  ) {
+    return version.screenMediaKey;
+  }
+
+  if (
+    matchesInterviewMediaKey({
+      mediaKey,
+      interviewId,
+      questionIndex,
+      mediaType: 'camera',
+    })
+  ) {
+    return version.mediaKey;
+  }
+
+  return undefined;
+}

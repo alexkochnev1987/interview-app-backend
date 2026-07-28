@@ -26,6 +26,7 @@ import {
   buildInterviewMediaKey,
   InterviewMediaType,
   matchesInterviewMediaKey,
+  resolveVersionMediaKeyForArtifact,
 } from './upload-key';
 import {
   getAnswerAttemptLimitBlockReason,
@@ -277,7 +278,7 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
-      { nextMediaKey: mediaKey },
+      { nextMediaKey: mediaKey, skipOverwriteCheck: true },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -352,7 +353,11 @@ export class UploadService {
     questionIndex: number,
     versionNumber?: number,
     recordingSessionId?: string,
-    options?: { requireReservedAttempt?: boolean; nextMediaKey?: string },
+    options?: {
+      requireReservedAttempt?: boolean;
+      nextMediaKey?: string;
+      skipOverwriteCheck?: boolean;
+    },
   ): Promise<void> {
     const interview = await this.interviewService.findOne(interviewId);
     const currentQuestionIndex = interview.answers.filter(
@@ -400,23 +405,38 @@ export class UploadService {
         );
       }
 
-      const existingVersionMediaKey =
-        answer?.versions?.find(
-          (version) => version.versionNumber === versionNumber,
-        )?.mediaKey ??
-        (answer && answer.selectedVersionNumber === versionNumber
-          ? answer.mediaKey
-          : undefined);
-      const overwriteReason = getAnswerVersionOverwriteBlockReason(
-        existingVersionMediaKey,
-        options?.nextMediaKey,
-      );
-      if (overwriteReason) {
-        throw apiConflict(
-          ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
-          overwriteReason,
-          { interviewId, questionIndex, versionNumber },
+      if (!options?.skipOverwriteCheck) {
+        const existingVersion =
+          answer?.versions?.find(
+            (version) => version.versionNumber === versionNumber,
+          ) ??
+          (answer && answer.selectedVersionNumber === versionNumber
+            ? {
+                mediaKey: answer.mediaKey,
+                screenMediaKey: answer.screenMediaKey,
+              }
+            : undefined);
+
+        const existingArtifactMediaKey = options?.nextMediaKey
+          ? resolveVersionMediaKeyForArtifact({
+              interviewId,
+              questionIndex,
+              mediaKey: options.nextMediaKey,
+              version: existingVersion,
+            })
+          : existingVersion?.mediaKey;
+
+        const overwriteReason = getAnswerVersionOverwriteBlockReason(
+          existingArtifactMediaKey,
+          options?.nextMediaKey,
         );
+        if (overwriteReason) {
+          throw apiConflict(
+            ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+            overwriteReason,
+            { interviewId, questionIndex, versionNumber },
+          );
+        }
       }
     }
 
