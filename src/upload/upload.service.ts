@@ -81,19 +81,23 @@ export class UploadService {
     options?: { requireReservedAttempt?: boolean },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(
-      interviewId,
-      questionIndex,
-      versionNumber,
-      recordingSessionId,
-      options,
-    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
       interviewId,
       questionIndex,
       normalizedMediaType,
+    );
+
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      recordingSessionId,
+      {
+        requireReservedAttempt: options?.requireReservedAttempt,
+        nextMediaKey: mediaKey,
+      },
     );
 
     const command = new PutObjectCommand({
@@ -118,18 +122,20 @@ export class UploadService {
     recordingSessionId?: string,
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(
-      interviewId,
-      questionIndex,
-      versionNumber,
-      recordingSessionId,
-    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
       interviewId,
       questionIndex,
       normalizedMediaType,
+    );
+
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      recordingSessionId,
+      { nextMediaKey: mediaKey },
     );
 
     const command = new CreateMultipartUploadCommand({
@@ -167,6 +173,7 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
+      { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -209,6 +216,7 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
+      { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -269,6 +277,7 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
+      { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -305,7 +314,10 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
-      options,
+      {
+        requireReservedAttempt: options?.requireReservedAttempt,
+        nextMediaKey: mediaKey,
+      },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -340,7 +352,7 @@ export class UploadService {
     questionIndex: number,
     versionNumber?: number,
     recordingSessionId?: string,
-    options?: { requireReservedAttempt?: boolean },
+    options?: { requireReservedAttempt?: boolean; nextMediaKey?: string },
   ): Promise<void> {
     const interview = await this.interviewService.findOne(interviewId);
     const currentQuestionIndex = interview.answers.filter(
@@ -397,6 +409,7 @@ export class UploadService {
           : undefined);
       const overwriteReason = getAnswerVersionOverwriteBlockReason(
         existingVersionMediaKey,
+        options?.nextMediaKey,
       );
       if (overwriteReason) {
         throw apiConflict(
