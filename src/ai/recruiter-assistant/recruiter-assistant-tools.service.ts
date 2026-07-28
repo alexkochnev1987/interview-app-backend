@@ -22,6 +22,7 @@ import {
 } from './recruiter-assistant.types';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
+import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 
 @Injectable()
 export class RecruiterAssistantToolsService {
@@ -86,20 +87,62 @@ export class RecruiterAssistantToolsService {
 
   /* eslint-disable @typescript-eslint/no-unused-vars -- chat tools filled in Step 7+ */
 
-  getInterviewStatus(
+  async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,
     locale: Locale,
     ownInterviews?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
-    void ref;
-    void user;
     void locale;
-    void ownInterviews;
-    return Promise.resolve({
-      status: 'refused',
-      response: 'Interview status via chat is not implemented yet.',
-    });
+
+    if (ownInterviews) {
+      if (user.role !== 'candidate') {
+        return { status: 'refused', response: 'That question is only for candidates.' };
+      }
+      const { items } = await this.interviewService.findAllPaginated(
+        { q: user.email.split('@')[0], limit: 5 },
+        { id: user.id, role: user.role, demo: user.demo },
+      );
+      const mine = items.filter(
+        (item) => item.candidateEmail?.toLowerCase() === user.email.toLowerCase(),
+      );
+      if (mine.length === 0) {
+        return { status: 'answered', response: 'You do not have an interview yet.' };
+      }
+      const interview = mine[0];
+      return {
+        status: 'answered',
+        response: `Your interview for ${interview.position} is ${interview.status.replace('_', ' ')}.`,
+        interview: {
+          id: interview.id,
+          candidateName: interview.candidateName,
+          position: interview.position,
+          status: interview.status,
+        },
+      };
+    }
+
+    if (!canListInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to look up interview status.',
+        escalateTo: 'admin',
+      };
+    }
+    const actor = { id: user.id, role: user.role, demo: user.demo };
+    const resolved = await resolveInterviewRef(this.interviewService, ref, actor);
+    if (!resolved) {
+      return {
+        status: 'answered',
+        response: 'I could not find a unique interview. Provide an interview id or candidate name.',
+      };
+    }
+
+    return {
+      status: 'answered',
+      response: `${resolved.candidateName}'s interview for ${resolved.position} is ${resolved.status.replace('_', ' ')}.`,
+      interview: resolved,
+    };
   }
 
   getReviewState(
