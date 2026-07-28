@@ -9665,27 +9665,6 @@
           "reused"
         ]
       },
-      "RecruiterAssistantChatDto": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "pendingAction": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
-              },
-              {
-                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "message"
-        ]
-      },
       "RecruiterAssistantSuggestedQuestionDto": {
         "type": "object",
         "properties": {
@@ -9746,6 +9725,98 @@
         "required": [
           "key",
           "questionText"
+        ]
+      },
+      "RecruiterAssistantCreatePendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "create_questions",
+              "create_interview"
+            ]
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "position",
+          "questions"
+        ]
+      },
+      "RecruiterAssistantAssignHrPendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "assign_hr"
+            ]
+          },
+          "interviewId": {
+            "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string"
+          },
+          "assignedHrName": {
+            "type": "string"
+          },
+          "interviewLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "interviewId",
+          "assignedHrId",
+          "assignedHrName",
+          "interviewLabel"
+        ]
+      },
+      "RecruiterAssistantChatDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "pendingAction": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
+              },
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "message"
         ]
       },
       "RecruiterAssistantCreatedInterviewDto": {

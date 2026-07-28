@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Locale } from '../../locale/locale.constants';
+import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
+import { InterviewService } from '../../interview/interview.service';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import {
   RecruiterAssistantCreatePendingActionDto,
@@ -9,6 +11,7 @@ import {
   canCreateInterviews,
   canCreateQuestions,
   canReadQuestions,
+  canListInterviews,
 } from './recruiter-assistant.policy';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import {
@@ -24,37 +27,64 @@ import { buildQuestionSuggestions } from './recruiter-question-plan';
 export class RecruiterAssistantToolsService {
   constructor(
     private readonly questionMatcher: RecruiterQuestionMatcherService,
+    private readonly interviewService: InterviewService,
   ) {}
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- chat tools filled in Step 5+ */
-
-  listInterviews(
+  async listInterviews(
     filters: QueryInterviewsDto,
     user: ActingUser,
     locale: Locale,
     readyForReview?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
-    void filters;
-    void user;
     void locale;
-    void readyForReview;
-    return Promise.resolve({
-      status: 'refused',
-      response: 'Listing interviews via chat is not implemented yet.',
-    });
+
+    if (!canListInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to list interviews.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const query: QueryInterviewsDto = { ...filters };
+    if (readyForReview && user.role === 'hr') {
+      query.assignedHrId = user.id;
+    }
+
+    const { items, total } = await this.interviewService.findAllPaginated(
+      query,
+      { id: user.id, role: user.role, demo: user.demo },
+    );
+
+    if (items.length === 0) {
+      return {
+        status: 'answered',
+        response: readyForReview
+          ? 'No completed interviews are ready for your review.'
+          : 'No interviews matched your request.',
+        interviews: [],
+      };
+    }
+
+    return {
+      status: 'answered',
+      response: `Found ${total} interview(s). Showing ${items.length}.`,
+      interviews: items,
+    };
   }
 
   listUnassigned(
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    void user;
-    void locale;
-    return Promise.resolve({
-      status: 'refused',
-      response: 'Listing unassigned interviews via chat is not implemented yet.',
-    });
+    return this.listInterviews(
+      { assignedHrId: ASSIGNED_HR_FILTER_UNASSIGNED, limit: 20 },
+      user,
+      locale,
+    );
   }
+
+  /* eslint-disable @typescript-eslint/no-unused-vars -- chat tools filled in Step 7+ */
 
   getInterviewStatus(
     ref: InterviewRef,

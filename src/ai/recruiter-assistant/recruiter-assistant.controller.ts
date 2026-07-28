@@ -3,6 +3,7 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCookieAuth,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -17,7 +18,9 @@ import { CurrentLocale } from '../../locale/decorators/current-locale.decorator'
 import { Locale } from '../../locale/locale.constants';
 import { User } from '../../user/interfaces/user.interface';
 import {
+  RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantChatDto,
+  RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
@@ -26,6 +29,10 @@ type ActingUser = Omit<User, 'passwordHash'>;
 
 @ApiTags('ai')
 @ApiCookieAuth('sessionAuth')
+@ApiExtraModels(
+  RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantAssignHrPendingActionDto,
+)
 @Controller('ai')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecruiterAssistantController {
