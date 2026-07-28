@@ -60,10 +60,6 @@ export function matchesInterviewMediaKey({
   return pattern.test(normalizedMediaKey);
 }
 
-/**
- * Overwrite checks are per artifact: camera → mediaKey, screen → screenMediaKey.
- * Unknown key shapes yield undefined (no overwrite block).
- */
 export function resolveVersionMediaKeyForArtifact(params: {
   interviewId: string;
   questionIndex: number;

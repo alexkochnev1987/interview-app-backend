@@ -184,17 +184,13 @@ export class AnswerVersionDto {
   @ApiProperty()
   versionNumber: number;
 
-  @ApiPropertyOptional({
-    description: 'Empty until media is uploaded for a reserved attempt.',
-  })
+  @ApiPropertyOptional()
   mediaKey?: string;
 
   @ApiPropertyOptional()
   screenMediaKey?: string;
 
-  @ApiPropertyOptional({
-    description: 'Set when the attempt slot is reserved before media upload.',
-  })
+  @ApiPropertyOptional()
   reservedAt?: Date;
 
   @ApiPropertyOptional()

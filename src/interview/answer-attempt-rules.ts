@@ -83,7 +83,6 @@ export function getAnswerVersionNotReservedBlockReason(
   return null;
 }
 
-/** Blocks replacing an already-uploaded key for the same artifact (camera or screen). */
 export function getAnswerVersionOverwriteBlockReason(
   existingMediaKey: string | undefined,
   nextMediaKey?: string,

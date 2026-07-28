@@ -7,7 +7,6 @@ function versionHasUploadedMedia(version: AnswerVersionMediaRef): boolean {
   return Boolean(version.mediaKey?.trim());
 }
 
-/** Highest versionNumber with non-empty mediaKey. */
 export function resolveLatestVersionWithMedia(
   versions: AnswerVersionMediaRef[],
 ): number | undefined {
@@ -18,7 +17,6 @@ export function resolveLatestVersionWithMedia(
   return latestWithMedia?.versionNumber;
 }
 
-/** Selected version if it has media; otherwise latest version with media. */
 export function resolveFinalizeAnswerVersionNumber(
   answer: { selectedVersionNumber?: number },
   versions: AnswerVersionMediaRef[],

@@ -64,7 +64,6 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Recruiter manual upload bypasses candidate reserve gates.
     return this.uploadService.generatePresignedUrl(
       id,
       questionIndex,
@@ -92,7 +91,6 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Recruiter manual upload bypasses candidate reserve gates.
     return this.uploadService.confirmUpload(
       id,
       questionIndex,

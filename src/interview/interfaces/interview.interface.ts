@@ -170,7 +170,6 @@ export interface AnswerValidation {
 
 export interface AnswerVersion {
   versionNumber: number;
-  /** Empty until media is uploaded for a reserved attempt. */
   mediaKey: string;
   screenMediaKey?: string;
   reservedAt?: Date;

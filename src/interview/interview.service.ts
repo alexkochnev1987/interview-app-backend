@@ -1580,7 +1580,6 @@ export class InterviewService {
         );
       }
 
-      // Omit screenMediaKey on progress keeps the previously stored screen artifact.
       const nextScreenMediaKey =
         screenMediaKey ?? existingVersion?.screenMediaKey;
 

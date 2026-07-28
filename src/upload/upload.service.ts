@@ -267,7 +267,6 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
-      // Abort must not treat an existing artifact key as overwrite.
       { nextMediaKey: mediaKey, skipOverwriteCheck: true },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
