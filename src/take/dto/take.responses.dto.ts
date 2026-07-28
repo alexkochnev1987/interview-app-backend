@@ -385,7 +385,7 @@ export class TakeInterviewResponseDto {
 
   @ApiProperty({
     description:
-      'Maximum recording attempts allowed per question (from MAX_ANSWER_ATTEMPTS_PER_QUESTION).',
+      'Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta.',
   })
   maxAttempts!: number;
 
@@ -459,7 +459,10 @@ export class ReserveTakeAnswerResponseDto {
   @ApiProperty({ enum: ['recording', 'submitted'] })
   status!: 'recording' | 'submitted';
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Maximum recording attempts per question (same value as GET /take maxAttempts).',
+  })
   maxAttempts!: number;
 }
 

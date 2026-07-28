@@ -32,7 +32,7 @@ import {
   getAnswerAttemptLimitBlockReason,
   getAnswerVersionNotReservedBlockReason,
   getAnswerVersionOverwriteBlockReason,
-  getRecordingSessionLockBlockReason,
+  getRecordingSessionLockBlock,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
 
@@ -278,6 +278,7 @@ export class UploadService {
       questionIndex,
       versionNumber,
       recordingSessionId,
+      // Abort must not treat an existing artifact key as overwrite.
       { nextMediaKey: mediaKey, skipOverwriteCheck: true },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
@@ -393,14 +394,21 @@ export class UploadService {
         );
       }
 
-      const sessionLockReason = getRecordingSessionLockBlockReason(
+      const sessionLock = getRecordingSessionLockBlock(
         answer?.recordingSessionId,
         recordingSessionId,
       );
-      if (sessionLockReason) {
+      if (sessionLock) {
+        if (sessionLock.kind === 'not_reserved') {
+          throw apiBadRequest(
+            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+            sessionLock.reason,
+            { interviewId, questionIndex, versionNumber },
+          );
+        }
         throw apiConflict(
           ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLockReason,
+          sessionLock.reason,
           { interviewId, questionIndex, versionNumber },
         );
       }
@@ -438,18 +446,18 @@ export class UploadService {
           );
         }
       }
-    }
 
-    const attemptLimitReason = getAnswerAttemptLimitBlockReason(
-      savedVersions,
-      versionNumber,
-    );
-    if (attemptLimitReason) {
-      throw apiBadRequest(
-        ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
-        attemptLimitReason,
-        { interviewId, questionIndex, versionNumber },
+      const attemptLimitReason = getAnswerAttemptLimitBlockReason(
+        savedVersions,
+        versionNumber,
       );
+      if (attemptLimitReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+          attemptLimitReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
     }
   }
 

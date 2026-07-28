@@ -64,7 +64,7 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Manual recruiter uploads are not part of the candidate reserve/session flow.
+    // Recruiter manual upload bypasses candidate reserve/session lock.
     return this.uploadService.generatePresignedUrl(
       id,
       questionIndex,
@@ -93,7 +93,7 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    // Manual recruiter uploads are not part of the candidate reserve/session flow.
+    // Recruiter manual upload bypasses candidate reserve/session lock.
     return this.uploadService.confirmUpload(
       id,
       questionIndex,

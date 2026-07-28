@@ -83,27 +83,41 @@ export function getAnswerVersionNotReservedBlockReason(
   return null;
 }
 
-export function getRecordingSessionLockBlockReason(
+export type RecordingSessionLockBlock = {
+  kind: 'missing_id' | 'not_reserved' | 'mismatch';
+  reason: string;
+};
+
+export function getRecordingSessionLockBlock(
   lockedRecordingSessionId: string | undefined,
   recordingSessionId: string | undefined,
-): string | null {
+): RecordingSessionLockBlock | null {
   const provided = recordingSessionId?.trim();
   if (!provided) {
-    return 'recordingSessionId is required';
+    return {
+      kind: 'missing_id',
+      reason: 'recordingSessionId is required',
+    };
   }
 
-  if (!lockedRecordingSessionId) {
-    return 'Recording attempt must be reserved before upload';
+  if (!lockedRecordingSessionId?.trim()) {
+    return {
+      kind: 'not_reserved',
+      reason: 'Recording attempt must be reserved before upload',
+    };
   }
 
   if (lockedRecordingSessionId !== provided) {
-    return 'recordingSessionId does not match the locked recording session';
+    return {
+      kind: 'mismatch',
+      reason: 'recordingSessionId does not match the locked recording session',
+    };
   }
 
   return null;
 }
 
-/** Blocks replacing an already-uploaded mediaKey with a different one. */
+/** Blocks replacing an already-uploaded key for the same artifact (camera or screen). */
 export function getAnswerVersionOverwriteBlockReason(
   existingMediaKey: string | undefined,
   nextMediaKey?: string,
@@ -118,7 +132,7 @@ export function getAnswerVersionOverwriteBlockReason(
   }
 
   const next = nextMediaKey.trim();
-  if (next && next !== existing) {
+  if (!next || next !== existing) {
     return 'This recording attempt already has uploaded media';
   }
 

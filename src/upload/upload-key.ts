@@ -61,8 +61,8 @@ export function matchesInterviewMediaKey({
 }
 
 /**
- * Existing artifact key on a version for overwrite checks: camera → mediaKey,
- * screen → screenMediaKey. Unknown key shapes yield undefined (no overwrite block).
+ * Overwrite checks are per artifact: camera → mediaKey, screen → screenMediaKey.
+ * Unknown key shapes yield undefined (no overwrite block).
  */
 export function resolveVersionMediaKeyForArtifact(params: {
   interviewId: string;

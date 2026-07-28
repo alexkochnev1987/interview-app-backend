@@ -47,7 +47,7 @@ import {
   getAnswerAttemptLimitBlockReason,
   getAnswerVersionNotReservedBlockReason,
   getAnswerVersionOverwriteBlockReason,
-  getRecordingSessionLockBlockReason,
+  getRecordingSessionLockBlock,
   resolveMaxAnswerAttemptsPerQuestion,
 } from './answer-attempt-rules';
 import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
@@ -1203,20 +1203,9 @@ export class InterviewService {
         );
       }
 
-      const sessionLockReason = getRecordingSessionLockBlockReason(
-        existingAnswer.recordingSessionId,
-        recordingSessionId,
-      );
-      if (sessionLockReason) {
-        throw apiConflict(
-          ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLockReason,
-          { interviewId: id, questionIndex },
-        );
-      }
-
       const versions = this.getAnswerVersions(existingAnswer);
 
+      // Idempotent before session lock so a lost session id still returns alreadySubmitted.
       if (existingAnswer.status === 'submitted') {
         return {
           interview,
@@ -1229,6 +1218,25 @@ export class InterviewService {
             ),
           alreadySubmitted: true,
         };
+      }
+
+      const sessionLock = getRecordingSessionLockBlock(
+        existingAnswer.recordingSessionId,
+        recordingSessionId,
+      );
+      if (sessionLock) {
+        if (sessionLock.kind === 'not_reserved') {
+          throw apiBadRequest(
+            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+            sessionLock.reason,
+            { interviewId: id, questionIndex },
+          );
+        }
+        throw apiConflict(
+          ApiErrorCode.RECORDING_SESSION_MISMATCH,
+          sessionLock.reason,
+          { interviewId: id, questionIndex },
+        );
       }
 
       const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
@@ -1601,14 +1609,25 @@ export class InterviewService {
         );
       }
 
-      const sessionLockReason = getRecordingSessionLockBlockReason(
+      const sessionLock = getRecordingSessionLockBlock(
         existingAnswer?.recordingSessionId,
         recordingSessionId,
       );
-      if (sessionLockReason) {
+      if (sessionLock) {
+        if (sessionLock.kind === 'not_reserved') {
+          throw apiBadRequest(
+            ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+            sessionLock.reason,
+            {
+              interviewId: id,
+              questionIndex,
+              versionNumber: normalizedVersionNumber,
+            },
+          );
+        }
         throw apiConflict(
           ApiErrorCode.RECORDING_SESSION_MISMATCH,
-          sessionLockReason,
+          sessionLock.reason,
           {
             interviewId: id,
             questionIndex,
@@ -1617,14 +1636,34 @@ export class InterviewService {
         );
       }
 
-      const overwriteReason = getAnswerVersionOverwriteBlockReason(
+      // Omit screenMediaKey on progress keeps the previously stored screen artifact.
+      const nextScreenMediaKey =
+        screenMediaKey ?? existingVersion?.screenMediaKey;
+
+      const cameraOverwriteReason = getAnswerVersionOverwriteBlockReason(
         existingVersion?.mediaKey,
         mediaKey,
       );
-      if (overwriteReason) {
+      if (cameraOverwriteReason) {
         throw apiConflict(
           ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
-          overwriteReason,
+          cameraOverwriteReason,
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: normalizedVersionNumber,
+          },
+        );
+      }
+
+      const screenOverwriteReason = getAnswerVersionOverwriteBlockReason(
+        existingVersion?.screenMediaKey,
+        nextScreenMediaKey,
+      );
+      if (screenOverwriteReason) {
+        throw apiConflict(
+          ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+          screenOverwriteReason,
           {
             interviewId: id,
             questionIndex,
@@ -1693,7 +1732,7 @@ export class InterviewService {
       const currentVersion: AnswerVersion = {
         versionNumber: normalizedVersionNumber,
         mediaKey,
-        screenMediaKey,
+        screenMediaKey: nextScreenMediaKey,
         reservedAt: existingVersion?.reservedAt,
         uploadedAt,
         durationSeconds:
@@ -1710,9 +1749,9 @@ export class InterviewService {
             existingVersion?.camera?.fileSizeBytes ??
             existingAnswer?.camera?.fileSizeBytes,
         }),
-        screen: screenMediaKey
+        screen: nextScreenMediaKey
           ? this.buildMediaArtifact({
-              mediaKey: screenMediaKey,
+              mediaKey: nextScreenMediaKey,
               uploadedAt,
               fileSizeBytes:
                 this.normalizePositiveNumber(screenFileSizeBytes) ??
@@ -2304,13 +2343,11 @@ export class InterviewService {
             uploadedAt,
           )
         : undefined,
-      screen: mediaKey
-        ? this.normalizeMediaArtifact(
-            rawVersion.screen,
-            this.asString(rawVersion.screenMediaKey),
-            uploadedAt,
-          )
-        : undefined,
+      screen: this.normalizeMediaArtifact(
+        rawVersion.screen,
+        this.asString(rawVersion.screenMediaKey),
+        uploadedAt,
+      ),
       behaviorSignals: this.normalizeBehaviorSignals(rawVersion.behaviorSignals),
       behaviorEvents: this.normalizeBehaviorEvents(
         rawVersion.behaviorEvents,
@@ -2745,7 +2782,6 @@ export class InterviewService {
       return [...answer.versions];
     }
 
-    // Align with getSavedAnswerVersions: only invent a legacy slot when media exists.
     if (!answer.mediaKey?.trim()) {
       return [];
     }

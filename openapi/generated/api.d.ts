@@ -2015,7 +2015,7 @@ export interface components {
             currentQuestion?: components["schemas"]["CandidateQuestionViewDto"];
             currentQuestionIndex: number;
             currentAnswerMeta?: components["schemas"]["CurrentAnswerMetaDto"];
-            /** @description Maximum recording attempts allowed per question (from MAX_ANSWER_ATTEMPTS_PER_QUESTION). */
+            /** @description Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta. */
             maxAttempts: number;
             completed: boolean;
         };
@@ -2127,6 +2127,7 @@ export interface components {
             selectedVersionNumber: number;
             /** @enum {string} */
             status: "recording" | "submitted";
+            /** @description Maximum recording attempts per question (same value as GET /take maxAttempts). */
             maxAttempts: number;
         };
         StartTakeAnswerValidationResponseDto: {

@@ -76,22 +76,26 @@ describe('InterviewService answer attempt reserve + finalize', () => {
     updated_at: new Date(),
   };
 
-  it('reserves up to max, rejects 4th, and enforces session lock / no media overwrite', async () => {
+  const behaviorSignals = {
+    tabHiddenCount: 0,
+    windowBlurCount: 0,
+    pasteCount: 0,
+    keydownCount: 0,
+    copyCount: 0,
+    resizeCount: 0,
+  };
+
+  it('reserves up to max, enforces session lock, and blocks camera/screen overwrite on progress', async () => {
     process.env.MAX_ANSWER_ATTEMPTS_PER_QUESTION = '3';
     const { service } = makeService(baseRow);
     const mediaKey = 'dev/interviews/interview-1/answers/q0-camera-1.webm';
+    const screenKey = 'dev/interviews/interview-1/answers/q0-screen-1.webm';
     const progressInput = {
       questionIndex: 0,
       versionNumber: 1,
       mediaKey,
-      behaviorSignals: {
-        tabHiddenCount: 0,
-        windowBlurCount: 0,
-        pasteCount: 0,
-        keydownCount: 0,
-        copyCount: 0,
-        resizeCount: 0,
-      },
+      screenMediaKey: screenKey,
+      behaviorSignals,
       recordingSessionId: 'session-a',
     };
 
@@ -138,10 +142,37 @@ describe('InterviewService answer attempt reserve + finalize', () => {
       service.saveAnswerProgress('interview-1', progressInput),
     ).resolves.toBeTruthy();
 
+    // Omitting screenMediaKey preserves the previously stored screen key on that version.
+    const preserved = await service.saveAnswerProgress('interview-1', {
+      questionIndex: 0,
+      versionNumber: 1,
+      mediaKey,
+      behaviorSignals,
+      recordingSessionId: 'session-a',
+    });
+    expect(
+      preserved.answers
+        .find((item) => item.questionIndex === 0)
+        ?.versions?.find((version) => version.versionNumber === 1)?.screenMediaKey,
+    ).toBe(screenKey);
+
     await expect(
       service.saveAnswerProgress('interview-1', {
         ...progressInput,
         mediaKey: 'dev/interviews/interview-1/answers/q0-camera-2.webm',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        response: expect.objectContaining({
+          code: ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+        }),
+      }),
+    );
+
+    await expect(
+      service.saveAnswerProgress('interview-1', {
+        ...progressInput,
+        screenMediaKey: 'dev/interviews/interview-1/answers/q0-screen-2.webm',
       }),
     ).rejects.toEqual(
       expect.objectContaining({
@@ -159,7 +190,7 @@ describe('InterviewService answer attempt reserve + finalize', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('finalizes exhausted attempts with stub last version using earlier media', async () => {
+  it('finalizes stub-last via earlier media and stays idempotent without session', async () => {
     const mediaKey = 'dev/interviews/interview-1/answers/q0-camera-2.webm';
     const { service } = makeService({
       ...baseRow,
@@ -208,7 +239,7 @@ describe('InterviewService answer attempt reserve + finalize', () => {
 
     const second = await service.finalizeAnswer('interview-1', {
       questionIndex: 0,
-      recordingSessionId: 'session-a',
+      recordingSessionId: 'lost-session',
     });
     expect(second.alreadySubmitted).toBe(true);
     expect(second.selectedVersionNumber).toBe(2);

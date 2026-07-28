@@ -61,14 +61,14 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
     httpStatus: HttpStatus.BAD_REQUEST,
     defaultMessage: 'Recording attempt must be reserved before upload',
     whenUsed:
-      'Upload/progress targets a versionNumber that was not reserved via POST /take/:id/answer/reserve.',
+      'Upload/progress targets a versionNumber that was not reserved, or recordingSessionId is sent before a reserve locked a session.',
   },
   {
     code: ApiErrorCode.RECORDING_SESSION_MISMATCH,
     httpStatus: HttpStatus.CONFLICT,
     defaultMessage: 'recordingSessionId does not match the locked recording session',
     whenUsed:
-      'Upload/progress uses a missing or different recordingSessionId than the one locked on the answer.',
+      'Upload/progress/finalize uses a missing or different recordingSessionId than the one locked on the answer. Missing reserve lock maps to ANSWER_VERSION_NOT_RESERVED instead.',
   },
   {
     code: ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
