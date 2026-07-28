@@ -87,6 +87,13 @@ export class AuthService {
     });
   }
 
+  async completeOnboarding(
+    userId: string,
+    status: 'completed' | 'skipped',
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.userService.completeOnboarding(userId, status);
+  }
+
   generateCandidateToken(interviewId: string): string {
     const payload = { interviewId, role: 'candidate' };
     return this.jwtService.sign(payload, { expiresIn: '7d' });

@@ -17,6 +17,8 @@ import {
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiNotFoundResponse,
+  ApiParam
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -26,6 +28,7 @@ import { AssignRoleDto } from './dto/assign-role.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
 import { User } from './interfaces/user.interface';
+import { UserProfileResponseDto } from './dto/user-profile.response.dto';
 import { UserService } from './user.service';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 
@@ -49,6 +52,20 @@ export class UserController {
       offset: query.offset,
       role: query.role,
     });
+  }
+
+  @Get(':id')
+  @RequirePermissions('users:read_profile')
+  @ApiOperation({ summary: 'Get user profile by id' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: UserProfileResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  findOne(
+      @Param('id', ParseUUIDPipe) id: string,
+      @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<UserProfileResponseDto> {
+    return this.userService.findOneForActor(actor, id);
   }
 
   @Patch(':id/role')

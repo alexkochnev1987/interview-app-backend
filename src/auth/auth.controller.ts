@@ -23,7 +23,6 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
-import { UserService } from '../user/user.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -36,6 +35,7 @@ import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
 import { AuthUserResponseDto } from './dto/auth-user.response.dto';
 import { LogoutResponseDto } from './dto/logout.response.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
@@ -46,10 +46,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   private toMeResponse(user: Omit<User, 'passwordHash'>): MeResponse {
     return {
@@ -176,16 +173,23 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiCookieAuth('sessionAuth')
   @ApiOperation({
-    summary: 'Mark first-time onboarding as completed or skipped',
+    summary: 'Mark the staff onboarding tour as completed or skipped',
     description:
-      'Sets onboardingCompletedAt when still pending. Optional client `status` in the body is ignored; refetch is not required — response matches GET /auth/me.',
+      'Sets onboardingCompletedAt on the first call (never cleared). ' +
+      'onboardingStatus reflects the latest dismissal choice and may be updated ' +
+      'on subsequent calls. Response matches GET /auth/me.',
   })
+  @ApiBody({ type: CompleteOnboardingDto })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
   async completeOnboarding(
     @CurrentUser() user: Omit<User, 'passwordHash'>,
+    @Body() dto: CompleteOnboardingDto,
   ): Promise<MeResponse> {
-    const updated = await this.userService.completeOnboarding(user.id);
+    const updated = await this.authService.completeOnboarding(
+      user.id,
+      dto.status ?? 'completed',
+    );
     return this.toMeResponse(updated);
   }
 }
