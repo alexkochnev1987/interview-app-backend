@@ -1983,8 +1983,9 @@
     },
     "/ai/chat": {
       "post": {
-        "operationId": "AiController_chat",
-        "summary": "Candidate chat assistant",
+        "operationId": "RecruiterAssistantController_chat",
+        "summary": "Global AI chat",
+        "description": "Role-aware assistant for interview queries and confirmed actions. All authenticated roles may call this route; each tool enforces the same permissions as the REST API before reading data or mutating.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -2008,7 +2009,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ChatDto"
+                "$ref": "#/components/schemas/RecruiterAssistantChatDto"
               }
             }
           }
@@ -2019,7 +2020,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AiTextResponseDto"
+                  "$ref": "#/components/schemas/RecruiterAssistantResponseDto"
                 }
               }
             }
@@ -2043,6 +2044,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2050,7 +2061,7 @@
         ],
         "security": [
           {
-            "candidateSessionAuth": []
+            "sessionAuth": []
           }
         ]
       }
@@ -5264,91 +5275,6 @@
         "security": [
           {
             "candidateSessionAuth": []
-          }
-        ]
-      }
-    },
-    "/ai/recruiter-assistant/chat": {
-      "post": {
-        "operationId": "RecruiterAssistantController_chat",
-        "summary": "Recruiter assistant chat",
-        "description": "Scoped assistant for interview and question-bank workflows. The route can read question-bank data with questions:read; write actions are confirmed by the user and checked against the current user permissions before execution.",
-        "parameters": [
-          {
-            "name": "X-Locale",
-            "in": "header",
-            "required": false,
-            "description": "Response language for localized content. Defaults to `en` when omitted.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "en",
-                "be",
-                "ru",
-                "pl"
-              ],
-              "default": "en"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecruiterAssistantChatDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecruiterAssistantResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionAuth": []
           }
         ]
       }
@@ -9739,6 +9665,27 @@
           "reused"
         ]
       },
+      "RecruiterAssistantChatDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "pendingAction": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
+              },
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
       "RecruiterAssistantSuggestedQuestionDto": {
         "type": "object",
         "properties": {
@@ -9801,61 +9748,6 @@
           "questionText"
         ]
       },
-      "RecruiterAssistantPendingActionDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "create_questions",
-              "create_interview"
-            ]
-          },
-          "position": {
-            "type": "string"
-          },
-          "candidateName": {
-            "type": "string"
-          },
-          "candidateEmail": {
-            "type": "string"
-          },
-          "interviewLocale": {
-            "type": "string",
-            "enum": [
-              "en",
-              "be",
-              "ru",
-              "pl"
-            ]
-          },
-          "questions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
-            }
-          }
-        },
-        "required": [
-          "type",
-          "position",
-          "questions"
-        ]
-      },
-      "RecruiterAssistantChatDto": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "pendingAction": {
-            "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
-          }
-        },
-        "required": [
-          "message"
-        ]
-      },
       "RecruiterAssistantCreatedInterviewDto": {
         "type": "object",
         "properties": {
@@ -9871,6 +9763,52 @@
           "candidateLink"
         ]
       },
+      "RecruiterAssistantReviewStateDto": {
+        "type": "object",
+        "properties": {
+          "reviewed": {
+            "type": "boolean"
+          },
+          "shareLinkActive": {
+            "type": "boolean"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewed"
+        ]
+      },
+      "RecruiterAssistantInterviewSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "candidateLink": {
+            "type": "string"
+          },
+          "reviewState": {
+            "$ref": "#/components/schemas/RecruiterAssistantReviewStateDto"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "status"
+        ]
+      },
       "RecruiterAssistantResponseDto": {
         "type": "object",
         "properties": {
@@ -9883,7 +9821,8 @@
               "answered",
               "needs_confirmation",
               "executed",
-              "refused"
+              "refused",
+              "denied"
             ]
           },
           "suggestedQuestions": {
@@ -9895,17 +9834,32 @@
           "pendingAction": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
-              }
-            ],
-            "allOf": [
+                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
+              },
               {
-                "$ref": "#/components/schemas/RecruiterAssistantPendingActionDto"
+                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
               }
             ]
           },
           "createdInterview": {
             "$ref": "#/components/schemas/RecruiterAssistantCreatedInterviewDto"
+          },
+          "escalateTo": {
+            "type": "string",
+            "enum": [
+              "hr",
+              "admin",
+              "super_admin"
+            ]
+          },
+          "interviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemDto"
+            }
+          },
+          "interview": {
+            "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
           }
         },
         "required": [

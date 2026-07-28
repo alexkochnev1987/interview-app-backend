@@ -2,27 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { Locale } from '../../locale/locale.constants';
 import {
   RecruiterAssistantChatDto,
-  RecruiterAssistantPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import {
-  canCreateInterviews,
-  canCreateQuestions,
+  canAccessChat,
   isConfirmationMessage,
-  isRecruiterAssistantScope,
   OUT_OF_SCOPE_RESPONSE,
 } from './recruiter-assistant.policy';
-import { parseRecruiterRequest } from './recruiter-assistant-request-parser';
-import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import { ActingUser } from './recruiter-assistant.types';
+import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
+import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
-import { buildQuestionSuggestions } from './recruiter-question-plan';
-import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 
 @Injectable()
 export class RecruiterAssistantService {
   constructor(
-    private readonly questionMatcher: RecruiterQuestionMatcherService,
+    private readonly intentRouter: RecruiterAssistantIntentService,
+    private readonly tools: RecruiterAssistantToolsService,
     private readonly pendingActionExecutor: RecruiterPendingActionExecutorService,
   ) {}
 
@@ -37,47 +33,37 @@ export class RecruiterAssistantService {
       return this.pendingActionExecutor.execute(dto.pendingAction, user, locale);
     }
 
-    if (!isRecruiterAssistantScope(message)) {
-      return {
-        status: 'refused',
-        response: OUT_OF_SCOPE_RESPONSE,
-      };
+    if (!canAccessChat(user)) {
+      return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
     }
 
-    const parsed = parseRecruiterRequest(message, locale);
-    const suggestions = buildQuestionSuggestions(parsed);
-    const resolved = await this.questionMatcher.resolveExistingQuestions(
-      suggestions,
-      user,
-      locale,
-    );
-    const existingCount = resolved.filter((question) => !question.needsCreation).length;
-    const missingCount = resolved.length - existingCount;
-    const userCanCreateQuestions = canCreateQuestions(user);
-    const userCanCreateInterviews = canCreateInterviews(user);
-    const pendingAction: RecruiterAssistantPendingActionDto = {
-      type:
-        parsed.candidateName && userCanCreateInterviews
-          ? 'create_interview'
-          : 'create_questions',
-      position: parsed.position,
-      candidateName: parsed.candidateName,
-      candidateEmail: parsed.candidateEmail,
-      interviewLocale: parsed.locale,
-      questions: resolved,
-    };
+    const intent = this.intentRouter.classify(message, user, locale);
 
-    return {
-      status: 'needs_confirmation',
-      response: buildQuestionPlanResponse({
-        existingCount,
-        missingCount,
-        canCreateQuestions: userCanCreateQuestions,
-        canCreateInterviews: userCanCreateInterviews,
-        candidateName: parsed.candidateName,
-      }),
-      suggestedQuestions: resolved,
-      pendingAction,
-    };
+    switch (intent.kind) {
+      case 'list_interviews':
+        return this.tools.listInterviews(
+          intent.filters,
+          user,
+          locale,
+          intent.readyForReview,
+        );
+      case 'list_unassigned':
+        return this.tools.listUnassigned(user, locale);
+      case 'interview_status':
+        return this.tools.getInterviewStatus(
+          intent.ref,
+          user,
+          locale,
+          intent.ownInterviews,
+        );
+      case 'review_state':
+        return this.tools.getReviewState(intent.ref, user, locale);
+      case 'assign_hr':
+        return this.tools.prepareAssignHr(intent, user, locale);
+      case 'create_questions_interview':
+        return this.tools.prepareCreateQuestions(intent.parsed, user, locale);
+      case 'out_of_scope':
+        return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+    }
   }
 }
