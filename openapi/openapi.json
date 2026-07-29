@@ -5086,6 +5086,98 @@
         ]
       }
     },
+    "/take/{id}/answer/finalize": {
+      "post": {
+        "operationId": "TakeController_finalizeAnswer",
+        "summary": "Finalize and submit the current question using stored answer media",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeAnswerAttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizeTakeAnswerResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
     "/take/{id}/answer/progress": {
       "post": {
         "operationId": "TakeController_saveAnswerProgress",
@@ -5133,6 +5225,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SaveTakeAnswerProgressResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "take"
+        ],
+        "security": [
+          {
+            "candidateSessionAuth": []
+          }
+        ]
+      }
+    },
+    "/take/{id}/answer/reserve": {
+      "post": {
+        "operationId": "TakeController_reserveAnswerAttempt",
+        "summary": "Reserve a candidate answer recording attempt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveAnswerAttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveTakeAnswerResponseDto"
                 }
               }
             }
@@ -6335,6 +6519,8 @@
           "UPLOAD_FAILED",
           "UPLOAD_NOT_ALLOWED",
           "ANSWER_ATTEMPT_LIMIT_REACHED",
+          "ANSWER_VERSION_NOT_RESERVED",
+          "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -8094,6 +8280,10 @@
           "screenMediaKey": {
             "type": "string"
           },
+          "reservedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "uploadedAt": {
             "format": "date-time",
             "type": "string"
@@ -8126,9 +8316,7 @@
           }
         },
         "required": [
-          "versionNumber",
-          "mediaKey",
-          "uploadedAt"
+          "versionNumber"
         ]
       },
       "AnswerDto": {
@@ -8944,12 +9132,13 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
+            "description": "Reserved answer attempt/version being recorded."
           }
         },
         "required": [
           "questionIndex",
-          "contentType"
+          "contentType",
+          "versionNumber"
         ]
       },
       "PresignedUrlResponseDto": {
@@ -8975,11 +9164,16 @@
           },
           "mediaKey": {
             "type": "string"
+          },
+          "versionNumber": {
+            "type": "number",
+            "description": "Reserved answer attempt/version being confirmed."
           }
         },
         "required": [
           "questionIndex",
-          "mediaKey"
+          "mediaKey",
+          "versionNumber"
         ]
       },
       "ConfirmUploadResponseDto": {
@@ -9019,12 +9213,13 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Omit when starting the next attempt."
+            "description": "Reserved answer attempt/version being recorded."
           }
         },
         "required": [
           "questionIndex",
-          "contentType"
+          "contentType",
+          "versionNumber"
         ]
       },
       "MultipartUploadSessionResponseDto": {
@@ -9059,14 +9254,15 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
           "uploadId",
-          "partNumber"
+          "partNumber",
+          "versionNumber"
         ]
       },
       "MultipartUploadPartResponseDto": {
@@ -9106,13 +9302,14 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
-          "uploadId"
+          "uploadId",
+          "versionNumber"
         ]
       },
       "MultipartUploadCompleteResponseDto": {
@@ -9149,13 +9346,14 @@
           },
           "versionNumber": {
             "type": "number",
-            "description": "Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt."
+            "description": "Reserved answer attempt/version being recorded."
           }
         },
         "required": [
           "questionIndex",
           "mediaKey",
-          "uploadId"
+          "uploadId",
+          "versionNumber"
         ]
       },
       "MultipartUploadAbortResponseDto": {
@@ -9304,12 +9502,23 @@
           },
           "selectedVersionNumber": {
             "type": "number"
+          },
+          "hasSubmittableMedia": {
+            "type": "boolean",
+            "description": "True when any version in answers_json has a non-empty mediaKey."
+          },
+          "latestSubmittableVersionNumber": {
+            "type": "number",
+            "description": "Highest versionNumber with uploaded media, or null when no version has media.",
+            "nullable": true
           }
         },
         "required": [
           "status",
           "versionCount",
-          "selectedVersionNumber"
+          "selectedVersionNumber",
+          "hasSubmittableMedia",
+          "latestSubmittableVersionNumber"
         ]
       },
       "TakeInterviewResponseDto": {
@@ -9348,6 +9557,10 @@
           "currentAnswerMeta": {
             "$ref": "#/components/schemas/CurrentAnswerMetaDto"
           },
+          "maxAttempts": {
+            "type": "number",
+            "description": "Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta."
+          },
           "completed": {
             "type": "boolean"
           }
@@ -9360,6 +9573,7 @@
           "status",
           "totalQuestions",
           "currentQuestionIndex",
+          "maxAttempts",
           "completed"
         ]
       },
@@ -9539,6 +9753,51 @@
           "completed"
         ]
       },
+      "FinalizeAnswerAttemptDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "questionIndex"
+        ]
+      },
+      "FinalizeTakeAnswerResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "answeredCount": {
+            "type": "number"
+          },
+          "totalQuestions": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "selectedVersionNumber": {
+            "type": "number",
+            "description": "Answer version submitted from stored media in answers_json."
+          },
+          "alreadySubmitted": {
+            "type": "boolean",
+            "description": "True when the question was already submitted (idempotent finalize)."
+          }
+        },
+        "required": [
+          "ok",
+          "answeredCount",
+          "totalQuestions",
+          "completed",
+          "selectedVersionNumber",
+          "alreadySubmitted"
+        ]
+      },
       "SaveAnswerProgressDto": {
         "type": "object",
         "properties": {
@@ -9617,6 +9876,49 @@
           "status",
           "versionCount",
           "selectedVersionNumber"
+        ]
+      },
+      "ReserveAnswerAttemptDto": {
+        "type": "object",
+        "properties": {
+          "questionIndex": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "questionIndex"
+        ]
+      },
+      "ReserveTakeAnswerResponseDto": {
+        "type": "object",
+        "properties": {
+          "versionNumber": {
+            "type": "number"
+          },
+          "versionCount": {
+            "type": "number"
+          },
+          "selectedVersionNumber": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "submitted"
+            ]
+          },
+          "maxAttempts": {
+            "type": "number",
+            "description": "Maximum recording attempts per question (same value as GET /take maxAttempts)."
+          }
+        },
+        "required": [
+          "versionNumber",
+          "versionCount",
+          "selectedVersionNumber",
+          "status",
+          "maxAttempts"
         ]
       },
       "StartTakeAnswerValidationResponseDto": {

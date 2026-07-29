@@ -870,6 +870,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/take/{id}/answer/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalize and submit the current question using stored answer media */
+        post: operations["TakeController_finalizeAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/take/{id}/answer/progress": {
         parameters: {
             query?: never;
@@ -881,6 +898,23 @@ export interface paths {
         put?: never;
         /** Save candidate answer progress */
         post: operations["TakeController_saveAnswerProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/take/{id}/answer/reserve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reserve a candidate answer recording attempt */
+        post: operations["TakeController_reserveAnswerAttempt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1114,7 +1148,7 @@ export interface components {
             status?: "completed" | "skipped";
         };
         /** @enum {string} */
-        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
+        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
         ApiErrorResponseDto: {
             /** @example 400 */
             statusCode: number;
@@ -1665,10 +1699,12 @@ export interface components {
         };
         AnswerVersionDto: {
             versionNumber: number;
-            mediaKey: string;
+            mediaKey?: string;
             screenMediaKey?: string;
             /** Format: date-time */
-            uploadedAt: string;
+            reservedAt?: string;
+            /** Format: date-time */
+            uploadedAt?: string;
             durationSeconds?: number;
             /** Format: date-time */
             startedAt?: string;
@@ -1918,8 +1954,8 @@ export interface components {
             contentType: "video/webm";
             /** @enum {string} */
             mediaType?: "camera" | "screen";
-            /** @description Answer attempt/version being recorded. Omit when starting the next attempt. */
-            versionNumber?: number;
+            /** @description Reserved answer attempt/version being recorded. */
+            versionNumber: number;
         };
         PresignedUrlResponseDto: {
             uploadUrl: string;
@@ -1928,6 +1964,8 @@ export interface components {
         ConfirmUploadDto: {
             questionIndex: number;
             mediaKey: string;
+            /** @description Reserved answer attempt/version being confirmed. */
+            versionNumber: number;
         };
         ConfirmUploadResponseDto: {
             mediaKey: string;
@@ -1940,8 +1978,8 @@ export interface components {
             contentType: "video/webm";
             /** @enum {string} */
             mediaType?: "camera" | "screen";
-            /** @description Answer attempt/version being recorded. Omit when starting the next attempt. */
-            versionNumber?: number;
+            /** @description Reserved answer attempt/version being recorded. */
+            versionNumber: number;
         };
         MultipartUploadSessionResponseDto: {
             mediaKey: string;
@@ -1952,8 +1990,8 @@ export interface components {
             mediaKey: string;
             uploadId: string;
             partNumber: number;
-            /** @description Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt. */
-            versionNumber?: number;
+            /** @description Reserved answer attempt/version being recorded. */
+            versionNumber: number;
         };
         MultipartUploadPartResponseDto: {
             mediaKey: string;
@@ -1965,8 +2003,8 @@ export interface components {
             questionIndex: number;
             mediaKey: string;
             uploadId: string;
-            /** @description Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt. */
-            versionNumber?: number;
+            /** @description Reserved answer attempt/version being recorded. */
+            versionNumber: number;
         };
         MultipartUploadCompleteResponseDto: {
             mediaKey: string;
@@ -1978,8 +2016,8 @@ export interface components {
             questionIndex: number;
             mediaKey: string;
             uploadId: string;
-            /** @description Answer attempt/version being recorded. Required for multipart re-upload of an existing attempt. */
-            versionNumber?: number;
+            /** @description Reserved answer attempt/version being recorded. */
+            versionNumber: number;
         };
         MultipartUploadAbortResponseDto: {
             mediaKey: string;
@@ -2031,6 +2069,10 @@ export interface components {
             status: "recording" | "submitted";
             versionCount: number;
             selectedVersionNumber: number;
+            /** @description True when any version in answers_json has a non-empty mediaKey. */
+            hasSubmittableMedia: boolean;
+            /** @description Highest versionNumber with uploaded media, or null when no version has media. */
+            latestSubmittableVersionNumber: number | null;
         };
         TakeInterviewResponseDto: {
             id: string;
@@ -2043,6 +2085,8 @@ export interface components {
             currentQuestion?: components["schemas"]["CandidateQuestionViewDto"];
             currentQuestionIndex: number;
             currentAnswerMeta?: components["schemas"]["CurrentAnswerMetaDto"];
+            /** @description Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta. */
+            maxAttempts: number;
             completed: boolean;
         };
         BehaviorSignalsDto: {
@@ -2098,6 +2142,20 @@ export interface components {
             totalQuestions: number;
             completed: boolean;
         };
+        FinalizeAnswerAttemptDto: {
+            questionIndex: number;
+        };
+        FinalizeTakeAnswerResponseDto: {
+            /** @example true */
+            ok: boolean;
+            answeredCount: number;
+            totalQuestions: number;
+            completed: boolean;
+            /** @description Answer version submitted from stored media in answers_json. */
+            selectedVersionNumber: number;
+            /** @description True when the question was already submitted (idempotent finalize). */
+            alreadySubmitted: boolean;
+        };
         SaveAnswerProgressDto: {
             questionIndex: number;
             versionNumber: number;
@@ -2121,6 +2179,18 @@ export interface components {
             status: "recording" | "submitted";
             versionCount: number;
             selectedVersionNumber: number;
+        };
+        ReserveAnswerAttemptDto: {
+            questionIndex: number;
+        };
+        ReserveTakeAnswerResponseDto: {
+            versionNumber: number;
+            versionCount: number;
+            selectedVersionNumber: number;
+            /** @enum {string} */
+            status: "recording" | "submitted";
+            /** @description Maximum recording attempts per question (same value as GET /take maxAttempts). */
+            maxAttempts: number;
         };
         StartTakeAnswerValidationResponseDto: {
             /** @example true */
@@ -4897,6 +4967,58 @@ export interface operations {
             };
         };
     };
+    TakeController_finalizeAnswer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalizeAnswerAttemptDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalizeTakeAnswerResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
     TakeController_saveAnswerProgress: {
         parameters: {
             query?: never;
@@ -4921,6 +5043,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SaveTakeAnswerProgressResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    TakeController_reserveAnswerAttempt: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReserveAnswerAttemptDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReserveTakeAnswerResponseDto"];
                 };
             };
             400: {

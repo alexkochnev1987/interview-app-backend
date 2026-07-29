@@ -113,15 +113,35 @@ export async function openCandidateTakeSession(
   return agent.get(`/take/${interviewId}`).query({ token }).expect(200);
 }
 
+export async function reserveCandidateAnswerAttempt(
+  agent: IntegrationAgent,
+  interviewId: string,
+  questionIndex = 0,
+) {
+  const response = await agent
+    .post(`/take/${interviewId}/answer/reserve`)
+    .send({ questionIndex })
+    .expect(201);
+
+  return response.body as {
+    versionNumber: number;
+    versionCount: number;
+    selectedVersionNumber: number;
+    status: string;
+    maxAttempts: number;
+  };
+}
+
 export async function submitCandidateAnswer(
   agent: IntegrationAgent,
   interviewId: string,
   token: string,
 ) {
   await openCandidateTakeSession(agent, interviewId, token);
+  const reserved = await reserveCandidateAnswerAttempt(agent, interviewId, 0);
 
   await agent
     .post(`/take/${interviewId}/answer`)
-    .send(buildSubmitAnswerPayload(interviewId, 0, 1))
+    .send(buildSubmitAnswerPayload(interviewId, 0, reserved.versionNumber))
     .expect(201);
 }
