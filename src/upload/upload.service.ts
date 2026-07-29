@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest } from '../common/errors/api-error';
+import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -26,9 +26,12 @@ import {
   buildInterviewMediaKey,
   InterviewMediaType,
   matchesInterviewMediaKey,
+  resolveVersionMediaKeyForArtifact,
 } from './upload-key';
 import {
   getAnswerAttemptLimitBlockReason,
+  getAnswerVersionNotReservedBlockReason,
+  getAnswerVersionOverwriteBlockReason,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
 
@@ -74,19 +77,25 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
+    options?: { requireReservedAttempt?: boolean },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(
-      interviewId,
-      questionIndex,
-      versionNumber,
-    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
       interviewId,
       questionIndex,
       normalizedMediaType,
+    );
+
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      {
+        requireReservedAttempt: options?.requireReservedAttempt,
+        nextMediaKey: mediaKey,
+      },
     );
 
     const command = new PutObjectCommand({
@@ -110,17 +119,19 @@ export class UploadService {
     versionNumber?: number,
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
-    await this.assertCurrentQuestionUploadAllowed(
-      interviewId,
-      questionIndex,
-      versionNumber,
-    );
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
       interviewId,
       questionIndex,
       normalizedMediaType,
+    );
+
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      { nextMediaKey: mediaKey },
     );
 
     const command = new CreateMultipartUploadCommand({
@@ -156,6 +167,7 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
+      { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -196,6 +208,7 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
+      { nextMediaKey: mediaKey },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -254,6 +267,7 @@ export class UploadService {
       interviewId,
       questionIndex,
       versionNumber,
+      { nextMediaKey: mediaKey, skipOverwriteCheck: true },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
@@ -277,11 +291,22 @@ export class UploadService {
     };
   }
 
-  confirmUpload(
+  async confirmUpload(
     interviewId: string,
     questionIndex: number,
     mediaKey: string,
-  ): ConfirmUploadResponseDto {
+    versionNumber?: number,
+    options?: { requireReservedAttempt?: boolean },
+  ): Promise<ConfirmUploadResponseDto> {
+    await this.assertCurrentQuestionUploadAllowed(
+      interviewId,
+      questionIndex,
+      versionNumber,
+      {
+        requireReservedAttempt: options?.requireReservedAttempt,
+        nextMediaKey: mediaKey,
+      },
+    );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
 
     return { mediaKey, confirmed: true };
@@ -314,6 +339,11 @@ export class UploadService {
     interviewId: string,
     questionIndex: number,
     versionNumber?: number,
+    options?: {
+      requireReservedAttempt?: boolean;
+      nextMediaKey?: string;
+      skipOverwriteCheck?: boolean;
+    },
   ): Promise<void> {
     const interview = await this.interviewService.findOne(interviewId);
     const currentQuestionIndex = interview.answers.filter(
@@ -333,16 +363,67 @@ export class UploadService {
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );
-    const attemptLimitReason = getAnswerAttemptLimitBlockReason(
-      getSavedAnswerVersions(answer),
-      versionNumber,
-    );
-    if (attemptLimitReason) {
-      throw apiBadRequest(
-        ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
-        attemptLimitReason,
-        { interviewId, questionIndex, versionNumber },
+    const savedVersions = getSavedAnswerVersions(answer);
+    const requireReservedAttempt = options?.requireReservedAttempt ?? true;
+
+    if (requireReservedAttempt) {
+      const notReservedReason = getAnswerVersionNotReservedBlockReason(
+        savedVersions,
+        versionNumber,
       );
+      if (notReservedReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_VERSION_NOT_RESERVED,
+          notReservedReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
+
+      if (!options?.skipOverwriteCheck) {
+        const existingVersion =
+          answer?.versions?.find(
+            (version) => version.versionNumber === versionNumber,
+          ) ??
+          (answer && answer.selectedVersionNumber === versionNumber
+            ? {
+                mediaKey: answer.mediaKey,
+                screenMediaKey: answer.screenMediaKey,
+              }
+            : undefined);
+
+        const existingArtifactMediaKey = options?.nextMediaKey
+          ? resolveVersionMediaKeyForArtifact({
+              interviewId,
+              questionIndex,
+              mediaKey: options.nextMediaKey,
+              version: existingVersion,
+            })
+          : existingVersion?.mediaKey;
+
+        const overwriteReason = getAnswerVersionOverwriteBlockReason(
+          existingArtifactMediaKey,
+          options?.nextMediaKey,
+        );
+        if (overwriteReason) {
+          throw apiConflict(
+            ApiErrorCode.ANSWER_VERSION_OVERWRITE_FORBIDDEN,
+            overwriteReason,
+            { interviewId, questionIndex, versionNumber },
+          );
+        }
+      }
+
+      const attemptLimitReason = getAnswerAttemptLimitBlockReason(
+        savedVersions,
+        versionNumber,
+      );
+      if (attemptLimitReason) {
+        throw apiBadRequest(
+          ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
+          attemptLimitReason,
+          { interviewId, questionIndex, versionNumber },
+        );
+      }
     }
   }
 

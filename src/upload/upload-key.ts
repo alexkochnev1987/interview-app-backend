@@ -59,3 +59,39 @@ export function matchesInterviewMediaKey({
 
   return pattern.test(normalizedMediaKey);
 }
+
+export function resolveVersionMediaKeyForArtifact(params: {
+  interviewId: string;
+  questionIndex: number;
+  mediaKey: string;
+  version?: { mediaKey?: string; screenMediaKey?: string };
+}): string | undefined {
+  const { interviewId, questionIndex, mediaKey, version } = params;
+  if (!version) {
+    return undefined;
+  }
+
+  if (
+    matchesInterviewMediaKey({
+      mediaKey,
+      interviewId,
+      questionIndex,
+      mediaType: 'screen',
+    })
+  ) {
+    return version.screenMediaKey;
+  }
+
+  if (
+    matchesInterviewMediaKey({
+      mediaKey,
+      interviewId,
+      questionIndex,
+      mediaType: 'camera',
+    })
+  ) {
+    return version.mediaKey;
+  }
+
+  return undefined;
+}

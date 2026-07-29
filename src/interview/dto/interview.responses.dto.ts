@@ -184,14 +184,17 @@ export class AnswerVersionDto {
   @ApiProperty()
   versionNumber: number;
 
-  @ApiProperty()
-  mediaKey: string;
+  @ApiPropertyOptional()
+  mediaKey?: string;
 
   @ApiPropertyOptional()
   screenMediaKey?: string;
 
-  @ApiProperty()
-  uploadedAt: Date;
+  @ApiPropertyOptional()
+  reservedAt?: Date;
+
+  @ApiPropertyOptional()
+  uploadedAt?: Date;
 
   @ApiPropertyOptional()
   durationSeconds?: number;

@@ -172,6 +172,7 @@ export interface AnswerVersion {
   versionNumber: number;
   mediaKey: string;
   screenMediaKey?: string;
+  reservedAt?: Date;
   uploadedAt: Date;
   durationSeconds?: number;
   startedAt?: Date;

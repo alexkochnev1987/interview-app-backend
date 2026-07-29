@@ -67,3 +67,39 @@ export function getAnswerAttemptLimitBlockReason(
 
   return null;
 }
+
+export function getAnswerVersionNotReservedBlockReason(
+  versions: AnswerVersionRef[],
+  versionNumber?: number,
+): string | null {
+  if (typeof versionNumber !== 'number' || versionNumber < 1) {
+    return 'A reserved recording attempt versionNumber is required';
+  }
+
+  if (!versions.some((version) => version.versionNumber === versionNumber)) {
+    return 'Recording attempt must be reserved before upload';
+  }
+
+  return null;
+}
+
+export function getAnswerVersionOverwriteBlockReason(
+  existingMediaKey: string | undefined,
+  nextMediaKey?: string,
+): string | null {
+  const existing = existingMediaKey?.trim();
+  if (!existing) {
+    return null;
+  }
+
+  if (nextMediaKey === undefined) {
+    return 'This recording attempt already has uploaded media';
+  }
+
+  const next = nextMediaKey.trim();
+  if (!next || next !== existing) {
+    return 'This recording attempt already has uploaded media';
+  }
+
+  return null;
+}

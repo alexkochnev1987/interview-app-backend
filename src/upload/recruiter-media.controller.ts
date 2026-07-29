@@ -69,6 +69,8 @@ export class RecruiterMediaController {
       questionIndex,
       dto.contentType,
       dto.mediaType ?? 'camera',
+      undefined,
+      { requireReservedAttempt: false },
     );
   }
 
@@ -89,7 +91,13 @@ export class RecruiterMediaController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ) {
     await this.interviewService.findOneForActor(id, user);
-    return this.uploadService.confirmUpload(id, questionIndex, dto.mediaKey);
+    return this.uploadService.confirmUpload(
+      id,
+      questionIndex,
+      dto.mediaKey,
+      undefined,
+      { requireReservedAttempt: false },
+    );
   }
 
   @Get(':id/questions/:questionIndex/media')
