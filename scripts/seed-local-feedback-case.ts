@@ -102,12 +102,13 @@ function buildSubmitPayload(
   interviewId: string,
   questionIndex: number,
   answerText: string,
+  versionNumber: number,
 ) {
   const startedAt = new Date();
   const submittedAt = new Date(startedAt.getTime() + 8_000);
   return {
     questionIndex,
-    versionNumber: 1,
+    versionNumber,
     submitAnswer: true,
     mediaKey: mediaKey(interviewId, questionIndex),
     screenMediaKey: mediaKey(interviewId, questionIndex).replace(
@@ -258,6 +259,20 @@ async function main(): Promise<void> {
   await readJson(takeOpenRes);
 
   for (const questionIndex of [0, 1]) {
+    const reserveRes = await fetch(
+      `${BASE}/take/${interviewId}/answer/reserve`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: candidateCookie,
+        },
+        body: JSON.stringify({ questionIndex }),
+      },
+    );
+    candidateCookie = mergeCookies(candidateCookie, reserveRes);
+    const reserved = await readJson<{ versionNumber: number }>(reserveRes);
+
     const submitRes = await fetch(`${BASE}/take/${interviewId}/answer`, {
       method: 'POST',
       headers: {
@@ -269,6 +284,7 @@ async function main(): Promise<void> {
           interviewId,
           questionIndex,
           cases[questionIndex].answerText,
+          reserved.versionNumber,
         ),
       ),
     });

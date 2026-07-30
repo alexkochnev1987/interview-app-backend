@@ -68,14 +68,15 @@ export class UploadController {
   @ApiOkResponse({ type: ConfirmUploadResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  complete(
+  async complete(
     @Body() dto: ConfirmUploadDto,
     @Req() req: CandidateRequest,
-  ): ConfirmUploadResponseDto {
+  ): Promise<ConfirmUploadResponseDto> {
     return this.uploadService.confirmUpload(
       req.candidatePayload.interviewId,
       dto.questionIndex,
       dto.mediaKey,
+      dto.versionNumber,
     );
   }
 

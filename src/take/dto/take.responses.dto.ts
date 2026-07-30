@@ -177,6 +177,22 @@ export class SubmitAnswerDto {
   clientTranscript?: ClientTranscriptDto;
 }
 
+export class ReserveAnswerAttemptDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+}
+
+export class FinalizeAnswerAttemptDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  questionIndex!: number;
+}
+
 export class SaveAnswerProgressDto {
   @ApiProperty()
   @Type(() => Number)
@@ -256,17 +272,17 @@ export class SaveAnswerProgressDto {
 
 export class CandidateQuestionViewDto {
   @ApiProperty()
-  text: string;
+  text!: string;
 
   @ApiProperty({ type: [String] })
-  followUpQuestions: string[];
+  followUpQuestions!: string[];
 
   @ApiProperty({
     enum: SUPPORTED_LOCALES,
     description:
       'Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation.',
   })
-  resolvedLocale: Locale;
+  resolvedLocale!: Locale;
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
@@ -285,6 +301,20 @@ export class CurrentAnswerMetaDto {
 
   @ApiProperty()
   selectedVersionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'True when any version in answers_json has a non-empty mediaKey.',
+  })
+  hasSubmittableMedia!: boolean;
+
+  @ApiProperty({
+    description:
+      'Highest versionNumber with uploaded media, or null when no version has media.',
+    nullable: true,
+    type: Number,
+  })
+  latestSubmittableVersionNumber!: number | null;
 }
 
 export class TakeInterviewResponseDto {
@@ -315,6 +345,12 @@ export class TakeInterviewResponseDto {
   @ApiPropertyOptional({ type: CurrentAnswerMetaDto })
   currentAnswerMeta!: CurrentAnswerMetaDto | null;
 
+  @ApiProperty({
+    description:
+      'Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta.',
+  })
+  maxAttempts!: number;
+
   @ApiProperty()
   completed!: boolean;
 }
@@ -333,6 +369,31 @@ export class SubmitTakeAnswerResponseDto {
   completed!: boolean;
 }
 
+export class FinalizeTakeAnswerResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
+
+  @ApiProperty()
+  answeredCount!: number;
+
+  @ApiProperty()
+  totalQuestions!: number;
+
+  @ApiProperty()
+  completed!: boolean;
+
+  @ApiProperty({
+    description: 'Answer version submitted from stored media in answers_json.',
+  })
+  selectedVersionNumber!: number;
+
+  @ApiProperty({
+    description:
+      'True when the question was already submitted (idempotent finalize).',
+  })
+  alreadySubmitted!: boolean;
+}
+
 export class SaveTakeAnswerProgressResponseDto {
   @ApiProperty({ example: true })
   ok!: boolean;
@@ -345,6 +406,26 @@ export class SaveTakeAnswerProgressResponseDto {
 
   @ApiProperty()
   selectedVersionNumber!: number;
+}
+
+export class ReserveTakeAnswerResponseDto {
+  @ApiProperty()
+  versionNumber!: number;
+
+  @ApiProperty()
+  versionCount!: number;
+
+  @ApiProperty()
+  selectedVersionNumber!: number;
+
+  @ApiProperty({ enum: ['recording', 'submitted'] })
+  status!: 'recording' | 'submitted';
+
+  @ApiProperty({
+    description:
+      'Maximum recording attempts per question (same value as GET /take maxAttempts).',
+  })
+  maxAttempts!: number;
 }
 
 export class StartTakeAnswerValidationResponseDto {
