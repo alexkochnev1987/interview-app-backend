@@ -7,9 +7,10 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { User } from './interfaces/user.interface';
+import { AvatarSource, User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
+import { computeAvatarPictureUrl } from './avatar/avatar-picture-url';
 import { DatabaseService } from '../database/database.service';
 import {
   isDemoSeedAllowed,
@@ -35,6 +36,9 @@ interface UserRow {
   created_at: Date;
   onboarding_completed_at: Date | null;
   onboarding_status: OnboardingStatus | null;
+  avatar_source: AvatarSource;
+  avatar_key: string | null;
+  google_picture_url: string | null;
 }
 
 const USER_COLUMNS = `
@@ -47,7 +51,10 @@ const USER_COLUMNS = `
   demo,
   created_at,
   onboarding_completed_at,
-  onboarding_status
+  onboarding_status,
+  avatar_source,
+  avatar_key,
+  google_picture_url
 `;
 
 @Injectable()
@@ -71,6 +78,7 @@ export class UserService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     return this.databaseService.withTransaction(async (client) => {
+      const avatarSource: AvatarSource = dto.googlePictureUrl ? 'google' : 'none';
       const result = await client.query<UserRow>(
         `
           INSERT INTO users (
@@ -79,9 +87,11 @@ export class UserService implements OnModuleInit {
             name,
             role,
             organization_id,
-            password_hash
+            password_hash,
+            google_picture_url,
+            avatar_source
           )
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING ${USER_COLUMNS}
         `,
         [
@@ -91,6 +101,8 @@ export class UserService implements OnModuleInit {
           dto.role,
           dto.organizationId ?? null,
           passwordHash,
+          dto.googlePictureUrl ?? null,
+          avatarSource,
         ],
       );
 
@@ -328,7 +340,129 @@ export class UserService implements OnModuleInit {
       onboardingCompletedAt: user.onboardingCompletedAt,
       onboardingStatus: user.onboardingStatus,
       createdAt: user.createdAt,
+      avatarSource: user.avatarSource,
+      pictureUrl: user.pictureUrl,
     };
+  }
+
+  /**
+   * Sets a custom S3-backed avatar for the user, returning the previous
+   * avatar_key (if any) so the caller can clean up the now-orphaned S3
+   * object after this DB update has committed.
+   */
+  async setAvatarUpload(
+    userId: string,
+    avatarKey: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = $2,
+              avatar_source = 'upload',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId, avatarKey],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * Reverts a user to the initials placeholder for the current session.
+   * Deliberately does not fall back to google_picture_url even if one is
+   * still stored on the row — the Google photo only re-activates on a
+   * subsequent Google login (see UserService.activateGoogleAvatar), not
+   * automatically here.
+   */
+  async clearAvatar(
+    userId: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = NULL,
+              avatar_source = 'none',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * Called on every Google login for an existing user. Refreshes the stored
+   * Google photo and activates it as the active picture source — unless a
+   * custom upload is currently active, which must never be clobbered by a
+   * Google login. Google's photo is the ever-present default (per the
+   * feature's design), so this intentionally *does* re-surface it even if
+   * the user previously deleted their picture — 'none' after a delete means
+   * "no custom choice made", not "permanently opt out of the Google default".
+   */
+  async activateGoogleAvatar(
+    userId: string,
+    googlePictureUrl: string,
+  ): Promise<void> {
+    await this.databaseService.query(
+      `
+        UPDATE users
+        SET google_picture_url = $2,
+            avatar_source = CASE WHEN avatar_source = 'upload' THEN avatar_source ELSE 'google' END,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      [userId, googlePictureUrl],
+    );
   }
 
   private normalizeEmail(email: string): string {
@@ -336,6 +470,9 @@ export class UserService implements OnModuleInit {
   }
 
   private mapRow(row: UserRow): User {
+    const avatarSource = row.avatar_source ?? 'none';
+    const avatarKey = row.avatar_key ?? undefined;
+    const googlePictureUrl = row.google_picture_url ?? undefined;
     return {
       id: row.id,
       email: row.email,
@@ -349,6 +486,15 @@ export class UserService implements OnModuleInit {
         : undefined,
       onboardingStatus: row.onboarding_status ?? undefined,
       createdAt: new Date(row.created_at),
+      avatarSource,
+      avatarKey,
+      googlePictureUrl,
+      pictureUrl: computeAvatarPictureUrl({
+        userId: row.id,
+        avatarSource,
+        avatarKey,
+        googlePictureUrl,
+      }),
     };
   }
 }
