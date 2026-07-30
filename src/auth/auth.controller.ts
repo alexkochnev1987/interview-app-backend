@@ -139,10 +139,15 @@ export class AuthController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const googleUser = req.user as { email: string; name: string };
+    const googleUser = req.user as {
+      email: string;
+      name: string;
+      pictureUrl?: string;
+    };
     const user = await this.authService.findOrCreateGoogleUser(
       googleUser.email,
       googleUser.name,
+      googleUser.pictureUrl,
     );
     const token = this.authService.login(user);
     res.cookie(STAFF_SESSION_COOKIE, token, getStaffSessionCookieOptions());

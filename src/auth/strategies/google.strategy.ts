@@ -16,12 +16,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   validate(
     _accessToken: string,
     _refreshToken: string,
-    profile: { emails: { value: string }[]; displayName: string },
+    profile: {
+      emails: { value: string }[];
+      displayName: string;
+      photos?: { value: string }[];
+    },
     done: VerifyCallback,
   ): void {
     const user = {
       email: profile.emails[0].value,
       name: profile.displayName,
+      pictureUrl: profile.photos?.[0]?.value,
     };
     done(null, user);
   }
