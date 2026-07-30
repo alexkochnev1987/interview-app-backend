@@ -659,6 +659,243 @@
         ]
       }
     },
+    "/users/me/avatar/presign": {
+      "post": {
+        "operationId": "AvatarController_presign",
+        "summary": "Get a presigned URL to upload a new avatar",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarPresignRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarPresignResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar/complete": {
+      "post": {
+        "operationId": "AvatarController_complete",
+        "summary": "Confirm an uploaded avatar and activate it",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarCompleteUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar": {
+      "delete": {
+        "operationId": "AvatarController_remove",
+        "summary": "Remove the current avatar, reverting to initials",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}/avatar": {
+      "get": {
+        "operationId": "AvatarController_proxy",
+        "summary": "Redirect to a presigned URL for a user's avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects to a short-lived S3 URL"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/questions": {
       "get": {
         "operationId": "QuestionController_findAll",
@@ -6454,6 +6691,11 @@
             "format": "date-time",
             "type": "string",
             "example": "2026-05-05T12:00:00.000Z"
+          },
+          "pictureUrl": {
+            "type": "string",
+            "example": "https://lh3.googleusercontent.com/a/photo.jpg",
+            "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
           }
         },
         "required": [
@@ -6521,6 +6763,8 @@
           "ANSWER_ATTEMPT_LIMIT_REACHED",
           "ANSWER_VERSION_NOT_RESERVED",
           "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
+          "AVATAR_UNSUPPORTED_TYPE",
+          "AVATAR_TOO_LARGE",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -6599,6 +6843,11 @@
             "type": "string",
             "example": "jane@interview-app.com",
             "description": "Present when viewing your own profile or when the actor has a privileged role."
+          },
+          "pictureUrl": {
+            "type": "string",
+            "example": "https://lh3.googleusercontent.com/a/photo.jpg",
+            "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
           }
         },
         "required": [
@@ -6660,6 +6909,64 @@
           "user",
           "counts"
         ]
+      },
+      "AvatarPresignRequestDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
+          },
+          "fileSizeBytes": {
+            "type": "number",
+            "example": 204800,
+            "maximum": 5242880
+          }
+        },
+        "required": [
+          "contentType",
+          "fileSizeBytes"
+        ]
+      },
+      "AvatarPresignResponseDto": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string"
+          },
+          "avatarKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "avatarKey"
+        ]
+      },
+      "AvatarCompleteUploadDto": {
+        "type": "object",
+        "properties": {
+          "avatarKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatarKey"
+        ]
+      },
+      "AvatarUpdateResponseDto": {
+        "type": "object",
+        "properties": {
+          "pictureUrl": {
+            "type": "string",
+            "example": "/users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar",
+            "nullable": true
+          }
+        }
       },
       "QuestionExpectedConceptDto": {
         "type": "object",
