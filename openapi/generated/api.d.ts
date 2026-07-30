@@ -364,7 +364,7 @@ export interface paths {
         patch: operations["QuestionController_restore"];
         trace?: never;
     };
-    "/ai/chat": {
+    "/ai/take/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -373,7 +373,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Candidate chat assistant */
+        /** Take-session candidate chat assistant */
         post: operations["AiController_chat"];
         delete?: never;
         options?: never;
@@ -938,7 +938,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ai/recruiter-assistant/chat": {
+    "/ai/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -948,8 +948,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Recruiter assistant chat
-         * @description Scoped assistant for interview and question-bank workflows. The route can read question-bank data with questions:read; write actions are confirmed by the user and checked against the current user permissions before execution.
+         * Global AI chat
+         * @description Role-aware assistant for interview queries and confirmed actions. All authenticated roles may call this route; each tool enforces the same permissions as the REST API before reading data or mutating.
          */
         post: operations["RecruiterAssistantController_chat"];
         delete?: never;
@@ -2237,7 +2237,7 @@ export interface components {
             existingQuestionText?: string;
             needsCreation?: boolean;
         };
-        RecruiterAssistantPendingActionDto: {
+        RecruiterAssistantCreatePendingActionDto: {
             /** @enum {string} */
             type: "create_questions" | "create_interview";
             position: string;
@@ -2247,21 +2247,46 @@ export interface components {
             interviewLocale?: "en" | "be" | "ru" | "pl";
             questions: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
         };
+        RecruiterAssistantAssignHrPendingActionDto: {
+            /** @enum {string} */
+            type: "assign_hr";
+            interviewId: string;
+            assignedHrId: string;
+            assignedHrName: string;
+            interviewLabel: string;
+        };
         RecruiterAssistantChatDto: {
             message: string;
-            pendingAction?: components["schemas"]["RecruiterAssistantPendingActionDto"];
+            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
         };
         RecruiterAssistantCreatedInterviewDto: {
             id: string;
             candidateLink: string;
         };
+        RecruiterAssistantReviewStateDto: {
+            reviewed: boolean;
+            shareLinkActive?: boolean;
+            outcome?: string;
+        };
+        RecruiterAssistantInterviewSummaryDto: {
+            id: string;
+            candidateName: string;
+            position: string;
+            status: string;
+            candidateLink?: string;
+            reviewState?: components["schemas"]["RecruiterAssistantReviewStateDto"];
+        };
         RecruiterAssistantResponseDto: {
             response: string;
             /** @enum {string} */
-            status: "answered" | "needs_confirmation" | "executed" | "refused";
+            status: "answered" | "needs_confirmation" | "executed" | "refused" | "denied";
             suggestedQuestions?: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
-            pendingAction?: components["schemas"]["RecruiterAssistantPendingActionDto"] & components["schemas"]["RecruiterAssistantPendingActionDto"];
+            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
             createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
+            /** @enum {string} */
+            escalateTo?: "hr" | "admin" | "super_admin";
+            interviews?: components["schemas"]["InterviewListItemDto"][];
+            interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
         };
         PublicCandidateFeedbackTextBlockDto: {
             /** @description Candidate-facing strengths / recommendations text. */
