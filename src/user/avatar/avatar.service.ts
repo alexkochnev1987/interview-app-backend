@@ -8,6 +8,7 @@ import {
   HeadObjectCommandOutput,
   PutObjectCommand,
   S3Client,
+  S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UserService } from '../user.service';
@@ -171,7 +172,13 @@ export class AvatarService {
   }
 
   private isS3NotFoundError(error: unknown): boolean {
-    return error instanceof Error && error.name === 'NotFound';
+    if (!(error instanceof S3ServiceException)) {
+      return false;
+    }
+    if (error.name === 'NotFound' || error.name === 'NoSuchKey') {
+      return true;
+    }
+    return error.$metadata?.httpStatusCode === 404;
   }
 
   private async deleteObjectQuietly(key: string): Promise<void> {
