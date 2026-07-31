@@ -8,7 +8,21 @@ describe('computeAvatarPictureUrl', () => {
         avatarSource: 'upload',
         avatarKey: 'uploads/avatars/user-1/1.png',
       }),
-    ).toBe('/users/user-1/avatar');
+    ).toBe('/users/user-1/avatar?v=uploads%2Favatars%2Fuser-1%2F1.png');
+  });
+
+  it('changes the proxy url when the avatar key changes, busting stale caches', () => {
+    const first = computeAvatarPictureUrl({
+      userId: 'user-1',
+      avatarSource: 'upload',
+      avatarKey: 'uploads/avatars/user-1/1.png',
+    });
+    const second = computeAvatarPictureUrl({
+      userId: 'user-1',
+      avatarSource: 'upload',
+      avatarKey: 'uploads/avatars/user-1/2.png',
+    });
+    expect(first).not.toBe(second);
   });
 
   it('returns the raw Google URL when source is google', () => {

@@ -20,7 +20,7 @@ export function computeAvatarPictureUrl({
   googlePictureUrl,
 }: ComputeAvatarPictureUrlParams): string | undefined {
   if (avatarSource === 'upload' && avatarKey) {
-    return `/users/${userId}/avatar`;
+    return `/users/${userId}/avatar?v=${encodeURIComponent(avatarKey)}`;
   }
   if (avatarSource === 'google' && googlePictureUrl) {
     return googlePictureUrl;
