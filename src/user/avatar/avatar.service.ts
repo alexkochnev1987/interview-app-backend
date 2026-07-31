@@ -69,6 +69,7 @@ export class AvatarService {
       Bucket: this.bucket,
       Key: avatarKey,
       ContentType: contentType,
+      ContentLength: fileSizeBytes,
     });
 
     const uploadUrl = await getSignedUrl(this.s3Client, command, {
@@ -108,13 +109,13 @@ export class AvatarService {
       );
     }
     if (
-      head.ContentType &&
+      !head.ContentType ||
       !SUPPORTED_AVATAR_CONTENT_TYPES.includes(head.ContentType)
     ) {
       await this.deleteObjectQuietly(avatarKey);
       throw apiBadRequest(
         ApiErrorCode.AVATAR_UNSUPPORTED_TYPE,
-        `Unsupported avatar content type: ${head.ContentType}`,
+        `Unsupported avatar content type: ${head.ContentType ?? 'missing'}`,
       );
     }
 
