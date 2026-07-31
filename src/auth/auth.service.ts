@@ -64,7 +64,7 @@ export class AuthService {
       // Activates the Google photo as the active picture unless the user
       // currently has a custom upload (see UserService.activateGoogleAvatar).
       if (pictureUrl) {
-        await this.userService.activateGoogleAvatar(existing.id, pictureUrl);
+        return this.userService.activateGoogleAvatar(existing.id, pictureUrl);
       }
       return this.userService.toPublicUser(existing);
     }

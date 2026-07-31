@@ -452,17 +452,23 @@ export class UserService implements OnModuleInit {
   async activateGoogleAvatar(
     userId: string,
     googlePictureUrl: string,
-  ): Promise<void> {
-    await this.databaseService.query(
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const result = await this.databaseService.query<UserRow>(
       `
         UPDATE users
         SET google_picture_url = $2,
             avatar_source = CASE WHEN avatar_source = 'upload' THEN avatar_source ELSE 'google' END,
             updated_at = NOW()
         WHERE id = $1
+        RETURNING ${USER_COLUMNS}
       `,
       [userId, googlePictureUrl],
     );
+    const updatedRow = result.rows[0];
+    if (!updatedRow) {
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+    return this.toPublicUser(this.mapRow(updatedRow));
   }
 
   private normalizeEmail(email: string): string {
