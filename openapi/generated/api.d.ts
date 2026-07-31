@@ -1290,7 +1290,7 @@ export interface components {
         };
         AvatarUpdateResponseDto: {
             /** @example /users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar */
-            pictureUrl?: string | null;
+            pictureUrl: string | null;
         };
         QuestionExpectedConceptDto: {
             id: string;

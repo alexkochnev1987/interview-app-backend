@@ -6966,7 +6966,10 @@
             "example": "/users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar",
             "nullable": true
           }
-        }
+        },
+        "required": [
+          "pictureUrl"
+        ]
       },
       "QuestionExpectedConceptDto": {
         "type": "object",

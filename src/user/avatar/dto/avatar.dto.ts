@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
 import {
@@ -35,7 +35,7 @@ export class AvatarCompleteUploadDto {
 }
 
 export class AvatarUpdateResponseDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     type: String,
     example: '/users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar',
     nullable: true,
