@@ -956,4 +956,49 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_status;`,
     ],
   },
+  {
+    version: '0046',
+    name: 'create_app_variables_table',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS app_variables (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          key VARCHAR(128) UNIQUE NOT NULL,
+          value TEXT NOT NULL,
+          value_type VARCHAR(32) NOT NULL DEFAULT 'string',
+          is_public BOOLEAN NOT NULL DEFAULT false,
+          is_secret BOOLEAN NOT NULL DEFAULT false,
+          description TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_by VARCHAR(128)
+        );
+      `,
+      `CREATE INDEX IF NOT EXISTS idx_app_variables_public ON app_variables (is_public) WHERE is_public = true;`,
+      `CREATE INDEX IF NOT EXISTS idx_app_variables_key ON app_variables (key);`,
+      `
+        INSERT INTO app_variables (key, value, value_type, is_public, is_secret, description) VALUES
+        ('MAX_TEMPLATE_QUESTIONS', '100', 'number', true, false, 'Maximum allowed number of questions per interview template or session'),
+        ('MAX_ANSWER_DURATION_SECONDS', '300', 'number', true, false, 'Maximum candidate video response recording limit in seconds per question'),
+        ('MAX_ANSWER_ATTEMPTS_PER_QUESTION', '3', 'number', true, false, 'Maximum allowed recording retry attempts per question for candidates'),
+        ('VALIDATION_MAX_CONCURRENCY', '3', 'number', false, false, 'Maximum number of concurrent AI answer evaluation background jobs'),
+        ('MAX_MEDIA_FILE_SIZE_MB', '100', 'number', true, false, 'Maximum allowed media payload file size in megabytes for AWS S3 upload'),
+        ('ENABLE_GOOGLE_OAUTH', 'true', 'boolean', true, false, 'Toggle Google OAuth Single Sign-On button visibility and backend guard execution'),
+        ('AI_CANDIDATE_FEEDBACK', 'true', 'boolean', true, false, 'Enable automated LLM feedback report generation for candidates upon interview completion'),
+        ('AI_QUESTION_DRAFT_V2', 'false', 'boolean', false, false, 'A/B testing switch to enable next-generation heuristic prompts for AI question generation'),
+        ('ENABLE_FEEDBACK_SHARE_LINKS', 'true', 'boolean', true, false, 'Toggle generation and resolving of external public candidate feedback share links'),
+        ('ENABLE_S3_MEDIA_CLEANUP', 'true', 'boolean', false, false, 'Master switch for background orphan media cleaning job in AWS S3 or MinIO'),
+        ('ENABLE_AI_ANSWER_VALIDATION', 'true', 'boolean', false, false, 'Master switch for Whisper media transcription and LLM answer grading workflow'),
+        ('MAINTENANCE_MODE_KILLSWITCH', 'false', 'boolean', true, false, 'Emergency system killswitch blocking all POST PUT DELETE write operations with 503 HTTP status'),
+        ('DISABLE_USER_REGISTRATION', 'false', 'boolean', true, false, 'Emergency switch to halt new user account registration to prevent spam or DDoS attacks'),
+        ('DISABLE_AI_EMBEDDINGS_SYNC', 'false', 'boolean', false, false, 'Disable background vector embeddings synchronization during mass bulk question imports')
+        ON CONFLICT (key) DO NOTHING;
+      `,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS idx_app_variables_key;`,
+      `DROP INDEX IF EXISTS idx_app_variables_public;`,
+      `DROP TABLE IF EXISTS app_variables;`,
+    ],
+  },
 ];
