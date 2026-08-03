@@ -13,6 +13,7 @@ import { TemplateModule } from './template/template.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { LocaleModule } from './locale/locale.module';
+import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { LocaleModule } from './locale/locale.module';
     LocaleModule,
     RateLimitModule,
     DatabaseModule,
+    AppConfigModule,
     AuthModule,
     UserModule,
     QuestionModule,
