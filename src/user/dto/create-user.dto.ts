@@ -6,4 +6,5 @@ export class CreateUserDto {
   password: string;
   role: UserRole;
   organizationId?: string;
+  googlePictureUrl?: string;
 }
