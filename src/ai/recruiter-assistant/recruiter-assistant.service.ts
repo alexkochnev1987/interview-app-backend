@@ -80,6 +80,7 @@ export class RecruiterAssistantService {
           user,
           locale,
           intent.ownInterviews,
+          intent.scheduleInquiry,
         );
       case 'review_state':
         return this.tools.getReviewState(intent.ref, user, locale);

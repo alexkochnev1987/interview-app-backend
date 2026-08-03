@@ -40,11 +40,16 @@ export const MY_INTERVIEWS_PATTERNS = [
   cyrillicLoosePattern('мои\\s+интерв'),
 ];
 
+export const CANDIDATE_SCHEDULE_PATTERNS = [
+  /\bwhen is my interview\b/i,
+  /\bwhere is my interview\b/i,
+];
+
 export const CANDIDATE_OWN_STATUS_PATTERNS = [
   /\b(do i have an interview|have i got an interview)\b/i,
   /\bmy interview status\b/i,
-  /\bwhen is my interview\b/i,
   /\bstatus of my interview\b/i,
+  ...CANDIDATE_SCHEDULE_PATTERNS,
   cyrillicLoosePattern('есть\\s+ли\\s+у\\s+меня\\s+интерв'),
   cyrillicLoosePattern('мой\\s+интерв'),
 ];

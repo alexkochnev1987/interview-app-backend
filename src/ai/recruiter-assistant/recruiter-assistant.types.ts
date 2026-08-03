@@ -34,7 +34,7 @@ export interface HrRef {
 export type RecruiterAssistantIntent =
   | { kind: 'list_interviews'; filters: QueryInterviewsDto; readyForReview?: boolean }
   | { kind: 'list_unassigned' }
-  | { kind: 'interview_status'; ref: InterviewRef; ownInterviews?: boolean }
+  | { kind: 'interview_status'; ref: InterviewRef; ownInterviews?: boolean; scheduleInquiry?: boolean }
   | { kind: 'review_state'; ref: InterviewRef }
   | {
       kind: 'assign_hr';

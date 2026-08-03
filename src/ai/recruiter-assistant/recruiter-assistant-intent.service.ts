@@ -11,6 +11,7 @@ import {
 import {
   ASSIGN_HR_PATTERNS,
   CANDIDATE_OWN_STATUS_PATTERNS,
+  CANDIDATE_SCHEDULE_PATTERNS,
   INTERVIEW_STATUS_PATTERNS,
   LIST_INTERVIEWS_PATTERNS,
   matchesAnyPattern,
@@ -66,7 +67,12 @@ export class RecruiterAssistantIntentService {
       user.role === 'candidate'
       && matchesAnyPattern(normalized, CANDIDATE_OWN_STATUS_PATTERNS)
     ) {
-      return { kind: 'interview_status', ref: {}, ownInterviews: true };
+      return {
+        kind: 'interview_status',
+        ref: {},
+        ownInterviews: true,
+        scheduleInquiry: matchesAnyPattern(normalized, CANDIDATE_SCHEDULE_PATTERNS),
+      };
     }
 
     if (matchesAnyPattern(normalized, REVIEW_STATE_PATTERNS)) {

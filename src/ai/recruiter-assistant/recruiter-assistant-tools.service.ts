@@ -103,26 +103,27 @@ export class RecruiterAssistantToolsService {
     user: ActingUser,
     locale: Locale,
     ownInterviews?: boolean,
+    scheduleInquiry?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (ownInterviews) {
       if (user.role !== 'candidate') {
         return { status: 'refused', response: 'That question is only for candidates.' };
       }
-      const { items } = await this.interviewService.findAllPaginated(
-        { q: user.email.split('@')[0], limit: 5 },
-        toInterviewActor(user),
-      );
-      const mine = items.filter(
-        (item) => item.candidateEmail?.toLowerCase() === user.email.toLowerCase(),
-      );
-      if (mine.length === 0) {
+
+      const interview = await this.findCandidateOwnInterview(user);
+      if (!interview) {
         return { status: 'answered', response: 'You do not have an interview yet.' };
       }
-      const interview = mine[0];
+
+      const statusText = interview.status.replace('_', ' ');
+      const response = scheduleInquiry
+        ? `Your interview for ${interview.position} is ${statusText}. It was created on ${interview.createdAt.toISOString().slice(0, 10)}. This app does not store a separate interview time or location yet — use your interview link when the status is pending or in progress.`
+        : `Your interview for ${interview.position} is ${statusText}.`;
+
       return {
         status: 'answered',
-        response: `Your interview for ${interview.position} is ${interview.status.replace('_', ' ')}.`,
+        response,
         interview: {
           id: interview.id,
           candidateName: interview.candidateName,
@@ -170,11 +171,16 @@ export class RecruiterAssistantToolsService {
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
+
+    if (user.role === 'candidate') {
+      return this.getCandidateReviewState(user);
+    }
+
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
         response: 'You do not have permission to check review state.',
-        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+        escalateTo: 'admin',
       };
     }
 
@@ -327,6 +333,53 @@ export class RecruiterAssistantToolsService {
       suggestedQuestions: resolved,
       pendingAction,
       pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+    };
+  }
+
+  private async findCandidateOwnInterview(user: ActingUser) {
+    return this.interviewService.findLatestByCandidateEmail(user.email, user.demo);
+  }
+
+  private async getCandidateReviewState(
+    user: ActingUser,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const interview = await this.findCandidateOwnInterview(user);
+    if (!interview) {
+      return { status: 'answered', response: 'You do not have an interview yet.' };
+    }
+
+    const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);
+    const shareLinkActive =
+      await this.candidateFeedbackShareService.hasActiveShareLink(interview.id);
+
+    const reviewed =
+      interview.status === 'completed'
+      && (
+        !!interview.decision
+        || !!feedback?.outcome
+        || (feedback != null && hasAnyPublishableCandidateFeedbackBlock(feedback))
+      );
+
+    const reviewState = {
+      reviewed,
+      shareLinkActive,
+      outcome: feedback?.outcome ?? interview.decision,
+    };
+
+    const response = reviewed
+      ? `Your interview has been reviewed${reviewState.outcome ? ` (${reviewState.outcome})` : ''}.`
+      : 'Your interview has not been reviewed yet.';
+
+    return {
+      status: 'answered',
+      response,
+      interview: {
+        id: interview.id,
+        candidateName: interview.candidateName,
+        position: interview.position,
+        status: interview.status,
+        reviewState,
+      },
     };
   }
 }

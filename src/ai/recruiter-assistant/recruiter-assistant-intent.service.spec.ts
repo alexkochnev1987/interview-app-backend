@@ -81,6 +81,18 @@ describe('RecruiterAssistantIntentService', () => {
       kind: 'interview_status',
       ref: {},
       ownInterviews: true,
+      scheduleInquiry: false,
+    });
+  });
+
+  it('flags schedule inquiries for candidate when/where prompts', () => {
+    expect(
+      service.classify('when is my interview', candidate, 'en'),
+    ).toEqual({
+      kind: 'interview_status',
+      ref: {},
+      ownInterviews: true,
+      scheduleInquiry: true,
     });
   });
 
