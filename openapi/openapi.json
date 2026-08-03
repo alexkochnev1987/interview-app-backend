@@ -10180,15 +10180,8 @@
           "message": {
             "type": "string"
           },
-          "pendingAction": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
-              },
-              {
-                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
-              }
-            ]
+          "pendingActionId": {
+            "type": "string"
           }
         },
         "required": [
@@ -10287,6 +10280,9 @@
                 "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
               }
             ]
+          },
+          "pendingActionId": {
+            "type": "string"
           },
           "createdInterview": {
             "$ref": "#/components/schemas/RecruiterAssistantCreatedInterviewDto"

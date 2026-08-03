@@ -57,7 +57,6 @@ import {
 } from './dto/interview.responses.dto';
 import {
   Interview,
-  InterviewActor,
   InterviewCancelResult,
   InterviewDeleteResult,
   InterviewResult,

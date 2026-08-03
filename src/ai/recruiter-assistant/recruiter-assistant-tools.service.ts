@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../../database/database.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { Locale } from '../../locale/locale.constants';
@@ -49,9 +48,10 @@ export class RecruiterAssistantToolsService {
   async listInterviews(
     filters: QueryInterviewsDto,
     user: ActingUser,
-    _locale: Locale,
+    locale: Locale,
     readyForReview?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
@@ -101,9 +101,10 @@ export class RecruiterAssistantToolsService {
   async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,
-    _locale: Locale,
+    locale: Locale,
     ownInterviews?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
     if (ownInterviews) {
       if (user.role !== 'candidate') {
         return { status: 'refused', response: 'That question is only for candidates.' };
@@ -166,8 +167,9 @@ export class RecruiterAssistantToolsService {
   async getReviewState(
     ref: InterviewRef,
     user: ActingUser,
-    _locale: Locale,
+    locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
@@ -227,8 +229,9 @@ export class RecruiterAssistantToolsService {
   async prepareAssignHr(
     intent: Extract<RecruiterAssistantIntent, { kind: 'assign_hr' }>,
     user: ActingUser,
-    _locale: Locale,
+    locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
     if (!canAssignHr(user)) {
       return {
         status: 'denied',

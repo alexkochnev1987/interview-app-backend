@@ -2257,7 +2257,7 @@ export interface components {
         };
         RecruiterAssistantChatDto: {
             message: string;
-            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
+            pendingActionId?: string;
         };
         RecruiterAssistantCreatedInterviewDto: {
             id: string;
@@ -2282,6 +2282,7 @@ export interface components {
             status: "answered" | "needs_confirmation" | "executed" | "refused" | "denied";
             suggestedQuestions?: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
             pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
+            pendingActionId?: string;
             createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
