@@ -76,7 +76,9 @@ export class RecruiterPendingActionExecutorService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    const interviewLocale = action.interviewLocale ?? locale;
     const createdQuestions: RecruiterAssistantSuggestedQuestionDto[] = [];
+    const createdQuestionIds: string[] = [];
     const finalQuestionIds: string[] = [];
 
     try {
@@ -96,12 +98,9 @@ export class RecruiterPendingActionExecutorService {
         }
 
         const created = await this.questionService.createResolved(
-          toCreateQuestionDto(
-            question,
-            action.position,
-            action.interviewLocale ?? locale,
-          ),
+          toCreateQuestionDto(question, action.position, interviewLocale),
         );
+        createdQuestionIds.push(created.id);
         finalQuestionIds.push(created.id);
         createdQuestions.push({
           ...question,
@@ -111,14 +110,15 @@ export class RecruiterPendingActionExecutorService {
         });
       }
     } catch {
+      await this.rollbackCreatedQuestions(createdQuestionIds, interviewLocale);
+
       return {
         status: 'refused',
         response:
-          'Something went wrong while creating questions. No interview was created; please start again.',
-        suggestedQuestions: mergeCreatedQuestionSuggestions(
-          action.questions,
-          createdQuestions,
-        ),
+          createdQuestionIds.length > 0
+            ? 'Question creation failed partway through. Any new questions from this attempt were rolled back; no interview was created.'
+            : 'Something went wrong while creating questions. No questions or interview were created; please start again.',
+        suggestedQuestions: action.questions,
       };
     }
 
@@ -141,6 +141,10 @@ export class RecruiterPendingActionExecutorService {
         status: 'refused',
         response:
           'The questions are ready, but I cannot create the interview because your user does not have interviews:create permission.',
+        suggestedQuestions: mergeCreatedQuestionSuggestions(
+          action.questions,
+          createdQuestions,
+        ),
       };
     }
 
@@ -150,7 +154,7 @@ export class RecruiterPendingActionExecutorService {
           candidateName: action.candidateName,
           candidateEmail: action.candidateEmail,
           position: action.position,
-          interviewLocale: action.interviewLocale ?? locale,
+          interviewLocale,
           questionIds: finalQuestionIds,
         },
         {
@@ -171,15 +175,29 @@ export class RecruiterPendingActionExecutorService {
         },
       };
     } catch {
+      await this.rollbackCreatedQuestions(createdQuestionIds, interviewLocale);
+
       return {
         status: 'refused',
         response:
-          'The questions were created, but interview creation failed. You can create the interview manually with the prepared questions.',
-        suggestedQuestions: mergeCreatedQuestionSuggestions(
-          action.questions,
-          createdQuestions,
-        ),
+          'Interview creation failed. Any new questions from this attempt were rolled back; please start again.',
+        suggestedQuestions: action.questions,
       };
+    }
+  }
+
+  private async rollbackCreatedQuestions(
+    questionIds: string[],
+    locale: Locale,
+  ): Promise<void> {
+    if (questionIds.length === 0) {
+      return;
+    }
+
+    try {
+      await this.questionService.softDeleteMany(questionIds, locale);
+    } catch {
+      // Best-effort rollback so a failed confirmation does not leave orphan questions.
     }
   }
 }

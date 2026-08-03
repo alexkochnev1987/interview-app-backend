@@ -77,18 +77,13 @@ export const LIST_INTERVIEWS_PATTERNS = [
 ];
 
 export const CREATE_INTENT_PATTERNS = [
-  /\bquestions?\b/i,
-  /\bprepare\b/i,
-  /\bsetup\b/i,
-  /\bset up\b/i,
+  /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
+  /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
   /\bcreate (an )?interview\b/i,
   /\bmake interview\b/i,
   /\bgenerate questions\b/i,
-  /\bdeveloper\b/i,
-  cyrillicPattern('(?:вопрос|вопросы)'),
-  cyrillicPattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)(?:\\s+\\S+){0,16}(?:вопрос|интерв)'),
-  cyrillicPattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,16}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
-  cyrillicPattern('разработчик'),
+  cyrillicLoosePattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)'),
+  cyrillicLoosePattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
 ];
 
 export function matchesAnyPattern(message: string, patterns: RegExp[]): boolean {

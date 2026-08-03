@@ -122,5 +122,14 @@ describe('RecruiterAssistantIntentService', () => {
         service.classify('покажи все интервью', admin, 'ru').kind,
       ).not.toBe('create_questions_interview');
     });
+
+    it('does not treat bare English nouns as create', () => {
+      expect(service.classify('show pending interviews', admin, 'en').kind).toBe(
+        'list_interviews',
+      );
+      expect(service.classify('what developer tools do we use', admin, 'en').kind).toBe(
+        'out_of_scope',
+      );
+    });
   });
 });

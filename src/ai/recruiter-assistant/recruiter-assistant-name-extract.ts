@@ -1,6 +1,38 @@
 const PERSON_NAME =
   `[\\p{L}'][\\p{L}'-]*(?:\\s+[\\p{L}'][\\p{L}'-]*){0,2}`;
 
+const ROLE_TITLE_WORDS = new Set([
+  'a',
+  'an',
+  'architect',
+  'analyst',
+  'backend',
+  'designer',
+  'developer',
+  'devops',
+  'engineer',
+  'frontend',
+  'fullstack',
+  'full-stack',
+  'intern',
+  'junior',
+  'lead',
+  'manager',
+  'qa',
+  'react',
+  'role',
+  'senior',
+  'software',
+  'staff',
+  'test',
+  'разработчик',
+  'инженер',
+  'тест',
+  'фронтенд',
+  'бэкенд',
+  'фулст',
+]);
+
 const NAME_STOP_WORDS = new Set([
   'a',
   'an',
@@ -42,7 +74,37 @@ function sanitizeExtractedName(raw: string | undefined): string | undefined {
   return tokens.join(' ');
 }
 
+function looksLikePersonName(value: string): boolean {
+  const tokens = value
+    .trim()
+    .split(/\s+/)
+    .filter((token) => token.length > 0);
+
+  if (tokens.length === 0) {
+    return false;
+  }
+
+  if (tokens.some((token) => ROLE_TITLE_WORDS.has(token.toLowerCase()))) {
+    return false;
+  }
+
+  return true;
+}
+
 function firstCapture(message: string, patterns: RegExp[]): string | undefined {
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      const sanitized = sanitizeExtractedName(match[1]);
+      if (sanitized && looksLikePersonName(sanitized)) {
+        return sanitized;
+      }
+    }
+  }
+  return undefined;
+}
+
+function firstCaptureAllowRole(message: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
@@ -56,7 +118,7 @@ function firstCapture(message: string, patterns: RegExp[]): string | undefined {
 }
 
 export function extractInterviewCandidateName(message: string): string | undefined {
-  return firstCapture(message, [
+  return firstCaptureAllowRole(message, [
     new RegExp(
       `\\bassign\\b(?:.*?)\\binterview\\b\\s+for\\s+(${PERSON_NAME})\\s+to\\b`,
       'iu',
@@ -79,7 +141,7 @@ export function extractInterviewId(message: string): string | undefined {
 }
 
 export function extractHrUserName(message: string): string | undefined {
-  return firstCapture(message, [
+  return firstCaptureAllowRole(message, [
     new RegExp(`\\bassign\\b.*?\\bto\\s+(${PERSON_NAME})\\b`, 'iu'),
     new RegExp(`\\b(?:reviewer|hr)\\s+(${PERSON_NAME})\\b`, 'iu'),
   ]);
