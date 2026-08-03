@@ -22,5 +22,4 @@ export interface User {
   avatarKey?: string;
   googlePictureUrl?: string;
   pictureUrl?: string;
-  hasGoogleAvatar: boolean;
 }

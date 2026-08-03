@@ -358,7 +358,6 @@ export class UserService implements OnModuleInit {
       avatarSource: user.avatarSource,
       hasGoogleAvatar: user.hasGoogleAvatar,
       pictureUrl: user.pictureUrl,
-      hasGoogleAvatar: user.hasGoogleAvatar,
     };
   }
 
@@ -588,7 +587,6 @@ export class UserService implements OnModuleInit {
       hasGoogleAvatar: avatarSource === 'google' && !!googlePictureUrl,
       avatarKey,
       googlePictureUrl,
-      hasGoogleAvatar: googlePictureUrl != null,
       pictureUrl: computeAvatarPictureUrl({
         userId: row.id,
         avatarSource,
