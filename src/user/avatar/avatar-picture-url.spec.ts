@@ -1,6 +1,7 @@
 import {
   canRestoreGoogleAvatar,
   computeAvatarPictureUrl,
+  resolveAvatarSourceOnGoogleLogin,
 } from './avatar-picture-url';
 
 describe('computeAvatarPictureUrl', () => {
@@ -90,5 +91,43 @@ describe('canRestoreGoogleAvatar', () => {
     expect(
       canRestoreGoogleAvatar({ avatarSource: 'google', hasGoogleAvatar: true }),
     ).toBe(false);
+  });
+});
+
+describe('resolveAvatarSourceOnGoogleLogin', () => {
+  it('never clobbers an active custom upload', () => {
+    expect(
+      resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: 'upload',
+        hadGooglePictureBefore: true,
+      }),
+    ).toBe('upload');
+  });
+
+  it("activates google on the account's first-ever Google login", () => {
+    expect(
+      resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: 'none',
+        hadGooglePictureBefore: false,
+      }),
+    ).toBe('google');
+  });
+
+  it('keeps an explicit delete sticky across a later Google login', () => {
+    expect(
+      resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: 'none',
+        hadGooglePictureBefore: true,
+      }),
+    ).toBe('none');
+  });
+
+  it('re-affirms google when it is already the active source', () => {
+    expect(
+      resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: 'google',
+        hadGooglePictureBefore: true,
+      }),
+    ).toBe('google');
   });
 });
