@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiUnauthorized } from '../common/errors/api-error';
+import { apiForbidden, apiUnauthorized } from '../common/errors/api-error';
+import { AppConfigService } from '../app-config/app-config.service';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { UserService } from '../user/user.service';
@@ -25,6 +26,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'>> {
@@ -58,6 +60,10 @@ export class AuthService {
     email: string,
     name: string,
   ): Promise<Omit<User, 'passwordHash'>> {
+    if (await this.appConfig?.getBoolean('ENABLE_GOOGLE_OAUTH', true) === false) {
+      throw apiForbidden(ApiErrorCode.FORBIDDEN, 'Google OAuth is currently disabled');
+    }
+
     const existing = await this.userService.findByEmail(email);
     if (existing) {
       return this.userService.toPublicUser(existing);
@@ -72,6 +78,10 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<Omit<User, 'passwordHash'>> {
+    if (await this.appConfig?.getBoolean('DISABLE_USER_REGISTRATION', false)) {
+      throw apiForbidden(ApiErrorCode.FORBIDDEN, 'User registration is temporarily disabled');
+    }
+
     // Self-registration must never grant elevated roles. Both privileged-email
     // and already-registered cases return the same generic 400 (not a 409) to
     // avoid leaking which addresses are taken or privileged.

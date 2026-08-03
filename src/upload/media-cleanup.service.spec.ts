@@ -3,7 +3,8 @@ import { MediaCleanupService } from './media-cleanup.service';
 
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {
-    const service = new MediaCleanupService();
+    const mockAppConfig = { getBoolean: jest.fn().mockResolvedValue(true) };
+    const service = new MediaCleanupService(mockAppConfig as any);
     const send = jest
       .fn()
       .mockResolvedValueOnce({

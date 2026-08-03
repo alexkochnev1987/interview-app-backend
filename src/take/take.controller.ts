@@ -38,6 +38,7 @@ import {
   CANDIDATE_SESSION_COOKIE,
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   FinalizeAnswerAttemptDto,
   FinalizeTakeAnswerResponseDto,
@@ -67,6 +68,7 @@ export class TakeController {
     private readonly interviewService: InterviewService,
     private readonly authService: AuthService,
     private readonly answerValidationWorkflowService: AnswerValidationWorkflowService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   @Get(':id')
@@ -115,7 +117,8 @@ export class TakeController {
 
     const interview = await this.interviewService.findOne(id);
     const takeContentLocale = resolveTakeContentLocale(contentLocale, interview);
-    const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
+    const maxAttempts = await this.appConfig.getNumber('MAX_ANSWER_ATTEMPTS_PER_QUESTION', 3);
+    const maxDurationSeconds = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 300);
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -138,6 +141,7 @@ export class TakeController {
         currentQuestionIndex: answeredCount,
         currentAnswerMeta: null,
         maxAttempts,
+        maxDurationSeconds,
         completed: true,
       };
     }
@@ -185,6 +189,16 @@ export class TakeController {
     );
     if (tokenMismatch) {
       throw new BadRequestException(tokenMismatch);
+    }
+
+    if (typeof body.durationSeconds === 'number' && body.durationSeconds > 0) {
+      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 300);
+      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
+      if (body.durationSeconds > maxAllowed) {
+        throw new BadRequestException(
+          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
+        );
+      }
     }
 
     const updated = await this.interviewService.addAnswer(id, body);
@@ -264,6 +278,16 @@ export class TakeController {
     );
     if (tokenMismatch) {
       throw new BadRequestException(tokenMismatch);
+    }
+
+    if (typeof body.durationSeconds === 'number' && body.durationSeconds > 0) {
+      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 300);
+      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
+      if (body.durationSeconds > maxAllowed) {
+        throw new BadRequestException(
+          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
+        );
+      }
     }
 
     const updated = await this.interviewService.saveAnswerProgress(id, body);

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { MediaCleanupService } from '../upload/media-cleanup.service';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   apiBadRequest,
   apiConflict,
@@ -331,6 +332,7 @@ export class InterviewService {
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
     private readonly mediaCleanupService: MediaCleanupService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async create(
@@ -1082,11 +1084,16 @@ export class InterviewService {
           (max, version) => Math.max(max, version.versionNumber),
           0,
         ) + 1;
+      const maxAttempts = await this.appConfig?.getNumber(
+        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+        3,
+      ) ?? 3;
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         existingVersions.map((version) => ({
           versionNumber: version.versionNumber,
         })),
         versionNumber,
+        maxAttempts,
       );
       if (attemptLimitReason) {
         throw apiBadRequest(
@@ -1615,9 +1622,14 @@ export class InterviewService {
         );
       }
 
+      const maxAttempts = await this.appConfig?.getNumber(
+        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+        3,
+      ) ?? 3;
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         versionRefs,
         normalizedVersionNumber,
+        maxAttempts,
       );
       if (attemptLimitReason) {
         throw apiBadRequest(

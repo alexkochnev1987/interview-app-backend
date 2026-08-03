@@ -34,6 +34,7 @@ import {
   getAnswerVersionOverwriteBlockReason,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
+import { AppConfigService } from '../app-config/app-config.service';
 
 export interface PresignedDownloadUrlResponse {
   downloadUrl: string;
@@ -50,6 +51,7 @@ export class UploadService {
     @Inject(forwardRef(() => InterviewService))
     private readonly interviewService: InterviewService,
     private readonly mediaCleanupService: MediaCleanupService,
+    private readonly appConfig: AppConfigService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
@@ -413,15 +415,34 @@ export class UploadService {
         }
       }
 
+      const maxAttempts = await this.appConfig.getNumber(
+        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+        3,
+      );
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         savedVersions,
         versionNumber,
+        maxAttempts,
       );
       if (attemptLimitReason) {
         throw apiBadRequest(
           ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
           attemptLimitReason,
           { interviewId, questionIndex, versionNumber },
+        );
+      }
+    }
+  }
+
+  async assertFileSizeBytesWithinLimit(fileSizeBytes?: number): Promise<void> {
+    if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
+      const maxMb = await this.appConfig.getNumber('MAX_MEDIA_FILE_SIZE_MB', 100);
+      const maxBytes = maxMb * 1024 * 1024;
+      if (fileSizeBytes > maxBytes) {
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_NOT_ALLOWED,
+          `Media file size (${(fileSizeBytes / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of ${maxMb}MB.`,
+          { maxMb, fileSizeBytes },
         );
       }
     }

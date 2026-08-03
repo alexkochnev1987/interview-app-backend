@@ -351,6 +351,11 @@ export class TakeInterviewResponseDto {
   })
   maxAttempts!: number;
 
+  @ApiPropertyOptional({
+    description: 'Maximum recording duration in seconds per question (MAX_ANSWER_DURATION_SECONDS).',
+  })
+  maxDurationSeconds?: number;
+
   @ApiProperty()
   completed!: boolean;
 }
