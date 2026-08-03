@@ -351,6 +351,7 @@ export class UserService implements OnModuleInit {
       onboardingStatus: user.onboardingStatus,
       createdAt: user.createdAt,
       avatarSource: user.avatarSource,
+      hasGoogleAvatar: user.hasGoogleAvatar,
       pictureUrl: user.pictureUrl,
     };
   }
@@ -503,6 +504,7 @@ export class UserService implements OnModuleInit {
       onboardingStatus: row.onboarding_status ?? undefined,
       createdAt: new Date(row.created_at),
       avatarSource,
+      hasGoogleAvatar: avatarSource === 'google' && !!googlePictureUrl,
       avatarKey,
       googlePictureUrl,
       pictureUrl: computeAvatarPictureUrl({

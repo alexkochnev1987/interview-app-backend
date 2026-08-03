@@ -11,6 +11,7 @@ describe('RecruiterAssistantIntentService', () => {
     name: 'Admin User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     avatarSource: 'none',
+    hasGoogleAvatar: false,
   };
   const hr: ActingUser = {
     id: 'hr-1',
@@ -20,6 +21,7 @@ describe('RecruiterAssistantIntentService', () => {
     name: 'HR User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     avatarSource: 'none',
+    hasGoogleAvatar: false,
   };
   const candidate: ActingUser = {
     id: 'candidate-1',
@@ -29,6 +31,7 @@ describe('RecruiterAssistantIntentService', () => {
     name: 'Candidate User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     avatarSource: 'none',
+    hasGoogleAvatar: false,
   };
 
   it('classifies assign HR requests', () => {
