@@ -9,9 +9,13 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
+  MaxLength,
+  ArrayMaxSize,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -20,13 +24,21 @@ import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
 
+export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
+export const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
+export const MAX_RECRUITER_ASSISTANT_LABEL_LENGTH = 200;
+
 export class RecruiterAssistantSuggestedQuestionDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
   key: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
   questionText: string;
 
   @ApiPropertyOptional()
@@ -74,12 +86,13 @@ export class RecruiterAssistantSuggestedQuestionDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   existingQuestionId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   existingQuestionText?: string;
 
   @ApiPropertyOptional()
@@ -95,11 +108,15 @@ export class RecruiterAssistantCreatePendingActionDto {
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
   position: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
   candidateName?: string;
 
   @ApiPropertyOptional()
@@ -114,6 +131,7 @@ export class RecruiterAssistantCreatePendingActionDto {
 
   @ApiProperty({ type: [RecruiterAssistantSuggestedQuestionDto] })
   @IsArray()
+  @ArrayMaxSize(MAX_RECRUITER_ASSISTANT_QUESTIONS)
   @ValidateNested({ each: true })
   @Type(() => RecruiterAssistantSuggestedQuestionDto)
   questions: RecruiterAssistantSuggestedQuestionDto[];
@@ -123,10 +141,26 @@ export class RecruiterAssistantAssignHrPendingActionDto {
   @ApiProperty({ enum: ['assign_hr'] })
   @IsIn(['assign_hr'])
   type: 'assign_hr';
-  @ApiProperty() @IsString() interviewId: string;
-  @ApiProperty() @IsString() assignedHrId: string;
-  @ApiProperty() @IsString() assignedHrName: string;
-  @ApiProperty() @IsString() interviewLabel: string;
+
+  @ApiProperty()
+  @IsUUID()
+  interviewId: string;
+
+  @ApiProperty()
+  @IsUUID()
+  assignedHrId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
+  assignedHrName: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
+  interviewLabel: string;
 }
 
 export type RecruiterAssistantPendingActionDto =
@@ -136,25 +170,14 @@ export type RecruiterAssistantPendingActionDto =
 export class RecruiterAssistantChatDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH)
   message: string;
 
-  @ApiPropertyOptional({
-    oneOf: [
-      { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
-      { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
-    ],
-  })
+  @ApiPropertyOptional()
   @IsOptional()
-  @ValidateNested()
-  @Type((options) => {
-    const pendingAction = (options?.object as RecruiterAssistantChatDto | undefined)
-      ?.pendingAction;
-    if (pendingAction?.type === 'assign_hr') {
-      return RecruiterAssistantAssignHrPendingActionDto;
-    }
-    return RecruiterAssistantCreatePendingActionDto;
-  })
-  pendingAction?: RecruiterAssistantPendingActionDto;
+  @IsUUID()
+  pendingActionId?: string;
 }
 
 export class RecruiterAssistantCreatedInterviewDto {
@@ -198,6 +221,9 @@ export class RecruiterAssistantResponseDto {
     ],
   })
   pendingAction?: RecruiterAssistantPendingActionDto;
+
+  @ApiPropertyOptional()
+  pendingActionId?: string;
 
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;

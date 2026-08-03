@@ -2,21 +2,54 @@ import { Locale } from '../../locale/locale.constants';
 import { extractCandidateNameFromCreateRequest } from './recruiter-assistant-name-extract';
 import { ParsedRecruiterRequest } from './recruiter-assistant.types';
 
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
+const QUESTION_COUNT_PATTERNS = [
+  /\b(\d{1,2})\s+questions?\b/i,
+  /\bquestions?\s+(?:count\s+)?(?:of\s+)?(\d{1,2})\b/i,
+  /\b(?:generate|prepare|create|make|need|want)\s+(\d{1,2})\s+(?:questions?|вопрос)/i,
+  /\b(\d{1,2})\s+(?:вопрос(?:а|ов)?)\b/i,
+];
+
+const CANDIDATE_EMAIL_PATTERNS = [
+  /\b(?:candidate\s+)?email\s*(?:is|:)\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i,
+  /\bcandidate\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i,
+  /\bfor\s+candidate\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i,
+];
+
 export function parseRecruiterRequest(
   message: string,
   locale: Locale,
 ): ParsedRecruiterRequest {
-  const countMatch = message.match(/\b(\d{1,2})\b/);
-  const count = Math.min(Math.max(Number(countMatch?.[1] ?? 10), 1), 12);
-  const candidateEmail = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
-
   return {
     position: extractPosition(message),
-    count,
+    count: extractQuestionCount(message),
     candidateName: extractCandidateName(message),
-    candidateEmail,
+    candidateEmail: extractCandidateEmail(message),
     locale,
   };
+}
+
+export function extractQuestionCount(message: string): number {
+  for (const pattern of QUESTION_COUNT_PATTERNS) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return Math.min(Math.max(Number(match[1]), 1), 12);
+    }
+  }
+
+  return 10;
+}
+
+export function extractCandidateEmail(message: string): string | undefined {
+  for (const pattern of CANDIDATE_EMAIL_PATTERNS) {
+    const match = message.match(pattern);
+    if (match?.[1] && EMAIL_PATTERN.test(match[1])) {
+      return match[1];
+    }
+  }
+
+  return undefined;
 }
 
 function extractCandidateName(message: string): string | undefined {

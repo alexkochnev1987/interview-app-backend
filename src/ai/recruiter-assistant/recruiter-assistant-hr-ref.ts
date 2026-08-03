@@ -19,9 +19,14 @@ export async function resolveHrRef(
     return null;
   }
 
-  const hrUsers = await userService.listAll({ role: 'hr', limit: 50 });
+  const hrUsers = await userService.listAll({
+    role: 'hr',
+    demo,
+    nameContains: ref.name,
+    limit: 100,
+  });
   const match = pickUniqueByPersonName(hrUsers, ref.name, (user) => user.name);
-  if (!match || match.demo !== demo) {
+  if (!match) {
     return null;
   }
 

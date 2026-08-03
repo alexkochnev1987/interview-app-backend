@@ -198,21 +198,31 @@ export class UserService implements OnModuleInit {
   }
 
   async listAll(
-    options: { limit?: number; offset?: number; role?: UserRole } = {},
+    options: {
+      limit?: number;
+      offset?: number;
+      role?: UserRole;
+      demo?: boolean;
+      nameContains?: string;
+    } = {},
   ): Promise<Omit<User, 'passwordHash'>[]> {
     const limit = options.limit ?? 50;
     const offset = options.offset ?? 0;
     const role = options.role ?? null;
+    const demo = options.demo ?? null;
+    const nameContains = options.nameContains?.trim() || null;
     const orderBy = role ? 'name ASC, created_at DESC' : 'created_at DESC';
     const result = await this.databaseService.query<UserRow>(
       `
         SELECT ${USER_COLUMNS}
         FROM users
         WHERE ($3::text IS NULL OR role = $3)
+          AND ($4::boolean IS NULL OR demo = $4)
+          AND ($5::text IS NULL OR name ILIKE '%' || $5 || '%')
         ORDER BY ${orderBy}
         LIMIT $1 OFFSET $2
       `,
-      [limit, offset, role],
+      [limit, offset, role, demo, nameContains],
     );
     return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
   }

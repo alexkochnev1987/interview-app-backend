@@ -1,5 +1,5 @@
 import { InterviewService } from '../../interview/interview.service';
-import { InterviewActor } from '../../interview/interfaces/interview.interface';
+import { Interview, InterviewActor } from '../../interview/interfaces/interview.interface';
 import { pickUniqueByPersonName } from './recruiter-assistant-name-match';
 import { InterviewRef } from './recruiter-assistant.types';
 
@@ -8,24 +8,10 @@ export async function resolveInterviewRef(
   ref: InterviewRef,
   actor: InterviewActor,
   options?: { candidateEmail?: string },
-): Promise<{
-  id: string;
-  candidateName: string;
-  position: string;
-  status: string;
-} | null> {
+): Promise<Interview | null> {
   if (ref.interviewId) {
     try {
-      const interview = await interviewService.findOneForActor(
-        ref.interviewId,
-        actor,
-      );
-      return {
-        id: interview.id,
-        candidateName: interview.candidateName,
-        position: interview.position,
-        status: interview.status,
-      };
+      return await interviewService.findOneForActor(ref.interviewId, actor);
     } catch {
       return null;
     }
@@ -50,10 +36,9 @@ export async function resolveInterviewRef(
     return null;
   }
 
-  return {
-    id: item.id,
-    candidateName: item.candidateName,
-    position: item.position,
-    status: item.status,
-  };
+  try {
+    return await interviewService.findOneForActor(item.id, actor);
+  } catch {
+    return null;
+  }
 }

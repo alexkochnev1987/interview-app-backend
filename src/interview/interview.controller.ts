@@ -68,12 +68,9 @@ import {
   InterviewService,
   PaginatedInterviews,
 } from './interview.service';
+import { toInterviewActor } from './interview-actor';
 
 type ActingUser = Omit<User, 'passwordHash'>;
-
-function toInterviewActor(user: ActingUser): InterviewActor {
-  return { id: user.id, role: user.role, demo: user.demo };
-}
 
 const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,

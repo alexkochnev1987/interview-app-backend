@@ -38,6 +38,12 @@ export function buildQuestionSuggestions(
 }
 
 function topicsForPosition(position: string): QuestionTopic[] {
+  const specific = positionSpecificTopics(position);
+  const generic = genericTopics(position);
+  return [...specific, ...generic];
+}
+
+function positionSpecificTopics(position: string): QuestionTopic[] {
   if (position === 'Backend Developer') {
     return [
       {
@@ -70,6 +76,10 @@ function topicsForPosition(position: string): QuestionTopic[] {
     ];
   }
 
+  return [];
+}
+
+function genericTopics(position: string): QuestionTopic[] {
   return [
     {
       questionText: `What are the most important architecture trade-offs you consider when building a ${position} feature?`,

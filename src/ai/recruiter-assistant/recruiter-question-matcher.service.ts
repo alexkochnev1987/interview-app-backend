@@ -16,21 +16,20 @@ export class RecruiterQuestionMatcherService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantSuggestedQuestionDto[]> {
-    const resolved: RecruiterAssistantSuggestedQuestionDto[] = [];
-    for (const question of questions) {
-      const match = await this.findBestMatch(question, user.demo, locale);
-      if (!match || match.score < SIMILARITY_ACCEPTANCE_SCORE) {
-        resolved.push({ ...question, needsCreation: true });
-        continue;
-      }
-      resolved.push({
-        ...question,
-        existingQuestionId: match.question.id,
-        existingQuestionText: match.question.questionText,
-        needsCreation: false,
-      });
-    }
-    return resolved;
+    return Promise.all(
+      questions.map(async (question) => {
+        const match = await this.findBestMatch(question, user.demo, locale);
+        if (!match || match.score < SIMILARITY_ACCEPTANCE_SCORE) {
+          return { ...question, needsCreation: true };
+        }
+        return {
+          ...question,
+          existingQuestionId: match.question.id,
+          existingQuestionText: match.question.questionText,
+          needsCreation: false,
+        };
+      }),
+    );
   }
 
   private async findBestMatch(

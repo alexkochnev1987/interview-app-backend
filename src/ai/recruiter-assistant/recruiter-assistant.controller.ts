@@ -10,6 +10,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
@@ -24,6 +25,7 @@ import {
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
+import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -41,6 +43,13 @@ export class RecruiterAssistantController {
   ) {}
 
   @Post('chat')
+  @UseGuards(StaffAiThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 20,
+      ttl: minutes(5),
+    },
+  })
   @ApiOperation({
     summary: 'Global AI chat',
     description:

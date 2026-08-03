@@ -49,13 +49,10 @@ export function pickUniqueByPersonName<T>(
   items: T[],
   query: string,
   getName: (item: T) => string,
+  minimumScore = 60,
 ): T | null {
   if (items.length === 0) {
     return null;
-  }
-
-  if (items.length === 1) {
-    return items[0];
   }
 
   const scored = items
@@ -63,7 +60,7 @@ export function pickUniqueByPersonName<T>(
       item,
       score: scorePersonNameMatch(getName(item), query),
     }))
-    .filter((entry) => entry.score > 0)
+    .filter((entry) => entry.score >= minimumScore)
     .sort((left, right) => right.score - left.score);
 
   if (scored.length === 0) {

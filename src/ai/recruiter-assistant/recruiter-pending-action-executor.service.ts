@@ -10,7 +10,11 @@ import {
   RecruiterAssistantResponseDto,
   RecruiterAssistantSuggestedQuestionDto,
 } from './dto/recruiter-assistant.dto';
-import { canCreateInterviews, canCreateQuestions } from './recruiter-assistant.policy';
+import {
+  canAssignHr,
+  canCreateInterviews,
+  canCreateQuestions,
+} from './recruiter-assistant.policy';
 import { mergeCreatedQuestionSuggestions } from './recruiter-assistant-response';
 import { ActingUser } from './recruiter-assistant.types';
 import { toCreateQuestionDto } from './recruiter-question-create-dto.mapper';
@@ -39,11 +43,27 @@ export class RecruiterPendingActionExecutorService {
     action: RecruiterAssistantAssignHrPendingActionDto,
     user: ActingUser,
   ): Promise<RecruiterAssistantResponseDto> {
-    await this.interviewService.update(
-      action.interviewId,
-      { assignedHrId: action.assignedHrId },
-      { id: user.id, role: user.role, demo: user.demo },
-    );
+    if (!canAssignHr(user)) {
+      return {
+        status: 'refused',
+        response: 'Only admins can assign HR reviewers.',
+        escalateTo: 'admin',
+      };
+    }
+
+    try {
+      await this.interviewService.update(
+        action.interviewId,
+        { assignedHrId: action.assignedHrId },
+        { id: user.id, role: user.role, demo: user.demo },
+      );
+    } catch {
+      return {
+        status: 'refused',
+        response:
+          'I could not assign that HR reviewer. Check the interview and reviewer ids and try again.',
+      };
+    }
 
     return {
       status: 'executed',
@@ -59,36 +79,47 @@ export class RecruiterPendingActionExecutorService {
     const createdQuestions: RecruiterAssistantSuggestedQuestionDto[] = [];
     const finalQuestionIds: string[] = [];
 
-    for (const question of action.questions) {
-      if (question.existingQuestionId) {
-        finalQuestionIds.push(question.existingQuestionId);
-        continue;
-      }
+    try {
+      for (const question of action.questions) {
+        if (question.existingQuestionId) {
+          finalQuestionIds.push(question.existingQuestionId);
+          continue;
+        }
 
-      if (!canCreateQuestions(user)) {
-        return {
-          status: 'refused',
-          response:
-            'I cannot create the missing questions because your user does not have questions:create permission.',
-          suggestedQuestions: action.questions,
-          pendingAction: action,
-        };
-      }
+        if (!canCreateQuestions(user)) {
+          return {
+            status: 'refused',
+            response:
+              'I cannot create the missing questions because your user does not have questions:create permission.',
+            suggestedQuestions: action.questions,
+          };
+        }
 
-      const created = await this.questionService.createResolved(
-        toCreateQuestionDto(
-          question,
-          action.position,
-          action.interviewLocale ?? locale,
+        const created = await this.questionService.createResolved(
+          toCreateQuestionDto(
+            question,
+            action.position,
+            action.interviewLocale ?? locale,
+          ),
+        );
+        finalQuestionIds.push(created.id);
+        createdQuestions.push({
+          ...question,
+          existingQuestionId: created.id,
+          existingQuestionText: created.questionText,
+          needsCreation: false,
+        });
+      }
+    } catch {
+      return {
+        status: 'refused',
+        response:
+          'Something went wrong while creating questions. No interview was created; please start again.',
+        suggestedQuestions: mergeCreatedQuestionSuggestions(
+          action.questions,
+          createdQuestions,
         ),
-      );
-      finalQuestionIds.push(created.id);
-      createdQuestions.push({
-        ...question,
-        existingQuestionId: created.id,
-        existingQuestionText: created.questionText,
-        needsCreation: false,
-      });
+      };
     }
 
     if (action.type === 'create_questions' || !action.candidateName) {
@@ -113,30 +144,42 @@ export class RecruiterPendingActionExecutorService {
       };
     }
 
-    const created = await this.interviewService.create(
-      {
-        candidateName: action.candidateName,
-        candidateEmail: action.candidateEmail,
-        position: action.position,
-        interviewLocale: action.interviewLocale ?? locale,
-        questionIds: finalQuestionIds,
-      },
-      {
-        createdById: user.id,
-        demo: user.demo,
-        actor: { id: user.id, role: user.role, demo: user.demo },
-      },
-    );
-    const token = this.authService.generateCandidateToken(created.interview.id);
-    const candidateLink = `/take/${created.interview.id}?token=${token}`;
+    try {
+      const created = await this.interviewService.create(
+        {
+          candidateName: action.candidateName,
+          candidateEmail: action.candidateEmail,
+          position: action.position,
+          interviewLocale: action.interviewLocale ?? locale,
+          questionIds: finalQuestionIds,
+        },
+        {
+          createdById: user.id,
+          demo: user.demo,
+          actor: { id: user.id, role: user.role, demo: user.demo },
+        },
+      );
+      const token = this.authService.generateCandidateToken(created.interview.id);
+      const candidateLink = `/take/${created.interview.id}?token=${token}`;
 
-    return {
-      status: 'executed',
-      response: `Interview created for ${action.candidateName}. Created ${createdQuestions.length} missing questions and attached ${finalQuestionIds.length} questions.`,
-      createdInterview: {
-        id: created.interview.id,
-        candidateLink,
-      },
-    };
+      return {
+        status: 'executed',
+        response: `Interview created for ${action.candidateName}. Created ${createdQuestions.length} missing questions and attached ${finalQuestionIds.length} questions.`,
+        createdInterview: {
+          id: created.interview.id,
+          candidateLink,
+        },
+      };
+    } catch {
+      return {
+        status: 'refused',
+        response:
+          'The questions were created, but interview creation failed. You can create the interview manually with the prepared questions.',
+        suggestedQuestions: mergeCreatedQuestionSuggestions(
+          action.questions,
+          createdQuestions,
+        ),
+      };
+    }
   }
 }

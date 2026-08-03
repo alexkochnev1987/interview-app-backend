@@ -4,9 +4,11 @@ import { CandidateFeedbackService } from '../../feedback/candidate-feedback.serv
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { Locale } from '../../locale/locale.constants';
 import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
+import { toInterviewActor } from '../../interview/interview-actor';
 import { InterviewService } from '../../interview/interview.service';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { UserService } from '../../user/user.service';
+import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
@@ -30,25 +32,26 @@ import {
 } from './recruiter-assistant.types';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
+import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 
+/** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
   constructor(
     private readonly questionMatcher: RecruiterQuestionMatcherService,
     private readonly interviewService: InterviewService,
     private readonly candidateFeedbackService: CandidateFeedbackService,
-    private readonly databaseService: DatabaseService,
+    private readonly candidateFeedbackShareService: CandidateFeedbackShareService,
     private readonly userService: UserService,
+    private readonly pendingActionStore: RecruiterPendingActionStore,
   ) {}
 
   async listInterviews(
     filters: QueryInterviewsDto,
     user: ActingUser,
-    locale: Locale,
+    _locale: Locale,
     readyForReview?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
-    void locale;
-
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
@@ -64,7 +67,7 @@ export class RecruiterAssistantToolsService {
 
     const { items, total } = await this.interviewService.findAllPaginated(
       query,
-      { id: user.id, role: user.role, demo: user.demo },
+      toInterviewActor(user),
     );
 
     if (items.length === 0) {
@@ -98,18 +101,16 @@ export class RecruiterAssistantToolsService {
   async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,
-    locale: Locale,
+    _locale: Locale,
     ownInterviews?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
-    void locale;
-
     if (ownInterviews) {
       if (user.role !== 'candidate') {
         return { status: 'refused', response: 'That question is only for candidates.' };
       }
       const { items } = await this.interviewService.findAllPaginated(
         { q: user.email.split('@')[0], limit: 5 },
-        { id: user.id, role: user.role, demo: user.demo },
+        toInterviewActor(user),
       );
       const mine = items.filter(
         (item) => item.candidateEmail?.toLowerCase() === user.email.toLowerCase(),
@@ -137,9 +138,13 @@ export class RecruiterAssistantToolsService {
         escalateTo: 'admin',
       };
     }
-    const actor = { id: user.id, role: user.role, demo: user.demo };
-    const resolved = await resolveInterviewRef(this.interviewService, ref, actor);
-    if (!resolved) {
+
+    const interview = await resolveInterviewRef(
+      this.interviewService,
+      ref,
+      toInterviewActor(user),
+    );
+    if (!interview) {
       return {
         status: 'answered',
         response: 'I could not find a unique interview. Provide an interview id or candidate name.',
@@ -148,18 +153,21 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'answered',
-      response: `${resolved.candidateName}'s interview for ${resolved.position} is ${resolved.status.replace('_', ' ')}.`,
-      interview: resolved,
+      response: `${interview.candidateName}'s interview for ${interview.position} is ${interview.status.replace('_', ' ')}.`,
+      interview: {
+        id: interview.id,
+        candidateName: interview.candidateName,
+        position: interview.position,
+        status: interview.status,
+      },
     };
   }
 
   async getReviewState(
     ref: InterviewRef,
     user: ActingUser,
-    locale: Locale,
+    _locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    void locale;
-
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
@@ -168,9 +176,12 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    const actor = { id: user.id, role: user.role, demo: user.demo };
-    const resolved = await resolveInterviewRef(this.interviewService, ref, actor);
-    if (!resolved) {
+    const interview = await resolveInterviewRef(
+      this.interviewService,
+      ref,
+      toInterviewActor(user),
+    );
+    if (!interview) {
       return {
         status: 'answered',
         response:
@@ -178,9 +189,9 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    const interview = await this.interviewService.findOneForActor(resolved.id, actor);
     const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);
-    const shareLinkActive = await this.hasActiveShareLink(interview.id);
+    const shareLinkActive =
+      await this.candidateFeedbackShareService.hasActiveShareLink(interview.id);
 
     const reviewed =
       interview.status === 'completed'
@@ -197,17 +208,17 @@ export class RecruiterAssistantToolsService {
     };
 
     const response = reviewed
-      ? `${resolved.candidateName}'s interview has been reviewed${reviewState.outcome ? ` (${reviewState.outcome})` : ''}.`
-      : `${resolved.candidateName}'s interview has not been reviewed yet.`;
+      ? `${interview.candidateName}'s interview has been reviewed${reviewState.outcome ? ` (${reviewState.outcome})` : ''}.`
+      : `${interview.candidateName}'s interview has not been reviewed yet.`;
 
     return {
       status: 'answered',
       response,
       interview: {
-        id: resolved.id,
-        candidateName: resolved.candidateName,
-        position: resolved.position,
-        status: resolved.status,
+        id: interview.id,
+        candidateName: interview.candidateName,
+        position: interview.position,
+        status: interview.status,
         reviewState,
       },
     };
@@ -216,10 +227,8 @@ export class RecruiterAssistantToolsService {
   async prepareAssignHr(
     intent: Extract<RecruiterAssistantIntent, { kind: 'assign_hr' }>,
     user: ActingUser,
-    locale: Locale,
+    _locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    void locale;
-
     if (!canAssignHr(user)) {
       return {
         status: 'denied',
@@ -228,11 +237,10 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    const actor = { id: user.id, role: user.role, demo: user.demo };
     const interview = await resolveInterviewRef(
       this.interviewService,
       intent.interviewRef,
-      actor,
+      toInterviewActor(user),
     );
     if (!interview) {
       return {
@@ -264,6 +272,7 @@ export class RecruiterAssistantToolsService {
       status: 'needs_confirmation',
       response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
       pendingAction,
+      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -314,22 +323,7 @@ export class RecruiterAssistantToolsService {
       }),
       suggestedQuestions: resolved,
       pendingAction,
+      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
     };
-  }
-
-  private async hasActiveShareLink(interviewId: string): Promise<boolean> {
-    const result = await this.databaseService.query(
-      `
-        SELECT 1
-        FROM candidate_feedback_share_links
-        WHERE interview_id = $1
-          AND revoked_at IS NULL
-          AND expires_at IS NOT NULL
-          AND expires_at > NOW()
-        LIMIT 1
-      `,
-      [interviewId],
-    );
-    return (result.rowCount ?? 0) > 0;
   }
 }

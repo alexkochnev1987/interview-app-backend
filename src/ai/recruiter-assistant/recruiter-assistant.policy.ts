@@ -9,18 +9,31 @@ const CONFIRMATION_KEYWORDS = [
   'y',
   'confirm',
   'do it',
-  'ok',
-  'okay',
   'да',
   'ага',
   'подтверждаю',
-  'создай',
-  'создавай',
+];
+
+const CANCELLATION_KEYWORDS = [
+  'no',
+  'n',
+  'cancel',
+  'never mind',
+  'nevermind',
+  'stop',
+  'нет',
+  'отмена',
+  'отменить',
 ];
 
 export function isConfirmationMessage(message: string): boolean {
   const normalized = message.trim().toLowerCase();
-  return CONFIRMATION_KEYWORDS.some(
+  return CONFIRMATION_KEYWORDS.includes(normalized);
+}
+
+export function isCancellationMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return CANCELLATION_KEYWORDS.some(
     (value) => normalized === value || normalized.startsWith(`${value} `),
   );
 }

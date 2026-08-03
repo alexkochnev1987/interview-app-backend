@@ -6,6 +6,7 @@ import {
 } from './dto/recruiter-assistant.dto';
 import {
   canAccessChat,
+  isCancellationMessage,
   isConfirmationMessage,
   OUT_OF_SCOPE_RESPONSE,
 } from './recruiter-assistant.policy';
@@ -13,6 +14,7 @@ import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
+import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 
 @Injectable()
 export class RecruiterAssistantService {
@@ -20,6 +22,7 @@ export class RecruiterAssistantService {
     private readonly intentRouter: RecruiterAssistantIntentService,
     private readonly tools: RecruiterAssistantToolsService,
     private readonly pendingActionExecutor: RecruiterPendingActionExecutorService,
+    private readonly pendingActionStore: RecruiterPendingActionStore,
   ) {}
 
   async chat(
@@ -27,14 +30,36 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    const message = dto.message.trim();
-
-    if (dto.pendingAction && isConfirmationMessage(message)) {
-      return this.pendingActionExecutor.execute(dto.pendingAction, user, locale);
-    }
-
     if (!canAccessChat(user)) {
       return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+    }
+
+    const message = dto.message.trim();
+
+    if (dto.pendingActionId) {
+      if (isConfirmationMessage(message)) {
+        const action = this.pendingActionStore.consume(
+          user.id,
+          dto.pendingActionId,
+        );
+        if (!action) {
+          return {
+            status: 'refused',
+            response:
+              'That confirmation expired, was already used, or does not belong to your account.',
+          };
+        }
+
+        return this.pendingActionExecutor.execute(action, user, locale);
+      }
+
+      if (isCancellationMessage(message)) {
+        this.pendingActionStore.revoke(user.id, dto.pendingActionId);
+        return {
+          status: 'answered',
+          response: 'Cancelled. No changes were made.',
+        };
+      }
     }
 
     const intent = this.intentRouter.classify(message, user, locale);

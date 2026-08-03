@@ -1,0 +1,126 @@
+import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
+import { ActingUser } from './recruiter-assistant.types';
+
+describe('RecruiterAssistantIntentService', () => {
+  const service = new RecruiterAssistantIntentService();
+  const admin: ActingUser = {
+    id: 'admin-1',
+    role: 'admin',
+    demo: false,
+    email: 'admin@example.com',
+    name: 'Admin User',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+  const hr: ActingUser = {
+    id: 'hr-1',
+    role: 'hr',
+    demo: false,
+    email: 'hr@example.com',
+    name: 'HR User',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+  const candidate: ActingUser = {
+    id: 'candidate-1',
+    role: 'candidate',
+    demo: false,
+    email: 'candidate@example.com',
+    name: 'Candidate User',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+
+  it('classifies assign HR requests', () => {
+    expect(
+      service.classify('assign interview for Alice to Jane', admin, 'en'),
+    ).toEqual({
+      kind: 'assign_hr',
+      interviewRef: { candidateName: 'Alice' },
+      hrRef: { name: 'Jane' },
+    });
+  });
+
+  it('extracts full names from assign HR phrasing', () => {
+    expect(
+      service.classify(
+        'assign the interview for Alice Smith to Jane Doe please',
+        admin,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'assign_hr',
+      interviewRef: { candidateName: 'Alice Smith' },
+      hrRef: { name: 'Jane Doe' },
+    });
+  });
+
+  it('classifies list interview requests', () => {
+    expect(service.classify('show pending interviews', admin, 'en')).toEqual({
+      kind: 'list_interviews',
+      filters: { limit: 20, status: 'pending' },
+    });
+  });
+
+  it('classifies create question requests', () => {
+    expect(
+      service.classify('prepare 5 questions for a React developer', admin, 'en'),
+    ).toEqual({
+      kind: 'create_questions_interview',
+      parsed: expect.objectContaining({
+        position: 'React Developer',
+        count: 5,
+      }),
+    });
+  });
+
+  it('routes candidate self-status questions separately', () => {
+    expect(
+      service.classify('what is my interview status', candidate, 'en'),
+    ).toEqual({
+      kind: 'interview_status',
+      ref: {},
+      ownInterviews: true,
+    });
+  });
+
+  it('returns out_of_scope for unsupported org summaries', () => {
+    expect(
+      service.classify(
+        'summarize interview activity across the org this month',
+        admin,
+        'en',
+      ),
+    ).toEqual({ kind: 'out_of_scope' });
+  });
+
+  it('does not treat HR my-interview prompts as candidate self-status', () => {
+    expect(service.classify('show my interviews', hr, 'en')).toEqual({
+      kind: 'list_interviews',
+      filters: { limit: 20 },
+    });
+  });
+
+  describe('locale intent routing', () => {
+    it.each([
+      ['ru', 'покажи все интервью', 'list_interviews'],
+      ['ru', 'мой интервью статус', 'interview_status'],
+      ['ru', 'назначь интервью для Alice на Jane', 'assign_hr'],
+      ['ru', 'статус интервью Alice', 'interview_status'],
+      ['ru', 'создай 5 вопросов для React разработчик', 'create_questions_interview'],
+      ['en', 'set up an interview for an hr manager role', 'create_questions_interview'],
+    ] as const)(
+      'classifies %s message "%s" as %s',
+      (locale, message, expectedKind) => {
+        const intent = service.classify(message, admin, locale);
+        expect(intent.kind).toBe(expectedKind);
+      },
+    );
+
+    it('does not treat bare Russian interview mentions as create', () => {
+      expect(service.classify('покажи все интервью', admin, 'ru').kind).toBe(
+        'list_interviews',
+      );
+      expect(
+        service.classify('покажи все интервью', admin, 'ru').kind,
+      ).not.toBe('create_questions_interview');
+    });
+  });
+});
