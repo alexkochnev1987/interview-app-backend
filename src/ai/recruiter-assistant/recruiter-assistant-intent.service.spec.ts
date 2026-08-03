@@ -10,6 +10,7 @@ describe('RecruiterAssistantIntentService', () => {
     email: 'admin@example.com',
     name: 'Admin User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    avatarSource: 'none',
   };
   const hr: ActingUser = {
     id: 'hr-1',
@@ -18,6 +19,7 @@ describe('RecruiterAssistantIntentService', () => {
     email: 'hr@example.com',
     name: 'HR User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    avatarSource: 'none',
   };
   const candidate: ActingUser = {
     id: 'candidate-1',
@@ -26,6 +28,7 @@ describe('RecruiterAssistantIntentService', () => {
     email: 'candidate@example.com',
     name: 'Candidate User',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    avatarSource: 'none',
   };
 
   it('classifies assign HR requests', () => {
