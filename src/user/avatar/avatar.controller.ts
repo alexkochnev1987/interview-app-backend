@@ -80,6 +80,18 @@ export class AvatarController {
     return this.avatarService.deleteAvatar(actor.id);
   }
 
+  @Post('me/avatar/restore-google')
+  @ApiOperation({
+    summary: 'Restore the last-known Google photo as the active avatar',
+  })
+  @ApiOkResponse({ type: AvatarUpdateResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  restoreGoogle(
+    @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<AvatarUpdateResponseDto> {
+    return this.avatarService.restoreGoogleAvatar(actor.id);
+  }
+
   @Get(':id/avatar')
   @RequirePermissions('users:read_profile')
   @ApiOperation({ summary: 'Redirect to a presigned URL for a user\'s avatar' })

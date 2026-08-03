@@ -7,10 +7,15 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest } from '../common/errors/api-error';
 import { AvatarSource, User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
-import { computeAvatarPictureUrl } from './avatar/avatar-picture-url';
+import {
+  computeAvatarPictureUrl,
+  resolveAvatarSourceOnGoogleLogin,
+} from './avatar/avatar-picture-url';
 import { DatabaseService } from '../database/database.service';
 import {
   isDemoSeedAllowed,
@@ -352,6 +357,7 @@ export class UserService implements OnModuleInit {
       createdAt: user.createdAt,
       avatarSource: user.avatarSource,
       pictureUrl: user.pictureUrl,
+      hasGoogleAvatar: user.hasGoogleAvatar,
     };
   }
 
@@ -451,34 +457,109 @@ export class UserService implements OnModuleInit {
   }
 
   /**
-   * Called on every Google login for an existing user. Refreshes the stored
-   * Google photo and activates it as the active picture source — unless a
-   * custom upload is currently active, which must never be clobbered by a
-   * Google login. Google's photo is the ever-present default (per the
-   * feature's design), so this intentionally *does* re-surface it even if
-   * the user previously deleted their picture — 'none' after a delete means
-   * "no custom choice made", not "permanently opt out of the Google default".
+   * User-triggered restore of the last-known Google photo (e.g. after having
+   * uploaded a custom picture, or having previously deleted down to
+   * initials). Unlike activateGoogleAvatar, this never touches
+   * google_picture_url itself — it only re-activates whatever is already
+   * stored. No-op-that-throws if the user never has a Google picture on file.
+   */
+  async restoreGoogleAvatar(
+    userId: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      if (!previousRow.google_picture_url) {
+        throw apiBadRequest(
+          ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
+          'No Google picture is available to restore',
+        );
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = NULL,
+              avatar_source = 'google',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * Called on every Google login for an existing user. Always refreshes the
+   * stored Google photo, but only activates it as the picture source per
+   * resolveAvatarSourceOnGoogleLogin: a custom upload is never clobbered, and
+   * an explicit delete (avatar_source 'none' with a Google picture already on
+   * file) stays 'none' — it only re-activates via the manual "Restore Google
+   * picture" action, not automatically on login. A 'none' row with no prior
+   * Google picture is a first-ever Google link and does activate 'google'.
    */
   async activateGoogleAvatar(
     userId: string,
     googlePictureUrl: string,
   ): Promise<Omit<User, 'passwordHash'>> {
-    const result = await this.databaseService.query<UserRow>(
-      `
-        UPDATE users
-        SET google_picture_url = $2,
-            avatar_source = CASE WHEN avatar_source = 'upload' THEN avatar_source ELSE 'google' END,
-            updated_at = NOW()
-        WHERE id = $1
-        RETURNING ${USER_COLUMNS}
-      `,
-      [userId, googlePictureUrl],
-    );
-    const updatedRow = result.rows[0];
-    if (!updatedRow) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
-    return this.toPublicUser(this.mapRow(updatedRow));
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const avatarSource = resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: previousRow.avatar_source,
+        hadGooglePictureBefore: previousRow.google_picture_url != null,
+      });
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET google_picture_url = $2,
+              avatar_source = $3,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId, googlePictureUrl, avatarSource],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      return this.toPublicUser(this.mapRow(updatedRow));
+    });
   }
 
   private normalizeEmail(email: string): string {
@@ -505,6 +586,7 @@ export class UserService implements OnModuleInit {
       avatarSource,
       avatarKey,
       googlePictureUrl,
+      hasGoogleAvatar: googlePictureUrl != null,
       pictureUrl: computeAvatarPictureUrl({
         userId: row.id,
         avatarSource,
