@@ -265,6 +265,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/avatar/restore-google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore the last-known Google photo as the active avatar */
+        post: operations["AvatarController_restoreGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{id}/avatar": {
         parameters: {
             query?: never;
@@ -1203,6 +1220,13 @@ export interface components {
              * @example https://lh3.googleusercontent.com/a/photo.jpg
              */
             pictureUrl?: string;
+            /** @enum {string} */
+            avatarSource: "none" | "google" | "upload";
+            /**
+             * @description Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source.
+             * @example true
+             */
+            hasGoogleAvatar: boolean;
         };
         RegisterDto: {
             email: string;
@@ -1221,7 +1245,7 @@ export interface components {
             status?: "completed" | "skipped";
         };
         /** @enum {string} */
-        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "AVATAR_UNSUPPORTED_TYPE" | "AVATAR_TOO_LARGE" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
+        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "AVATAR_UNSUPPORTED_TYPE" | "AVATAR_TOO_LARGE" | "AVATAR_NO_GOOGLE_PICTURE" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
         ApiErrorResponseDto: {
             /** @example 400 */
             statusCode: number;
@@ -1291,6 +1315,8 @@ export interface components {
         AvatarUpdateResponseDto: {
             /** @example /users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar */
             pictureUrl: string | null;
+            /** @enum {string} */
+            avatarSource: "none" | "google" | "upload";
         };
         QuestionExpectedConceptDto: {
             id: string;
@@ -2944,6 +2970,36 @@ export interface operations {
         };
     };
     AvatarController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUpdateResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_restoreGoogle: {
         parameters: {
             query?: never;
             header?: {

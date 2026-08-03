@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest } from '../common/errors/api-error';
 import { AvatarSource, User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
@@ -342,6 +344,7 @@ export class UserService implements OnModuleInit {
       createdAt: user.createdAt,
       avatarSource: user.avatarSource,
       pictureUrl: user.pictureUrl,
+      hasGoogleAvatar: user.hasGoogleAvatar,
     };
   }
 
@@ -441,6 +444,60 @@ export class UserService implements OnModuleInit {
   }
 
   /**
+   * User-triggered restore of the last-known Google photo (e.g. after having
+   * uploaded a custom picture, or having previously deleted down to
+   * initials). Unlike activateGoogleAvatar, this never touches
+   * google_picture_url itself — it only re-activates whatever is already
+   * stored. No-op-that-throws if the user never has a Google picture on file.
+   */
+  async restoreGoogleAvatar(
+    userId: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      if (!previousRow.google_picture_url) {
+        throw apiBadRequest(
+          ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
+          'No Google picture is available to restore',
+        );
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = NULL,
+              avatar_source = 'google',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
    * Called on every Google login for an existing user. Refreshes the stored
    * Google photo and activates it as the active picture source — unless a
    * custom upload is currently active, which must never be clobbered by a
@@ -495,6 +552,7 @@ export class UserService implements OnModuleInit {
       avatarSource,
       avatarKey,
       googlePictureUrl,
+      hasGoogleAvatar: googlePictureUrl != null,
       pictureUrl: computeAvatarPictureUrl({
         userId: row.id,
         avatarSource,
