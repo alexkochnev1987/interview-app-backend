@@ -37,4 +37,11 @@ export class AuthUserResponseDto {
 
   @ApiProperty({ example: '2026-05-05T12:00:00.000Z' })
   createdAt: Date;
+
+  @ApiPropertyOptional({
+    example: 'https://lh3.googleusercontent.com/a/photo.jpg',
+    description:
+      'Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set.',
+  })
+  pictureUrl?: string;
 }
