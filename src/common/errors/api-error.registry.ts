@@ -85,6 +85,13 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
       'Avatar presign declares, or the uploaded object actually is, larger than MAX_AVATAR_UPLOAD_BYTES.',
   },
   {
+    code: ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage: 'No Google picture is available to restore',
+    whenUsed:
+      'Restore-google-avatar is called for a user with no google_picture_url on file.',
+  },
+  {
     code: ApiErrorCode.UNAUTHORIZED,
     httpStatus: HttpStatus.UNAUTHORIZED,
     defaultMessage: 'Unauthorized',

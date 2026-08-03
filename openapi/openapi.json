@@ -841,6 +841,60 @@
         ]
       }
     },
+    "/users/me/avatar/restore-google": {
+      "post": {
+        "operationId": "AvatarController_restoreGoogle",
+        "summary": "Restore the last-known Google photo as the active avatar",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users/{id}/avatar": {
       "get": {
         "operationId": "AvatarController_proxy",
@@ -6781,6 +6835,19 @@
             "type": "string",
             "example": "https://lh3.googleusercontent.com/a/photo.jpg",
             "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
+          },
+          "avatarSource": {
+            "type": "string",
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
+          },
+          "hasGoogleAvatar": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source."
           }
         },
         "required": [
@@ -6789,7 +6856,9 @@
           "name",
           "role",
           "demo",
-          "createdAt"
+          "createdAt",
+          "avatarSource",
+          "hasGoogleAvatar"
         ]
       },
       "RegisterDto": {
@@ -6850,6 +6919,7 @@
           "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
           "AVATAR_UNSUPPORTED_TYPE",
           "AVATAR_TOO_LARGE",
+          "AVATAR_NO_GOOGLE_PICTURE",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -7050,10 +7120,19 @@
             "type": "string",
             "example": "/users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar",
             "nullable": true
+          },
+          "avatarSource": {
+            "type": "string",
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
           }
         },
         "required": [
-          "pictureUrl"
+          "pictureUrl",
+          "avatarSource"
         ]
       },
       "QuestionExpectedConceptDto": {
