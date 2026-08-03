@@ -129,17 +129,29 @@ export class AvatarService {
       await this.deleteObjectQuietly(previousAvatarKey);
     }
 
-    return { pictureUrl: user.pictureUrl ?? null };
+    return { pictureUrl: user.pictureUrl ?? null, avatarSource: user.avatarSource };
   }
 
   async deleteAvatar(userId: string): Promise<AvatarUpdateResponseDto> {
-    const { previousAvatarKey } = await this.userService.clearAvatar(userId);
+    const { previousAvatarKey, user } =
+      await this.userService.clearAvatar(userId);
 
     if (previousAvatarKey) {
       await this.deleteObjectQuietly(previousAvatarKey);
     }
 
-    return { pictureUrl: null };
+    return { pictureUrl: null, avatarSource: user.avatarSource };
+  }
+
+  async restoreGoogleAvatar(userId: string): Promise<AvatarUpdateResponseDto> {
+    const { previousAvatarKey, user } =
+      await this.userService.restoreGoogleAvatar(userId);
+
+    if (previousAvatarKey) {
+      await this.deleteObjectQuietly(previousAvatarKey);
+    }
+
+    return { pictureUrl: user.pictureUrl ?? null, avatarSource: user.avatarSource };
   }
 
   async getRedirectUrl(
