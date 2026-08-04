@@ -1,3 +1,5 @@
+import { RecruiterAssistantAwaitingInput } from './dto/recruiter-assistant.dto';
+
 export type RecruiterConversationFlow =
   | 'idle'
   | 'assign_hr'
@@ -7,4 +9,5 @@ export type RecruiterConversationFlow =
 export interface RecruiterConversationState {
   flow: RecruiterConversationFlow;
   slots: Record<string, string>;
+  awaitingInput?: RecruiterAssistantAwaitingInput;
 }

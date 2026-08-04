@@ -17,6 +17,8 @@ import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.serv
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
+import { idleConversationState } from './recruiter-conversation-slots';
 import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 @Injectable()
@@ -27,6 +29,7 @@ export class RecruiterAssistantService {
     private readonly pendingActionExecutor: RecruiterPendingActionExecutorService,
     private readonly pendingActionStore: RecruiterPendingActionStore,
     private readonly conversationStore: RecruiterConversationStore,
+    private readonly conversationFlow: RecruiterConversationFlowService,
   ) {}
 
   async chat(
@@ -52,6 +55,9 @@ export class RecruiterAssistantService {
     if (!sessionId || !this.conversationStore.get(user.id, sessionId)) {
       sessionId = this.conversationStore.issue(user.id);
     }
+
+    const conversationState =
+      this.conversationStore.get(user.id, sessionId) ?? idleConversationState();
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
@@ -86,6 +92,17 @@ export class RecruiterAssistantService {
           sessionId,
         );
       }
+    }
+
+    const activeFlowResponse = await this.conversationFlow.resumeActiveFlow({
+      user,
+      locale,
+      sessionId,
+      message,
+      state: conversationState,
+    });
+    if (activeFlowResponse) {
+      return this.withSession(activeFlowResponse, sessionId);
     }
 
     switch (intent.kind) {

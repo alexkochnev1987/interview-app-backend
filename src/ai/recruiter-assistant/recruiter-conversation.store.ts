@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { RecruiterConversationState } from './recruiter-conversation.types';
+import { idleConversationState } from './recruiter-conversation-slots';
 
 const CONVERSATION_TTL_MS = 15 * 60 * 1000;
 
@@ -9,11 +10,6 @@ interface StoredConversation {
   state: RecruiterConversationState;
   expiresAt: number;
 }
-
-const DEFAULT_STATE: RecruiterConversationState = {
-  flow: 'idle',
-  slots: {},
-};
 
 @Injectable()
 export class RecruiterConversationStore {
@@ -24,7 +20,7 @@ export class RecruiterConversationStore {
     const id = randomUUID();
     this.entries.set(id, {
       userId,
-      state: { ...DEFAULT_STATE, slots: {} },
+      state: idleConversationState(),
       expiresAt: Date.now() + CONVERSATION_TTL_MS,
     });
     return id;

@@ -30,6 +30,9 @@ describe('RecruiterAssistantService', () => {
     clear: jest.fn(),
     clearAllForUser: jest.fn(),
   };
+  const conversationFlow = {
+    resumeActiveFlow: jest.fn().mockResolvedValue(null),
+  };
   const intentRouter = {
     classify: jest.fn(),
   };
@@ -53,12 +56,14 @@ describe('RecruiterAssistantService', () => {
     executor as never,
     pendingActionStore as never,
     conversationStore as never,
+    conversationFlow as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     conversationStore.issue.mockReturnValue('session-1');
     conversationStore.get.mockReturnValue({ flow: 'idle', slots: {} });
+    conversationFlow.resumeActiveFlow.mockResolvedValue(null);
     tools.startNewChat.mockReturnValue({
       status: 'answered',
       response: NEW_CHAT_WELCOME_RESPONSE,
@@ -138,5 +143,25 @@ describe('RecruiterAssistantService', () => {
     expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
     expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
     expect(response.sessionId).toBe('session-3');
+  });
+
+  it('returns an active flow response before intent routing', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
+    conversationFlow.resumeActiveFlow.mockResolvedValue({
+      status: 'answered',
+      response: 'Which HR reviewer?',
+      awaitingInput: 'hr',
+    });
+
+    const response = await service.chat({ message: 'Alice' }, user, 'en');
+
+    expect(conversationFlow.resumeActiveFlow).toHaveBeenCalled();
+    expect(intentRouter.classify).toHaveBeenCalled();
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'Which HR reviewer?',
+      awaitingInput: 'hr',
+      sessionId: 'session-1',
+    });
   });
 });

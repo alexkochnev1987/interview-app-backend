@@ -33,6 +33,7 @@ import {
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationState } from './recruiter-conversation.types';
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -364,6 +365,45 @@ export class RecruiterAssistantToolsService {
       status: 'answered',
       response: NEW_CHAT_WELCOME_RESPONSE,
     };
+  }
+
+  async continueAssignHrFlow(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void state;
+    void user;
+    void locale;
+    void sessionId;
+    return { status: 'refused', response: 'Assign HR flow not implemented yet.' };
+  }
+
+  async continueCreateQuestionFlow(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void state;
+    void user;
+    void locale;
+    void sessionId;
+    return { status: 'refused', response: 'Create question flow not implemented yet.' };
+  }
+
+  async continueCreateInterviewFlow(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void state;
+    void user;
+    void locale;
+    void sessionId;
+    return { status: 'refused', response: 'Create interview flow not implemented yet.' };
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {
