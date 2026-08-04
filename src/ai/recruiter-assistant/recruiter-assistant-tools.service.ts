@@ -26,6 +26,7 @@ import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import {
   ActingUser,
+  HrRef,
   InterviewRef,
   ParsedRecruiterRequest,
   RecruiterAssistantIntent,
@@ -33,7 +34,12 @@ import {
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterConversationState } from './recruiter-conversation.types';
+import {
+  idleConversationState,
+  startConversationFlow,
+} from './recruiter-conversation-slots';
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -45,6 +51,7 @@ export class RecruiterAssistantToolsService {
     private readonly candidateFeedbackShareService: CandidateFeedbackShareService,
     private readonly userService: UserService,
     private readonly pendingActionStore: RecruiterPendingActionStore,
+    private readonly conversationStore: RecruiterConversationStore,
   ) {}
 
   async listInterviews(
@@ -238,6 +245,7 @@ export class RecruiterAssistantToolsService {
     intent: Extract<RecruiterAssistantIntent, { kind: 'assign_hr' }>,
     user: ActingUser,
     locale: Locale,
+    sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canAssignHr(user)) {
@@ -248,43 +256,15 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    const interview = await resolveInterviewRef(
-      this.interviewService,
-      intent.interviewRef,
-      toInterviewActor(user),
+    return this.progressAssignHrFlow(
+      {
+        interviewRef: intent.interviewRef,
+        hrRef: intent.hrRef,
+      },
+      user,
+      sessionId,
+      { persistFlowOnMissing: true },
     );
-    if (!interview) {
-      return {
-        status: 'answered',
-        response:
-          'I could not find a unique interview. Provide an interview id or candidate name.',
-      };
-    }
-
-    const hrUser = await resolveHrRef(this.userService, intent.hrRef, user.demo);
-    if (!hrUser) {
-      return {
-        status: 'answered',
-        response:
-          'I could not find a unique HR user. Say something like "assign interview for Alice to Jane".',
-      };
-    }
-
-    const interviewLabel = `${interview.candidateName} (${interview.position})`;
-    const pendingAction: RecruiterAssistantAssignHrPendingActionDto = {
-      type: 'assign_hr',
-      interviewId: interview.id,
-      assignedHrId: hrUser.id,
-      assignedHrName: hrUser.name,
-      interviewLabel,
-    };
-
-    return {
-      status: 'needs_confirmation',
-      response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
-      pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
-    };
   }
 
   async prepareCreateQuestions(
@@ -373,11 +353,17 @@ export class RecruiterAssistantToolsService {
     locale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
-    void state;
-    void user;
     void locale;
-    void sessionId;
-    return { status: 'refused', response: 'Assign HR flow not implemented yet.' };
+    return this.progressAssignHrFlow(
+      {
+        interviewRef: {},
+        hrRef: {},
+        slots: state.slots,
+      },
+      user,
+      sessionId,
+      { persistFlowOnMissing: true },
+    );
   }
 
   async continueCreateQuestionFlow(
@@ -404,6 +390,189 @@ export class RecruiterAssistantToolsService {
     void locale;
     void sessionId;
     return { status: 'refused', response: 'Create interview flow not implemented yet.' };
+  }
+
+  private async progressAssignHrFlow(
+    input: {
+      interviewRef: InterviewRef;
+      hrRef: HrRef;
+      slots?: Record<string, string>;
+    },
+    user: ActingUser,
+    sessionId: string,
+    options: { persistFlowOnMissing: boolean },
+  ): Promise<RecruiterAssistantResponseDto> {
+    const actor = toInterviewActor(user);
+    const interviewRef = this.interviewRefFromAssignInput(input);
+    const hrRef = this.hrRefFromAssignInput(input);
+    const hasInterviewInput = !!(interviewRef.interviewId || interviewRef.candidateName);
+    const hasHrInput = !!(hrRef.id || hrRef.name);
+
+    const interview = hasInterviewInput
+      ? await resolveInterviewRef(this.interviewService, interviewRef, actor)
+      : null;
+    const hrUser = hasHrInput
+      ? await resolveHrRef(this.userService, hrRef, user.demo)
+      : null;
+
+    if (!hasInterviewInput && !hasHrInput) {
+      return this.requestAssignHrSlot(
+        user,
+        sessionId,
+        'interview',
+        {},
+        options.persistFlowOnMissing,
+      );
+    }
+
+    if (hasInterviewInput && !interview) {
+      return this.requestAssignHrSlot(
+        user,
+        sessionId,
+        'interview',
+        this.hrSlotsFromUser(hrUser),
+        options.persistFlowOnMissing,
+        'I could not find a unique interview. Provide a candidate name or interview id.',
+      );
+    }
+
+    if (interview && !hasHrInput) {
+      return this.requestAssignHrSlot(
+        user,
+        sessionId,
+        'hr',
+        {
+          interviewId: interview.id,
+          interviewRef: interview.candidateName,
+        },
+        options.persistFlowOnMissing,
+      );
+    }
+
+    if (interview && hasHrInput && !hrUser) {
+      return this.requestAssignHrSlot(
+        user,
+        sessionId,
+        'hr',
+        {
+          interviewId: interview.id,
+          interviewRef: interview.candidateName,
+        },
+        options.persistFlowOnMissing,
+        'I could not find a unique HR user. Provide an HR name.',
+      );
+    }
+
+    if (!interview || !hrUser) {
+      return this.requestAssignHrSlot(
+        user,
+        sessionId,
+        'interview',
+        this.hrSlotsFromUser(hrUser),
+        options.persistFlowOnMissing,
+      );
+    }
+
+    this.conversationStore.update(user.id, sessionId, idleConversationState());
+    return this.buildAssignHrConfirmation(interview, hrUser, user);
+  }
+
+  private interviewRefFromAssignInput(input: {
+    interviewRef: InterviewRef;
+    slots?: Record<string, string>;
+  }): InterviewRef {
+    if (input.interviewRef.interviewId || input.interviewRef.candidateName) {
+      return input.interviewRef;
+    }
+    if (input.slots?.interviewId) {
+      return { interviewId: input.slots.interviewId };
+    }
+    const slot = input.slots?.interviewRef;
+    if (!slot) {
+      return {};
+    }
+    return this.isUuid(slot) ? { interviewId: slot } : { candidateName: slot };
+  }
+
+  private hrRefFromAssignInput(input: {
+    hrRef: HrRef;
+    slots?: Record<string, string>;
+  }): HrRef {
+    if (input.hrRef.id || input.hrRef.name) {
+      return input.hrRef;
+    }
+    if (input.slots?.assignedHrId) {
+      return { id: input.slots.assignedHrId };
+    }
+    const hrName = input.slots?.hrName;
+    return hrName ? { name: hrName } : {};
+  }
+
+  private hrSlotsFromUser(
+    hrUser: { id: string; name: string } | null,
+  ): Record<string, string> {
+    if (!hrUser) {
+      return {};
+    }
+    return {
+      hrName: hrUser.name,
+      assignedHrId: hrUser.id,
+    };
+  }
+
+  private requestAssignHrSlot(
+    user: ActingUser,
+    sessionId: string,
+    awaitingInput: 'hr' | 'interview',
+    slots: Record<string, string>,
+    persist: boolean,
+    response?: string,
+  ): RecruiterAssistantResponseDto {
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('assign_hr', awaitingInput, slots),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response:
+        response
+        ?? (awaitingInput === 'interview'
+          ? 'Which interview should I assign? Provide a candidate name or interview id.'
+          : 'Which HR reviewer should I assign?'),
+      awaitingInput,
+    };
+  }
+
+  private buildAssignHrConfirmation(
+    interview: { id: string; candidateName: string; position: string },
+    hrUser: { id: string; name: string },
+    user: ActingUser,
+  ): RecruiterAssistantResponseDto {
+    const interviewLabel = `${interview.candidateName} (${interview.position})`;
+    const pendingAction: RecruiterAssistantAssignHrPendingActionDto = {
+      type: 'assign_hr',
+      interviewId: interview.id,
+      assignedHrId: hrUser.id,
+      assignedHrName: hrUser.name,
+      interviewLabel,
+    };
+
+    return {
+      status: 'needs_confirmation',
+      response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
+      pendingAction,
+      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+    };
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {

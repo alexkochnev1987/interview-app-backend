@@ -139,7 +139,7 @@ export class RecruiterAssistantService {
         );
       case 'assign_hr':
         return this.withSession(
-          await this.tools.prepareAssignHr(intent, user, locale),
+          await this.tools.prepareAssignHr(intent, user, locale, sessionId),
           sessionId,
         );
       case 'create_questions_interview':
