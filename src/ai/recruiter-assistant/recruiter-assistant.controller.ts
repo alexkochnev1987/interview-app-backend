@@ -26,6 +26,9 @@ import {
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { apiServiceUnavailable } from '../../common/errors/api-error';
+import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -65,6 +68,12 @@ export class RecruiterAssistantController {
     @CurrentUser() user: ActingUser,
     @CurrentLocale() locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'Recruiter assistant is disabled in this environment.',
+      );
+    }
     return this.recruiterAssistantService.chat(dto, user, locale);
   }
 }

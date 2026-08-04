@@ -4,6 +4,9 @@ import { ActingUser } from './recruiter-assistant.types';
 export const OUT_OF_SCOPE_RESPONSE =
   'I can help with your interviews, status, assignments, and question setup inside this app. Try asking about your interviews, an interview status, or preparing questions.';
 
+export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
+  'Recruiter assistant is disabled in this environment.';
+
 const CONFIRMATION_KEYWORDS = [
   'yes',
   'y',

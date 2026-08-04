@@ -9,12 +9,14 @@ import {
   isCancellationMessage,
   isConfirmationMessage,
   OUT_OF_SCOPE_RESPONSE,
+  RECRUITER_ASSISTANT_DISABLED_RESPONSE,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 @Injectable()
 export class RecruiterAssistantService {
@@ -30,6 +32,10 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    }
+
     if (!canAccessChat(user)) {
       return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
     }
