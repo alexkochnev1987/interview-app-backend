@@ -58,6 +58,18 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies switch locale requests', () => {
+    expect(service.classify('switch locale to ru', admin, 'en')).toEqual({
+      kind: 'switch_locale',
+      requestedLocale: 'ru',
+    });
+    expect(service.classify('switch locale to klingon', admin, 'en')).toEqual({
+      kind: 'switch_locale',
+      requestedLocale: null,
+      rawToken: 'klingon',
+    });
+  });
+
   it('classifies list interview requests', () => {
     expect(service.classify('show pending interviews', admin, 'en')).toEqual({
       kind: 'list_interviews',

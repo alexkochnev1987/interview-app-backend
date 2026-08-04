@@ -81,6 +81,12 @@ export const LIST_INTERVIEWS_PATTERNS = [
   cyrillicLoosePattern('(?:покажи|список|найди)(?:\\s+\\S+){0,8}\\s+интерв'),
 ];
 
+export const SWITCH_LOCALE_PATTERNS = [
+  /\b(?:switch|change|set)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?:locale|language)\s+to\b/i,
+  /\blocale\s+to\b/i,
+  cyrillicLoosePattern('(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)'),
+];
+
 export const CREATE_INTENT_PATTERNS = [
   /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,

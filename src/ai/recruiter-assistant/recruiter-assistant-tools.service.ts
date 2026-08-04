@@ -336,6 +336,28 @@ export class RecruiterAssistantToolsService {
     };
   }
 
+  switchLocale(
+    requestedLocale: Locale | null,
+    rawToken: string | undefined,
+    locale: Locale,
+  ): RecruiterAssistantResponseDto {
+    void locale;
+    if (!requestedLocale) {
+      return {
+        status: 'refused',
+        response: rawToken
+          ? `"${rawToken}" is not a supported locale. Supported: en, be, ru, pl.`
+          : 'Say "switch locale to ru" (supported: en, be, ru, pl).',
+      };
+    }
+
+    return {
+      status: 'answered',
+      response: `Application language switched to ${requestedLocale}.`,
+      locale: requestedLocale,
+    };
+  }
+
   private async findCandidateOwnInterview(user: ActingUser) {
     return this.interviewService.findLatestByCandidateEmail(user.email, user.demo);
   }

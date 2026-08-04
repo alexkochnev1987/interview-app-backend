@@ -19,8 +19,13 @@ import {
   MY_INTERVIEWS_PATTERNS,
   READY_FOR_REVIEW_PATTERNS,
   REVIEW_STATE_PATTERNS,
+  SWITCH_LOCALE_PATTERNS,
   UNASSIGNED_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
+import {
+  extractLocaleToken,
+  extractRequestedLocale,
+} from './recruiter-assistant-locale-extract';
 import { parseRecruiterRequest } from './recruiter-assistant-request-parser';
 import {
   ActingUser,
@@ -38,6 +43,15 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesAnyPattern(normalized, SWITCH_LOCALE_PATTERNS)) {
+      const requestedLocale = extractRequestedLocale(message);
+      return {
+        kind: 'switch_locale',
+        requestedLocale,
+        rawToken: requestedLocale ? undefined : extractLocaleToken(message),
+      };
+    }
 
     if (matchesAnyPattern(normalized, ASSIGN_HR_PATTERNS)) {
       return {

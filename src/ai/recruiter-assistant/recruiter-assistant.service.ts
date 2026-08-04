@@ -128,6 +128,15 @@ export class RecruiterAssistantService {
           await this.tools.prepareCreateQuestions(intent.parsed, user, locale),
           sessionId,
         );
+      case 'switch_locale':
+        return this.withSession(
+          this.tools.switchLocale(
+            intent.requestedLocale,
+            intent.rawToken,
+            locale,
+          ),
+          sessionId,
+        );
       case 'out_of_scope':
         return this.withSession(
           { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },

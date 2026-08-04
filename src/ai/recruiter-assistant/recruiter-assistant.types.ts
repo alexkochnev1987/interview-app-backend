@@ -19,6 +19,7 @@ export type RecruiterAssistantIntentKind =
   | 'review_state'
   | 'assign_hr'
   | 'create_questions_interview'
+  | 'switch_locale'
   | 'out_of_scope';
 
 export interface InterviewRef {
@@ -42,4 +43,5 @@ export type RecruiterAssistantIntent =
       hrRef: HrRef;
     }
   | { kind: 'create_questions_interview'; parsed: ParsedRecruiterRequest }
+  | { kind: 'switch_locale'; requestedLocale: Locale | null; rawToken?: string }
   | { kind: 'out_of_scope' };

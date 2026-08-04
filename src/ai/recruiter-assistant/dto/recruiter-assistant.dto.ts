@@ -233,6 +233,9 @@ export class RecruiterAssistantResponseDto {
   @ApiPropertyOptional()
   sessionId?: string;
 
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  locale?: Locale;
+
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;
 
