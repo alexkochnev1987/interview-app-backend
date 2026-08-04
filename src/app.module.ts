@@ -13,6 +13,7 @@ import { TemplateModule } from './template/template.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { LocaleModule } from './locale/locale.module';
+import { RecruiterAssistantModule } from './ai/recruiter-assistant/recruiter-assistant.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { LocaleModule } from './locale/locale.module';
     HealthModule,
     TakeModule,
     AiModule,
+    RecruiterAssistantModule,
     FeedbackModule,
   ],
 })

@@ -121,6 +121,38 @@ describe('InterviewService list query (findAllPaginated)', () => {
     expect(result.page).toBe(3);
     expect(result.limit).toBe(10);
   });
+
+  it('finds the latest interview by exact candidate email without staff listing', async () => {
+    const { service, query } = makeService();
+    query.mockResolvedValue({
+      rows: [
+        {
+          id: 'interview-1',
+          candidate_name: 'Alice',
+          candidate_email: 'alice@test.local',
+          position: 'Engineer',
+          status: 'pending',
+          created_at: new Date('2026-01-01T00:00:00.000Z'),
+          updated_at: new Date('2026-01-02T00:00:00.000Z'),
+          question_count: 1,
+          submitted_answer_count: 0,
+          overall_score: null,
+          decision: null,
+        },
+      ],
+    });
+
+    const result = await service.findLatestByCandidateEmail(
+      'Alice@Test.Local',
+      false,
+    );
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('lower(i.candidate_email) = $2'),
+      [false, 'alice@test.local'],
+    );
+    expect(result?.id).toBe('interview-1');
+  });
 });
 
 describe('InterviewService facets query (getFacets)', () => {
