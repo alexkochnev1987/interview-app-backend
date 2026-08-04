@@ -21,6 +21,13 @@ describe('RecruiterAssistantService', () => {
     revoke: jest.fn(),
     issue: jest.fn(),
   };
+  const conversationStore = {
+    issue: jest.fn().mockReturnValue('session-1'),
+    get: jest.fn().mockReturnValue({ flow: 'idle', slots: {} }),
+    update: jest.fn(),
+    clear: jest.fn(),
+    clearAllForUser: jest.fn(),
+  };
   const intentRouter = {
     classify: jest.fn(),
   };
@@ -38,10 +45,13 @@ describe('RecruiterAssistantService', () => {
     tools as never,
     executor as never,
     pendingActionStore as never,
+    conversationStore as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    conversationStore.issue.mockReturnValue('session-1');
+    conversationStore.get.mockReturnValue({ flow: 'idle', slots: {} });
   });
 
   it('checks access before executing a stored pending action', async () => {
@@ -87,6 +97,7 @@ describe('RecruiterAssistantService', () => {
     expect(response).toEqual({
       status: 'answered',
       response: 'Cancelled. No changes were made.',
+      sessionId: 'session-1',
     });
   });
 });

@@ -7,6 +7,7 @@ import { QuestionModule } from '../../question/question.module';
 import { UserModule } from '../../user/user.module';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterAssistantController } from './recruiter-assistant.controller';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
@@ -31,6 +32,7 @@ import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
     RecruiterQuestionMatcherService,
     RecruiterPendingActionExecutorService,
     RecruiterPendingActionStore,
+    RecruiterConversationStore,
     StaffAiThrottlerGuard,
   ],
 })

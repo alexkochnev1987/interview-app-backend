@@ -16,6 +16,7 @@ import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.se
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class RecruiterAssistantService {
     private readonly tools: RecruiterAssistantToolsService,
     private readonly pendingActionExecutor: RecruiterPendingActionExecutorService,
     private readonly pendingActionStore: RecruiterPendingActionStore,
+    private readonly conversationStore: RecruiterConversationStore,
   ) {}
 
   async chat(
@@ -40,6 +42,11 @@ export class RecruiterAssistantService {
       return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
     }
 
+    let sessionId = dto.sessionId;
+    if (!sessionId || !this.conversationStore.get(user.id, sessionId)) {
+      sessionId = this.conversationStore.issue(user.id);
+    }
+
     const message = dto.message.trim();
 
     if (dto.pendingActionId) {
@@ -49,22 +56,31 @@ export class RecruiterAssistantService {
           dto.pendingActionId,
         );
         if (!action) {
-          return {
-            status: 'refused',
-            response:
-              'That confirmation expired, was already used, or does not belong to your account.',
-          };
+          return this.withSession(
+            {
+              status: 'refused',
+              response:
+                'That confirmation expired, was already used, or does not belong to your account.',
+            },
+            sessionId,
+          );
         }
 
-        return this.pendingActionExecutor.execute(action, user, locale);
+        return this.withSession(
+          await this.pendingActionExecutor.execute(action, user, locale),
+          sessionId,
+        );
       }
 
       if (isCancellationMessage(message)) {
         this.pendingActionStore.revoke(user.id, dto.pendingActionId);
-        return {
-          status: 'answered',
-          response: 'Cancelled. No changes were made.',
-        };
+        return this.withSession(
+          {
+            status: 'answered',
+            response: 'Cancelled. No changes were made.',
+          },
+          sessionId,
+        );
       }
     }
 
@@ -72,30 +88,58 @@ export class RecruiterAssistantService {
 
     switch (intent.kind) {
       case 'list_interviews':
-        return this.tools.listInterviews(
-          intent.filters,
-          user,
-          locale,
-          intent.readyForReview,
+        return this.withSession(
+          await this.tools.listInterviews(
+            intent.filters,
+            user,
+            locale,
+            intent.readyForReview,
+          ),
+          sessionId,
         );
       case 'list_unassigned':
-        return this.tools.listUnassigned(user, locale);
+        return this.withSession(
+          await this.tools.listUnassigned(user, locale),
+          sessionId,
+        );
       case 'interview_status':
-        return this.tools.getInterviewStatus(
-          intent.ref,
-          user,
-          locale,
-          intent.ownInterviews,
-          intent.scheduleInquiry,
+        return this.withSession(
+          await this.tools.getInterviewStatus(
+            intent.ref,
+            user,
+            locale,
+            intent.ownInterviews,
+            intent.scheduleInquiry,
+          ),
+          sessionId,
         );
       case 'review_state':
-        return this.tools.getReviewState(intent.ref, user, locale);
+        return this.withSession(
+          await this.tools.getReviewState(intent.ref, user, locale),
+          sessionId,
+        );
       case 'assign_hr':
-        return this.tools.prepareAssignHr(intent, user, locale);
+        return this.withSession(
+          await this.tools.prepareAssignHr(intent, user, locale),
+          sessionId,
+        );
       case 'create_questions_interview':
-        return this.tools.prepareCreateQuestions(intent.parsed, user, locale);
+        return this.withSession(
+          await this.tools.prepareCreateQuestions(intent.parsed, user, locale),
+          sessionId,
+        );
       case 'out_of_scope':
-        return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+        return this.withSession(
+          { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },
+          sessionId,
+        );
     }
+  }
+
+  private withSession(
+    response: RecruiterAssistantResponseDto,
+    sessionId: string,
+  ): RecruiterAssistantResponseDto {
+    return { ...response, sessionId };
   }
 }

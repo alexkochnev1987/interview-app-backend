@@ -178,6 +178,11 @@ export class RecruiterAssistantChatDto {
   @IsOptional()
   @IsUUID()
   pendingActionId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
 }
 
 export class RecruiterAssistantCreatedInterviewDto {
@@ -224,6 +229,9 @@ export class RecruiterAssistantResponseDto {
 
   @ApiPropertyOptional()
   pendingActionId?: string;
+
+  @ApiPropertyOptional()
+  sessionId?: string;
 
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;
