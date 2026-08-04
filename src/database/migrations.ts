@@ -956,4 +956,34 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE users DROP COLUMN IF EXISTS onboarding_status;`,
     ],
   },
+  {
+    version: '0046',
+    name: 'add_user_avatar_fields',
+    statements: [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_picture_url TEXT NULL;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT NULL;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_source TEXT NOT NULL DEFAULT 'none';`,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'users'::regclass
+              AND conname = 'users_avatar_source_check'
+          ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_avatar_source_check
+            CHECK (avatar_source IN ('none', 'google', 'upload'));
+          END IF;
+        END $$;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_avatar_source_check;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS avatar_source;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS avatar_key;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS google_picture_url;`,
+    ],
+  },
 ];

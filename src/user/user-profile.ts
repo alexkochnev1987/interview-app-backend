@@ -6,16 +6,24 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   email?: string;
+  pictureUrl?: string;
 }
 
 export function toUserProfileForActor(
   actor: UserProfileAccessActor,
-  target: { id: string; name: string; role: UserRole; email: string },
+  target: {
+    id: string;
+    name: string;
+    role: UserRole;
+    email: string;
+    pictureUrl?: string;
+  },
 ): UserProfile {
   const profile: UserProfile = {
     id: target.id,
     name: target.name,
     role: target.role,
+    pictureUrl: target.pictureUrl,
   };
   if (
     actor.id === target.id ||

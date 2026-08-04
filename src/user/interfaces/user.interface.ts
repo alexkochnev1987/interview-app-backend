@@ -3,6 +3,9 @@ export type UserRole = 'super_admin' | 'admin' | 'hr' | 'candidate';
 export const ONBOARDING_STATUSES = ['completed', 'skipped'] as const;
 export type OnboardingStatus = (typeof ONBOARDING_STATUSES)[number];
 
+export const AVATAR_SOURCES = ['none', 'google', 'upload'] as const;
+export type AvatarSource = (typeof AVATAR_SOURCES)[number];
+
 export interface User {
   id: string;
   email: string;
@@ -14,4 +17,9 @@ export interface User {
   onboardingCompletedAt?: Date;
   onboardingStatus?: OnboardingStatus;
   createdAt: Date;
+  avatarSource: AvatarSource;
+  avatarKey?: string;
+  googlePictureUrl?: string;
+  pictureUrl?: string;
+  hasGoogleAvatar: boolean;
 }
