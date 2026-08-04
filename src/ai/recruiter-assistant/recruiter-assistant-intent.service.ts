@@ -20,6 +20,7 @@ import {
   READY_FOR_REVIEW_PATTERNS,
   REVIEW_STATE_PATTERNS,
   SWITCH_LOCALE_PATTERNS,
+  NEW_CHAT_PATTERNS,
   UNASSIGNED_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
 import {
@@ -51,6 +52,10 @@ export class RecruiterAssistantIntentService {
         requestedLocale,
         rawToken: requestedLocale ? undefined : extractLocaleToken(message),
       };
+    }
+
+    if (matchesAnyPattern(normalized, NEW_CHAT_PATTERNS)) {
+      return { kind: 'new_chat' };
     }
 
     if (matchesAnyPattern(normalized, ASSIGN_HR_PATTERNS)) {

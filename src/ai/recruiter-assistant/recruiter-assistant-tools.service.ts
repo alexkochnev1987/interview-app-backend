@@ -19,6 +19,7 @@ import {
   canCreateQuestions,
   canReadQuestions,
   canListInterviews,
+  NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
@@ -355,6 +356,13 @@ export class RecruiterAssistantToolsService {
       status: 'answered',
       response: `Application language switched to ${requestedLocale}.`,
       locale: requestedLocale,
+    };
+  }
+
+  startNewChat(): RecruiterAssistantResponseDto {
+    return {
+      status: 'answered',
+      response: NEW_CHAT_WELCOME_RESPONSE,
     };
   }
 

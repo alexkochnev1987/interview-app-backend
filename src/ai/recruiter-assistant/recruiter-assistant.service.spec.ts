@@ -1,5 +1,6 @@
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { ActingUser } from './recruiter-assistant.types';
+import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
 
 describe('RecruiterAssistantService', () => {
   const user: ActingUser = {
@@ -20,6 +21,7 @@ describe('RecruiterAssistantService', () => {
     consume: jest.fn(),
     revoke: jest.fn(),
     issue: jest.fn(),
+    revokeAllForUser: jest.fn(),
   };
   const conversationStore = {
     issue: jest.fn().mockReturnValue('session-1'),
@@ -38,6 +40,11 @@ describe('RecruiterAssistantService', () => {
     getReviewState: jest.fn(),
     prepareAssignHr: jest.fn(),
     prepareCreateQuestions: jest.fn(),
+    switchLocale: jest.fn(),
+    startNewChat: jest.fn().mockReturnValue({
+      status: 'answered',
+      response: NEW_CHAT_WELCOME_RESPONSE,
+    }),
   };
 
   const service = new RecruiterAssistantService(
@@ -52,9 +59,14 @@ describe('RecruiterAssistantService', () => {
     jest.clearAllMocks();
     conversationStore.issue.mockReturnValue('session-1');
     conversationStore.get.mockReturnValue({ flow: 'idle', slots: {} });
+    tools.startNewChat.mockReturnValue({
+      status: 'answered',
+      response: NEW_CHAT_WELCOME_RESPONSE,
+    });
   });
 
   it('checks access before executing a stored pending action', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
     pendingActionStore.consume.mockReturnValue({
       type: 'assign_hr',
       interviewId: '11111111-1111-4111-8111-111111111111',
@@ -81,6 +93,7 @@ describe('RecruiterAssistantService', () => {
   });
 
   it('acknowledges cancellation for a pending action', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
     const response = await service.chat(
       {
         message: 'no',
@@ -99,5 +112,31 @@ describe('RecruiterAssistantService', () => {
       response: 'Cancelled. No changes were made.',
       sessionId: 'session-1',
     });
+  });
+
+  it('starts a new chat with a fresh session', () => {
+    conversationStore.issue.mockReturnValue('session-2');
+
+    const response = service.newChat(user);
+
+    expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
+    expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(conversationStore.issue).toHaveBeenCalledWith('user-1');
+    expect(response).toEqual({
+      status: 'answered',
+      response: NEW_CHAT_WELCOME_RESPONSE,
+      sessionId: 'session-2',
+    });
+  });
+
+  it('resets when the user sends a new chat message', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'new_chat' });
+    conversationStore.issue.mockReturnValue('session-3');
+
+    const response = await service.chat({ message: 'new chat' }, user, 'en');
+
+    expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
+    expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(response.sessionId).toBe('session-3');
   });
 });

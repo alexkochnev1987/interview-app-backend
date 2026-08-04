@@ -76,4 +76,26 @@ export class RecruiterAssistantController {
     }
     return this.recruiterAssistantService.chat(dto, user, locale);
   }
+
+  @Post('chat/reset')
+  @UseGuards(StaffAiThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 20,
+      ttl: minutes(5),
+    },
+  })
+  @ApiOperation({ summary: 'Reset recruiter assistant conversation' })
+  @ApiOkResponse({ type: RecruiterAssistantResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  resetChat(@CurrentUser() user: ActingUser): RecruiterAssistantResponseDto {
+    if (!isRecruiterAssistantEnabled()) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'Recruiter assistant is disabled in this environment.',
+      );
+    }
+    return this.recruiterAssistantService.newChat(user);
+  }
 }

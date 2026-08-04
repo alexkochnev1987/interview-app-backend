@@ -29,4 +29,15 @@ describe('RecruiterPendingActionStore', () => {
     expect(store.revoke('user-1', id)).toBe(true);
     expect(store.consume('user-1', id)).toBeNull();
   });
+
+  it('revokes all pending actions for a user', () => {
+    const first = store.issue('user-1', action);
+    const second = store.issue('user-1', action);
+    store.issue('user-2', action);
+
+    store.revokeAllForUser('user-1');
+
+    expect(store.consume('user-1', first)).toBeNull();
+    expect(store.consume('user-1', second)).toBeNull();
+  });
 });

@@ -87,6 +87,15 @@ export const SWITCH_LOCALE_PATTERNS = [
   cyrillicLoosePattern('(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)'),
 ];
 
+export const NEW_CHAT_PATTERNS = [
+  /\bnew chat\b/i,
+  /\bstart (?:a )?new conversation\b/i,
+  /\breset (?:the )?conversation\b/i,
+  /\bclear (?:the )?chat\b/i,
+  cyrillicLoosePattern('нов(?:ый|ая)\\s+чат'),
+  cyrillicLoosePattern('начать\\s+заново'),
+];
+
 export const CREATE_INTENT_PATTERNS = [
   /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,

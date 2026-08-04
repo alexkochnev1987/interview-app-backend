@@ -50,6 +50,15 @@ export class RecruiterPendingActionStore {
     return true;
   }
 
+  revokeAllForUser(userId: string): void {
+    this.pruneExpired();
+    for (const [id, entry] of this.entries) {
+      if (entry.userId === userId) {
+        this.entries.delete(id);
+      }
+    }
+  }
+
   private pruneExpired(): void {
     const now = Date.now();
     for (const [id, entry] of this.entries) {

@@ -5828,6 +5828,70 @@
         ]
       }
     },
+    "/ai/chat/reset": {
+      "post": {
+        "operationId": "RecruiterAssistantController_resetChat",
+        "summary": "Reset recruiter assistant conversation",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruiterAssistantResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/feedback/share/{token}": {
       "get": {
         "operationId": "CandidateFeedbackShareController_getSharedCandidateFeedback",
@@ -10571,6 +10635,9 @@
           },
           "pendingActionId": {
             "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
           }
         },
         "required": [
@@ -10672,6 +10739,18 @@
           },
           "pendingActionId": {
             "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "createdInterview": {
             "$ref": "#/components/schemas/RecruiterAssistantCreatedInterviewDto"

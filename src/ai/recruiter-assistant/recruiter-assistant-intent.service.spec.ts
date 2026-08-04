@@ -70,6 +70,12 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies new chat requests', () => {
+    expect(service.classify('new chat', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
+  });
+
   it('classifies list interview requests', () => {
     expect(service.classify('show pending interviews', admin, 'en')).toEqual({
       kind: 'list_interviews',

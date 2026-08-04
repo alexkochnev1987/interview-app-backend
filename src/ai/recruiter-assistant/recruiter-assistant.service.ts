@@ -42,12 +42,16 @@ export class RecruiterAssistantService {
       return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
     }
 
+    const message = dto.message.trim();
+    const intent = this.intentRouter.classify(message, user, locale);
+    if (intent.kind === 'new_chat') {
+      return this.newChat(user);
+    }
+
     let sessionId = dto.sessionId;
     if (!sessionId || !this.conversationStore.get(user.id, sessionId)) {
       sessionId = this.conversationStore.issue(user.id);
     }
-
-    const message = dto.message.trim();
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
@@ -83,8 +87,6 @@ export class RecruiterAssistantService {
         );
       }
     }
-
-    const intent = this.intentRouter.classify(message, user, locale);
 
     switch (intent.kind) {
       case 'list_interviews':
@@ -143,6 +145,25 @@ export class RecruiterAssistantService {
           sessionId,
         );
     }
+  }
+
+  newChat(user: ActingUser): RecruiterAssistantResponseDto {
+    if (!isRecruiterAssistantEnabled()) {
+      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    }
+
+    if (!canAccessChat(user)) {
+      return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+    }
+
+    return this.resetConversation(user);
+  }
+
+  private resetConversation(user: ActingUser): RecruiterAssistantResponseDto {
+    this.conversationStore.clearAllForUser(user.id);
+    this.pendingActionStore.revokeAllForUser(user.id);
+    const sessionId = this.conversationStore.issue(user.id);
+    return this.withSession(this.tools.startNewChat(), sessionId);
   }
 
   private withSession(
