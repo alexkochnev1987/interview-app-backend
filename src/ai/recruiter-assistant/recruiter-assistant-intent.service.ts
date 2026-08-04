@@ -60,7 +60,10 @@ export class RecruiterAssistantIntentService {
     }
 
     if (matchesAnyPattern(normalized, MY_INTERVIEWS_PATTERNS)) {
-      return { kind: 'list_interviews', filters: { limit: 20 } };
+      return {
+        kind: 'list_interviews',
+        filters: { limit: 20, assignedHrId: user.id },
+      };
     }
 
     if (
@@ -89,17 +92,17 @@ export class RecruiterAssistantIntentService {
       };
     }
 
-    if (matchesAnyPattern(normalized, LIST_INTERVIEWS_PATTERNS)) {
-      return {
-        kind: 'list_interviews',
-        filters: this.extractListFilters(normalized),
-      };
-    }
-
     if (matchesCreateIntent(normalized)) {
       return {
         kind: 'create_questions_interview',
         parsed: parseRecruiterRequest(message, locale),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_INTERVIEWS_PATTERNS)) {
+      return {
+        kind: 'list_interviews',
+        filters: this.extractListFilters(normalized),
       };
     }
 
@@ -138,10 +141,11 @@ export class RecruiterAssistantIntentService {
     const filters: QueryInterviewsDto = { limit: 20 };
 
     for (const status of INTERVIEW_STATUSES) {
-      if (
-        normalized.includes(status.replace('_', ' '))
-        || normalized.includes(status)
-      ) {
+      const spaced = status.replaceAll('_', ' ');
+      const pattern = new RegExp(
+        `\\b${spaced.replace(/\s+/g, '\\s+')}\\b|\\b${status}\\b`,
+      );
+      if (pattern.test(normalized)) {
         filters.status = status;
         break;
       }

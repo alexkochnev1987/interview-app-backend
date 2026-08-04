@@ -209,7 +209,15 @@ export class CandidateFeedbackShareService {
 
   async hasActiveShareLink(interviewId: string): Promise<boolean> {
     const expiresAt = await this.findActiveShareLinkExpiresAt(interviewId);
-    return expiresAt != null;
+    if (expiresAt == null) {
+      return false;
+    }
+
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
+    return (
+      !!feedback && hasAnyPublishableCandidateFeedbackBlock(feedback)
+    );
   }
 
   private async findActiveShareLinkExpiresAt(

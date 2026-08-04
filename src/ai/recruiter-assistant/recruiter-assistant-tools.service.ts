@@ -23,6 +23,7 @@ import {
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
+import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import {
   ActingUser,
   InterviewRef,
@@ -173,7 +174,7 @@ export class RecruiterAssistantToolsService {
     void locale;
 
     if (user.role === 'candidate') {
-      return this.getCandidateReviewState(user);
+      return this.getCandidateReviewState(user, ref);
     }
 
     if (!canListInterviews(user)) {
@@ -281,7 +282,7 @@ export class RecruiterAssistantToolsService {
       status: 'needs_confirmation',
       response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
       pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -332,7 +333,7 @@ export class RecruiterAssistantToolsService {
       }),
       suggestedQuestions: resolved,
       pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -342,10 +343,27 @@ export class RecruiterAssistantToolsService {
 
   private async getCandidateReviewState(
     user: ActingUser,
+    ref: InterviewRef,
   ): Promise<RecruiterAssistantResponseDto> {
     const interview = await this.findCandidateOwnInterview(user);
     if (!interview) {
       return { status: 'answered', response: 'You do not have an interview yet.' };
+    }
+
+    if (ref.interviewId || ref.candidateName) {
+      const idMismatch =
+        ref.interviewId != null && ref.interviewId !== interview.id;
+      const nameMismatch =
+        ref.candidateName != null
+        && scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
+
+      if (idMismatch || nameMismatch) {
+        return {
+          status: 'answered',
+          response:
+            'You can only check the review state of your own interview.',
+        };
+      }
     }
 
     const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);
