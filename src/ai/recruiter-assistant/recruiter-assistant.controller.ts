@@ -22,6 +22,7 @@ import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantChatDto,
   RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
@@ -37,6 +38,7 @@ type ActingUser = Omit<User, 'passwordHash'>;
 @ApiExtraModels(
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
 )
 @Controller('ai')
 @UseGuards(JwtAuthGuard, PermissionsGuard)

@@ -85,6 +85,19 @@ describe('RecruiterAssistantIntentService', () => {
 
   it('classifies create question requests', () => {
     expect(
+      service.classify('create a question about React hooks', admin, 'en'),
+    ).toEqual({
+      kind: 'create_question',
+      questionName: 'React hooks',
+    });
+    expect(service.classify('create a question', admin, 'en')).toEqual({
+      kind: 'create_question',
+      questionName: undefined,
+    });
+  });
+
+  it('classifies bulk question prep requests', () => {
+    expect(
       service.classify('prepare 5 questions for a React developer', admin, 'en'),
     ).toEqual({
       kind: 'create_questions_interview',

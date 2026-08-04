@@ -22,6 +22,7 @@ import { Type } from 'class-transformer';
 import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
+import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
@@ -164,10 +165,6 @@ export class RecruiterAssistantAssignHrPendingActionDto {
   interviewLabel: string;
 }
 
-export type RecruiterAssistantPendingActionDto =
-    | RecruiterAssistantCreatePendingActionDto
-    | RecruiterAssistantAssignHrPendingActionDto;
-
 export class RecruiterAssistantChatDto {
   @ApiProperty()
   @IsString()
@@ -231,6 +228,27 @@ export class RecruiterAssistantReviewStateDto {
   @ApiPropertyOptional() outcome?: string;
 }
 
+export class RecruiterAssistantCreateSingleQuestionPendingActionDto {
+  @ApiProperty({ enum: ['create_single_question'] })
+  @IsIn(['create_single_question'])
+  type: 'create_single_question';
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
+  questionName: string;
+
+  @ApiProperty({ type: Object })
+  @IsObject()
+  createQuestion: CreateQuestionDto;
+}
+
+export type RecruiterAssistantPendingActionDto =
+    | RecruiterAssistantCreatePendingActionDto
+    | RecruiterAssistantAssignHrPendingActionDto
+    | RecruiterAssistantCreateSingleQuestionPendingActionDto;
+
 export class RecruiterAssistantInterviewSummaryDto {
   @ApiProperty() id: string;
   @ApiProperty() candidateName: string;
@@ -255,6 +273,7 @@ export class RecruiterAssistantResponseDto {
     oneOf: [
       { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
       { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
+      { $ref: getSchemaPath(RecruiterAssistantCreateSingleQuestionPendingActionDto) },
     ],
   })
   pendingAction?: RecruiterAssistantPendingActionDto;
@@ -299,6 +318,7 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantSuggestedQuestionDto,
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
   RecruiterAssistantCreatedQuestionDto,

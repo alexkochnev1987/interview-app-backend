@@ -50,6 +50,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     { listAll: jest.fn() } as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
+    { draftQuestion: jest.fn() } as never,
   );
 
   beforeEach(() => {

@@ -142,6 +142,16 @@ export class RecruiterAssistantService {
           await this.tools.prepareAssignHr(intent, user, locale, sessionId),
           sessionId,
         );
+      case 'create_question':
+        return this.withSession(
+          await this.tools.prepareCreateQuestion(
+            intent.questionName,
+            user,
+            locale,
+            sessionId,
+          ),
+          sessionId,
+        );
       case 'create_questions_interview':
         return this.withSession(
           await this.tools.prepareCreateQuestions(intent.parsed, user, locale),

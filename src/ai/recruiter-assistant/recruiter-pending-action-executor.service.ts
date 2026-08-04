@@ -6,6 +6,7 @@ import { QuestionService } from '../../question/question.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantPendingActionDto,
   RecruiterAssistantResponseDto,
   RecruiterAssistantSuggestedQuestionDto,
@@ -15,6 +16,7 @@ import {
   canCreateInterviews,
   canCreateQuestions,
 } from './recruiter-assistant.policy';
+import { buildCreatedQuestionCard } from './recruiter-assistant-response-builders';
 import { mergeCreatedQuestionSuggestions } from './recruiter-assistant-response';
 import { ActingUser } from './recruiter-assistant.types';
 import { toCreateQuestionDto } from './recruiter-question-create-dto.mapper';
@@ -34,6 +36,10 @@ export class RecruiterPendingActionExecutorService {
   ): Promise<RecruiterAssistantResponseDto> {
     if (action.type === 'assign_hr') {
       return this.executeAssignHr(action, user);
+    }
+
+    if (action.type === 'create_single_question') {
+      return this.executeCreateSingleQuestion(action, user);
     }
 
     return this.executeCreate(action, user, locale);
@@ -69,6 +75,36 @@ export class RecruiterPendingActionExecutorService {
       status: 'executed',
       response: `Assigned ${action.interviewLabel} to ${action.assignedHrName}.`,
     };
+  }
+
+  private async executeCreateSingleQuestion(
+    action: RecruiterAssistantCreateSingleQuestionPendingActionDto,
+    user: ActingUser,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateQuestions(user)) {
+      return {
+        status: 'refused',
+        response: 'You do not have permission to create questions.',
+      };
+    }
+
+    try {
+      const created = await this.questionService.createResolved(action.createQuestion);
+
+      return {
+        status: 'executed',
+        response: `Created question "${created.questionText}".`,
+        createdQuestion: buildCreatedQuestionCard({
+          id: created.id,
+          questionText: created.questionText,
+        }),
+      };
+    } catch {
+      return {
+        status: 'refused',
+        response: 'Question creation failed. Please try again.',
+      };
+    }
   }
 
   private async executeCreate(

@@ -19,9 +19,11 @@ import {
   MY_INTERVIEWS_PATTERNS,
   READY_FOR_REVIEW_PATTERNS,
   REVIEW_STATE_PATTERNS,
+  CREATE_SINGLE_QUESTION_PATTERNS,
   SWITCH_LOCALE_PATTERNS,
   NEW_CHAT_PATTERNS,
   UNASSIGNED_PATTERNS,
+  matchesCreateSingleQuestionIntent,
 } from './recruiter-assistant-intent-patterns';
 import {
   extractLocaleToken,
@@ -34,6 +36,7 @@ import {
   InterviewRef,
   RecruiterAssistantIntent,
 } from './recruiter-assistant.types';
+import { extractQuestionName } from './recruiter-assistant-question-name-extract';
 
 @Injectable()
 export class RecruiterAssistantIntentService {
@@ -44,6 +47,20 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesCreateIntent(normalized)) {
+      return {
+        kind: 'create_questions_interview',
+        parsed: parseRecruiterRequest(message, locale),
+      };
+    }
+
+    if (matchesCreateSingleQuestionIntent(normalized)) {
+      return {
+        kind: 'create_question',
+        questionName: extractQuestionName(message),
+      };
+    }
 
     if (matchesAnyPattern(normalized, SWITCH_LOCALE_PATTERNS)) {
       const requestedLocale = extractRequestedLocale(message);
@@ -112,13 +129,6 @@ export class RecruiterAssistantIntentService {
       return {
         kind: 'list_interviews',
         filters: this.extractListFilters(normalized),
-      };
-    }
-
-    if (matchesCreateIntent(normalized)) {
-      return {
-        kind: 'create_questions_interview',
-        parsed: parseRecruiterRequest(message, locale),
       };
     }
 

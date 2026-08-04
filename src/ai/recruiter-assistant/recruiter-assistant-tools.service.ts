@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AiService } from '../ai.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { Locale } from '../../locale/locale.constants';
@@ -11,6 +12,7 @@ import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import {
@@ -40,6 +42,10 @@ import {
   idleConversationState,
   startConversationFlow,
 } from './recruiter-conversation-slots';
+import {
+  isQuestionDraftGenerate,
+  mapDraftGenerateToCreateQuestionDto,
+} from './recruiter-question-draft.mapper';
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -52,6 +58,7 @@ export class RecruiterAssistantToolsService {
     private readonly userService: UserService,
     private readonly pendingActionStore: RecruiterPendingActionStore,
     private readonly conversationStore: RecruiterConversationStore,
+    private readonly aiService: AiService,
   ) {}
 
   async listInterviews(
@@ -267,6 +274,36 @@ export class RecruiterAssistantToolsService {
     );
   }
 
+  async prepareCreateQuestion(
+    questionName: string | undefined,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateQuestions(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create questions.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    if (!questionName) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'questionName'),
+      );
+      return {
+        status: 'answered',
+        response: 'What should the question be called?',
+        awaitingInput: 'questionName',
+      };
+    }
+
+    return this.progressCreateQuestionFlow(questionName, user, locale, sessionId);
+  }
+
   async prepareCreateQuestions(
     parsed: ParsedRecruiterRequest,
     user: ActingUser,
@@ -372,11 +409,29 @@ export class RecruiterAssistantToolsService {
     locale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
-    void state;
-    void user;
-    void locale;
-    void sessionId;
-    return { status: 'refused', response: 'Create question flow not implemented yet.' };
+    if (!canCreateQuestions(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create questions.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const questionName = state.slots.questionName;
+    if (!questionName) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'questionName'),
+      );
+      return {
+        status: 'answered',
+        response: 'What should the question be called?',
+        awaitingInput: 'questionName',
+      };
+    }
+
+    return this.progressCreateQuestionFlow(questionName, user, locale, sessionId);
   }
 
   async continueCreateInterviewFlow(
@@ -390,6 +445,48 @@ export class RecruiterAssistantToolsService {
     void locale;
     void sessionId;
     return { status: 'refused', response: 'Create interview flow not implemented yet.' };
+  }
+
+  private async progressCreateQuestionFlow(
+    questionName: string,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    try {
+      const draft = await this.aiService.draftQuestion(
+        { questionText: questionName, role: 'General' },
+        { headerLocale: locale, bodyLocale: locale },
+      );
+
+      if (!isQuestionDraftGenerate(draft)) {
+        return {
+          status: 'refused',
+          response: 'I could not generate AI suggestions for that question.',
+        };
+      }
+
+      const createQuestion = mapDraftGenerateToCreateQuestionDto(draft, locale);
+      const pendingAction: RecruiterAssistantCreateSingleQuestionPendingActionDto = {
+        type: 'create_single_question',
+        questionName,
+        createQuestion,
+      };
+
+      this.conversationStore.update(user.id, sessionId, idleConversationState());
+
+      return {
+        status: 'needs_confirmation',
+        response: `Create question "${questionName}" with AI suggestions? Reply yes to confirm.`,
+        pendingAction,
+        pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      };
+    } catch {
+      return {
+        status: 'refused',
+        response: 'Question draft generation failed. Try again or create the question manually.',
+      };
+    }
   }
 
   private async progressAssignHrFlow(

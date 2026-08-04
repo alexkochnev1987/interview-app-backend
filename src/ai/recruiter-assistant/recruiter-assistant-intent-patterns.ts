@@ -106,6 +106,23 @@ export const CREATE_INTENT_PATTERNS = [
   cyrillicLoosePattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
 ];
 
+export const CREATE_SINGLE_QUESTION_PATTERNS = [
+  /\bcreate (?:a )?question\b/i,
+  /\badd (?:a )?(?:new )?question\b/i,
+  /\bmake (?:a )?(?:new )?question\b/i,
+  cyrillicLoosePattern('создай(?:\\s+\\S+){0,4}\\s+вопрос'),
+];
+
+export function matchesCreateSingleQuestionIntent(message: string): boolean {
+  if (/\b\d{1,2}\s+questions?\b/i.test(message)) {
+    return false;
+  }
+  if (/\b\d{1,2}\s+(?:вопрос(?:а|ов)?)\b/i.test(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, CREATE_SINGLE_QUESTION_PATTERNS);
+}
+
 export function matchesAnyPattern(message: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(message));
 }
