@@ -16,6 +16,7 @@ import {
   LIST_INTERVIEWS_PATTERNS,
   matchesAnyPattern,
   matchesCreateIntent,
+  matchesCreateInterviewIntent,
   MY_INTERVIEWS_PATTERNS,
   READY_FOR_REVIEW_PATTERNS,
   REVIEW_STATE_PATTERNS,
@@ -37,6 +38,7 @@ import {
   RecruiterAssistantIntent,
 } from './recruiter-assistant.types';
 import { extractQuestionName } from './recruiter-assistant-question-name-extract';
+import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
 
 @Injectable()
 export class RecruiterAssistantIntentService {
@@ -47,6 +49,15 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesCreateInterviewIntent(normalized)) {
+      const fields = extractCreateInterviewFields(message);
+      return {
+        kind: 'create_interview',
+        candidateName: fields.candidateName,
+        position: fields.position,
+      };
+    }
 
     if (matchesCreateIntent(normalized)) {
       return {

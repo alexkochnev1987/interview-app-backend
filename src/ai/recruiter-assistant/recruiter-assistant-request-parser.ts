@@ -74,3 +74,8 @@ function extractPosition(message: string): string {
   if (normalized.includes('devops')) return 'DevOps Engineer';
   return 'Software Developer';
 }
+
+export function extractPositionFromMessage(message: string): string | undefined {
+  const position = extractPosition(message);
+  return position === 'Software Developer' ? undefined : position;
+}

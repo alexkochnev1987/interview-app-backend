@@ -155,6 +155,8 @@ export function extractCandidateNameFromCreateRequest(
   message: string,
 ): string | undefined {
   return firstCapture(message, [
+    new RegExp(`\\binterview\\s+for\\s+(${PERSON_NAME})\\s+for\\b`, 'iu'),
+    new RegExp(`\\binterview\\s+for\\s+(${PERSON_NAME})\\b`, 'iu'),
     new RegExp(`\\bcandidate\\s+(?!email\\b)(${PERSON_NAME})\\b`, 'iu'),
     new RegExp(`\\b(?:for|кандидат(?:а|у)?|для кандидата)\\s+(${PERSON_NAME})\\b`, 'iu'),
   ]);

@@ -15,6 +15,7 @@ import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { AiModule } from '../ai.module';
+import { TemplateModule } from '../../template/template.module';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 
 @Module({
@@ -26,6 +27,7 @@ import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
     FeedbackModule,
     UserModule,
     AiModule,
+    TemplateModule,
   ],
   controllers: [RecruiterAssistantController],
   providers: [

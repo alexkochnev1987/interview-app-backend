@@ -96,6 +96,21 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies create interview requests', () => {
+    expect(service.classify('create a new interview', admin, 'en')).toEqual({
+      kind: 'create_interview',
+      candidateName: undefined,
+      position: undefined,
+    });
+    expect(
+      service.classify('create interview for Alice for React developer', admin, 'en'),
+    ).toEqual({
+      kind: 'create_interview',
+      candidateName: 'Alice',
+      position: 'React Developer',
+    });
+  });
+
   it('classifies bulk question prep requests', () => {
     expect(
       service.classify('prepare 5 questions for a React developer', admin, 'en'),

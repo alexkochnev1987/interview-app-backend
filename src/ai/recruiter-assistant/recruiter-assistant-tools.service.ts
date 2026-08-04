@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AiService } from '../ai.service';
+import { TemplateService } from '../../template/template.service';
+import { TemplateSummary } from '../../template/template.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { Locale } from '../../locale/locale.constants';
@@ -24,6 +26,8 @@ import {
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
+import { buildInterviewRedirect } from './recruiter-assistant-response-builders';
+import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import {
@@ -59,6 +63,7 @@ export class RecruiterAssistantToolsService {
     private readonly pendingActionStore: RecruiterPendingActionStore,
     private readonly conversationStore: RecruiterConversationStore,
     private readonly aiService: AiService,
+    private readonly templateService: TemplateService,
   ) {}
 
   async listInterviews(
@@ -434,17 +439,272 @@ export class RecruiterAssistantToolsService {
     return this.progressCreateQuestionFlow(questionName, user, locale, sessionId);
   }
 
+  async prepareCreateInterview(
+    candidateName: string | undefined,
+    position: string | undefined,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create interviews.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    return this.progressCreateInterviewFlow(
+      { candidateName, position },
+      user,
+      locale,
+      sessionId,
+      { persistFlowOnMissing: true },
+    );
+  }
+
   async continueCreateInterviewFlow(
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
-    void state;
-    void user;
-    void locale;
-    void sessionId;
-    return { status: 'refused', response: 'Create interview flow not implemented yet.' };
+    if (!canCreateInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create interviews.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    if (state.slots.templateChoice) {
+      return this.progressTemplateChoiceFlow(
+        state.slots,
+        user,
+        locale,
+        sessionId,
+      );
+    }
+
+    return this.progressCreateInterviewFlow(
+      { slots: state.slots },
+      user,
+      locale,
+      sessionId,
+      { persistFlowOnMissing: true },
+    );
+  }
+
+  private async progressTemplateChoiceFlow(
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const candidateName = slots.candidateName;
+    const position = slots.position;
+    const templates = await this.loadStoredTemplates(slots, user, locale);
+    const choice = parseTemplateChoice(slots.templateChoice ?? '');
+
+    if (!choice) {
+      const { templateChoice: _ignored, ...rest } = slots;
+      this.conversationStore.update(user.id, sessionId, {
+        flow: 'create_interview',
+        slots: rest,
+        awaitingInput: 'templateChoice',
+      });
+      return {
+        status: 'answered',
+        response: 'Pick a number from the list or say "create my own".',
+        awaitingInput: 'templateChoice',
+        templates,
+      };
+    }
+
+    if (choice.kind === 'own') {
+      this.conversationStore.update(user.id, sessionId, idleConversationState());
+      return {
+        status: 'answered',
+        response: 'Opening the interview form.',
+        redirect: buildInterviewRedirect({ candidateName, position }),
+      };
+    }
+
+    const selected = templates[choice.index - 1];
+    if (!selected) {
+      const { templateChoice: _ignored, ...rest } = slots;
+      this.conversationStore.update(user.id, sessionId, {
+        flow: 'create_interview',
+        slots: rest,
+        awaitingInput: 'templateChoice',
+      });
+      return {
+        status: 'answered',
+        response: `Template ${choice.index} is not in the list. Pick a number from 1 to ${templates.length} or say "create my own".`,
+        awaitingInput: 'templateChoice',
+        templates,
+      };
+    }
+
+    const template = await this.templateService.findOne(selected.id, locale, {
+      demo: user.demo,
+    });
+
+    if (template.questions.length === 0) {
+      this.conversationStore.update(user.id, sessionId, idleConversationState());
+      return {
+        status: 'refused',
+        response: `Template "${template.name}" has no available questions. Try another template or say "create my own".`,
+        redirect: buildInterviewRedirect({ candidateName, position }),
+      };
+    }
+
+    const questions = template.questions.map((question, index) => ({
+      key: `template-${index + 1}`,
+      questionText: question.questionText,
+      existingQuestionId: question.id,
+      existingQuestionText: question.questionText,
+      needsCreation: false,
+    }));
+
+    const pendingAction: RecruiterAssistantCreatePendingActionDto = {
+      type: 'create_interview',
+      position: position ?? template.position ?? '',
+      candidateName,
+      interviewLocale: locale,
+      questions,
+    };
+
+    this.conversationStore.update(user.id, sessionId, idleConversationState());
+
+    return {
+      status: 'needs_confirmation',
+      response: `Create interview for ${candidateName} using "${template.name}" (${questions.length} questions)? Reply yes to confirm.`,
+      suggestedQuestions: questions,
+      pendingAction,
+      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+    };
+  }
+
+  private async progressCreateInterviewFlow(
+    input: {
+      candidateName?: string;
+      position?: string;
+      slots?: Record<string, string>;
+    },
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    options: { persistFlowOnMissing: boolean },
+  ): Promise<RecruiterAssistantResponseDto> {
+    const candidateName = input.candidateName ?? input.slots?.candidateName;
+    const position = input.position ?? input.slots?.position;
+
+    if (!candidateName) {
+      return this.requestCreateInterviewSlot(
+        user,
+        sessionId,
+        'candidateName',
+        { position: position ?? '' },
+        options.persistFlowOnMissing,
+      );
+    }
+
+    if (!position) {
+      return this.requestCreateInterviewSlot(
+        user,
+        sessionId,
+        'position',
+        { candidateName },
+        options.persistFlowOnMissing,
+      );
+    }
+
+    const templates = await this.findTemplatesForPosition(position, user, locale);
+    const slots = {
+      candidateName,
+      position,
+      templateIds: templates.map((template) => template.id).join(','),
+    };
+
+    if (templates.length === 0) {
+      if (options.persistFlowOnMissing) {
+        this.conversationStore.update(user.id, sessionId, idleConversationState());
+      }
+      return {
+        status: 'answered',
+        response: `No templates found for ${position}. Say "create my own" to open the interview form.`,
+        redirect: buildInterviewRedirect({ candidateName, position }),
+      };
+    }
+
+    this.conversationStore.update(user.id, sessionId, {
+      flow: 'create_interview',
+      slots,
+      awaitingInput: 'templateChoice',
+    });
+
+    return {
+      status: 'answered',
+      response: `Found ${templates.length} template(s) for ${position}. Choose a number or say "create my own".`,
+      templates,
+      awaitingInput: 'templateChoice',
+    };
+  }
+
+  private requestCreateInterviewSlot(
+    user: ActingUser,
+    sessionId: string,
+    awaitingInput: 'candidateName' | 'position',
+    slots: Record<string, string>,
+    persist: boolean,
+  ): RecruiterAssistantResponseDto {
+    const cleanedSlots = Object.fromEntries(
+      Object.entries(slots).filter(([, value]) => value),
+    );
+
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_interview', awaitingInput, cleanedSlots),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response:
+        awaitingInput === 'candidateName'
+          ? 'What is the candidate name?'
+          : 'What position is the interview for?',
+      awaitingInput,
+    };
+  }
+
+  private async findTemplatesForPosition(
+    position: string,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<TemplateSummary[]> {
+    const all = await this.templateService.findAll(locale, { demo: user.demo });
+    const needle = position.trim().toLowerCase();
+    return all.filter((template) =>
+      (template.position ?? '').trim().toLowerCase().includes(needle),
+    );
+  }
+
+  private async loadStoredTemplates(
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<TemplateSummary[]> {
+    const position = slots.position;
+    if (!position) {
+      return [];
+    }
+    const templates = await this.findTemplatesForPosition(position, user, locale);
+    const ids = new Set((slots.templateIds ?? '').split(',').filter(Boolean));
+    return templates.filter((template) => ids.has(template.id));
   }
 
   private async progressCreateQuestionFlow(

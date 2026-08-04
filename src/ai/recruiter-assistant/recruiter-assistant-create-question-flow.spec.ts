@@ -42,6 +42,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     aiService as unknown as AiService,
+    { findAll: jest.fn() } as never,
   );
 
   beforeEach(() => {

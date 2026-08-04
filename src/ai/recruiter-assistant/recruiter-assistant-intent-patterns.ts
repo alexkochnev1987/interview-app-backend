@@ -96,10 +96,30 @@ export const NEW_CHAT_PATTERNS = [
   cyrillicLoosePattern('начать\\s+заново'),
 ];
 
+export const CREATE_INTERVIEW_PATTERNS = [
+  /\bcreate (?:a )?new interview\b/i,
+  /\bcreate (?:an )?interview for\b/i,
+  /\bschedule (?:a )?new interview\b/i,
+  /\bcreate (?:an )?interview\b/i,
+  cyrillicLoosePattern('создай(?:\\s+\\S+){0,6}\\s+интерв'),
+];
+
+export function matchesCreateInterviewIntent(message: string): boolean {
+  if (/\bquestions?\b/i.test(message)) {
+    return false;
+  }
+  if (/\b\d{1,2}\s+(?:questions?|вопрос(?:а|ов)?)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bset up\s+(?:an?\s+)?interview\b/i.test(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, CREATE_INTERVIEW_PATTERNS);
+}
+
 export const CREATE_INTENT_PATTERNS = [
   /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
-  /\bcreate (an )?interview\b/i,
   /\bmake interview\b/i,
   /\bgenerate questions\b/i,
   cyrillicLoosePattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)'),
