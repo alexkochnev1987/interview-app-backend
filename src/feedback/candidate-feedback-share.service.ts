@@ -185,23 +185,8 @@ export class CandidateFeedbackShareService {
     );
     this.assertInterviewReadyForShare(interview);
 
-    const result = await this.databaseService.query<{
-      expires_at: Date | null;
-    }>(
-      `
-        SELECT expires_at
-        FROM candidate_feedback_share_links
-        WHERE interview_id = $1
-          AND revoked_at IS NULL
-          AND expires_at IS NOT NULL
-          AND expires_at > NOW()
-        LIMIT 1
-      `,
-      [interviewId],
-    );
-
-    const row = result.rows[0];
-    if (!row?.expires_at) {
+    const expiresAt = await this.findActiveShareLinkExpiresAt(interviewId);
+    if (!expiresAt) {
       throw apiNotFound(
         ApiErrorCode.FEEDBACK_NOT_FOUND,
         'No active candidate-feedback share link',
@@ -219,7 +204,33 @@ export class CandidateFeedbackShareService {
       );
     }
 
-    return { expiresAt: row.expires_at };
+    return { expiresAt };
+  }
+
+  async hasActiveShareLink(interviewId: string): Promise<boolean> {
+    const expiresAt = await this.findActiveShareLinkExpiresAt(interviewId);
+    return expiresAt != null;
+  }
+
+  private async findActiveShareLinkExpiresAt(
+    interviewId: string,
+  ): Promise<Date | null> {
+    const result = await this.databaseService.query<{
+      expires_at: Date | null;
+    }>(
+      `
+        SELECT expires_at
+        FROM candidate_feedback_share_links
+        WHERE interview_id = $1
+          AND revoked_at IS NULL
+          AND expires_at IS NOT NULL
+          AND expires_at > NOW()
+        LIMIT 1
+      `,
+      [interviewId],
+    );
+
+    return result.rows[0]?.expires_at ?? null;
   }
 
   async resolveByToken(token: string): Promise<PublicCandidateFeedbackResponse> {

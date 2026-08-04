@@ -74,7 +74,7 @@ Interview responses include `questionsDisplayLocale` (always `interviewLocale`) 
 | `POST /questions/ai/draft` | `body.locale` → header → `en`; `mode=translate|generate`. **Translate** requires body `locale`, `question.primaryLocale`, and full primary rubric; returns target-locale content block with 1:1 concept/red-flag ids. **Generate** returns identity fields (`externalId`, `role`, `focus`, `category`, `subcategory`, `difficulty`, `weight`, `minimumPassScore`, `tags`) plus full rubric content; seed metadata is LLM context, not echoed. Auto: locale mismatch + full primary content → translate. |
 | `POST /ai/question-draft` | same as above, **deprecated compatibility endpoint** |
 | `GET /feedback/:id` | exempt — use `interviewLocale` in response |
-| `POST /ai/chat`, `POST /ai/greet` | exempt |
+| `POST /ai/take/chat`, `POST /ai/greet` | exempt |
 | auth, upload, health | n/a |
 
 ---

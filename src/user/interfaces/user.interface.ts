@@ -18,8 +18,8 @@ export interface User {
   onboardingStatus?: OnboardingStatus;
   createdAt: Date;
   avatarSource: AvatarSource;
+  hasGoogleAvatar: boolean;
   avatarKey?: string;
   googlePictureUrl?: string;
   pictureUrl?: string;
-  hasGoogleAvatar: boolean;
 }
