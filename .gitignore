@@ -8,6 +8,8 @@ coverage/
 cookies.txt
 local-seeds/
 backups/
+tmp-*
+openapi-live.json
 
 # Terraform
 infra/**/.terraform/

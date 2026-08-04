@@ -33,6 +33,6 @@ import { FeedbackService } from './feedback.service';
     CandidateFeedbackGenerationService,
     StaffAiThrottlerGuard,
   ],
-  exports: [CandidateFeedbackService],
+  exports: [CandidateFeedbackService, CandidateFeedbackShareService],
 })
 export class FeedbackModule {}
