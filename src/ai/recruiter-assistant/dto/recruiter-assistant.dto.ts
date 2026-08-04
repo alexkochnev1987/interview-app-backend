@@ -23,6 +23,7 @@ import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
+import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
 export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
 export const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
@@ -193,6 +194,37 @@ export class RecruiterAssistantCreatedInterviewDto {
   candidateLink: string;
 }
 
+export class RecruiterAssistantCreatedQuestionDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ description: 'Frontend route when the question card is clicked.' })
+  href: string;
+}
+
+export class RecruiterAssistantRedirectDto {
+  @ApiProperty({ example: '/interviews/new' })
+  path: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    example: { candidateName: 'Alice', position: 'React Developer' },
+  })
+  query?: Record<string, string>;
+}
+
+export type RecruiterAssistantAwaitingInput =
+  | 'hr'
+  | 'interview'
+  | 'questionName'
+  | 'candidateName'
+  | 'position'
+  | 'templateChoice';
+
 export class RecruiterAssistantReviewStateDto {
   @ApiProperty() reviewed: boolean;
   @ApiPropertyOptional() shareLinkActive?: boolean;
@@ -236,6 +268,20 @@ export class RecruiterAssistantResponseDto {
   @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
   locale?: Locale;
 
+  @ApiPropertyOptional({ type: RecruiterAssistantCreatedQuestionDto })
+  createdQuestion?: RecruiterAssistantCreatedQuestionDto;
+
+  @ApiPropertyOptional({ type: RecruiterAssistantRedirectDto })
+  redirect?: RecruiterAssistantRedirectDto;
+
+  @ApiPropertyOptional({ type: [TemplateSummaryResponseDto] })
+  templates?: TemplateSummaryResponseDto[];
+
+  @ApiPropertyOptional({
+    enum: ['hr', 'interview', 'questionName', 'candidateName', 'position', 'templateChoice'],
+  })
+  awaitingInput?: RecruiterAssistantAwaitingInput;
+
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;
 
@@ -255,6 +301,9 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
+  RecruiterAssistantCreatedQuestionDto,
+  RecruiterAssistantRedirectDto,
+  TemplateSummaryResponseDto,
   InterviewListItemDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
