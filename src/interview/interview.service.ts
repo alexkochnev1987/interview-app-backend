@@ -1044,7 +1044,6 @@ export class InterviewService {
     input: ReserveAnswerAttemptInput,
   ): Promise<ReserveAnswerAttemptResult> {
     const { questionIndex } = input;
-    const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
 
     return this.databaseService.withTransaction(async (client) => {
       const row = await this.lockInterviewForUpdate(client, id);
