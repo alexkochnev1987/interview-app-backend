@@ -10627,6 +10627,28 @@
           "interviewLabel"
         ]
       },
+      "RecruiterAssistantCreateSingleQuestionPendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "create_single_question"
+            ]
+          },
+          "questionName": {
+            "type": "string"
+          },
+          "createQuestion": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "type",
+          "questionName",
+          "createQuestion"
+        ]
+      },
       "RecruiterAssistantChatDto": {
         "type": "object",
         "properties": {
@@ -10642,6 +10664,48 @@
         },
         "required": [
           "message"
+        ]
+      },
+      "RecruiterAssistantCreatedQuestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string",
+            "description": "Frontend route when the question card is clicked."
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "href"
+        ]
+      },
+      "RecruiterAssistantRedirectDto": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "example": "/interviews/new"
+          },
+          "query": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "candidateName": "Alice",
+              "position": "React Developer"
+            }
+          }
+        },
+        "required": [
+          "path"
         ]
       },
       "RecruiterAssistantCreatedInterviewDto": {
@@ -10734,6 +10798,9 @@
               },
               {
                 "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
+              },
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantCreateSingleQuestionPendingActionDto"
               }
             ]
           },
@@ -10750,6 +10817,29 @@
               "be",
               "ru",
               "pl"
+            ]
+          },
+          "createdQuestion": {
+            "$ref": "#/components/schemas/RecruiterAssistantCreatedQuestionDto"
+          },
+          "redirect": {
+            "$ref": "#/components/schemas/RecruiterAssistantRedirectDto"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateSummaryResponseDto"
+            }
+          },
+          "awaitingInput": {
+            "type": "string",
+            "enum": [
+              "hr",
+              "interview",
+              "questionName",
+              "candidateName",
+              "position",
+              "templateChoice"
             ]
           },
           "createdInterview": {
