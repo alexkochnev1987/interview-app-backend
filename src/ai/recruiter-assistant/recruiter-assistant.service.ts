@@ -38,7 +38,7 @@ export class RecruiterAssistantService {
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
-        const action = this.pendingActionStore.consume(
+        const action = await this.pendingActionStore.consume(
           user.id,
           dto.pendingActionId,
         );
@@ -54,7 +54,7 @@ export class RecruiterAssistantService {
       }
 
       if (isCancellationMessage(message)) {
-        this.pendingActionStore.revoke(user.id, dto.pendingActionId);
+        await this.pendingActionStore.revoke(user.id, dto.pendingActionId);
         return {
           status: 'answered',
           response: 'Cancelled. No changes were made.',

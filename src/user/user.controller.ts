@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -10,9 +13,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -27,6 +33,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './interfaces/user.interface';
 import { UserProfileResponseDto } from './dto/user-profile.response.dto';
 import { UserService } from './user.service';
@@ -66,6 +73,47 @@ export class UserController {
       @CurrentUser() actor: Omit<User, 'passwordHash'>,
   ): Promise<UserProfileResponseDto> {
     return this.userService.findOneForActor(actor, id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('users:update')
+  @ApiOperation({ summary: 'Update user name and/or email' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  update(
+    @Param('id', ParseUUIDPipe) targetId: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.userService.updateUser(
+      { id: actor.id, role: actor.role },
+      targetId,
+      dto,
+    );
+  }
+
+  @Delete(':id')
+  @RequirePermissions('users:delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Hard-delete a user' })
+  @ApiParam({ name: 'id' })
+  @ApiNoContentResponse({ description: 'User deleted' })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async remove(
+    @Param('id', ParseUUIDPipe) targetId: string,
+    @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<void> {
+    await this.userService.deleteUser(
+      { id: actor.id, role: actor.role },
+      targetId,
+    );
   }
 
   @Patch(':id/role')

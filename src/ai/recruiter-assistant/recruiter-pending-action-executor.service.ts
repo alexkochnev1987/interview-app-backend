@@ -137,14 +137,15 @@ export class RecruiterPendingActionExecutorService {
     }
 
     if (!canCreateInterviews(user)) {
+      await this.rollbackCreatedQuestions(createdQuestionIds, interviewLocale);
+
       return {
         status: 'refused',
         response:
-          'The questions are ready, but I cannot create the interview because your user does not have interviews:create permission.',
-        suggestedQuestions: mergeCreatedQuestionSuggestions(
-          action.questions,
-          createdQuestions,
-        ),
+          createdQuestionIds.length > 0
+            ? 'I cannot create the interview because your user does not have interviews:create permission. Any new questions from this attempt were rolled back.'
+            : 'I cannot create the interview because your user does not have interviews:create permission.',
+        suggestedQuestions: action.questions,
       };
     }
 

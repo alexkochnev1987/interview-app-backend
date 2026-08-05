@@ -986,4 +986,27 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE users DROP COLUMN IF EXISTS google_picture_url;`,
     ],
   },
+  {
+    version: '0047',
+    name: 'create_recruiter_pending_actions',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS recruiter_pending_actions (
+          id UUID PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          action_json JSONB NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS recruiter_pending_actions_expires_at_idx
+        ON recruiter_pending_actions (expires_at);
+      `,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS recruiter_pending_actions_expires_at_idx;`,
+      `DROP TABLE IF EXISTS recruiter_pending_actions;`,
+    ],
+  },
 ];

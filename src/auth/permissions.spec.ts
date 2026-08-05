@@ -25,6 +25,15 @@ describe('permissions', () => {
     expect(hasPermission('admin', 'questions:delete')).toBe(false);
   });
 
+  it('allows admin and super_admin to update and delete users', () => {
+    for (const role of ['admin', 'super_admin'] as const) {
+      expect(hasPermission(role, 'users:update')).toBe(true);
+      expect(hasPermission(role, 'users:delete')).toBe(true);
+    }
+    expect(hasPermission('hr', 'users:update')).toBe(false);
+    expect(hasPermission('hr', 'users:delete')).toBe(false);
+  });
+
   it('allows HR to read questions and manage interviews without question mutation', () => {
     expect(hasPermission('hr', 'questions:read')).toBe(true);
     expect(hasPermission('hr', 'interviews:create')).toBe(true);
