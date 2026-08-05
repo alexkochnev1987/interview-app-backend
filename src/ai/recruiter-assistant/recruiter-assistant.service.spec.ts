@@ -72,7 +72,7 @@ describe('RecruiterAssistantService', () => {
 
   it('checks access before executing a stored pending action', async () => {
     intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
-    pendingActionStore.consume.mockReturnValue({
+    pendingActionStore.consume.mockResolvedValue({
       type: 'assign_hr',
       interviewId: '11111111-1111-4111-8111-111111111111',
       assignedHrId: '22222222-2222-4222-8222-222222222222',
@@ -119,10 +119,11 @@ describe('RecruiterAssistantService', () => {
     });
   });
 
-  it('starts a new chat with a fresh session', () => {
+  it('starts a new chat with a fresh session', async () => {
     conversationStore.issue.mockReturnValue('session-2');
+    pendingActionStore.revokeAllForUser.mockResolvedValue(undefined);
 
-    const response = service.newChat(user);
+    const response = await service.newChat(user);
 
     expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
     expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
@@ -137,6 +138,7 @@ describe('RecruiterAssistantService', () => {
   it('resets when the user sends a new chat message', async () => {
     intentRouter.classify.mockReturnValue({ kind: 'new_chat' });
     conversationStore.issue.mockReturnValue('session-3');
+    pendingActionStore.revokeAllForUser.mockResolvedValue(undefined);
 
     const response = await service.chat({ message: 'new chat' }, user, 'en');
 

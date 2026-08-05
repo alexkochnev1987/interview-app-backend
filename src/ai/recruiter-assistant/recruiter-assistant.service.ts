@@ -62,7 +62,7 @@ export class RecruiterAssistantService {
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
-        const action = this.pendingActionStore.consume(
+        const action = await this.pendingActionStore.consume(
           user.id,
           dto.pendingActionId,
         );
@@ -100,7 +100,7 @@ export class RecruiterAssistantService {
       }
 
       if (isCancellationMessage(message)) {
-        this.pendingActionStore.revoke(user.id, dto.pendingActionId);
+        await this.pendingActionStore.revoke(user.id, dto.pendingActionId);
         return this.withSession(
           {
             status: 'answered',
@@ -202,7 +202,7 @@ export class RecruiterAssistantService {
     }
   }
 
-  newChat(user: ActingUser): RecruiterAssistantResponseDto {
+  async newChat(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
     if (!isRecruiterAssistantEnabled()) {
       return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
     }
@@ -214,9 +214,9 @@ export class RecruiterAssistantService {
     return this.resetConversation(user);
   }
 
-  private resetConversation(user: ActingUser): RecruiterAssistantResponseDto {
+  private async resetConversation(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
     this.conversationStore.clearAllForUser(user.id);
-    this.pendingActionStore.revokeAllForUser(user.id);
+    await this.pendingActionStore.revokeAllForUser(user.id);
     const sessionId = this.conversationStore.issue(user.id);
     return this.withSession(this.tools.startNewChat(), sessionId);
   }

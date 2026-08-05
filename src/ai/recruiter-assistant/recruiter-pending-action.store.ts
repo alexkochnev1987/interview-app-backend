@@ -1,70 +1,86 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { DatabaseService } from '../../database/database.service';
 import { RecruiterAssistantPendingActionDto } from './dto/recruiter-assistant.dto';
 
 const PENDING_ACTION_TTL_MS = 15 * 60 * 1000;
 
-interface StoredPendingAction {
-  userId: string;
-  action: RecruiterAssistantPendingActionDto;
-  expiresAt: number;
-}
-
 @Injectable()
 export class RecruiterPendingActionStore {
-  private readonly entries = new Map<string, StoredPendingAction>();
+  constructor(private readonly databaseService: DatabaseService) {}
 
-  issue(
+  async issue(
     userId: string,
     action: RecruiterAssistantPendingActionDto,
-  ): string {
-    this.pruneExpired();
+  ): Promise<string> {
+    await this.pruneExpired();
     const id = randomUUID();
-    this.entries.set(id, {
-      userId,
-      action,
-      expiresAt: Date.now() + PENDING_ACTION_TTL_MS,
-    });
+    await this.databaseService.query(
+      `
+        INSERT INTO recruiter_pending_actions (id, user_id, action_json, expires_at)
+        VALUES ($1, $2, $3::jsonb, $4)
+      `,
+      [
+        id,
+        userId,
+        JSON.stringify(action),
+        new Date(Date.now() + PENDING_ACTION_TTL_MS),
+      ],
+    );
     return id;
   }
 
-  consume(userId: string, pendingActionId: string): RecruiterAssistantPendingActionDto | null {
-    this.pruneExpired();
-    const entry = this.entries.get(pendingActionId);
-    if (!entry || entry.userId !== userId || entry.expiresAt <= Date.now()) {
-      return null;
-    }
+  async consume(
+    userId: string,
+    pendingActionId: string,
+  ): Promise<RecruiterAssistantPendingActionDto | null> {
+    const result = await this.databaseService.query<{
+      action_json: RecruiterAssistantPendingActionDto;
+    }>(
+      `
+        DELETE FROM recruiter_pending_actions
+        WHERE id = $1
+          AND user_id = $2
+          AND expires_at > NOW()
+        RETURNING action_json
+      `,
+      [pendingActionId, userId],
+    );
 
-    this.entries.delete(pendingActionId);
-    return entry.action;
+    return result.rows[0]?.action_json ?? null;
   }
 
-  revoke(userId: string, pendingActionId: string): boolean {
-    this.pruneExpired();
-    const entry = this.entries.get(pendingActionId);
-    if (!entry || entry.userId !== userId) {
-      return false;
-    }
+  async revoke(userId: string, pendingActionId: string): Promise<boolean> {
+    const result = await this.databaseService.query<{ id: string }>(
+      `
+        DELETE FROM recruiter_pending_actions
+        WHERE id = $1
+          AND user_id = $2
+        RETURNING id
+      `,
+      [pendingActionId, userId],
+    );
 
-    this.entries.delete(pendingActionId);
-    return true;
+    return result.rows.length > 0;
   }
 
-  revokeAllForUser(userId: string): void {
-    this.pruneExpired();
-    for (const [id, entry] of this.entries) {
-      if (entry.userId === userId) {
-        this.entries.delete(id);
-      }
-    }
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.pruneExpired();
+    await this.databaseService.query(
+      `
+        DELETE FROM recruiter_pending_actions
+        WHERE user_id = $1
+      `,
+      [userId],
+    );
   }
 
-  private pruneExpired(): void {
-    const now = Date.now();
-    for (const [id, entry] of this.entries) {
-      if (entry.expiresAt <= now) {
-        this.entries.delete(id);
-      }
-    }
+  private async pruneExpired(): Promise<void> {
+    await this.databaseService.query(
+      `
+        DELETE FROM recruiter_pending_actions
+        WHERE expires_at <= NOW()
+      `,
+    );
   }
 }

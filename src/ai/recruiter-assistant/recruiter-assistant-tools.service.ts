@@ -30,6 +30,7 @@ import { buildInterviewRedirect } from './recruiter-assistant-response-builders'
 import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
+import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import {
   ActingUser,
   HrRef,
@@ -194,7 +195,7 @@ export class RecruiterAssistantToolsService {
     void locale;
 
     if (user.role === 'candidate') {
-      return this.getCandidateReviewState(user);
+      return this.getCandidateReviewState(user, ref);
     }
 
     if (!canListInterviews(user)) {
@@ -356,7 +357,7 @@ export class RecruiterAssistantToolsService {
       }),
       suggestedQuestions: resolved,
       pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -582,7 +583,7 @@ export class RecruiterAssistantToolsService {
       response: `Create interview for ${candidateName} using "${template.name}" (${questions.length} questions)? Reply yes to confirm.`,
       suggestedQuestions: questions,
       pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -739,7 +740,7 @@ export class RecruiterAssistantToolsService {
         status: 'needs_confirmation',
         response: `Create question "${questionName}" with AI suggestions? Reply yes to confirm.`,
         pendingAction,
-        pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+        pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
       };
     } catch {
       return {
@@ -904,11 +905,11 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  private buildAssignHrConfirmation(
+  private async buildAssignHrConfirmation(
     interview: { id: string; candidateName: string; position: string },
     hrUser: { id: string; name: string },
     user: ActingUser,
-  ): RecruiterAssistantResponseDto {
+  ): Promise<RecruiterAssistantResponseDto> {
     const interviewLabel = `${interview.candidateName} (${interview.position})`;
     const pendingAction: RecruiterAssistantAssignHrPendingActionDto = {
       type: 'assign_hr',
@@ -922,7 +923,7 @@ export class RecruiterAssistantToolsService {
       status: 'needs_confirmation',
       response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
       pendingAction,
-      pendingActionId: this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
     };
   }
 
@@ -938,10 +939,27 @@ export class RecruiterAssistantToolsService {
 
   private async getCandidateReviewState(
     user: ActingUser,
+    ref: InterviewRef,
   ): Promise<RecruiterAssistantResponseDto> {
     const interview = await this.findCandidateOwnInterview(user);
     if (!interview) {
       return { status: 'answered', response: 'You do not have an interview yet.' };
+    }
+
+    if (ref.interviewId || ref.candidateName) {
+      const idMismatch =
+        ref.interviewId != null && ref.interviewId !== interview.id;
+      const nameMismatch =
+        ref.candidateName != null
+        && scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
+
+      if (idMismatch || nameMismatch) {
+        return {
+          status: 'answered',
+          response:
+            'You can only check the review state of your own interview.',
+        };
+      }
     }
 
     const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);

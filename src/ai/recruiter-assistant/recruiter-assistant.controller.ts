@@ -13,7 +13,6 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { ApiErrorResponseDto } from '../../common/dto/api-error.response.dto';
 import { CurrentLocale } from '../../locale/decorators/current-locale.decorator';
 import { Locale } from '../../locale/locale.constants';
@@ -41,7 +40,7 @@ type ActingUser = Omit<User, 'passwordHash'>;
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
 )
 @Controller('ai')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard)
 export class RecruiterAssistantController {
   constructor(
     private readonly recruiterAssistantService: RecruiterAssistantService,
@@ -91,7 +90,7 @@ export class RecruiterAssistantController {
   @ApiOkResponse({ type: RecruiterAssistantResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
-  resetChat(@CurrentUser() user: ActingUser): RecruiterAssistantResponseDto {
+  resetChat(@CurrentUser() user: ActingUser): Promise<RecruiterAssistantResponseDto> {
     if (!isRecruiterAssistantEnabled()) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,
