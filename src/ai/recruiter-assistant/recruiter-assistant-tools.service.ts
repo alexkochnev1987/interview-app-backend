@@ -508,7 +508,9 @@ export class RecruiterAssistantToolsService {
     const choice = parseTemplateChoice(slots.templateChoice ?? '');
 
     if (!choice) {
-      const { templateChoice: _ignored, ...rest } = slots;
+      const rest = Object.fromEntries(
+        Object.entries(slots).filter(([key]) => key !== 'templateChoice'),
+      );
       this.conversationStore.update(user.id, sessionId, {
         flow: 'create_interview',
         slots: rest,
@@ -533,7 +535,9 @@ export class RecruiterAssistantToolsService {
 
     const selected = templates[choice.index - 1];
     if (!selected) {
-      const { templateChoice: _ignored, ...rest } = slots;
+      const rest = Object.fromEntries(
+        Object.entries(slots).filter(([key]) => key !== 'templateChoice'),
+      );
       this.conversationStore.update(user.id, sessionId, {
         flow: 'create_interview',
         slots: rest,
