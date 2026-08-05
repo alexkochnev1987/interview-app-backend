@@ -10856,6 +10856,14 @@
           },
           "sessionId": {
             "type": "string"
+          },
+          "pendingAction": {
+            "description": "Optional create-interview/question-plan override sent with confirmation. Questions may only be removed, not added or edited.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
+              }
+            ]
           }
         },
         "required": [
