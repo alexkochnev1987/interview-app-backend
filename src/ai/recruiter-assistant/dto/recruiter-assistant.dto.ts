@@ -181,6 +181,16 @@ export class RecruiterAssistantChatDto {
   @IsOptional()
   @IsUUID()
   sessionId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional create-interview/question-plan override sent with confirmation. Questions may only be removed, not added or edited.',
+    type: RecruiterAssistantCreatePendingActionDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecruiterAssistantCreatePendingActionDto)
+  pendingAction?: RecruiterAssistantCreatePendingActionDto;
 }
 
 export class RecruiterAssistantCreatedInterviewDto {

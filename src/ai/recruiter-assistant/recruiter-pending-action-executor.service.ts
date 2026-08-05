@@ -204,7 +204,7 @@ export class RecruiterPendingActionExecutorService {
 
       return {
         status: 'executed',
-        response: `Interview created for ${action.candidateName}. Created ${createdQuestions.length} missing questions and attached ${finalQuestionIds.length} questions.`,
+        response: `Interview created for ${action.candidateName}. ${finalQuestionIds.length} question${finalQuestionIds.length === 1 ? '' : 's'} attached.`,
         createdInterview: {
           id: created.interview.id,
           candidateLink,

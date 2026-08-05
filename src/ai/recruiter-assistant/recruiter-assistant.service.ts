@@ -19,6 +19,7 @@ import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { idleConversationState } from './recruiter-conversation-slots';
+import { applyPendingActionOverride } from './recruiter-pending-action-override';
 import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 @Injectable()
@@ -76,8 +77,24 @@ export class RecruiterAssistantService {
           );
         }
 
+        let confirmedAction = action;
+        if (dto.pendingAction) {
+          const overridden = applyPendingActionOverride(action, dto.pendingAction);
+          if (!overridden) {
+            return this.withSession(
+              {
+                status: 'refused',
+                response:
+                  'That confirmation could not be applied. Please review the question list and try again.',
+              },
+              sessionId,
+            );
+          }
+          confirmedAction = overridden;
+        }
+
         return this.withSession(
-          await this.pendingActionExecutor.execute(action, user, locale),
+          await this.pendingActionExecutor.execute(confirmedAction, user, locale),
           sessionId,
         );
       }
