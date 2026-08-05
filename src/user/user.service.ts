@@ -1,21 +1,25 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest } from '../common/errors/api-error';
+import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import { AvatarSource, User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
 import {
   computeAvatarPictureUrl,
   resolveAvatarSourceOnGoogleLogin,
 } from './avatar/avatar-picture-url';
+import { AvatarService } from './avatar/avatar.service';
 import { DatabaseService } from '../database/database.service';
 import {
   isDemoSeedAllowed,
@@ -64,7 +68,11 @@ const USER_COLUMNS = `
 
 @Injectable()
 export class UserService implements OnModuleInit {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    @Inject(forwardRef(() => AvatarService))
+    private readonly avatarService: AvatarService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const existing = await this.findByEmail('admin@interview-app.com');
@@ -313,6 +321,148 @@ export class UserService implements OnModuleInit {
 
       return this.toPublicUser(this.mapRow(updatedRow));
     });
+  }
+
+  // Email is identity only; role changes only via assignRole (not SUPER_ADMIN_EMAILS).
+  async updateUser(
+    actor: { id: string; role: UserRole },
+    targetId: string,
+    dto: UpdateUserDto,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const hasUpdate = dto.name !== undefined || dto.email !== undefined;
+    if (!hasUpdate) {
+      throw new BadRequestException(
+        'At least one of name or email must be provided',
+      );
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      const targetResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [targetId],
+      );
+      const targetRow = targetResult.rows[0];
+      if (!targetRow) {
+        throw new NotFoundException(`User ${targetId} not found`);
+      }
+      const target = this.mapRow(targetRow);
+
+      if (target.demo) {
+        throw new ForbiddenException('Cannot modify the demo account');
+      }
+
+      if (actor.id !== target.id && !outranks(actor.role, target.role)) {
+        throw new ForbiddenException(
+          'You can only update users whose role is below your own',
+        );
+      }
+
+      const nextName = dto.name !== undefined ? dto.name : target.name;
+      const nextEmail =
+        dto.email !== undefined
+          ? this.normalizeEmail(dto.email)
+          : target.email;
+
+      if (nextName === target.name && nextEmail === target.email) {
+        throw new BadRequestException('No changes to apply');
+      }
+
+      if (nextEmail !== target.email) {
+        const conflict = await client.query<{ id: string }>(
+          `
+            SELECT id
+            FROM users
+            WHERE email = $1 AND id <> $2
+            LIMIT 1
+          `,
+          [nextEmail, targetId],
+        );
+        if (conflict.rows[0]) {
+          throw apiConflict(
+            ApiErrorCode.CONFLICT,
+            'A user with this email already exists',
+          );
+        }
+      }
+
+      try {
+        const updateResult = await client.query<UserRow>(
+          `
+            UPDATE users
+            SET name = $2,
+                email = $3,
+                updated_at = NOW()
+            WHERE id = $1
+            RETURNING ${USER_COLUMNS}
+          `,
+          [targetId, nextName, nextEmail],
+        );
+        const updatedRow = updateResult.rows[0];
+        if (!updatedRow) {
+          throw new NotFoundException(`User ${targetId} not found`);
+        }
+        return this.toPublicUser(this.mapRow(updatedRow));
+      } catch (error) {
+        const dbErr = error as { code?: string };
+        if (dbErr?.code === '23505') {
+          throw apiConflict(
+            ApiErrorCode.CONFLICT,
+            'A user with this email already exists',
+          );
+        }
+        throw error;
+      }
+    });
+  }
+
+  async deleteUser(
+    actor: { id: string; role: UserRole },
+    targetId: string,
+  ): Promise<void> {
+    if (actor.id === targetId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+
+    const avatarKey = await this.databaseService.withTransaction(
+      async (client) => {
+        const targetResult = await client.query<UserRow>(
+          `
+            SELECT ${USER_COLUMNS}
+            FROM users
+            WHERE id = $1
+            FOR UPDATE
+          `,
+          [targetId],
+        );
+        const targetRow = targetResult.rows[0];
+        if (!targetRow) {
+          throw new NotFoundException(`User ${targetId} not found`);
+        }
+        const target = this.mapRow(targetRow);
+
+        if (target.demo && actor.role !== 'super_admin') {
+          throw new ForbiddenException('Cannot delete the demo account');
+        }
+
+        if (!outranks(actor.role, target.role)) {
+          throw new ForbiddenException(
+            'You can only delete users whose role is below your own',
+          );
+        }
+
+        await client.query(`DELETE FROM users WHERE id = $1`, [targetId]);
+        return target.avatarKey;
+      },
+    );
+
+    if (avatarKey) {
+      await this.avatarService.deleteObjectQuietly(avatarKey);
+    }
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {

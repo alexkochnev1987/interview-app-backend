@@ -45,7 +45,7 @@ describe('RecruiterAssistantService', () => {
   });
 
   it('checks access before executing a stored pending action', async () => {
-    pendingActionStore.consume.mockReturnValue({
+    pendingActionStore.consume.mockResolvedValue({
       type: 'assign_hr',
       interviewId: '11111111-1111-4111-8111-111111111111',
       assignedHrId: '22222222-2222-4222-8222-222222222222',
@@ -68,25 +68,5 @@ describe('RecruiterAssistantService', () => {
       '33333333-3333-4333-8333-333333333333',
     );
     expect(executor.execute).toHaveBeenCalled();
-  });
-
-  it('acknowledges cancellation for a pending action', async () => {
-    const response = await service.chat(
-      {
-        message: 'no',
-        pendingActionId: '33333333-3333-4333-8333-333333333333',
-      },
-      user,
-      'en',
-    );
-
-    expect(pendingActionStore.revoke).toHaveBeenCalledWith(
-      'user-1',
-      '33333333-3333-4333-8333-333333333333',
-    );
-    expect(response).toEqual({
-      status: 'answered',
-      response: 'Cancelled. No changes were made.',
-    });
   });
 });

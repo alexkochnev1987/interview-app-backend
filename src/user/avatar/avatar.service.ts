@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { apiBadRequest } from '../../common/errors/api-error';
 import {
@@ -34,7 +34,10 @@ export class AvatarService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor(private readonly userService: UserService) {
+  constructor(
+    @Inject(forwardRef(() => UserService))
+    private readonly userService: UserService,
+  ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
 
@@ -193,7 +196,7 @@ export class AvatarService {
     return error.$metadata?.httpStatusCode === 404;
   }
 
-  private async deleteObjectQuietly(key: string): Promise<void> {
+  async deleteObjectQuietly(key: string): Promise<void> {
     try {
       await this.s3Client.send(
         new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),

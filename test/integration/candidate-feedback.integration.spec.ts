@@ -223,7 +223,14 @@ describe('Candidate feedback (integration)', () => {
       errorMessage: 'unusable_transcript',
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitForFeedback(
+      agent,
+      session,
+      interviewId,
+      (body) =>
+        body.questions[0]?.state === 'generated'
+        && body.questions[1]?.state === 'edited',
+    );
     expect(questionLlmSpy).toHaveBeenCalledTimes(1);
   });
 

@@ -112,6 +112,25 @@ describe('RecruiterAssistantIntentService', () => {
   it('does not treat HR my-interview prompts as candidate self-status', () => {
     expect(service.classify('show my interviews', hr, 'en')).toEqual({
       kind: 'list_interviews',
+      filters: { limit: 20, assignedHrId: 'hr-1' },
+    });
+  });
+
+  it('prefers create over list when both patterns match', () => {
+    expect(
+      service.classify(
+        'generate questions for pending interviews',
+        admin,
+        'en',
+      ).kind,
+    ).toBe('create_questions_interview');
+  });
+
+  it('does not set status from status substrings inside other words', () => {
+    expect(
+      service.classify('list interviews depending on role', admin, 'en'),
+    ).toEqual({
+      kind: 'list_interviews',
       filters: { limit: 20 },
     });
   });
