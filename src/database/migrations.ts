@@ -1009,4 +1009,19 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `DROP TABLE IF EXISTS recruiter_pending_actions;`,
     ],
   },
+  {
+    version: '0048',
+    name: 'assign_demo_interviews_to_demo_hr',
+    statements: [
+      `
+      UPDATE interviews i
+      SET assigned_hr_id = u.id
+      FROM users u
+      WHERE i.demo = TRUE
+        AND i.assigned_hr_id IS NULL
+        AND u.demo = TRUE
+        AND u.role = 'hr';
+    `,
+    ],
+  },
 ];
