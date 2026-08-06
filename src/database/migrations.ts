@@ -1,3 +1,4 @@
+import { DEMO_USER_ID } from './demo-seed-data';
 import {
   BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
   INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
@@ -1014,13 +1015,10 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     name: 'assign_demo_interviews_to_demo_hr',
     statements: [
       `
-      UPDATE interviews i
-      SET assigned_hr_id = u.id
-      FROM users u
-      WHERE i.demo = TRUE
-        AND i.assigned_hr_id IS NULL
-        AND u.demo = TRUE
-        AND u.role = 'hr';
+      UPDATE interviews
+      SET assigned_hr_id = '${DEMO_USER_ID}'
+      WHERE demo = TRUE
+        AND assigned_hr_id IS NULL;
     `,
     ],
   },
