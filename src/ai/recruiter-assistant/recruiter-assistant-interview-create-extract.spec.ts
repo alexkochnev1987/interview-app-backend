@@ -18,4 +18,15 @@ describe('recruiter-assistant-interview-create-extract', () => {
       position: undefined,
     });
   });
+
+  it('keeps software developer when explicitly mentioned', () => {
+    expect(
+      extractCreateInterviewFields(
+        'create interview for Bob for a software developer role',
+      ),
+    ).toEqual({
+      candidateName: 'Bob',
+      position: 'Software Developer',
+    });
+  });
 });

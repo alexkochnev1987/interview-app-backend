@@ -397,6 +397,14 @@ export class RecruiterAssistantToolsService {
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
+    if (!canAssignHr(user)) {
+      return {
+        status: 'denied',
+        response: 'Only admins can assign HR reviewers.',
+        escalateTo: 'admin',
+      };
+    }
+
     return this.progressAssignHrFlow(
       {
         interviewRef: {},

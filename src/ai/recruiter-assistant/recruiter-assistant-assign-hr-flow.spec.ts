@@ -159,4 +159,25 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
 
     expect(response.status).toBe('needs_confirmation');
   });
+
+  it('denies continuation when the user loses assign permission', async () => {
+    const response = await service.continueAssignHrFlow(
+      {
+        flow: 'assign_hr',
+        slots: {
+          interviewRef: 'Alice Smith',
+          hrName: 'Jane Doe',
+        },
+      },
+      { ...user, role: 'hr' },
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'denied',
+      escalateTo: 'admin',
+    });
+    expect(resolveInterviewRef).not.toHaveBeenCalled();
+  });
 });
