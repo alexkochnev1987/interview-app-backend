@@ -32,6 +32,7 @@ import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { AppConfigService, AppVariableRecord } from './app-config.service';
 import { UpsertConfigVariableDto } from './dto/upsert-config-variable.dto';
 import { SystemConfigEntryDto } from './dto/system-config-entry.dto';
+import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
 
 // ---------------------------------------------------------------------------
 // Response helpers
@@ -122,7 +123,8 @@ export class AppConfigController {
     @CurrentUser() actor: Omit<User, 'passwordHash'>,
   ): Promise<AppVariableRecord> {
     const existing = await this.appConfig.getVariableRecord(key);
-    const allowedOptions = dto.options ?? existing?.options;
+    const defaultEntry = SYSTEM_CONFIG_DEFAULTS[key];
+    const allowedOptions = dto.options ?? existing?.options ?? defaultEntry?.options;
 
     if (allowedOptions && allowedOptions.length > 0) {
       if (!allowedOptions.includes(dto.value)) {

@@ -53,6 +53,7 @@ describe('AppConfigController & PublicConfigController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           updatedBy: null,
+          isOverridden: true,
         },
       ]);
 
@@ -76,6 +77,7 @@ describe('AppConfigController & PublicConfigController', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         updatedBy: 'admin@example.com',
+        isOverridden: true,
       });
 
       const res = await adminController.upsert(
@@ -105,6 +107,7 @@ describe('AppConfigController & PublicConfigController', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         updatedBy: null,
+        isOverridden: true,
       });
 
       try {

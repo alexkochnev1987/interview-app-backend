@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
 
 export type VariableType =
   | 'string'
@@ -21,6 +22,7 @@ export interface AppVariableRecord {
   createdAt: Date;
   updatedAt: Date;
   updatedBy: string | null;
+  isOverridden: boolean;
 }
 
 interface CacheEntry {
@@ -144,7 +146,7 @@ export class AppConfigService implements OnModuleInit {
     return this.getFromCacheOrDb(key);
   }
 
-  /** Return all variables from the DB (for Super Admin list view). */
+  /** Return all variables from the DB merged with system defaults. */
   async getAllVariables(): Promise<AppVariableRecord[]> {
     if (this.allCache && Date.now() < this.allCache.expiresAt) {
       return this.allCache.records;
@@ -156,9 +158,52 @@ export class AppConfigService implements OnModuleInit {
        FROM app_variables
        ORDER BY key`,
     );
-    const records = rows.map(mapRow);
-    this.allCache = { records, expiresAt: Date.now() + CACHE_TTL_MS };
-    return records;
+
+    const dbEntries = rows.map(mapRow);
+    const dbMap = new Map(dbEntries.map((e) => [e.key, e]));
+    const result: AppVariableRecord[] = [];
+    const processedKeys = new Set<string>();
+
+    for (const [key, defaultEntry] of Object.entries(SYSTEM_CONFIG_DEFAULTS)) {
+      processedKeys.add(key);
+      const dbOverride = dbMap.get(key);
+
+      if (dbOverride) {
+        result.push({
+          ...dbOverride,
+          options: dbOverride.options ?? defaultEntry.options,
+          description: dbOverride.description ?? defaultEntry.description ?? null,
+          isOverridden: true,
+        });
+      } else {
+        result.push({
+          id: `default-${key}`,
+          key: defaultEntry.key,
+          value: defaultEntry.value,
+          valueType: defaultEntry.valueType,
+          options: defaultEntry.options,
+          isPublic: defaultEntry.isPublic,
+          isSecret: defaultEntry.isSecret,
+          description: defaultEntry.description ?? null,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+          updatedBy: null,
+          isOverridden: false,
+        });
+      }
+    }
+
+    for (const dbEntry of dbEntries) {
+      if (!processedKeys.has(dbEntry.key)) {
+        result.push({
+          ...dbEntry,
+          isOverridden: true,
+        });
+      }
+    }
+
+    this.allCache = { records: result, expiresAt: Date.now() + CACHE_TTL_MS };
+    return result;
   }
 
   /**
@@ -173,16 +218,6 @@ export class AppConfigService implements OnModuleInit {
       if (!rec.isPublic || rec.isSecret) continue;
       result[rec.key] = parseTypedValue(rec.value, rec.valueType);
     }
-
-    // Default theme & feature flag fallbacks if not present in DB
-    result['APP_THEME'] = result['APP_THEME'] ?? (process.env.APP_THEME ?? 'innowise');
-    result['DEFAULT_THEME_MODE'] =
-      result['DEFAULT_THEME_MODE'] ?? (process.env.DEFAULT_THEME_MODE ?? 'system');
-    result['ENABLE_AI_ASSISTANT'] =
-      result['ENABLE_AI_ASSISTANT'] ??
-      (process.env.ENABLE_AI_ASSISTANT !== undefined
-        ? process.env.ENABLE_AI_ASSISTANT.trim().toLowerCase() === 'true'
-        : true);
 
     return result;
   }
@@ -245,7 +280,7 @@ export class AppConfigService implements OnModuleInit {
     );
     this.cache.delete(key);
     this.allCache = null;
-    return (rowCount ?? 0) > 0;
+    return (rowCount ?? 0) > 0 || key in SYSTEM_CONFIG_DEFAULTS;
   }
 
   // ---------------------------------------------------------------------------
@@ -331,6 +366,7 @@ function mapRow(row: AppVariableRow): AppVariableRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
+    isOverridden: true,
   };
 }
 

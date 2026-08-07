@@ -180,12 +180,63 @@ describe('AppConfigService', () => {
 
       expect(publicVars).toEqual({
         PUBLIC_LIMIT: 50,
+        MAX_ANSWER_DURATION_SECONDS: 240,
+        MAX_ANSWER_ATTEMPTS_PER_QUESTION: 3,
+        ENABLE_GOOGLE_OAUTH: true,
+        ENABLE_FEEDBACK_SHARE_LINKS: true,
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
         ENABLE_AI_ASSISTANT: true,
       });
       expect(publicVars.PRIVATE_SETTING).toBeUndefined();
       expect(publicVars.PUBLIC_SECRET_KEY).toBeUndefined();
+    });
+  });
+
+  describe('getAllVariables & System Defaults', () => {
+    it('should return system defaults with isOverridden=false when no DB overrides exist', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      const all = await service.getAllVariables();
+      const themeEntry = all.find((e) => e.key === 'APP_THEME');
+      expect(themeEntry).toBeDefined();
+      expect(themeEntry?.value).toBe('innowise');
+      expect(themeEntry?.isOverridden).toBe(false);
+    });
+
+    it('should mark DB overrides with isOverridden=true', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'override-1',
+            key: 'APP_THEME',
+            value: 'purple',
+            value_type: 'enum',
+            options: ['innowise', 'red', 'blue', 'purple'],
+            is_public: true,
+            is_secret: false,
+            description: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            updated_by: 'admin@example.com',
+          },
+        ],
+        rowCount: 1,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      const all = await service.getAllVariables();
+      const themeEntry = all.find((e) => e.key === 'APP_THEME');
+      expect(themeEntry?.value).toBe('purple');
+      expect(themeEntry?.isOverridden).toBe(true);
     });
   });
 
@@ -235,6 +286,19 @@ describe('AppConfigService', () => {
       });
 
       const deleted = await service.deleteVariable('NEW_KEY');
+      expect(deleted).toBe(true);
+    });
+
+    it('should return true when deleting a default key even if no DB row was deleted', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'DELETE',
+        oid: 0,
+        fields: [],
+      });
+
+      const deleted = await service.deleteVariable('MAX_ANSWER_DURATION_SECONDS');
       expect(deleted).toBe(true);
     });
   });

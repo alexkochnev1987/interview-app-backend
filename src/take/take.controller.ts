@@ -52,6 +52,7 @@ import {
   TakeInterviewResponseDto,
 } from './dto/take.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 import { buildCurrentAnswerMeta } from './take-answer-meta';
 
 interface CandidateRequest {

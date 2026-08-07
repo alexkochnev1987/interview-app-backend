@@ -44,4 +44,10 @@ export class SystemConfigEntryDto {
     example: false,
   })
   isSecret: boolean;
+
+  @ApiProperty({
+    description: 'Whether this variable has a custom database override applied',
+    example: false,
+  })
+  isOverridden: boolean;
 }
