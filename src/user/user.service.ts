@@ -1,15 +1,25 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { User } from './interfaces/user.interface';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest, apiConflict } from '../common/errors/api-error';
+import { AvatarSource, User } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
+import {
+  computeAvatarPictureUrl,
+  resolveAvatarSourceOnGoogleLogin,
+} from './avatar/avatar-picture-url';
+import { AvatarService } from './avatar/avatar.service';
 import { DatabaseService } from '../database/database.service';
 import {
   isDemoSeedAllowed,
@@ -35,6 +45,9 @@ interface UserRow {
   created_at: Date;
   onboarding_completed_at: Date | null;
   onboarding_status: OnboardingStatus | null;
+  avatar_source: AvatarSource;
+  avatar_key: string | null;
+  google_picture_url: string | null;
 }
 
 const USER_COLUMNS = `
@@ -47,12 +60,19 @@ const USER_COLUMNS = `
   demo,
   created_at,
   onboarding_completed_at,
-  onboarding_status
+  onboarding_status,
+  avatar_source,
+  avatar_key,
+  google_picture_url
 `;
 
 @Injectable()
 export class UserService implements OnModuleInit {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    @Inject(forwardRef(() => AvatarService))
+    private readonly avatarService: AvatarService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const existing = await this.findByEmail('admin@interview-app.com');
@@ -71,6 +91,7 @@ export class UserService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     return this.databaseService.withTransaction(async (client) => {
+      const avatarSource: AvatarSource = dto.googlePictureUrl ? 'google' : 'none';
       const result = await client.query<UserRow>(
         `
           INSERT INTO users (
@@ -79,9 +100,11 @@ export class UserService implements OnModuleInit {
             name,
             role,
             organization_id,
-            password_hash
+            password_hash,
+            google_picture_url,
+            avatar_source
           )
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING ${USER_COLUMNS}
         `,
         [
@@ -91,6 +114,8 @@ export class UserService implements OnModuleInit {
           dto.role,
           dto.organizationId ?? null,
           passwordHash,
+          dto.googlePictureUrl ?? null,
+          avatarSource,
         ],
       );
 
@@ -198,21 +223,31 @@ export class UserService implements OnModuleInit {
   }
 
   async listAll(
-    options: { limit?: number; offset?: number; role?: UserRole } = {},
+    options: {
+      limit?: number;
+      offset?: number;
+      role?: UserRole;
+      demo?: boolean;
+      nameContains?: string;
+    } = {},
   ): Promise<Omit<User, 'passwordHash'>[]> {
     const limit = options.limit ?? 50;
     const offset = options.offset ?? 0;
     const role = options.role ?? null;
+    const demo = options.demo ?? null;
+    const nameContains = options.nameContains?.trim() || null;
     const orderBy = role ? 'name ASC, created_at DESC' : 'created_at DESC';
     const result = await this.databaseService.query<UserRow>(
       `
         SELECT ${USER_COLUMNS}
         FROM users
         WHERE ($3::text IS NULL OR role = $3)
+          AND ($4::boolean IS NULL OR demo = $4)
+          AND ($5::text IS NULL OR name ILIKE '%' || $5 || '%')
         ORDER BY ${orderBy}
         LIMIT $1 OFFSET $2
       `,
-      [limit, offset, role],
+      [limit, offset, role, demo, nameContains],
     );
     return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
   }
@@ -288,6 +323,148 @@ export class UserService implements OnModuleInit {
     });
   }
 
+  // Email is identity only; role changes only via assignRole (not SUPER_ADMIN_EMAILS).
+  async updateUser(
+    actor: { id: string; role: UserRole },
+    targetId: string,
+    dto: UpdateUserDto,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    const hasUpdate = dto.name !== undefined || dto.email !== undefined;
+    if (!hasUpdate) {
+      throw new BadRequestException(
+        'At least one of name or email must be provided',
+      );
+    }
+
+    return this.databaseService.withTransaction(async (client) => {
+      const targetResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [targetId],
+      );
+      const targetRow = targetResult.rows[0];
+      if (!targetRow) {
+        throw new NotFoundException(`User ${targetId} not found`);
+      }
+      const target = this.mapRow(targetRow);
+
+      if (target.demo) {
+        throw new ForbiddenException('Cannot modify the demo account');
+      }
+
+      if (actor.id !== target.id && !outranks(actor.role, target.role)) {
+        throw new ForbiddenException(
+          'You can only update users whose role is below your own',
+        );
+      }
+
+      const nextName = dto.name !== undefined ? dto.name : target.name;
+      const nextEmail =
+        dto.email !== undefined
+          ? this.normalizeEmail(dto.email)
+          : target.email;
+
+      if (nextName === target.name && nextEmail === target.email) {
+        throw new BadRequestException('No changes to apply');
+      }
+
+      if (nextEmail !== target.email) {
+        const conflict = await client.query<{ id: string }>(
+          `
+            SELECT id
+            FROM users
+            WHERE email = $1 AND id <> $2
+            LIMIT 1
+          `,
+          [nextEmail, targetId],
+        );
+        if (conflict.rows[0]) {
+          throw apiConflict(
+            ApiErrorCode.CONFLICT,
+            'A user with this email already exists',
+          );
+        }
+      }
+
+      try {
+        const updateResult = await client.query<UserRow>(
+          `
+            UPDATE users
+            SET name = $2,
+                email = $3,
+                updated_at = NOW()
+            WHERE id = $1
+            RETURNING ${USER_COLUMNS}
+          `,
+          [targetId, nextName, nextEmail],
+        );
+        const updatedRow = updateResult.rows[0];
+        if (!updatedRow) {
+          throw new NotFoundException(`User ${targetId} not found`);
+        }
+        return this.toPublicUser(this.mapRow(updatedRow));
+      } catch (error) {
+        const dbErr = error as { code?: string };
+        if (dbErr?.code === '23505') {
+          throw apiConflict(
+            ApiErrorCode.CONFLICT,
+            'A user with this email already exists',
+          );
+        }
+        throw error;
+      }
+    });
+  }
+
+  async deleteUser(
+    actor: { id: string; role: UserRole },
+    targetId: string,
+  ): Promise<void> {
+    if (actor.id === targetId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+
+    const avatarKey = await this.databaseService.withTransaction(
+      async (client) => {
+        const targetResult = await client.query<UserRow>(
+          `
+            SELECT ${USER_COLUMNS}
+            FROM users
+            WHERE id = $1
+            FOR UPDATE
+          `,
+          [targetId],
+        );
+        const targetRow = targetResult.rows[0];
+        if (!targetRow) {
+          throw new NotFoundException(`User ${targetId} not found`);
+        }
+        const target = this.mapRow(targetRow);
+
+        if (target.demo && actor.role !== 'super_admin') {
+          throw new ForbiddenException('Cannot delete the demo account');
+        }
+
+        if (!outranks(actor.role, target.role)) {
+          throw new ForbiddenException(
+            'You can only delete users whose role is below your own',
+          );
+        }
+
+        await client.query(`DELETE FROM users WHERE id = $1`, [targetId]);
+        return target.avatarKey;
+      },
+    );
+
+    if (avatarKey) {
+      await this.avatarService.deleteObjectQuietly(avatarKey);
+    }
+  }
+
   async validatePassword(user: User, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.passwordHash);
   }
@@ -328,7 +505,211 @@ export class UserService implements OnModuleInit {
       onboardingCompletedAt: user.onboardingCompletedAt,
       onboardingStatus: user.onboardingStatus,
       createdAt: user.createdAt,
+      avatarSource: user.avatarSource,
+      hasGoogleAvatar: user.hasGoogleAvatar,
+      pictureUrl: user.pictureUrl,
     };
+  }
+
+  /**
+   * Sets a custom S3-backed avatar for the user, returning the previous
+   * avatar_key (if any) so the caller can clean up the now-orphaned S3
+   * object after this DB update has committed.
+   */
+  async setAvatarUpload(
+    userId: string,
+    avatarKey: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = $2,
+              avatar_source = 'upload',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId, avatarKey],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * Reverts a user to the initials placeholder for the current session.
+   * Deliberately does not fall back to google_picture_url even if one is
+   * still stored on the row — the Google photo only re-activates on a
+   * subsequent Google login (see UserService.activateGoogleAvatar), not
+   * automatically here.
+   */
+  async clearAvatar(
+    userId: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = NULL,
+              avatar_source = 'none',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * User-triggered restore of the last-known Google photo (e.g. after having
+   * uploaded a custom picture, or having previously deleted down to
+   * initials). Unlike activateGoogleAvatar, this never touches
+   * google_picture_url itself — it only re-activates whatever is already
+   * stored. No-op-that-throws if the user never has a Google picture on file.
+   */
+  async restoreGoogleAvatar(
+    userId: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      if (!previousRow.google_picture_url) {
+        throw apiBadRequest(
+          ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
+          'No Google picture is available to restore',
+        );
+      }
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET avatar_key = NULL,
+              avatar_source = 'google',
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      return {
+        previousAvatarKey: previousRow.avatar_key ?? undefined,
+        user: this.toPublicUser(this.mapRow(updatedRow)),
+      };
+    });
+  }
+
+  /**
+   * Called on every Google login for an existing user. Always refreshes the
+   * stored Google photo, but only activates it as the picture source per
+   * resolveAvatarSourceOnGoogleLogin: a custom upload is never clobbered, and
+   * an explicit delete (avatar_source 'none' with a Google picture already on
+   * file) stays 'none' — it only re-activates via the manual "Restore Google
+   * picture" action, not automatically on login. A 'none' row with no prior
+   * Google picture is a first-ever Google link and does activate 'google'.
+   */
+  async activateGoogleAvatar(
+    userId: string,
+    googlePictureUrl: string,
+  ): Promise<Omit<User, 'passwordHash'>> {
+    return this.databaseService.withTransaction(async (client) => {
+      const previousResult = await client.query<UserRow>(
+        `
+          SELECT ${USER_COLUMNS}
+          FROM users
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+      const previousRow = previousResult.rows[0];
+      if (!previousRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+
+      const avatarSource = resolveAvatarSourceOnGoogleLogin({
+        currentAvatarSource: previousRow.avatar_source,
+        hadGooglePictureBefore: previousRow.google_picture_url != null,
+      });
+
+      const updateResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET google_picture_url = $2,
+              avatar_source = $3,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING ${USER_COLUMNS}
+        `,
+        [userId, googlePictureUrl, avatarSource],
+      );
+      const updatedRow = updateResult.rows[0];
+      if (!updatedRow) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      return this.toPublicUser(this.mapRow(updatedRow));
+    });
   }
 
   private normalizeEmail(email: string): string {
@@ -336,6 +717,9 @@ export class UserService implements OnModuleInit {
   }
 
   private mapRow(row: UserRow): User {
+    const avatarSource = row.avatar_source ?? 'none';
+    const avatarKey = row.avatar_key ?? undefined;
+    const googlePictureUrl = row.google_picture_url ?? undefined;
     return {
       id: row.id,
       email: row.email,
@@ -349,6 +733,16 @@ export class UserService implements OnModuleInit {
         : undefined,
       onboardingStatus: row.onboarding_status ?? undefined,
       createdAt: new Date(row.created_at),
+      avatarSource,
+      hasGoogleAvatar: avatarSource === 'google' && !!googlePictureUrl,
+      avatarKey,
+      googlePictureUrl,
+      pictureUrl: computeAvatarPictureUrl({
+        userId: row.id,
+        avatarSource,
+        avatarKey,
+        googlePictureUrl,
+      }),
     };
   }
 }

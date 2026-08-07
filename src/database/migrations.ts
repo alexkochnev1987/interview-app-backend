@@ -958,6 +958,59 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   },
   {
     version: '0046',
+    name: 'add_user_avatar_fields',
+    statements: [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS google_picture_url TEXT NULL;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT NULL;`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_source TEXT NOT NULL DEFAULT 'none';`,
+      `
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = 'users'::regclass
+              AND conname = 'users_avatar_source_check'
+          ) THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_avatar_source_check
+            CHECK (avatar_source IN ('none', 'google', 'upload'));
+          END IF;
+        END $$;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE users DROP CONSTRAINT IF EXISTS users_avatar_source_check;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS avatar_source;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS avatar_key;`,
+      `ALTER TABLE users DROP COLUMN IF EXISTS google_picture_url;`,
+    ],
+  },
+  {
+    version: '0047',
+    name: 'create_recruiter_pending_actions',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS recruiter_pending_actions (
+          id UUID PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          action_json JSONB NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `,
+      `
+        CREATE INDEX IF NOT EXISTS recruiter_pending_actions_expires_at_idx
+        ON recruiter_pending_actions (expires_at);
+      `,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS recruiter_pending_actions_expires_at_idx;`,
+      `DROP TABLE IF EXISTS recruiter_pending_actions;`,
+    ],
+  },
+  {
+    version: '0048',
     name: 'create_app_variables_table',
     statements: [
       `

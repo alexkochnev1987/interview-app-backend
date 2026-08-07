@@ -778,6 +778,189 @@
             "sessionAuth": []
           }
         ]
+      },
+      "patch": {
+        "operationId": "UserController_update",
+        "summary": "Update user name and/or email",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "UserController_remove",
+        "summary": "Hard-delete a user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
       }
     },
     "/users/{id}/role": {
@@ -897,6 +1080,297 @@
             }
           },
           "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar/presign": {
+      "post": {
+        "operationId": "AvatarController_presign",
+        "summary": "Get a presigned URL to upload a new avatar",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarPresignRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarPresignResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar/complete": {
+      "post": {
+        "operationId": "AvatarController_complete",
+        "summary": "Confirm an uploaded avatar and activate it",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarCompleteUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar": {
+      "delete": {
+        "operationId": "AvatarController_remove",
+        "summary": "Remove the current avatar, reverting to initials",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar/restore-google": {
+      "post": {
+        "operationId": "AvatarController_restoreGoogle",
+        "summary": "Restore the last-known Google photo as the active avatar",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUpdateResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/users/{id}/avatar": {
+      "get": {
+        "operationId": "AvatarController_proxy",
+        "summary": "Redirect to a presigned URL for a user's avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects to a short-lived S3 URL"
+          },
+          "401": {
             "description": "",
             "content": {
               "application/json": {
@@ -2239,10 +2713,10 @@
         ]
       }
     },
-    "/ai/chat": {
+    "/ai/take/chat": {
       "post": {
         "operationId": "AiController_chat",
-        "summary": "Candidate chat assistant",
+        "summary": "Take-session candidate chat assistant",
         "parameters": [
           {
             "name": "X-Locale",
@@ -5710,6 +6184,91 @@
         ]
       }
     },
+    "/ai/chat": {
+      "post": {
+        "operationId": "RecruiterAssistantController_chat",
+        "summary": "Global AI chat",
+        "description": "Role-aware assistant for interview queries and confirmed actions. All authenticated roles may call this route; each tool enforces the same permissions as the REST API before reading data or mutating.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecruiterAssistantChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruiterAssistantResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ai"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/feedback/share/{token}": {
       "get": {
         "operationId": "CandidateFeedbackShareController_getSharedCandidateFeedback",
@@ -6823,6 +7382,24 @@
             "format": "date-time",
             "type": "string",
             "example": "2026-05-05T12:00:00.000Z"
+          },
+          "pictureUrl": {
+            "type": "string",
+            "example": "https://lh3.googleusercontent.com/a/photo.jpg",
+            "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
+          },
+          "avatarSource": {
+            "type": "string",
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
+          },
+          "hasGoogleAvatar": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source."
           }
         },
         "required": [
@@ -6831,7 +7408,9 @@
           "name",
           "role",
           "demo",
-          "createdAt"
+          "createdAt",
+          "avatarSource",
+          "hasGoogleAvatar"
         ]
       },
       "RegisterDto": {
@@ -6878,6 +7457,80 @@
           }
         }
       },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "VALIDATION_ERROR",
+          "INVALID_LOCALE",
+          "REGISTRATION_FAILED",
+          "UPLOAD_FAILED",
+          "UPLOAD_NOT_ALLOWED",
+          "ANSWER_ATTEMPT_LIMIT_REACHED",
+          "ANSWER_VERSION_NOT_RESERVED",
+          "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
+          "AVATAR_UNSUPPORTED_TYPE",
+          "AVATAR_TOO_LARGE",
+          "AVATAR_NO_GOOGLE_PICTURE",
+          "UNAUTHORIZED",
+          "INVALID_CREDENTIALS",
+          "AUTHENTICATION_REQUIRED",
+          "CANDIDATE_SESSION_REQUIRED",
+          "INVALID_CANDIDATE_SESSION",
+          "INTERVIEW_TOKEN_REQUIRED",
+          "INVALID_INTERVIEW_TOKEN",
+          "FORBIDDEN",
+          "INSUFFICIENT_PERMISSIONS",
+          "ACCESS_DENIED",
+          "NOT_FOUND",
+          "QUESTION_NOT_FOUND",
+          "INTERVIEW_NOT_FOUND",
+          "USER_NOT_FOUND",
+          "FEEDBACK_NOT_FOUND",
+          "CONFLICT",
+          "QUESTION_IN_USE",
+          "VALIDATION_RUNNING",
+          "QUESTION_DUPLICATE",
+          "SERVICE_UNAVAILABLE",
+          "AI_PROVIDER_NOT_CONFIGURED",
+          "EMBEDDING_PROVIDER_NOT_CONFIGURED",
+          "INTERNAL_SERVER_ERROR"
+        ]
+      },
+      "ApiErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "example": "Validation failed"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "errors": [
+                "email must be an email"
+              ]
+            }
+          },
+          "path": {
+            "type": "string",
+            "example": "/questions/invalid-id"
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message"
+        ]
+      },
       "UserProfileResponseDto": {
         "type": "object",
         "properties": {
@@ -6897,6 +7550,11 @@
             "type": "string",
             "example": "jane@interview-app.com",
             "description": "Present when viewing your own profile or when the actor has a privileged role."
+          },
+          "pictureUrl": {
+            "type": "string",
+            "example": "https://lh3.googleusercontent.com/a/photo.jpg",
+            "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
           }
         },
         "required": [
@@ -6904,6 +7562,19 @@
           "name",
           "role"
         ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Jane Doe"
+          },
+          "email": {
+            "type": "string",
+            "example": "jane@example.com"
+          }
+        }
       },
       "AssignRoleDto": {
         "type": "object",
@@ -6957,6 +7628,76 @@
         "required": [
           "user",
           "counts"
+        ]
+      },
+      "AvatarPresignRequestDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
+          },
+          "fileSizeBytes": {
+            "type": "number",
+            "example": 204800,
+            "maximum": 5242880
+          }
+        },
+        "required": [
+          "contentType",
+          "fileSizeBytes"
+        ]
+      },
+      "AvatarPresignResponseDto": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string"
+          },
+          "avatarKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "avatarKey"
+        ]
+      },
+      "AvatarCompleteUploadDto": {
+        "type": "object",
+        "properties": {
+          "avatarKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatarKey"
+        ]
+      },
+      "AvatarUpdateResponseDto": {
+        "type": "object",
+        "properties": {
+          "pictureUrl": {
+            "type": "string",
+            "example": "/users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar",
+            "nullable": true
+          },
+          "avatarSource": {
+            "type": "string",
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
+          }
+        },
+        "required": [
+          "pictureUrl",
+          "avatarSource"
         ]
       },
       "QuestionExpectedConceptDto": {
@@ -10256,6 +10997,275 @@
           "questionIndex",
           "sourceVersionNumber",
           "reused"
+        ]
+      },
+      "RecruiterAssistantSuggestedQuestionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedConcepts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sampleGoodAnswer": {
+            "type": "string"
+          },
+          "existingQuestionId": {
+            "type": "string"
+          },
+          "existingQuestionText": {
+            "type": "string"
+          },
+          "needsCreation": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "questionText"
+        ]
+      },
+      "RecruiterAssistantCreatePendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "create_questions",
+              "create_interview"
+            ]
+          },
+          "position": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "candidateEmail": {
+            "type": "string"
+          },
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "position",
+          "questions"
+        ]
+      },
+      "RecruiterAssistantAssignHrPendingActionDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "assign_hr"
+            ]
+          },
+          "interviewId": {
+            "type": "string"
+          },
+          "assignedHrId": {
+            "type": "string"
+          },
+          "assignedHrName": {
+            "type": "string"
+          },
+          "interviewLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "interviewId",
+          "assignedHrId",
+          "assignedHrName",
+          "interviewLabel"
+        ]
+      },
+      "RecruiterAssistantChatDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "pendingActionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "RecruiterAssistantCreatedInterviewDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateLink": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "candidateLink"
+        ]
+      },
+      "RecruiterAssistantReviewStateDto": {
+        "type": "object",
+        "properties": {
+          "reviewed": {
+            "type": "boolean"
+          },
+          "shareLinkActive": {
+            "type": "boolean"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewed"
+        ]
+      },
+      "RecruiterAssistantInterviewSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "candidateLink": {
+            "type": "string"
+          },
+          "reviewState": {
+            "$ref": "#/components/schemas/RecruiterAssistantReviewStateDto"
+          }
+        },
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "status"
+        ]
+      },
+      "RecruiterAssistantResponseDto": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "needs_confirmation",
+              "executed",
+              "refused",
+              "denied"
+            ]
+          },
+          "suggestedQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
+            }
+          },
+          "pendingAction": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantCreatePendingActionDto"
+              },
+              {
+                "$ref": "#/components/schemas/RecruiterAssistantAssignHrPendingActionDto"
+              }
+            ]
+          },
+          "pendingActionId": {
+            "type": "string"
+          },
+          "createdInterview": {
+            "$ref": "#/components/schemas/RecruiterAssistantCreatedInterviewDto"
+          },
+          "escalateTo": {
+            "type": "string",
+            "enum": [
+              "hr",
+              "admin",
+              "super_admin"
+            ]
+          },
+          "interviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewListItemDto"
+            }
+          },
+          "interview": {
+            "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
+          }
+        },
+        "required": [
+          "response",
+          "status"
         ]
       },
       "PublicCandidateFeedbackTextBlockDto": {

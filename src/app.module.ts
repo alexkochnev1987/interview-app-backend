@@ -13,7 +13,7 @@ import { TemplateModule } from './template/template.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { LocaleModule } from './locale/locale.module';
-import { AppConfigModule } from './app-config/app-config.module';
+import { RecruiterAssistantModule } from './ai/recruiter-assistant/recruiter-assistant.module';
 
 @Module({
   imports: [
@@ -21,7 +21,6 @@ import { AppConfigModule } from './app-config/app-config.module';
     LocaleModule,
     RateLimitModule,
     DatabaseModule,
-    AppConfigModule,
     AuthModule,
     UserModule,
     QuestionModule,
@@ -31,6 +30,7 @@ import { AppConfigModule } from './app-config/app-config.module';
     HealthModule,
     TakeModule,
     AiModule,
+    RecruiterAssistantModule,
     FeedbackModule,
   ],
 })

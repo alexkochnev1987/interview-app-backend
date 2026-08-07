@@ -1,4 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  AVATAR_SOURCES,
+  AvatarSource,
+} from '../../user/interfaces/user.interface';
 
 export class AuthUserResponseDto {
   @ApiProperty({ example: '8d2a6457-7f4b-4cef-9f10-8cff885f7e15' })
@@ -37,4 +41,21 @@ export class AuthUserResponseDto {
 
   @ApiProperty({ example: '2026-05-05T12:00:00.000Z' })
   createdAt: Date;
+
+  @ApiPropertyOptional({
+    example: 'https://lh3.googleusercontent.com/a/photo.jpg',
+    description:
+      'Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set.',
+  })
+  pictureUrl?: string;
+
+  @ApiProperty({ enum: AVATAR_SOURCES })
+  avatarSource: AvatarSource;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source.',
+  })
+  hasGoogleAvatar: boolean;
 }

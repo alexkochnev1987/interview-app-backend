@@ -788,6 +788,32 @@ export class InterviewService {
     return { items, total, page, limit };
   }
 
+  async findLatestByCandidateEmail(
+    candidateEmail: string,
+    demo: boolean,
+  ): Promise<InterviewListItem | null> {
+    const normalizedEmail = candidateEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    const result = await this.databaseService.query<InterviewListRow>(
+      `
+        SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
+        FROM interviews i
+        LEFT JOIN users ah ON ah.id = i.assigned_hr_id
+        WHERE i.demo = $1
+          AND lower(i.candidate_email) = $2
+        ORDER BY i.created_at DESC, i.id ASC
+        LIMIT 1
+      `,
+      [demo, normalizedEmail],
+    );
+
+    const row = result.rows[0];
+    return row ? fromInterviewListRow(row) : null;
+  }
+
   async getFacets(
     query: QueryInterviewFacetsDto = {},
     actor: InterviewActor,

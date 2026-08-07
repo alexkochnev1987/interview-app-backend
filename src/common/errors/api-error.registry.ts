@@ -71,6 +71,27 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
       'Upload or progress tries to replace media on a reserved version that already has a mediaKey.',
   },
   {
+    code: ApiErrorCode.AVATAR_UNSUPPORTED_TYPE,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage: 'Unsupported avatar content type',
+    whenUsed:
+      'Avatar presign or confirm sees a content type outside the supported JPEG/PNG/WEBP set.',
+  },
+  {
+    code: ApiErrorCode.AVATAR_TOO_LARGE,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage: 'Avatar file exceeds the maximum upload size',
+    whenUsed:
+      'Avatar presign declares, or the uploaded object actually is, larger than MAX_AVATAR_UPLOAD_BYTES.',
+  },
+  {
+    code: ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
+    httpStatus: HttpStatus.BAD_REQUEST,
+    defaultMessage: 'No Google picture is available to restore',
+    whenUsed:
+      'Restore-google-avatar is called for a user with no google_picture_url on file.',
+  },
+  {
     code: ApiErrorCode.UNAUTHORIZED,
     httpStatus: HttpStatus.UNAUTHORIZED,
     defaultMessage: 'Unauthorized',

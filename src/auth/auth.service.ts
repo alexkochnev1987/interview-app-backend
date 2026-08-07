@@ -59,6 +59,7 @@ export class AuthService {
   async findOrCreateGoogleUser(
     email: string,
     name: string,
+    pictureUrl?: string,
   ): Promise<Omit<User, 'passwordHash'>> {
     if (await this.appConfig?.getBoolean('ENABLE_GOOGLE_OAUTH', true) === false) {
       throw apiForbidden(ApiErrorCode.FORBIDDEN, 'Google OAuth is currently disabled');
@@ -66,6 +67,11 @@ export class AuthService {
 
     const existing = await this.userService.findByEmail(email);
     if (existing) {
+      // Activates the Google photo as the active picture unless the user
+      // currently has a custom upload (see UserService.activateGoogleAvatar).
+      if (pictureUrl) {
+        return this.userService.activateGoogleAvatar(existing.id, pictureUrl);
+      }
       return this.userService.toPublicUser(existing);
     }
 
@@ -74,6 +80,7 @@ export class AuthService {
       name,
       password: randomUUID(), // random password, login only via Google
       role: this.getRoleForEmail(email),
+      googlePictureUrl: pictureUrl,
     });
   }
 

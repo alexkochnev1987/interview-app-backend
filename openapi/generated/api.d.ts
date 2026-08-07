@@ -171,10 +171,12 @@ export interface paths {
         get: operations["UserController_findOne"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Hard-delete a user */
+        delete: operations["UserController_remove"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update user name and/or email */
+        patch: operations["UserController_update"];
         trace?: never;
     };
     "/users/{id}/role": {
@@ -208,6 +210,91 @@ export interface paths {
          * @description Idempotent admin-only setup for environments without direct database access. Refused on production unless ALLOW_DEMO_SEED=true is set, so it can never seed demo data into production by accident.
          */
         post: operations["UserController_provisionDemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/avatar/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get a presigned URL to upload a new avatar */
+        post: operations["AvatarController_presign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/avatar/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm an uploaded avatar and activate it */
+        post: operations["AvatarController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove the current avatar, reverting to initials */
+        delete: operations["AvatarController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/avatar/restore-google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore the last-known Google photo as the active avatar */
+        post: operations["AvatarController_restoreGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Redirect to a presigned URL for a user's avatar */
+        get: operations["AvatarController_proxy"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -364,7 +451,7 @@ export interface paths {
         patch: operations["QuestionController_restore"];
         trace?: never;
     };
-    "/ai/chat": {
+    "/ai/take/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -373,7 +460,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Candidate chat assistant */
+        /** Take-session candidate chat assistant */
         post: operations["AiController_chat"];
         delete?: never;
         options?: never;
@@ -938,6 +1025,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Global AI chat
+         * @description Role-aware assistant for interview queries and confirmed actions. All authenticated roles may call this route; each tool enforces the same permissions as the REST API before reading data or mutating.
+         */
+        post: operations["RecruiterAssistantController_chat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback/share/{token}": {
         parameters: {
             query?: never;
@@ -1130,6 +1237,18 @@ export interface components {
              * @example 2026-05-05T12:00:00.000Z
              */
             createdAt: string;
+            /**
+             * @description Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set.
+             * @example https://lh3.googleusercontent.com/a/photo.jpg
+             */
+            pictureUrl?: string;
+            /** @enum {string} */
+            avatarSource: "none" | "google" | "upload";
+            /**
+             * @description Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source.
+             * @example true
+             */
+            hasGoogleAvatar: boolean;
         };
         RegisterDto: {
             email: string;
@@ -1148,7 +1267,7 @@ export interface components {
             status?: "completed" | "skipped";
         };
         /** @enum {string} */
-        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
+        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "AVATAR_UNSUPPORTED_TYPE" | "AVATAR_TOO_LARGE" | "AVATAR_NO_GOOGLE_PICTURE" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
         ApiErrorResponseDto: {
             /** @example 400 */
             statusCode: number;
@@ -1180,6 +1299,17 @@ export interface components {
              * @example jane@interview-app.com
              */
             email?: string;
+            /**
+             * @description Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set.
+             * @example https://lh3.googleusercontent.com/a/photo.jpg
+             */
+            pictureUrl?: string;
+        };
+        UpdateUserDto: {
+            /** @example Jane Doe */
+            name?: string;
+            /** @example jane@example.com */
+            email?: string;
         };
         AssignRoleDto: {
             /** @enum {string} */
@@ -1196,6 +1326,25 @@ export interface components {
         DemoProvisionResponseDto: {
             user: components["schemas"]["AuthUserResponseDto"];
             counts: components["schemas"]["DemoProvisionCountsDto"];
+        };
+        AvatarPresignRequestDto: {
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            /** @example 204800 */
+            fileSizeBytes: number;
+        };
+        AvatarPresignResponseDto: {
+            uploadUrl: string;
+            avatarKey: string;
+        };
+        AvatarCompleteUploadDto: {
+            avatarKey: string;
+        };
+        AvatarUpdateResponseDto: {
+            /** @example /users/8d2a6457-7f4b-4cef-9f10-8cff885f7e15/avatar */
+            pictureUrl: string | null;
+            /** @enum {string} */
+            avatarSource: "none" | "google" | "upload";
         };
         QuestionExpectedConceptDto: {
             id: string;
@@ -2201,6 +2350,74 @@ export interface components {
             sourceVersionNumber: number;
             reused: boolean;
         };
+        RecruiterAssistantSuggestedQuestionDto: {
+            key: string;
+            questionText: string;
+            role?: string;
+            category?: string;
+            subcategory?: string;
+            /** @enum {string} */
+            difficulty?: "easy" | "medium" | "hard";
+            tags?: string[];
+            expectedConcepts?: string[];
+            followUpQuestions?: string[];
+            sampleGoodAnswer?: string;
+            existingQuestionId?: string;
+            existingQuestionText?: string;
+            needsCreation?: boolean;
+        };
+        RecruiterAssistantCreatePendingActionDto: {
+            /** @enum {string} */
+            type: "create_questions" | "create_interview";
+            position: string;
+            candidateName?: string;
+            candidateEmail?: string;
+            /** @enum {string} */
+            interviewLocale?: "en" | "be" | "ru" | "pl";
+            questions: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
+        };
+        RecruiterAssistantAssignHrPendingActionDto: {
+            /** @enum {string} */
+            type: "assign_hr";
+            interviewId: string;
+            assignedHrId: string;
+            assignedHrName: string;
+            interviewLabel: string;
+        };
+        RecruiterAssistantChatDto: {
+            message: string;
+            pendingActionId?: string;
+        };
+        RecruiterAssistantCreatedInterviewDto: {
+            id: string;
+            candidateLink: string;
+        };
+        RecruiterAssistantReviewStateDto: {
+            reviewed: boolean;
+            shareLinkActive?: boolean;
+            outcome?: string;
+        };
+        RecruiterAssistantInterviewSummaryDto: {
+            id: string;
+            candidateName: string;
+            position: string;
+            status: string;
+            candidateLink?: string;
+            reviewState?: components["schemas"]["RecruiterAssistantReviewStateDto"];
+        };
+        RecruiterAssistantResponseDto: {
+            response: string;
+            /** @enum {string} */
+            status: "answered" | "needs_confirmation" | "executed" | "refused" | "denied";
+            suggestedQuestions?: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
+            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
+            pendingActionId?: string;
+            createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
+            /** @enum {string} */
+            escalateTo?: "hr" | "admin" | "super_admin";
+            interviews?: components["schemas"]["InterviewListItemDto"][];
+            interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
+        };
         PublicCandidateFeedbackTextBlockDto: {
             /** @description Candidate-facing strengths / recommendations text. */
             recommendationText?: string;
@@ -2706,6 +2923,121 @@ export interface operations {
             };
         };
     };
+    UserController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    UserController_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
     UserController_assignRole: {
         parameters: {
             query?: never;
@@ -2771,6 +3103,165 @@ export interface operations {
                 };
             };
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_presign: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarPresignRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarPresignResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_complete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarCompleteUploadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUpdateResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUpdateResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_restoreGoogle: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUpdateResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AvatarController_proxy: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirects to a short-lived S3 URL */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5163,6 +5654,56 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RecruiterAssistantController_chat: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecruiterAssistantChatDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruiterAssistantResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
