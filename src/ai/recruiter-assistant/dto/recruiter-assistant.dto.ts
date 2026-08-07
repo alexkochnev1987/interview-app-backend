@@ -23,6 +23,7 @@ import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
+import { QueryQuestionsDto } from '../../../question/dto/query-questions.dto';
 import { AuthUserResponseDto } from '../../../auth/dto/auth-user.response.dto';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
@@ -272,8 +273,8 @@ export class RecruiterAssistantInterviewSummaryDto {
 
 export class RecruiterAssistantQuestionCountDto {
   @ApiProperty() total: number;
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
-  filters?: Record<string, unknown>;
+  @ApiPropertyOptional()
+  filters?: Partial<QueryQuestionsDto>;
 }
 
 export class RecruiterAssistantInterviewActivityDto {

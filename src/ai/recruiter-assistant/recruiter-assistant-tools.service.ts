@@ -9,6 +9,7 @@ import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filte
 import { toInterviewActor } from '../../interview/interview-actor';
 import { InterviewService } from '../../interview/interview.service';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { QueryQuestionsDto } from '../../question/dto/query-questions.dto';
 import { QuestionService } from '../../question/question.service';
 import { UserService } from '../../user/user.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
@@ -27,7 +28,10 @@ import {
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
-import { buildInterviewRedirect } from './recruiter-assistant-response-builders';
+import {
+  buildInterviewRedirect,
+  buildQuestionsListRedirect,
+} from './recruiter-assistant-response-builders';
 import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
@@ -120,6 +124,45 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
+  }
+
+  async countQuestions(
+    filters: QueryQuestionsDto,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canReadQuestions(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to read the question bank.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const listFilters = this.questionCountListFilters(filters);
+    const hasFilters = Object.keys(listFilters).length > 0;
+    const countQuery: QueryQuestionsDto =
+      user.role === 'super_admin' && !listFilters.status
+        ? { ...listFilters, status: 'all', limit: 1 }
+        : { ...listFilters, limit: 1 };
+
+    const { total } = await this.questionService.findAll(countQuery, {
+      forceActive: user.role !== 'super_admin',
+      resolveLocale: locale,
+      demo: user.demo,
+    });
+
+    return {
+      status: 'answered',
+      response: hasFilters
+        ? `${total} question(s) match your filters. Open the question bank to browse them.`
+        : `You have ${total} question(s) in total. Open the question bank to browse them.`,
+      questionCount: {
+        total,
+        filters: hasFilters ? listFilters : undefined,
+      },
+      redirect: buildQuestionsListRedirect(listFilters),
+    };
   }
 
   async getInterviewStatus(
@@ -945,6 +988,14 @@ export class RecruiterAssistantToolsService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
+  }
+
+  private questionCountListFilters(filters: QueryQuestionsDto): QueryQuestionsDto {
+    const { limit, page, includeTranslations, ...listFilters } = filters;
+    void limit;
+    void page;
+    void includeTranslations;
+    return listFilters;
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {

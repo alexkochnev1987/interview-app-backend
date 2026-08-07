@@ -2,6 +2,7 @@ import {
   buildCreatedQuestionCard,
   buildInterviewCardHref,
   buildInterviewRedirect,
+  buildQuestionsListRedirect,
 } from './recruiter-assistant-response-builders';
 
 describe('recruiter-assistant-response-builders', () => {
@@ -35,5 +36,26 @@ describe('recruiter-assistant-response-builders', () => {
 
   it('builds an interview card href', () => {
     expect(buildInterviewCardHref('id-1')).toBe('/interviews/id-1');
+  });
+
+  it('builds a questions list redirect without filters', () => {
+    expect(buildQuestionsListRedirect({})).toEqual({ path: '/questions' });
+  });
+
+  it('builds a questions list redirect with valid query params', () => {
+    expect(
+      buildQuestionsListRedirect({
+        difficulty: 'hard',
+        role: 'React Developer',
+        tags: ['hooks', 'state'],
+      }),
+    ).toEqual({
+      path: '/questions',
+      query: {
+        difficulty: 'hard',
+        role: 'React Developer',
+        tags: 'hooks,state',
+      },
+    });
   });
 });

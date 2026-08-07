@@ -83,6 +83,23 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies question count requests', () => {
+    expect(service.classify('how many questions do we have in total', admin, 'en')).toEqual({
+      kind: 'count_questions',
+      filters: {},
+    });
+    expect(service.classify('total questions', hr, 'en')).toEqual({
+      kind: 'count_questions',
+      filters: {},
+    });
+  });
+
+  it('does not classify create question as count', () => {
+    expect(service.classify('create a question about React', admin, 'en').kind).toBe(
+      'create_question',
+    );
+  });
+
   it('classifies create question requests', () => {
     expect(
       service.classify('create a question about React hooks', admin, 'en'),

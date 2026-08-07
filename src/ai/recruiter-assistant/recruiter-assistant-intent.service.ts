@@ -24,6 +24,7 @@ import {
   NEW_CHAT_PATTERNS,
   UNASSIGNED_PATTERNS,
   matchesCreateSingleQuestionIntent,
+  matchesCountQuestionsIntent,
 } from './recruiter-assistant-intent-patterns';
 import {
   extractLocaleToken,
@@ -48,6 +49,13 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesCountQuestionsIntent(normalized)) {
+      return {
+        kind: 'count_questions',
+        filters: {},
+      };
+    }
 
     if (matchesCreateInterviewIntent(normalized)) {
       const fields = extractCreateInterviewFields(message);

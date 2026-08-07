@@ -157,6 +157,16 @@ export const COUNT_QUESTIONS_PATTERNS = [
   /\btotal questions?\b/i,
 ];
 
+export function matchesCountQuestionsIntent(message: string): boolean {
+  if (matchesCreateSingleQuestionIntent(message)) {
+    return false;
+  }
+  if (matchesCreateIntent(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, COUNT_QUESTIONS_PATTERNS);
+}
+
 export const LIST_ASSESSMENTS_PATTERNS = [
   /\b(show|list|get|display)\b.*\b(assessments?|templates?)\b/i,
 ];
