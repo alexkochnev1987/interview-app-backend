@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsNotEmpty,
@@ -19,12 +20,22 @@ export class UpsertConfigVariableDto {
 
   @ApiPropertyOptional({
     description: 'Data type hint for parsing and UI rendering',
-    enum: ['string', 'number', 'boolean', 'json', 'secret'],
+    enum: ['string', 'number', 'boolean', 'enum', 'json', 'secret'],
     default: 'string',
   })
   @IsOptional()
-  @IsIn(['string', 'number', 'boolean', 'json', 'secret'])
-  valueType?: 'string' | 'number' | 'boolean' | 'json' | 'secret';
+  @IsIn(['string', 'number', 'boolean', 'enum', 'json', 'secret'])
+  valueType?: 'string' | 'number' | 'boolean' | 'enum' | 'json' | 'secret';
+
+  @ApiPropertyOptional({
+    description: 'Allowed option values for enum variables',
+    type: [String],
+    example: ['innowise', 'red', 'blue', 'purple'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  options?: string[];
 
   @ApiPropertyOptional({
     description: 'Whether this variable is exposed to the frontend via GET /config/public',

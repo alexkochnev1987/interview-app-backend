@@ -1019,6 +1019,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           key VARCHAR(128) UNIQUE NOT NULL,
           value TEXT NOT NULL,
           value_type VARCHAR(32) NOT NULL DEFAULT 'string',
+          options TEXT[] NULL,
           is_public BOOLEAN NOT NULL DEFAULT false,
           is_secret BOOLEAN NOT NULL DEFAULT false,
           description TEXT,
@@ -1052,6 +1053,44 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `DROP INDEX IF EXISTS idx_app_variables_key;`,
       `DROP INDEX IF EXISTS idx_app_variables_public;`,
       `DROP TABLE IF EXISTS app_variables;`,
+    ],
+  },
+  {
+    version: '0049',
+    name: 'add_app_variables_options',
+    statements: [
+      `ALTER TABLE app_variables ADD COLUMN IF NOT EXISTS options TEXT[] NULL;`,
+      `
+        INSERT INTO app_variables (key, value, value_type, options, description, is_public, is_secret)
+        VALUES
+          ('APP_THEME', 'innowise', 'enum', ARRAY['innowise', 'red', 'blue', 'purple'], 'Active UI theme color preset', true, false),
+          ('DEFAULT_THEME_MODE', 'system', 'enum', ARRAY['system', 'light', 'dark'], 'Default light/dark theme mode for new users', true, false)
+        ON CONFLICT (key) DO UPDATE SET
+          value_type = EXCLUDED.value_type,
+          options = EXCLUDED.options,
+          description = EXCLUDED.description,
+          is_public = EXCLUDED.is_public,
+          is_secret = EXCLUDED.is_secret;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE app_variables DROP COLUMN IF EXISTS options;`,
+    ],
+  },
+  {
+    version: '0050',
+    name: 'add_enable_ai_assistant_variable',
+    statements: [
+      `
+        INSERT INTO app_variables (key, value, value_type, description, is_public, is_secret)
+        VALUES
+          ('ENABLE_AI_ASSISTANT', 'true', 'boolean', 'Master switch to enable/disable AI Recruiter Assistant widget UI', true, false)
+        ON CONFLICT (key) DO UPDATE SET
+          value_type = EXCLUDED.value_type,
+          description = EXCLUDED.description,
+          is_public = EXCLUDED.is_public,
+          is_secret = EXCLUDED.is_secret;
+      `,
     ],
   },
 ];

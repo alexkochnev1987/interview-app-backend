@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -26,10 +27,11 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../user/interfaces/user.interface';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { apiNotFound } from '../common/errors/api-error';
+import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { AppConfigService, AppVariableRecord } from './app-config.service';
 import { UpsertConfigVariableDto } from './dto/upsert-config-variable.dto';
+import { SystemConfigEntryDto } from './dto/system-config-entry.dto';
 
 // ---------------------------------------------------------------------------
 // Response helpers
@@ -46,13 +48,11 @@ function maskSecrets(record: AppVariableRecord): AppVariableRecord {
 }
 
 // ---------------------------------------------------------------------------
-// Public config controller (authenticated, no permission check)
+// Public config controller (accessible to everyone)
 // ---------------------------------------------------------------------------
 
 @ApiTags('config')
-@ApiCookieAuth('sessionAuth')
 @Controller('config/public')
-@UseGuards(JwtAuthGuard)
 export class PublicConfigController {
   constructor(private readonly appConfig: AppConfigService) {}
 
@@ -61,11 +61,9 @@ export class PublicConfigController {
     summary: 'Get public runtime variables',
     description:
       'Returns a key→value dictionary of all variables marked as public (is_public=true). ' +
-      'Available to any authenticated user including candidates. ' +
-      'Secret variables are always excluded regardless of is_public flag.',
+      'Available to all users including unauthenticated visitors.',
   })
   @ApiOkResponse({ description: 'Public configuration dictionary' })
-  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   getPublicConfig(): Promise<Record<string, unknown>> {
     return this.appConfig.getPublicVariables();
   }
@@ -90,7 +88,10 @@ export class AppConfigController {
       'Returns the full list of runtime configuration variables. ' +
       'Secret variable values are masked with "********".',
   })
-  @ApiOkResponse({ description: 'List of all configuration variables' })
+  @ApiOkResponse({
+    type: [SystemConfigEntryDto],
+    description: 'List of all configuration variables',
+  })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async listAll(): Promise<AppVariableRecord[]> {
@@ -108,7 +109,11 @@ export class AppConfigController {
       'Overrides any value set in .env or process.env.',
   })
   @ApiParam({ name: 'key', description: 'Variable key in UPPER_SNAKE_CASE' })
-  @ApiOkResponse({ description: 'The saved variable record' })
+  @ApiOkResponse({
+    type: SystemConfigEntryDto,
+    description: 'The saved variable record',
+  })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async upsert(
@@ -116,8 +121,21 @@ export class AppConfigController {
     @Body() dto: UpsertConfigVariableDto,
     @CurrentUser() actor: Omit<User, 'passwordHash'>,
   ): Promise<AppVariableRecord> {
+    const existing = await this.appConfig.getVariableRecord(key);
+    const allowedOptions = dto.options ?? existing?.options;
+
+    if (allowedOptions && allowedOptions.length > 0) {
+      if (!allowedOptions.includes(dto.value)) {
+        throw apiBadRequest(
+          ApiErrorCode.INVALID_CONFIG_VALUE,
+          `Value "${dto.value}" is not allowed for key ${key}. Allowed values: ${allowedOptions.join(', ')}.`,
+        );
+      }
+    }
+
     const record = await this.appConfig.setVariable(key, dto.value, {
       valueType: dto.valueType,
+      options: dto.options,
       isPublic: dto.isPublic,
       isSecret: dto.isSecret,
       description: dto.description,

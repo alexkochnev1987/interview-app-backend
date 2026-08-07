@@ -1,13 +1,20 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 
-export type VariableType = 'string' | 'number' | 'boolean' | 'json' | 'secret';
+export type VariableType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'enum'
+  | 'json'
+  | 'secret';
 
 export interface AppVariableRecord {
   id: string;
   key: string;
   value: string;
   valueType: VariableType;
+  options?: string[] | null;
   isPublic: boolean;
   isSecret: boolean;
   description: string | null;
@@ -132,6 +139,11 @@ export class AppConfigService implements OnModuleInit {
   // CRUD for Super Admin
   // ---------------------------------------------------------------------------
 
+  /** Get a single variable record by key (or null if absent). */
+  async getVariableRecord(key: string): Promise<AppVariableRecord | null> {
+    return this.getFromCacheOrDb(key);
+  }
+
   /** Return all variables from the DB (for Super Admin list view). */
   async getAllVariables(): Promise<AppVariableRecord[]> {
     if (this.allCache && Date.now() < this.allCache.expiresAt) {
@@ -139,7 +151,7 @@ export class AppConfigService implements OnModuleInit {
     }
 
     const { rows } = await this.db.query<AppVariableRow>(
-      `SELECT id, key, value, value_type, is_public, is_secret,
+      `SELECT id, key, value, value_type, options, is_public, is_secret,
               description, created_at, updated_at, updated_by
        FROM app_variables
        ORDER BY key`,
@@ -161,6 +173,17 @@ export class AppConfigService implements OnModuleInit {
       if (!rec.isPublic || rec.isSecret) continue;
       result[rec.key] = parseTypedValue(rec.value, rec.valueType);
     }
+
+    // Default theme & feature flag fallbacks if not present in DB
+    result['APP_THEME'] = result['APP_THEME'] ?? (process.env.APP_THEME ?? 'innowise');
+    result['DEFAULT_THEME_MODE'] =
+      result['DEFAULT_THEME_MODE'] ?? (process.env.DEFAULT_THEME_MODE ?? 'system');
+    result['ENABLE_AI_ASSISTANT'] =
+      result['ENABLE_AI_ASSISTANT'] ??
+      (process.env.ENABLE_AI_ASSISTANT !== undefined
+        ? process.env.ENABLE_AI_ASSISTANT.trim().toLowerCase() === 'true'
+        : true);
+
     return result;
   }
 
@@ -173,6 +196,7 @@ export class AppConfigService implements OnModuleInit {
     value: string,
     opts: {
       valueType?: VariableType;
+      options?: string[];
       isPublic?: boolean;
       isSecret?: boolean;
       description?: string;
@@ -180,22 +204,24 @@ export class AppConfigService implements OnModuleInit {
     },
   ): Promise<AppVariableRecord> {
     const { rows } = await this.db.query<AppVariableRow>(
-      `INSERT INTO app_variables (key, value, value_type, is_public, is_secret, description, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO app_variables (key, value, value_type, options, is_public, is_secret, description, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (key) DO UPDATE SET
          value = EXCLUDED.value,
          value_type = COALESCE(EXCLUDED.value_type, app_variables.value_type),
+         options = COALESCE(EXCLUDED.options, app_variables.options),
          is_public = COALESCE(EXCLUDED.is_public, app_variables.is_public),
          is_secret = COALESCE(EXCLUDED.is_secret, app_variables.is_secret),
          description = COALESCE(EXCLUDED.description, app_variables.description),
          updated_by = EXCLUDED.updated_by,
          updated_at = NOW()
-       RETURNING id, key, value, value_type, is_public, is_secret,
+       RETURNING id, key, value, value_type, options, is_public, is_secret,
                  description, created_at, updated_at, updated_by`,
       [
         key,
         value,
         opts.valueType ?? 'string',
+        opts.options ?? null,
         opts.isPublic ?? false,
         opts.isSecret ?? false,
         opts.description ?? null,
@@ -236,7 +262,7 @@ export class AppConfigService implements OnModuleInit {
 
     try {
       const { rows } = await this.db.query<AppVariableRow>(
-        `SELECT id, key, value, value_type, is_public, is_secret,
+        `SELECT id, key, value, value_type, options, is_public, is_secret,
                 description, created_at, updated_at, updated_by
          FROM app_variables WHERE key = $1`,
         [key],
@@ -259,7 +285,7 @@ export class AppConfigService implements OnModuleInit {
 
   private async warmCache(): Promise<void> {
     const { rows } = await this.db.query<AppVariableRow>(
-      `SELECT id, key, value, value_type, is_public, is_secret,
+      `SELECT id, key, value, value_type, options, is_public, is_secret,
               description, created_at, updated_at, updated_by
        FROM app_variables`,
     );
@@ -283,6 +309,7 @@ interface AppVariableRow {
   key: string;
   value: string;
   value_type: string;
+  options: string[] | null;
   is_public: boolean;
   is_secret: boolean;
   description: string | null;
@@ -297,6 +324,7 @@ function mapRow(row: AppVariableRow): AppVariableRecord {
     key: row.key,
     value: row.value,
     valueType: row.value_type as VariableType,
+    options: row.options ?? undefined,
     isPublic: row.is_public,
     isSecret: row.is_secret,
     description: row.description,

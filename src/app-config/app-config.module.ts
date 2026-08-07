@@ -4,9 +4,11 @@ import {
   AppConfigController,
   PublicConfigController,
 } from './app-config.controller';
+import { DatabaseModule } from '../database/database.module';
 
 @Global()
 @Module({
+  imports: [DatabaseModule],
   controllers: [PublicConfigController, AppConfigController],
   providers: [AppConfigService],
   exports: [AppConfigService],

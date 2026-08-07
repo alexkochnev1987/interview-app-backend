@@ -180,6 +180,9 @@ describe('AppConfigService', () => {
 
       expect(publicVars).toEqual({
         PUBLIC_LIMIT: 50,
+        APP_THEME: 'innowise',
+        DEFAULT_THEME_MODE: 'system',
+        ENABLE_AI_ASSISTANT: true,
       });
       expect(publicVars.PRIVATE_SETTING).toBeUndefined();
       expect(publicVars.PUBLIC_SECRET_KEY).toBeUndefined();
