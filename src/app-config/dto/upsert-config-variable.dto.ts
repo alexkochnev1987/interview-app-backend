@@ -12,7 +12,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class UpsertConfigVariableDto {
   @ApiProperty({
     description: 'Variable value as string (numbers and booleans are stored as text)',
-    example: '300',
+    example: '240',
   })
   @IsString()
   @IsNotEmpty()

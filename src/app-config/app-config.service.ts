@@ -79,7 +79,7 @@ export class AppConfigService implements OnModuleInit {
 
   /**
    * Core cascade resolver:
-   *   DB override → process.env → code default.
+   *   DB override → process.env → SYSTEM_CONFIG_DEFAULTS → caller default.
    */
   async getString(
     key: string,
@@ -97,7 +97,13 @@ export class AppConfigService implements OnModuleInit {
       return envValue;
     }
 
-    // 3. Code default
+    // 3. Centralised system defaults
+    const systemDefault = SYSTEM_CONFIG_DEFAULTS[key]?.value;
+    if (systemDefault !== undefined && systemDefault.trim() !== '') {
+      return systemDefault;
+    }
+
+    // 4. Code default
     return defaultValue;
   }
 
@@ -238,16 +244,17 @@ export class AppConfigService implements OnModuleInit {
       updatedBy?: string;
     },
   ): Promise<AppVariableRecord> {
+    const defaultEntry = SYSTEM_CONFIG_DEFAULTS[key];
     const { rows } = await this.db.query<AppVariableRow>(
       `INSERT INTO app_variables (key, value, value_type, options, is_public, is_secret, description, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       VALUES ($1, $2, COALESCE($3, $9::varchar), $4, COALESCE($5, $10::boolean), COALESCE($6, $11::boolean), COALESCE($7, $12::text), $8)
        ON CONFLICT (key) DO UPDATE SET
          value = EXCLUDED.value,
-         value_type = COALESCE(EXCLUDED.value_type, app_variables.value_type),
-         options = COALESCE(EXCLUDED.options, app_variables.options),
-         is_public = COALESCE(EXCLUDED.is_public, app_variables.is_public),
-         is_secret = COALESCE(EXCLUDED.is_secret, app_variables.is_secret),
-         description = COALESCE(EXCLUDED.description, app_variables.description),
+         value_type = COALESCE($3, app_variables.value_type),
+         options = COALESCE($4, app_variables.options),
+         is_public = COALESCE($5, app_variables.is_public),
+         is_secret = COALESCE($6, app_variables.is_secret),
+         description = COALESCE($7, app_variables.description),
          updated_by = EXCLUDED.updated_by,
          updated_at = NOW()
        RETURNING id, key, value, value_type, options, is_public, is_secret,
@@ -255,12 +262,16 @@ export class AppConfigService implements OnModuleInit {
       [
         key,
         value,
-        opts.valueType ?? 'string',
+        opts.valueType ?? null,
         opts.options ?? null,
-        opts.isPublic ?? false,
-        opts.isSecret ?? false,
+        opts.isPublic ?? null,
+        opts.isSecret ?? null,
         opts.description ?? null,
         opts.updatedBy ?? null,
+        defaultEntry?.valueType ?? 'string',
+        defaultEntry?.isPublic ?? false,
+        defaultEntry?.isSecret ?? false,
+        defaultEntry?.description ?? null,
       ],
     );
 

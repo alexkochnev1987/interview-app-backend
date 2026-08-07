@@ -79,9 +79,10 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
-    options?: { requireReservedAttempt?: boolean },
+    options?: { requireReservedAttempt?: boolean; fileSizeBytes?: number },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
+    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -119,8 +120,10 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
+    options?: { fileSizeBytes?: number },
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
+    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -298,8 +301,9 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     versionNumber?: number,
-    options?: { requireReservedAttempt?: boolean },
+    options?: { requireReservedAttempt?: boolean; fileSizeBytes?: number },
   ): Promise<ConfirmUploadResponseDto> {
+    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,

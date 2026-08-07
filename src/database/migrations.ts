@@ -1011,18 +1011,6 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0048',
-    name: 'assign_demo_interviews_to_demo_hr',
-    statements: [
-      `
-      UPDATE interviews
-      SET assigned_hr_id = '${DEMO_USER_ID}'
-      WHERE demo = TRUE
-        AND assigned_hr_id IS NULL;
-    `,
-    ],
-  },
-  {
     version: '0049',
     name: 'create_app_variables_table',
     statements: [
@@ -1046,7 +1034,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `
         INSERT INTO app_variables (key, value, value_type, is_public, is_secret, description) VALUES
         ('MAX_TEMPLATE_QUESTIONS', '100', 'number', true, false, 'Maximum allowed number of questions per interview template or session'),
-        ('MAX_ANSWER_DURATION_SECONDS', '300', 'number', true, false, 'Maximum candidate video response recording limit in seconds per question'),
+        ('MAX_ANSWER_DURATION_SECONDS', '240', 'number', true, false, 'Maximum candidate video response recording limit in seconds per question'),
         ('MAX_ANSWER_ATTEMPTS_PER_QUESTION', '3', 'number', true, false, 'Maximum allowed recording retry attempts per question for candidates'),
         ('VALIDATION_MAX_CONCURRENCY', '3', 'number', false, false, 'Maximum number of concurrent AI answer evaluation background jobs'),
         ('MAX_MEDIA_FILE_SIZE_MB', '100', 'number', true, false, 'Maximum allowed media payload file size in megabytes for AWS S3 upload'),
@@ -1103,6 +1091,18 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           is_public = EXCLUDED.is_public,
           is_secret = EXCLUDED.is_secret;
       `,
+    ],
+  },
+  {
+    version: '0052',
+    name: 'assign_demo_interviews_to_demo_hr',
+    statements: [
+      `
+      UPDATE interviews
+      SET assigned_hr_id = '${DEMO_USER_ID}'
+      WHERE demo = TRUE
+        AND assigned_hr_id IS NULL;
+    `,
     ],
   },
 ];

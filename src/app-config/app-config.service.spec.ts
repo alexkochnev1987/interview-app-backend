@@ -98,7 +98,7 @@ describe('AppConfigService', () => {
         fields: [],
       });
 
-      const num = await service.getNumber('MAX_ANSWER_DURATION_SECONDS', 300);
+      const num = await service.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
       expect(num).toBe(600);
     });
 

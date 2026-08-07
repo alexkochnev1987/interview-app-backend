@@ -27,14 +27,14 @@ describe('AppConfigController & PublicConfigController', () => {
       appConfigService.getPublicVariables.mockResolvedValueOnce({
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
-        MAX_ANSWER_DURATION_SECONDS: 300,
+        MAX_ANSWER_DURATION_SECONDS: 240,
       });
 
       const res = await publicController.getPublicConfig();
       expect(res).toEqual({
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
-        MAX_ANSWER_DURATION_SECONDS: 300,
+        MAX_ANSWER_DURATION_SECONDS: 240,
       });
     });
   });

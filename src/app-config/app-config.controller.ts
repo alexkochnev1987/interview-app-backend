@@ -136,11 +136,11 @@ export class AppConfigController {
     }
 
     const record = await this.appConfig.setVariable(key, dto.value, {
-      valueType: dto.valueType,
-      options: dto.options,
-      isPublic: dto.isPublic,
-      isSecret: dto.isSecret,
-      description: dto.description,
+      valueType: dto.valueType ?? existing?.valueType ?? defaultEntry?.valueType,
+      options: dto.options ?? existing?.options ?? defaultEntry?.options,
+      isPublic: dto.isPublic ?? existing?.isPublic ?? defaultEntry?.isPublic,
+      isSecret: dto.isSecret ?? existing?.isSecret ?? defaultEntry?.isSecret,
+      description: dto.description ?? existing?.description ?? defaultEntry?.description,
       updatedBy: actor.email,
     });
     return maskSecrets(record);
