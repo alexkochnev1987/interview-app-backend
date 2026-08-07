@@ -1043,7 +1043,6 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         ('ENABLE_FEEDBACK_SHARE_LINKS', 'true', 'boolean', true, false, 'Toggle generation and resolving of external public candidate feedback share links'),
         ('ENABLE_S3_MEDIA_CLEANUP', 'true', 'boolean', false, false, 'Master switch for background orphan media cleaning job in AWS S3 or MinIO'),
         ('ENABLE_AI_ANSWER_VALIDATION', 'true', 'boolean', false, false, 'Master switch for Whisper media transcription and LLM answer grading workflow'),
-        ('MAINTENANCE_MODE_KILLSWITCH', 'false', 'boolean', true, false, 'Emergency system killswitch blocking all POST PUT DELETE write operations with 503 HTTP status'),
         ('DISABLE_USER_REGISTRATION', 'false', 'boolean', true, false, 'Emergency switch to halt new user account registration to prevent spam or DDoS attacks'),
         ('DISABLE_AI_EMBEDDINGS_SYNC', 'false', 'boolean', false, false, 'Disable background vector embeddings synchronization during mass bulk question imports')
         ON CONFLICT (key) DO NOTHING;
