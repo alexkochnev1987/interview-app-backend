@@ -21,10 +21,14 @@ import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantChatDto,
   RecruiterAssistantCreatePendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { apiServiceUnavailable } from '../../common/errors/api-error';
+import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -33,6 +37,7 @@ type ActingUser = Omit<User, 'passwordHash'>;
 @ApiExtraModels(
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
 )
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -64,6 +69,34 @@ export class RecruiterAssistantController {
     @CurrentUser() user: ActingUser,
     @CurrentLocale() locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'Recruiter assistant is disabled in this environment.',
+      );
+    }
     return this.recruiterAssistantService.chat(dto, user, locale);
+  }
+
+  @Post('chat/reset')
+  @UseGuards(StaffAiThrottlerGuard)
+  @Throttle({
+    default: {
+      limit: 20,
+      ttl: minutes(5),
+    },
+  })
+  @ApiOperation({ summary: 'Reset recruiter assistant conversation' })
+  @ApiOkResponse({ type: RecruiterAssistantResponseDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  @ApiForbiddenResponse({ type: ApiErrorResponseDto })
+  resetChat(@CurrentUser() user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'Recruiter assistant is disabled in this environment.',
+      );
+    }
+    return this.recruiterAssistantService.newChat(user);
   }
 }

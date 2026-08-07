@@ -81,15 +81,68 @@ export const LIST_INTERVIEWS_PATTERNS = [
   cyrillicLoosePattern('(?:покажи|список|найди)(?:\\s+\\S+){0,8}\\s+интерв'),
 ];
 
+export const SWITCH_LOCALE_PATTERNS = [
+  /\b(?:switch|change|set)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?:locale|language)\s+to\b/i,
+  /\blocale\s+to\b/i,
+  cyrillicLoosePattern('(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)'),
+];
+
+export const NEW_CHAT_PATTERNS = [
+  /\bnew chat\b/i,
+  /\bstart (?:a )?new conversation\b/i,
+  /\breset (?:the )?conversation\b/i,
+  /\bclear (?:the )?chat\b/i,
+  cyrillicLoosePattern('нов(?:ый|ая)\\s+чат'),
+  cyrillicLoosePattern('начать\\s+заново'),
+];
+
+export const CREATE_INTERVIEW_PATTERNS = [
+  /\bcreate (?:a )?new interview\b/i,
+  /\bcreate (?:an )?interview for\b/i,
+  /\bschedule (?:a )?new interview\b/i,
+  /\bcreate (?:an )?interview\b/i,
+  cyrillicLoosePattern('создай(?:\\s+\\S+){0,6}\\s+интерв'),
+];
+
+export function matchesCreateInterviewIntent(message: string): boolean {
+  if (/\bquestions?\b/i.test(message)) {
+    return false;
+  }
+  if (/\b\d{1,2}\s+(?:questions?|вопрос(?:а|ов)?)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bset up\s+(?:an?\s+)?interview\b/i.test(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, CREATE_INTERVIEW_PATTERNS);
+}
+
 export const CREATE_INTENT_PATTERNS = [
   /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
-  /\bcreate (an )?interview\b/i,
   /\bmake interview\b/i,
   /\bgenerate questions\b/i,
   cyrillicLoosePattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)'),
   cyrillicLoosePattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
 ];
+
+export const CREATE_SINGLE_QUESTION_PATTERNS = [
+  /\bcreate (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\badd (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bmake (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bhelp(?: me)? (?:to )?create (?:a )?(?:new )?(?:interview )?question\b/i,
+  cyrillicLoosePattern('создай(?:\\s+\\S+){0,4}\\s+вопрос'),
+];
+
+export function matchesCreateSingleQuestionIntent(message: string): boolean {
+  if (/\b\d{1,2}\s+questions?\b/i.test(message)) {
+    return false;
+  }
+  if (/\b\d{1,2}\s+(?:вопрос(?:а|ов)?)\b/i.test(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, CREATE_SINGLE_QUESTION_PATTERNS);
+}
 
 export function matchesAnyPattern(message: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(message));

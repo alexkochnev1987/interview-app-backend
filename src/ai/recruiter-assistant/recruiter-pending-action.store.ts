@@ -64,6 +64,17 @@ export class RecruiterPendingActionStore {
     return result.rows.length > 0;
   }
 
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.pruneExpired();
+    await this.databaseService.query(
+      `
+        DELETE FROM recruiter_pending_actions
+        WHERE user_id = $1
+      `,
+      [userId],
+    );
+  }
+
   private async pruneExpired(): Promise<void> {
     await this.databaseService.query(
       `

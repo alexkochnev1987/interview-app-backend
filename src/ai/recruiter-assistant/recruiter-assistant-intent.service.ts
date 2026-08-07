@@ -16,11 +16,19 @@ import {
   LIST_INTERVIEWS_PATTERNS,
   matchesAnyPattern,
   matchesCreateIntent,
+  matchesCreateInterviewIntent,
   MY_INTERVIEWS_PATTERNS,
   READY_FOR_REVIEW_PATTERNS,
   REVIEW_STATE_PATTERNS,
+  SWITCH_LOCALE_PATTERNS,
+  NEW_CHAT_PATTERNS,
   UNASSIGNED_PATTERNS,
+  matchesCreateSingleQuestionIntent,
 } from './recruiter-assistant-intent-patterns';
+import {
+  extractLocaleToken,
+  extractRequestedLocale,
+} from './recruiter-assistant-locale-extract';
 import { parseRecruiterRequest } from './recruiter-assistant-request-parser';
 import {
   ActingUser,
@@ -28,6 +36,8 @@ import {
   InterviewRef,
   RecruiterAssistantIntent,
 } from './recruiter-assistant.types';
+import { extractQuestionName } from './recruiter-assistant-question-name-extract';
+import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
 
 @Injectable()
 export class RecruiterAssistantIntentService {
@@ -38,6 +48,42 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesCreateInterviewIntent(normalized)) {
+      const fields = extractCreateInterviewFields(message);
+      return {
+        kind: 'create_interview',
+        candidateName: fields.candidateName,
+        position: fields.position,
+      };
+    }
+
+    if (matchesCreateIntent(normalized)) {
+      return {
+        kind: 'create_questions_interview',
+        parsed: parseRecruiterRequest(message, locale),
+      };
+    }
+
+    if (matchesCreateSingleQuestionIntent(normalized)) {
+      return {
+        kind: 'create_question',
+        questionName: extractQuestionName(message),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, SWITCH_LOCALE_PATTERNS)) {
+      const requestedLocale = extractRequestedLocale(message);
+      return {
+        kind: 'switch_locale',
+        requestedLocale,
+        rawToken: requestedLocale ? undefined : extractLocaleToken(message),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, NEW_CHAT_PATTERNS)) {
+      return { kind: 'new_chat' };
+    }
 
     if (matchesAnyPattern(normalized, ASSIGN_HR_PATTERNS)) {
       return {
@@ -89,13 +135,6 @@ export class RecruiterAssistantIntentService {
       return {
         kind: 'interview_status',
         ref: this.extractInterviewRef(message),
-      };
-    }
-
-    if (matchesCreateIntent(normalized)) {
-      return {
-        kind: 'create_questions_interview',
-        parsed: parseRecruiterRequest(message, locale),
       };
     }
 

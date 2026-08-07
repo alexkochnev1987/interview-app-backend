@@ -56,7 +56,7 @@ function extractCandidateName(message: string): string | undefined {
   return extractCandidateNameFromCreateRequest(message);
 }
 
-function extractPosition(message: string): string {
+function findExplicitPosition(message: string): string | undefined {
   const normalized = message.toLowerCase();
   if (normalized.includes('react')) return 'React Developer';
   if (normalized.includes('frontend') || normalized.includes('фронтенд')) {
@@ -72,5 +72,16 @@ function extractPosition(message: string): string {
     return 'QA Engineer';
   }
   if (normalized.includes('devops')) return 'DevOps Engineer';
-  return 'Software Developer';
+  if (/\bsoftware\s+(?:developer|engineer)\b/.test(normalized)) {
+    return 'Software Developer';
+  }
+  return undefined;
+}
+
+function extractPosition(message: string): string {
+  return findExplicitPosition(message) ?? 'Software Developer';
+}
+
+export function extractPositionFromMessage(message: string): string | undefined {
+  return findExplicitPosition(message);
 }
