@@ -58,6 +58,24 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies switch locale requests', () => {
+    expect(service.classify('switch locale to ru', admin, 'en')).toEqual({
+      kind: 'switch_locale',
+      requestedLocale: 'ru',
+    });
+    expect(service.classify('switch locale to klingon', admin, 'en')).toEqual({
+      kind: 'switch_locale',
+      requestedLocale: null,
+      rawToken: 'klingon',
+    });
+  });
+
+  it('classifies new chat requests', () => {
+    expect(service.classify('new chat', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
+  });
+
   it('classifies list interview requests', () => {
     expect(service.classify('show pending interviews', admin, 'en')).toEqual({
       kind: 'list_interviews',
@@ -66,6 +84,40 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('classifies create question requests', () => {
+    expect(
+      service.classify('create a question about React hooks', admin, 'en'),
+    ).toEqual({
+      kind: 'create_question',
+      questionName: 'React hooks',
+    });
+    expect(service.classify('create a question', admin, 'en')).toEqual({
+      kind: 'create_question',
+      questionName: undefined,
+    });
+    expect(
+      service.classify('Help me create a new interview question', admin, 'en'),
+    ).toEqual({
+      kind: 'create_question',
+      questionName: undefined,
+    });
+  });
+
+  it('classifies create interview requests', () => {
+    expect(service.classify('create a new interview', admin, 'en')).toEqual({
+      kind: 'create_interview',
+      candidateName: undefined,
+      position: undefined,
+    });
+    expect(
+      service.classify('create interview for Alice for React developer', admin, 'en'),
+    ).toEqual({
+      kind: 'create_interview',
+      candidateName: 'Alice',
+      position: 'React Developer',
+    });
+  });
+
+  it('classifies bulk question prep requests', () => {
     expect(
       service.classify('prepare 5 questions for a React developer', admin, 'en'),
     ).toEqual({

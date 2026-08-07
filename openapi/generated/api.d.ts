@@ -1109,6 +1109,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/chat/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset recruiter assistant conversation */
+        post: operations["RecruiterAssistantController_resetChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback/share/{token}": {
         parameters: {
             query?: never;
@@ -2536,9 +2553,37 @@ export interface components {
             assignedHrName: string;
             interviewLabel: string;
         };
+        RecruiterAssistantCreateSingleQuestionPendingActionDto: {
+            /** @enum {string} */
+            type: "create_single_question";
+            questionName: string;
+            createQuestion: Record<string, never>;
+        };
         RecruiterAssistantChatDto: {
             message: string;
             pendingActionId?: string;
+            sessionId?: string;
+            /** @description Optional create-interview/question-plan override sent with confirmation. Questions may only be removed, not added or edited. */
+            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"];
+        };
+        RecruiterAssistantCreatedQuestionDto: {
+            id: string;
+            questionText: string;
+            /** @description Frontend route when the question card is clicked. */
+            href: string;
+        };
+        RecruiterAssistantRedirectDto: {
+            /** @example /interviews/new */
+            path: string;
+            /**
+             * @example {
+             *       "candidateName": "Alice",
+             *       "position": "React Developer"
+             *     }
+             */
+            query?: {
+                [key: string]: string;
+            };
         };
         RecruiterAssistantCreatedInterviewDto: {
             id: string;
@@ -2562,8 +2607,16 @@ export interface components {
             /** @enum {string} */
             status: "answered" | "needs_confirmation" | "executed" | "refused" | "denied";
             suggestedQuestions?: components["schemas"]["RecruiterAssistantSuggestedQuestionDto"][];
-            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"];
+            pendingAction?: components["schemas"]["RecruiterAssistantCreatePendingActionDto"] | components["schemas"]["RecruiterAssistantAssignHrPendingActionDto"] | components["schemas"]["RecruiterAssistantCreateSingleQuestionPendingActionDto"];
             pendingActionId?: string;
+            sessionId?: string;
+            /** @enum {string} */
+            locale?: "en" | "be" | "ru" | "pl";
+            createdQuestion?: components["schemas"]["RecruiterAssistantCreatedQuestionDto"];
+            redirect?: components["schemas"]["RecruiterAssistantRedirectDto"];
+            templates?: components["schemas"]["TemplateSummaryResponseDto"][];
+            /** @enum {string} */
+            awaitingInput?: "hr" | "interview" | "questionName" | "candidateName" | "position" | "templateChoice";
             createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
@@ -6007,6 +6060,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RecruiterAssistantController_resetChat: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecruiterAssistantResponseDto"];
                 };
             };
             401: {

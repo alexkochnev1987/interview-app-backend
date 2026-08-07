@@ -1,3 +1,4 @@
+import { DEMO_USER_ID } from './demo-seed-data';
 import {
   BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
   INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
@@ -1011,6 +1012,18 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   },
   {
     version: '0048',
+    name: 'assign_demo_interviews_to_demo_hr',
+    statements: [
+      `
+      UPDATE interviews
+      SET assigned_hr_id = '${DEMO_USER_ID}'
+      WHERE demo = TRUE
+        AND assigned_hr_id IS NULL;
+    `,
+    ],
+  },
+  {
+    version: '0049',
     name: 'create_app_variables_table',
     statements: [
       `
@@ -1055,7 +1068,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0049',
+    version: '0050',
     name: 'add_app_variables_options',
     statements: [
       `ALTER TABLE app_variables ADD COLUMN IF NOT EXISTS options TEXT[] NULL;`,
@@ -1077,7 +1090,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     ],
   },
   {
-    version: '0050',
+    version: '0051',
     name: 'add_enable_ai_assistant_variable',
     statements: [
       `

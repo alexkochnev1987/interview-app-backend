@@ -9,12 +9,18 @@ import {
   isCancellationMessage,
   isConfirmationMessage,
   OUT_OF_SCOPE_RESPONSE,
+  RECRUITER_ASSISTANT_DISABLED_RESPONSE,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
+import { idleConversationState } from './recruiter-conversation-slots';
+import { applyPendingActionOverride } from './recruiter-pending-action-override';
+import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
 
 @Injectable()
 export class RecruiterAssistantService {
@@ -23,6 +29,8 @@ export class RecruiterAssistantService {
     private readonly tools: RecruiterAssistantToolsService,
     private readonly pendingActionExecutor: RecruiterPendingActionExecutorService,
     private readonly pendingActionStore: RecruiterPendingActionStore,
+    private readonly conversationStore: RecruiterConversationStore,
+    private readonly conversationFlow: RecruiterConversationFlowService,
   ) {}
 
   async chat(
@@ -30,11 +38,27 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    }
+
     if (!canAccessChat(user)) {
       return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
     }
 
     const message = dto.message.trim();
+    const intent = this.intentRouter.classify(message, user, locale);
+    if (intent.kind === 'new_chat') {
+      return this.newChat(user);
+    }
+
+    let sessionId = dto.sessionId;
+    if (!sessionId || !this.conversationStore.get(user.id, sessionId)) {
+      sessionId = this.conversationStore.issue(user.id);
+    }
+
+    const conversationState =
+      this.conversationStore.get(user.id, sessionId) ?? idleConversationState();
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
@@ -43,53 +67,164 @@ export class RecruiterAssistantService {
           dto.pendingActionId,
         );
         if (!action) {
-          return {
-            status: 'refused',
-            response:
-              'That confirmation expired, was already used, or does not belong to your account.',
-          };
+          return this.withSession(
+            {
+              status: 'refused',
+              response:
+                'That confirmation expired, was already used, or does not belong to your account.',
+            },
+            sessionId,
+          );
         }
 
-        return this.pendingActionExecutor.execute(action, user, locale);
+        let confirmedAction = action;
+        if (dto.pendingAction) {
+          const overridden = applyPendingActionOverride(action, dto.pendingAction);
+          if (!overridden) {
+            return this.withSession(
+              {
+                status: 'refused',
+                response:
+                  'That confirmation could not be applied. Please review the question list and try again.',
+              },
+              sessionId,
+            );
+          }
+          confirmedAction = overridden;
+        }
+
+        return this.withSession(
+          await this.pendingActionExecutor.execute(confirmedAction, user, locale),
+          sessionId,
+        );
       }
 
       if (isCancellationMessage(message)) {
         await this.pendingActionStore.revoke(user.id, dto.pendingActionId);
-        return {
-          status: 'answered',
-          response: 'Cancelled. No changes were made.',
-        };
+        return this.withSession(
+          {
+            status: 'answered',
+            response: 'Cancelled. No changes were made.',
+          },
+          sessionId,
+        );
       }
     }
 
-    const intent = this.intentRouter.classify(message, user, locale);
+    const activeFlowResponse = await this.conversationFlow.resumeActiveFlow({
+      user,
+      locale,
+      sessionId,
+      message,
+      state: conversationState,
+    });
+    if (activeFlowResponse) {
+      return this.withSession(activeFlowResponse, sessionId);
+    }
 
     switch (intent.kind) {
       case 'list_interviews':
-        return this.tools.listInterviews(
-          intent.filters,
-          user,
-          locale,
-          intent.readyForReview,
+        return this.withSession(
+          await this.tools.listInterviews(
+            intent.filters,
+            user,
+            locale,
+            intent.readyForReview,
+          ),
+          sessionId,
         );
       case 'list_unassigned':
-        return this.tools.listUnassigned(user, locale);
+        return this.withSession(
+          await this.tools.listUnassigned(user, locale),
+          sessionId,
+        );
       case 'interview_status':
-        return this.tools.getInterviewStatus(
-          intent.ref,
-          user,
-          locale,
-          intent.ownInterviews,
-          intent.scheduleInquiry,
+        return this.withSession(
+          await this.tools.getInterviewStatus(
+            intent.ref,
+            user,
+            locale,
+            intent.ownInterviews,
+            intent.scheduleInquiry,
+          ),
+          sessionId,
         );
       case 'review_state':
-        return this.tools.getReviewState(intent.ref, user, locale);
+        return this.withSession(
+          await this.tools.getReviewState(intent.ref, user, locale),
+          sessionId,
+        );
       case 'assign_hr':
-        return this.tools.prepareAssignHr(intent, user, locale);
+        return this.withSession(
+          await this.tools.prepareAssignHr(intent, user, locale, sessionId),
+          sessionId,
+        );
+      case 'create_question':
+        return this.withSession(
+          await this.tools.prepareCreateQuestion(
+            intent.questionName,
+            user,
+            locale,
+            sessionId,
+          ),
+          sessionId,
+        );
+      case 'create_interview':
+        return this.withSession(
+          await this.tools.prepareCreateInterview(
+            intent.candidateName,
+            intent.position,
+            user,
+            locale,
+            sessionId,
+          ),
+          sessionId,
+        );
       case 'create_questions_interview':
-        return this.tools.prepareCreateQuestions(intent.parsed, user, locale);
+        return this.withSession(
+          await this.tools.prepareCreateQuestions(intent.parsed, user, locale),
+          sessionId,
+        );
+      case 'switch_locale':
+        return this.withSession(
+          this.tools.switchLocale(
+            intent.requestedLocale,
+            intent.rawToken,
+            locale,
+          ),
+          sessionId,
+        );
       case 'out_of_scope':
-        return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+        return this.withSession(
+          { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },
+          sessionId,
+        );
     }
+  }
+
+  async newChat(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+    if (!isRecruiterAssistantEnabled()) {
+      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    }
+
+    if (!canAccessChat(user)) {
+      return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+    }
+
+    return this.resetConversation(user);
+  }
+
+  private async resetConversation(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+    this.conversationStore.clearAllForUser(user.id);
+    await this.pendingActionStore.revokeAllForUser(user.id);
+    const sessionId = this.conversationStore.issue(user.id);
+    return this.withSession(this.tools.startNewChat(), sessionId);
+  }
+
+  private withSession(
+    response: RecruiterAssistantResponseDto,
+    sessionId: string,
+  ): RecruiterAssistantResponseDto {
+    return { ...response, sessionId };
   }
 }

@@ -7,11 +7,15 @@ import { QuestionModule } from '../../question/question.module';
 import { UserModule } from '../../user/user.module';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { RecruiterAssistantController } from './recruiter-assistant.controller';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
+import { AiModule } from '../ai.module';
+import { TemplateModule } from '../../template/template.module';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 
 @Module({
@@ -22,6 +26,8 @@ import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
     InterviewModule,
     FeedbackModule,
     UserModule,
+    AiModule,
+    TemplateModule,
   ],
   controllers: [RecruiterAssistantController],
   providers: [
@@ -31,6 +37,8 @@ import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
     RecruiterQuestionMatcherService,
     RecruiterPendingActionExecutorService,
     RecruiterPendingActionStore,
+    RecruiterConversationStore,
+    RecruiterConversationFlowService,
     StaffAiThrottlerGuard,
   ],
 })
