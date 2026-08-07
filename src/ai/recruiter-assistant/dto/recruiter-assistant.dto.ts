@@ -22,7 +22,9 @@ import { Type } from 'class-transformer';
 import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
+import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
+import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
 export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
 export const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
@@ -163,10 +165,6 @@ export class RecruiterAssistantAssignHrPendingActionDto {
   interviewLabel: string;
 }
 
-export type RecruiterAssistantPendingActionDto =
-    | RecruiterAssistantCreatePendingActionDto
-    | RecruiterAssistantAssignHrPendingActionDto;
-
 export class RecruiterAssistantChatDto {
   @ApiProperty()
   @IsString()
@@ -178,6 +176,21 @@ export class RecruiterAssistantChatDto {
   @IsOptional()
   @IsUUID()
   pendingActionId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional create-interview/question-plan override sent with confirmation. Questions may only be removed, not added or edited.',
+    type: RecruiterAssistantCreatePendingActionDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecruiterAssistantCreatePendingActionDto)
+  pendingAction?: RecruiterAssistantCreatePendingActionDto;
 }
 
 export class RecruiterAssistantCreatedInterviewDto {
@@ -188,11 +201,63 @@ export class RecruiterAssistantCreatedInterviewDto {
   candidateLink: string;
 }
 
+export class RecruiterAssistantCreatedQuestionDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({ description: 'Frontend route when the question card is clicked.' })
+  href: string;
+}
+
+export class RecruiterAssistantRedirectDto {
+  @ApiProperty({ example: '/interviews/new' })
+  path: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    example: { candidateName: 'Alice', position: 'React Developer' },
+  })
+  query?: Record<string, string>;
+}
+
+export type RecruiterAssistantAwaitingInput =
+  | 'hr'
+  | 'interview'
+  | 'questionName'
+  | 'candidateName'
+  | 'position'
+  | 'templateChoice';
+
 export class RecruiterAssistantReviewStateDto {
   @ApiProperty() reviewed: boolean;
   @ApiPropertyOptional() shareLinkActive?: boolean;
   @ApiPropertyOptional() outcome?: string;
 }
+
+export class RecruiterAssistantCreateSingleQuestionPendingActionDto {
+  @ApiProperty({ enum: ['create_single_question'] })
+  @IsIn(['create_single_question'])
+  type: 'create_single_question';
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_RECRUITER_ASSISTANT_LABEL_LENGTH)
+  questionName: string;
+
+  @ApiProperty({ type: Object })
+  @IsObject()
+  createQuestion: CreateQuestionDto;
+}
+
+export type RecruiterAssistantPendingActionDto =
+    | RecruiterAssistantCreatePendingActionDto
+    | RecruiterAssistantAssignHrPendingActionDto
+    | RecruiterAssistantCreateSingleQuestionPendingActionDto;
 
 export class RecruiterAssistantInterviewSummaryDto {
   @ApiProperty() id: string;
@@ -218,12 +283,33 @@ export class RecruiterAssistantResponseDto {
     oneOf: [
       { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
       { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
+      { $ref: getSchemaPath(RecruiterAssistantCreateSingleQuestionPendingActionDto) },
     ],
   })
   pendingAction?: RecruiterAssistantPendingActionDto;
 
   @ApiPropertyOptional()
   pendingActionId?: string;
+
+  @ApiPropertyOptional()
+  sessionId?: string;
+
+  @ApiPropertyOptional({ enum: SUPPORTED_LOCALES })
+  locale?: Locale;
+
+  @ApiPropertyOptional({ type: RecruiterAssistantCreatedQuestionDto })
+  createdQuestion?: RecruiterAssistantCreatedQuestionDto;
+
+  @ApiPropertyOptional({ type: RecruiterAssistantRedirectDto })
+  redirect?: RecruiterAssistantRedirectDto;
+
+  @ApiPropertyOptional({ type: [TemplateSummaryResponseDto] })
+  templates?: TemplateSummaryResponseDto[];
+
+  @ApiPropertyOptional({
+    enum: ['hr', 'interview', 'questionName', 'candidateName', 'position', 'templateChoice'],
+  })
+  awaitingInput?: RecruiterAssistantAwaitingInput;
 
   @ApiPropertyOptional({ type: RecruiterAssistantCreatedInterviewDto })
   createdInterview?: RecruiterAssistantCreatedInterviewDto;
@@ -242,8 +328,12 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantSuggestedQuestionDto,
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantAssignHrPendingActionDto,
+  RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
+  RecruiterAssistantCreatedQuestionDto,
+  RecruiterAssistantRedirectDto,
+  TemplateSummaryResponseDto,
   InterviewListItemDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {

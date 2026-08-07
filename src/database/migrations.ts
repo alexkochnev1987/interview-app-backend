@@ -1,3 +1,4 @@
+import { DEMO_USER_ID } from './demo-seed-data';
 import {
   BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
   INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
@@ -1007,6 +1008,18 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     rollbackStatements: [
       `DROP INDEX IF EXISTS recruiter_pending_actions_expires_at_idx;`,
       `DROP TABLE IF EXISTS recruiter_pending_actions;`,
+    ],
+  },
+  {
+    version: '0048',
+    name: 'assign_demo_interviews_to_demo_hr',
+    statements: [
+      `
+      UPDATE interviews
+      SET assigned_hr_id = '${DEMO_USER_ID}'
+      WHERE demo = TRUE
+        AND assigned_hr_id IS NULL;
+    `,
     ],
   },
 ];

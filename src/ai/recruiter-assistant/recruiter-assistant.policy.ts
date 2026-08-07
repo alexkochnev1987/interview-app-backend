@@ -4,6 +4,12 @@ import { ActingUser } from './recruiter-assistant.types';
 export const OUT_OF_SCOPE_RESPONSE =
   'I can help with your interviews, status, assignments, and question setup inside this app. Try asking about your interviews, an interview status, or preparing questions.';
 
+export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
+  'Recruiter assistant is disabled in this environment.';
+
+export const NEW_CHAT_WELCOME_RESPONSE =
+  'Started a new conversation. How can I help with interviews, questions, or assignments?';
+
 const CONFIRMATION_KEYWORDS = [
   'yes',
   'y',
@@ -16,6 +22,7 @@ const CONFIRMATION_KEYWORDS = [
 
 const CANCELLATION_KEYWORDS = [
   'no',
+  'nope',
   'n',
   'cancel',
   'never mind',
