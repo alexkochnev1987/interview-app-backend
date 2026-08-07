@@ -7433,7 +7433,7 @@
           "value": {
             "type": "string",
             "description": "Variable value as string (numbers and booleans are stored as text)",
-            "example": "300"
+            "example": "240"
           },
           "valueType": {
             "type": "string",
@@ -10261,6 +10261,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being recorded."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
@@ -10296,6 +10299,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being confirmed."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
@@ -10342,6 +10348,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being recorded."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
