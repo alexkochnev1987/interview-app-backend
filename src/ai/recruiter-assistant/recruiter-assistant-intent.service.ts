@@ -25,6 +25,7 @@ import {
   UNASSIGNED_PATTERNS,
   matchesCreateSingleQuestionIntent,
   matchesCountQuestionsIntent,
+  LIST_ASSESSMENTS_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
 import {
   extractLocaleToken,
@@ -53,6 +54,13 @@ export class RecruiterAssistantIntentService {
     if (matchesCountQuestionsIntent(normalized)) {
       return {
         kind: 'count_questions',
+        filters: {},
+      };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_ASSESSMENTS_PATTERNS)) {
+      return {
+        kind: 'list_assessments',
         filters: {},
       };
     }

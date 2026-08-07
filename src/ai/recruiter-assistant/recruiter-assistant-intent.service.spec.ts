@@ -100,6 +100,17 @@ describe('RecruiterAssistantIntentService', () => {
     );
   });
 
+  it('classifies list assessments requests', () => {
+    expect(service.classify('show assessments', admin, 'en')).toEqual({
+      kind: 'list_assessments',
+      filters: {},
+    });
+    expect(service.classify('list templates', hr, 'en')).toEqual({
+      kind: 'list_assessments',
+      filters: {},
+    });
+  });
+
   it('classifies create question requests', () => {
     expect(
       service.classify('create a question about React hooks', admin, 'en'),

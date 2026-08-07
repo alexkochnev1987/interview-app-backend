@@ -24,6 +24,7 @@ import {
   canCreateInterviews,
   canCreateQuestions,
   canReadQuestions,
+  canReadTemplates,
   canListInterviews,
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
@@ -162,6 +163,45 @@ export class RecruiterAssistantToolsService {
         filters: hasFilters ? listFilters : undefined,
       },
       redirect: buildQuestionsListRedirect(listFilters),
+    };
+  }
+
+  async listAssessments(
+    filters: { position?: string; nameContains?: string },
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canReadTemplates(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to read assessments.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    let assessments = await this.templateService.findAll(locale, { demo: user.demo });
+
+    if (filters.position) {
+      const needle = filters.position.trim().toLowerCase();
+      assessments = assessments.filter((template) =>
+        (template.position ?? '').trim().toLowerCase().includes(needle),
+      );
+    }
+
+    if (filters.nameContains) {
+      const needle = filters.nameContains.trim().toLowerCase();
+      assessments = assessments.filter((template) =>
+        template.name.trim().toLowerCase().includes(needle),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response:
+        assessments.length === 0
+          ? 'No assessments match your request.'
+          : `Found ${assessments.length} assessment(s).`,
+      assessments,
     };
   }
 
