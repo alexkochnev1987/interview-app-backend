@@ -1,8 +1,8 @@
 const QUOTED_NAME = /["“](.+?)["”]/;
 const NAMED_PATTERNS = [
   /\bquestion (?:named|called|titled)\s+(.+?)(?:[.?!]|$)/i,
-  /\bcreate (?:a )?question(?:\s+(?:about|on|for))?\s+(.+?)(?:[.?!]|$)/i,
-  /\badd (?:a )?(?:new )?question(?:\s+(?:about|on|for))?\s+(.+?)(?:[.?!]|$)/i,
+  /\bcreate (?:a )?(?:new )?(?:interview )?question(?:\s+(?:about|on|for))?\s+(.+?)(?:[.?!]|$)/i,
+  /\badd (?:a )?(?:new )?(?:interview )?question(?:\s+(?:about|on|for))?\s+(.+?)(?:[.?!]|$)/i,
 ];
 
 export function extractQuestionName(message: string): string | undefined {

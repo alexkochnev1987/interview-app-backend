@@ -94,6 +94,12 @@ describe('RecruiterAssistantIntentService', () => {
       kind: 'create_question',
       questionName: undefined,
     });
+    expect(
+      service.classify('Help me create a new interview question', admin, 'en'),
+    ).toEqual({
+      kind: 'create_question',
+      questionName: undefined,
+    });
   });
 
   it('classifies create interview requests', () => {

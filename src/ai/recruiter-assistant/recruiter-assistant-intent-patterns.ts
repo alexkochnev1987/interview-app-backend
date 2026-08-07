@@ -127,9 +127,10 @@ export const CREATE_INTENT_PATTERNS = [
 ];
 
 export const CREATE_SINGLE_QUESTION_PATTERNS = [
-  /\bcreate (?:a )?question\b/i,
-  /\badd (?:a )?(?:new )?question\b/i,
-  /\bmake (?:a )?(?:new )?question\b/i,
+  /\bcreate (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\badd (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bmake (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bhelp(?: me)? (?:to )?create (?:a )?(?:new )?(?:interview )?question\b/i,
   cyrillicLoosePattern('создай(?:\\s+\\S+){0,4}\\s+вопрос'),
 ];
 
