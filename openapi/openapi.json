@@ -5,7 +5,7 @@
       "get": {
         "operationId": "PublicConfigController_getPublicConfig",
         "summary": "Get public runtime variables",
-        "description": "Returns a key→value dictionary of all variables marked as public (is_public=true). Available to any authenticated user including candidates. Secret variables are always excluded regardless of is_public flag.",
+        "description": "Returns a key→value dictionary of all variables marked as public (is_public=true). Available to all users including unauthenticated visitors.",
         "parameters": [
           {
             "name": "X-Locale",
@@ -27,25 +27,10 @@
         "responses": {
           "200": {
             "description": "Public configuration dictionary"
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponseDto"
-                }
-              }
-            }
           }
         },
         "tags": [
           "config"
-        ],
-        "security": [
-          {
-            "sessionAuth": []
-          }
         ]
       }
     },
@@ -74,7 +59,17 @@
         ],
         "responses": {
           "200": {
-            "description": "List of all configuration variables"
+            "description": "List of all configuration variables",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SystemConfigEntryDto"
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "",
@@ -151,7 +146,24 @@
         },
         "responses": {
           "200": {
-            "description": "The saved variable record"
+            "description": "The saved variable record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigEntryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "",
@@ -7207,6 +7219,75 @@
       }
     },
     "schemas": {
+      "SystemConfigEntryDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Configuration variable key in UPPER_SNAKE_CASE",
+            "example": "APP_THEME"
+          },
+          "value": {
+            "type": "string",
+            "description": "Current variable value",
+            "example": "innowise"
+          },
+          "valueType": {
+            "type": "string",
+            "description": "Data type hint for parsing and UI rendering",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum",
+              "json",
+              "secret"
+            ],
+            "example": "enum"
+          },
+          "options": {
+            "description": "Allowed option values for enum type variables",
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of variable purpose",
+            "example": "Active UI theme color preset"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether this variable is exposed in GET /api/config/public",
+            "example": true
+          },
+          "isSecret": {
+            "type": "boolean",
+            "description": "Whether the value is masked on the frontend (••••••••)",
+            "example": false
+          },
+          "isOverridden": {
+            "type": "boolean",
+            "description": "Whether this variable has a custom database override applied",
+            "example": false
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "valueType",
+          "isPublic",
+          "isSecret",
+          "isOverridden"
+        ]
+      },
       "ApiErrorCode": {
         "type": "string",
         "enum": [
@@ -7222,6 +7303,7 @@
           "AVATAR_UNSUPPORTED_TYPE",
           "AVATAR_TOO_LARGE",
           "AVATAR_NO_GOOGLE_PICTURE",
+          "INVALID_CONFIG_VALUE",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
           "AUTHENTICATION_REQUIRED",
@@ -7296,10 +7378,24 @@
               "string",
               "number",
               "boolean",
+              "enum",
               "json",
               "secret"
             ],
             "default": "string"
+          },
+          "options": {
+            "description": "Allowed option values for enum variables",
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isPublic": {
             "type": "boolean",
