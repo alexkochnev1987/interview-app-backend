@@ -1,27 +1,22 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { MediaCleanupService } from '../upload/media-cleanup.service';
-import { AppConfigService } from '../app-config/app-config.service';
+import { Injectable, Logger, Optional } from '@nestjs/common'
+import { ApiErrorCode } from '../common/errors/api-error.codes'
+import { MediaCleanupService } from '../upload/media-cleanup.service'
+import { AppConfigService } from '../app-config/app-config.service'
+import { apiBadRequest, apiConflict, apiForbidden, apiNotFound } from '../common/errors/api-error'
+import { randomUUID } from 'crypto'
+import { PoolClient } from 'pg'
+import { DatabaseService } from '../database/database.service'
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants'
+import { QuestionService } from '../question/question.service'
+import { CreateInterviewDto } from './dto/create-interview.dto'
+import { UpdateInterviewDto } from './dto/update-interview.dto'
 import {
-  apiBadRequest,
-  apiConflict,
-  apiForbidden,
-  apiNotFound,
-} from '../common/errors/api-error';
-import { randomUUID } from 'crypto';
-import { PoolClient } from 'pg';
-import { DatabaseService } from '../database/database.service';
-import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
-import { QuestionService } from '../question/question.service';
-import { CreateInterviewDto } from './dto/create-interview.dto';
-import { UpdateInterviewDto } from './dto/update-interview.dto';
-import {
-  QueryInterviewsDto,
   InterviewSortField,
   InterviewSortOrder,
-} from './dto/query-interviews.dto';
-import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
-import { matchesInterviewMediaKey } from '../upload/upload-key';
+  QueryInterviewsDto,
+} from './dto/query-interviews.dto'
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto'
+import { matchesInterviewMediaKey } from '../upload/upload-key'
 import {
   Answer,
   AnswerBehaviorEvent,
@@ -31,58 +26,54 @@ import {
   AnswerValidation,
   AnswerVersion,
   Interview,
+  InterviewActor,
   InterviewBehaviorRisk,
-  InterviewDecision,
-  InterviewQuestion,
-  InterviewResult,
-  InterviewQuestionResult,
-  InterviewWorkflow,
-  MediaArtifact,
   InterviewCancelResult,
+  InterviewDecision,
   InterviewDeleteResult,
   InterviewListItem,
-  InterviewActor,
-} from './interfaces/interview.interface';
-import { compareBehaviorRisk } from './answer-behavior-risk';
+  InterviewQuestion,
+  InterviewQuestionResult,
+  InterviewResult,
+  InterviewWorkflow,
+  MediaArtifact,
+} from './interfaces/interview.interface'
+import { compareBehaviorRisk } from './answer-behavior-risk'
 import {
   getAnswerAttemptLimitBlockReason,
   getAnswerVersionNotReservedBlockReason,
   getAnswerVersionOverwriteBlockReason,
-  resolveMaxAnswerAttemptsPerQuestion,
-} from './answer-attempt-rules';
-import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
+} from './answer-attempt-rules'
+import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version'
 import {
   getInterviewCompletionBlockReason,
   getSubmittedAnswerCount as countSubmittedAnswers,
-} from './interview-completion-rules';
-import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
+} from './interview-completion-rules'
+import { getInterviewResultsUnavailableMessage } from './interview-results-rules'
 import {
-  getInterviewAccessDenialReason,
   getDemoScopeDenialReason,
+  getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
-} from './interview-access-rules';
-import { assertActorCanSetAssignedHr } from './interview-assignment-rules';
+} from './interview-access-rules'
+import { assertActorCanSetAssignedHr } from './interview-assignment-rules'
 import {
-  getInterviewTerminalOnlyBlockReason,
+  getInterviewDemoDeleteBlockReason,
   getInterviewPendingOnlyBlockReason,
   getInterviewPendingOnlyBlockReasonForFields,
-  getInterviewDemoDeleteBlockReason,
+  getInterviewTerminalOnlyBlockReason,
   hasInterviewPendingOnlyFieldUpdates,
   isTerminalInterviewStatus,
-} from './interview-management-rules';
-import { buildFeedbackImprovements } from '../feedback/feedback-text';
-import { buildInterviewSummary } from './build-interview-summary';
+} from './interview-management-rules'
+import { buildFeedbackImprovements } from '../feedback/feedback-text'
+import { buildInterviewSummary } from './build-interview-summary'
 import {
   collectInterviewLocaleWarnings,
   InterviewLocaleWarning,
-} from './interview-locale-warnings';
-import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core';
-import {
-  DEMO_PLACEHOLDER_INTERVIEW_ID,
-  DEMO_USER_ID,
-} from '../database/demo-seed-data';
-import { buildInterviewFilterClauses } from './interview-list-filters';
-import { fromInterviewListRow, InterviewListRow } from './interview-list-item';
+} from './interview-locale-warnings'
+import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core'
+import { DEMO_PLACEHOLDER_INTERVIEW_ID, DEMO_USER_ID } from '../database/demo-seed-data'
+import { buildInterviewFilterClauses } from './interview-list-filters'
+import { fromInterviewListRow, InterviewListRow } from './interview-list-item'
 
 export const DEFAULT_INTERVIEWS_PAGE = 1;
 export const DEFAULT_INTERVIEWS_LIMIT = 20;
@@ -604,7 +595,7 @@ export class InterviewService {
           await this.assertAssignableHrUser(
             client,
             dto.assignedHrId,
-            interview.demo === true,
+            interview.demo,
           );
           assignedHrId = dto.assignedHrId;
         }
@@ -629,7 +620,7 @@ export class InterviewService {
         const nextQuestions = await this.questionService.findManyByIdsForUpdate(
           client,
           questionIds,
-          interview.demo === true,
+          interview.demo,
           { rejectPendingDeletionFor: added },
         );
 
@@ -660,8 +651,7 @@ export class InterviewService {
         updatedAt: new Date(),
       };
 
-      const saved = await this.saveInterviewInTransaction(client, updated);
-      return saved;
+      return await this.saveInterviewInTransaction(client, updated);
     });
   }
 
