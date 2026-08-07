@@ -23,6 +23,7 @@ import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
+import { AuthUserResponseDto } from '../../../auth/dto/auth-user.response.dto';
 import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
@@ -269,6 +270,30 @@ export class RecruiterAssistantInterviewSummaryDto {
   reviewState?: RecruiterAssistantReviewStateDto;
 }
 
+export class RecruiterAssistantQuestionCountDto {
+  @ApiProperty() total: number;
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  filters?: Record<string, unknown>;
+}
+
+export class RecruiterAssistantInterviewActivityDto {
+  @ApiProperty() total: number;
+  @ApiProperty() active: number;
+  @ApiProperty() completed: number;
+  @ApiProperty() failed: number;
+  @ApiProperty() pending: number;
+  @ApiProperty() inProgress: number;
+  @ApiProperty() processing: number;
+}
+
+export class RecruiterAssistantTeamSummaryDto {
+  @ApiProperty() superAdmin: number;
+  @ApiProperty() admin: number;
+  @ApiProperty() hr: number;
+  @ApiProperty() candidate: number;
+  @ApiProperty() total: number;
+}
+
 export class RecruiterAssistantResponseDto {
   @ApiProperty()
   response: string;
@@ -322,6 +347,21 @@ export class RecruiterAssistantResponseDto {
 
   @ApiPropertyOptional({ type: RecruiterAssistantInterviewSummaryDto })
   interview?: RecruiterAssistantInterviewSummaryDto;
+
+  @ApiPropertyOptional({ type: RecruiterAssistantQuestionCountDto })
+  questionCount?: RecruiterAssistantQuestionCountDto;
+
+  @ApiPropertyOptional({ type: [TemplateSummaryResponseDto] })
+  assessments?: TemplateSummaryResponseDto[];
+
+  @ApiPropertyOptional({ type: RecruiterAssistantInterviewActivityDto })
+  interviewActivity?: RecruiterAssistantInterviewActivityDto;
+
+  @ApiPropertyOptional({ type: RecruiterAssistantTeamSummaryDto })
+  teamSummary?: RecruiterAssistantTeamSummaryDto;
+
+  @ApiPropertyOptional({ type: [AuthUserResponseDto] })
+  teamMembers?: AuthUserResponseDto[];
 }
 
 @ApiExtraModels(
@@ -331,10 +371,14 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
+  RecruiterAssistantQuestionCountDto,
+  RecruiterAssistantInterviewActivityDto,
+  RecruiterAssistantTeamSummaryDto,
   RecruiterAssistantCreatedQuestionDto,
   RecruiterAssistantRedirectDto,
   TemplateSummaryResponseDto,
   InterviewListItemDto,
+  AuthUserResponseDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })

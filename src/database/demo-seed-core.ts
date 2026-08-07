@@ -146,10 +146,10 @@ export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> 
         INSERT INTO interviews (
           id, candidate_name, candidate_email, position, interview_locale,
           questions_json, answers_json, status, result_json, workflow_json,
-          created_by_id, created_at, updated_at, demo
+          created_by_id, assigned_hr_id, created_at, updated_at, demo
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, NULL, $10, $11, $12, TRUE
+          $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb, NULL, $10, $10, $11, $12, TRUE
         )
         ON CONFLICT (id) DO UPDATE SET
           candidate_name = EXCLUDED.candidate_name,
@@ -161,6 +161,7 @@ export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> 
           status = EXCLUDED.status,
           result_json = EXCLUDED.result_json,
           created_by_id = EXCLUDED.created_by_id,
+          assigned_hr_id = EXCLUDED.assigned_hr_id,
           updated_at = EXCLUDED.updated_at,
           demo = TRUE
       `,

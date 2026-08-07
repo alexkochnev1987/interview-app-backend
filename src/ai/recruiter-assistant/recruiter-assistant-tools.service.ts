@@ -9,6 +9,7 @@ import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filte
 import { toInterviewActor } from '../../interview/interview-actor';
 import { InterviewService } from '../../interview/interview.service';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { QuestionService } from '../../question/question.service';
 import { UserService } from '../../user/user.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import {
@@ -57,6 +58,7 @@ import {
 export class RecruiterAssistantToolsService {
   constructor(
     private readonly questionMatcher: RecruiterQuestionMatcherService,
+    private readonly questionService: QuestionService,
     private readonly interviewService: InterviewService,
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly candidateFeedbackShareService: CandidateFeedbackShareService,

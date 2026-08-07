@@ -2,7 +2,7 @@ import { hasEffectivePermission } from '../../auth/permissions';
 import { ActingUser } from './recruiter-assistant.types';
 
 export const OUT_OF_SCOPE_RESPONSE =
-  'I can help with your interviews, status, assignments, and question setup inside this app. Try asking about your interviews, an interview status, or preparing questions.';
+  'I can help with interviews, question counts, assessments, team members, activity summaries, assignments, and question setup inside this app.';
 
 export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
   'Recruiter assistant is disabled in this environment.';
@@ -79,4 +79,12 @@ export function canCreateQuestions(user: ActingUser): boolean {
 
 export function canCreateInterviews(user: ActingUser): boolean {
   return hasEffectivePermission(user.role, user.demo, 'interviews:create');
+}
+
+export function canReadTemplates(user: ActingUser): boolean {
+  return hasEffectivePermission(user.role, user.demo, 'templates:read');
+}
+
+export function canListTeam(user: ActingUser): boolean {
+  return hasEffectivePermission(user.role, user.demo, 'users:read');
 }

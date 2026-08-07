@@ -150,3 +150,23 @@ export function matchesAnyPattern(message: string, patterns: RegExp[]): boolean 
 export function matchesCreateIntent(message: string): boolean {
   return matchesAnyPattern(message, CREATE_INTENT_PATTERNS);
 }
+
+export const COUNT_QUESTIONS_PATTERNS = [
+  /\bhow many questions?\b/i,
+  /\bcount (?:all )?questions?\b/i,
+  /\btotal questions?\b/i,
+];
+
+export const LIST_ASSESSMENTS_PATTERNS = [
+  /\b(show|list|get|display)\b.*\b(assessments?|templates?)\b/i,
+];
+
+export const INTERVIEW_ACTIVITY_SUMMARY_PATTERNS = [
+  /\b(summarize|summary of|overview of)\b.*\b(interview|activity)\b/i,
+  /\binterview activity\b/i,
+];
+
+export const LIST_TEAM_PATTERNS = [
+  /\b(show|list)\b.*\b(my )?team\b/i,
+  /\bteam members?\b/i,
+];

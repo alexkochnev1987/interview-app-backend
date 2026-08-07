@@ -194,6 +194,14 @@ export class RecruiterAssistantService {
           ),
           sessionId,
         );
+      case 'count_questions':
+      case 'list_assessments':
+      case 'interview_activity_summary':
+      case 'list_team':
+        return this.withSession(
+          { status: 'refused', response: 'Not implemented yet.' },
+          sessionId,
+        );
       case 'out_of_scope':
         return this.withSession(
           { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },

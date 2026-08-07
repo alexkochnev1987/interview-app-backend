@@ -1,6 +1,7 @@
 import { Locale } from '../../locale/locale.constants';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
-import { User } from '../../user/interfaces/user.interface';
+import { QueryQuestionsDto } from '../../question/dto/query-questions.dto';
+import { User, UserRole } from '../../user/interfaces/user.interface';
 
 export type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -23,6 +24,10 @@ export type RecruiterAssistantIntentKind =
   | 'create_interview'
   | 'switch_locale'
   | 'new_chat'
+  | 'count_questions'
+  | 'list_assessments'
+  | 'interview_activity_summary'
+  | 'list_team'
   | 'out_of_scope';
 
 export interface InterviewRef {
@@ -50,4 +55,8 @@ export type RecruiterAssistantIntent =
   | { kind: 'create_interview'; candidateName?: string; position?: string }
   | { kind: 'switch_locale'; requestedLocale: Locale | null; rawToken?: string }
   | { kind: 'new_chat' }
+  | { kind: 'count_questions'; filters: QueryQuestionsDto }
+  | { kind: 'list_assessments'; filters: { position?: string; nameContains?: string } }
+  | { kind: 'interview_activity_summary' }
+  | { kind: 'list_team'; role?: UserRole; includeSummary: boolean }
   | { kind: 'out_of_scope' };
