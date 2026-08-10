@@ -78,8 +78,8 @@ describe('AiService.draftQuestion', () => {
   beforeEach(() => {
     delete process.env.AI_API_URL;
     delete process.env.AI_PROVIDER;
-    jest.restoreAllMocks();
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue(null);
+    vi.restoreAllMocks();
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue(null);
   });
 
   afterAll(() => {
@@ -118,12 +118,12 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('rejects English LLM rubric for locale ru and falls back to localized heuristic', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'openai',
       apiKey: 'test-key',
       model: 'gpt-4o-mini',
     });
-    const generate = jest
+    const generate = vi
       .spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm')
       .mockResolvedValue({
         externalId: 'javascript_closures_v1',
@@ -183,12 +183,12 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('generate mode returns identity fields from LLM when rubric locale matches', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'openai',
       apiKey: 'test-key',
       model: 'gpt-4o-mini',
     });
-    jest.spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm').mockResolvedValue({
+    vi.spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm').mockResolvedValue({
       externalId: 'javascript_closures_v1',
       role: 'junior engineer',
       focus: 'fundamentals',
@@ -246,12 +246,12 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('translate mode uses native LLM for full content block', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'google',
       apiKey: 'AQ.test-key',
       model: 'gemini-2.5-flash-lite',
     });
-    const translate = jest
+    const translate = vi
       .spyOn(translateDraftLlm, 'translateQuestionContentWithNativeLlm')
       .mockResolvedValue({
         questionText: 'Co to jest DOM?',
@@ -282,7 +282,7 @@ describe('AiService.draftQuestion', () => {
 
   it('translate mode returns 503 when AI returns unusable content', async () => {
     process.env.AI_API_URL = 'http://fake-ai.local';
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ questionText: fullRuPrimary.questionText }),
     } as Response);

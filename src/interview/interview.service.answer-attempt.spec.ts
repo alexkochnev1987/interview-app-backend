@@ -18,7 +18,7 @@ describe('InterviewService answer attempt reserve + finalize', () => {
 
   function makeService(lockRow: Record<string, unknown>) {
     let currentRow = lockRow;
-    const clientQuery = jest.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
+    const clientQuery = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
       const answersJson = JSON.parse(String(params[5]));
       currentRow = {
         ...currentRow,
@@ -28,18 +28,18 @@ describe('InterviewService answer attempt reserve + finalize', () => {
       };
       return { rows: [currentRow], rowCount: 1 };
     });
-    const withTransaction = jest.fn(async (fn: (client: { query: jest.Mock }) => unknown) =>
+    const withTransaction = vi.fn(async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
       fn({ query: clientQuery }),
     );
     const databaseService = {
       withTransaction,
     } as unknown as DatabaseService;
     const questionService = {
-      hydrateStoredQuestionCore: jest.fn((question) => question),
-      processPendingDeletionsAfterTerminalInterview: jest.fn(),
+      hydrateStoredQuestionCore: vi.fn((question) => question),
+      processPendingDeletionsAfterTerminalInterview: vi.fn(),
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
 
     const service = new InterviewService(
@@ -48,9 +48,9 @@ describe('InterviewService answer attempt reserve + finalize', () => {
       mediaCleanupService,
     );
 
-    jest
+    vi
       .spyOn(
-        service as unknown as { lockInterviewForUpdate: jest.Mock },
+        service as unknown as { lockInterviewForUpdate: ReturnType<typeof vi.fn> },
         'lockInterviewForUpdate',
       )
       .mockImplementation(async () => currentRow);

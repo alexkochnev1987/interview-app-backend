@@ -69,7 +69,7 @@ export function validateTranslationMapKeys(translations: unknown): translations 
   if (!isPlainObject(translations)) {
     return false;
   }
-  const keys = Object.keys(translations);
+  const keys = Object.keys(translations).filter((key) => translations[key] !== undefined);
   if (keys.length === 0) {
     return false;
   }

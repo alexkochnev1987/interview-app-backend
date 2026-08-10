@@ -6,19 +6,19 @@ import type { MediaCleanupService } from '../upload/media-cleanup.service';
 
 describe('InterviewService management access', () => {
   function makeService(lockRow: Record<string, unknown>) {
-    const clientQuery = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-    const withTransaction = jest.fn(async (fn: (client: { query: jest.Mock }) => unknown) =>
+    const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+    const withTransaction = vi.fn(async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
       fn({ query: clientQuery }),
     );
     const databaseService = {
       withTransaction,
     } as unknown as DatabaseService;
     const questionService = {
-      hydrateStoredQuestionCore: jest.fn((question) => question),
-      processPendingDeletionsAfterTerminalInterview: jest.fn(),
+      hydrateStoredQuestionCore: vi.fn((question) => question),
+      processPendingDeletionsAfterTerminalInterview: vi.fn(),
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
 
     const service = new InterviewService(
@@ -27,7 +27,7 @@ describe('InterviewService management access', () => {
       mediaCleanupService,
     );
 
-    jest.spyOn(service as unknown as { lockInterviewForUpdate: jest.Mock }, 'lockInterviewForUpdate')
+    vi.spyOn(service as unknown as { lockInterviewForUpdate: ReturnType<typeof vi.fn> }, 'lockInterviewForUpdate')
       .mockResolvedValue(lockRow);
 
     return { service, clientQuery, mediaCleanupService };
@@ -79,7 +79,7 @@ describe('InterviewService management access', () => {
       ...baseRow,
       status: 'completed',
     });
-    jest
+    vi
       .spyOn(mediaCleanupService, 'deleteInterviewMedia')
       .mockRejectedValue(new Error('S3 unavailable'));
 

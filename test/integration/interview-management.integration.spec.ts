@@ -48,7 +48,7 @@ async function createPendingInterview(
 
 function stubInterviewMediaDeletion(app: INestApplication): void {
   const mediaCleanupService = app.get(MediaCleanupService);
-  jest
+  vi
     .spyOn(mediaCleanupService, 'deleteInterviewMedia')
     .mockResolvedValue(undefined);
 }

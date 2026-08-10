@@ -146,17 +146,13 @@ async function waitForFeedback(
 describe('Candidate feedback (integration)', () => {
   useIntegrationHarness();
 
-  let questionLlmSpy: jest.SpiedFunction<
-    typeof candidateFeedbackLlm.generateCandidateFeedbackQuestionWithNativeLlm
-  >;
-  let overallLlmSpy: jest.SpiedFunction<
-    typeof candidateFeedbackOverallLlm.generateCandidateFeedbackOverallWithNativeLlm
-  >;
+  let questionLlmSpy: ReturnType<typeof vi.spyOn>;
+  let overallLlmSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     process.env.AI_PROVIDER = 'openai';
     process.env.OPENAI_API_KEY = 'integration-test-openai-key';
-    questionLlmSpy = jest
+    questionLlmSpy = vi
       .spyOn(
         candidateFeedbackLlm,
         'generateCandidateFeedbackQuestionWithNativeLlm',
@@ -165,7 +161,7 @@ describe('Candidate feedback (integration)', () => {
         recommendationText: 'Mock recommendation.',
         improvementText: 'Mock improvement.',
       });
-    overallLlmSpy = jest
+    overallLlmSpy = vi
       .spyOn(
         candidateFeedbackOverallLlm,
         'generateCandidateFeedbackOverallWithNativeLlm',

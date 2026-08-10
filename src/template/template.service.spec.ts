@@ -33,8 +33,8 @@ describe('TemplateService', () => {
       resolvedQuestion('q2'),
     ],
   ) {
-    const query = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-    const withTransaction = jest.fn(
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+    const withTransaction = vi.fn(
       async (cb: (client: PoolClient) => Promise<unknown>) =>
         cb({ query } as unknown as PoolClient),
     );
@@ -42,7 +42,7 @@ describe('TemplateService', () => {
       query,
       withTransaction,
     } as unknown as DatabaseService;
-    const resolveExistingByIds = jest.fn().mockResolvedValue(resolved);
+    const resolveExistingByIds = vi.fn().mockResolvedValue(resolved);
     const questionService = {
       resolveExistingByIds,
     } as unknown as QuestionService;

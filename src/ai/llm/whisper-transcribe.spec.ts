@@ -1,3 +1,4 @@
+import type { MockedFunction } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import { spawn } from 'child_process';
@@ -7,11 +8,11 @@ import {
   WHISPER_MAX_FILE_BYTES,
 } from './whisper-transcribe';
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn(),
+vi.mock('child_process', () => ({
+  spawn: vi.fn(),
 }));
 
-const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockSpawn = spawn as MockedFunction<typeof spawn>;
 
 const EXPECTED_FFMPEG_ARGS = [
   '-hide_banner',
@@ -44,7 +45,7 @@ function createMockFfmpegProcess(options: {
   const stdout = new PassThrough();
   const stderr = new PassThrough();
   const proc = new EventEmitter() as ReturnType<typeof spawn>;
-  const kill = jest.fn();
+  const kill = vi.fn();
   Object.assign(proc, { stdin, stdout, stderr, kill });
 
   if (options.spawnError) {
@@ -76,7 +77,7 @@ function createMockFfmpegProcess(options: {
 describe('extractAudioFromVideo', () => {
   beforeEach(() => {
     mockSpawn.mockReset();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('returns mp3 buffer produced by ffmpeg', async () => {
@@ -153,12 +154,12 @@ describe('extractAudioFromVideo', () => {
   });
 
   it('kills ffmpeg when extraction hangs', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const proc = createMockFfmpegProcess({ hang: true });
     mockSpawn.mockReturnValue(proc);
 
     const promise = extractAudioFromVideo(Buffer.from('video'));
-    jest.advanceTimersByTime(120_001);
+    vi.advanceTimersByTime(120_001);
 
     await expect(promise).rejects.toThrow(
       'ffmpeg audio extraction timed out after 120000ms',

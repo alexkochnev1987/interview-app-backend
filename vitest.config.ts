@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./test/unit-setup.ts'],
     include: ['src/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
@@ -16,6 +17,11 @@ export default defineConfig({
   plugins: [
     swc.vite({
       module: { type: 'es6' },
+      jsc: {
+        transform: {
+          useDefineForClassFields: false,
+        },
+      },
     }),
   ],
 });

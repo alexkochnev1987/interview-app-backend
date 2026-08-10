@@ -17,8 +17,8 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     hasGoogleAvatar: false,
   };
 
-  const conversationStore = { update: jest.fn() };
-  const pendingActionStore = { issue: jest.fn().mockReturnValue('pending-1') };
+  const conversationStore = { update: vi.fn() };
+  const pendingActionStore = { issue: vi.fn().mockReturnValue('pending-1') };
   const templateSummary = {
     id: 'template-1',
     name: 'React pack',
@@ -31,8 +31,8 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     updatedAt: new Date(),
   };
   const templateService = {
-    findAll: jest.fn().mockResolvedValue([templateSummary]),
-    findOne: jest.fn().mockResolvedValue({
+    findAll: vi.fn().mockResolvedValue([templateSummary]),
+    findOne: vi.fn().mockResolvedValue({
       ...templateSummary,
       questions: [{ id: 'q-1', questionText: 'Explain React hooks.' }],
     }),
@@ -46,12 +46,12 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     {} as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
-    { draftQuestion: jest.fn() } as unknown as AiService,
+    { draftQuestion: vi.fn() } as unknown as AiService,
     templateService as unknown as TemplateService,
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('asks for candidate name when missing', async () => {

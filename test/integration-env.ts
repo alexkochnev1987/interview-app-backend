@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = process.env.JWT_SECRET ?? "integration-test-jwt-secret-fixed";
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://interview_app:localpass@localhost:5433/interview_app_test";

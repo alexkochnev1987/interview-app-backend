@@ -5,12 +5,12 @@ import { LocaleMiddleware } from './locale.middleware';
 describe('LocaleMiddleware', () => {
   let middleware: LocaleMiddleware;
   let req: Request;
-  let next: jest.Mock<void, [unknown?]>;
+  let next: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     middleware = new LocaleMiddleware();
     req = { headers: {} } as Request;
-    next = jest.fn();
+    next = vi.fn();
   });
 
   it('sets en when header is missing', () => {

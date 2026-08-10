@@ -4,7 +4,7 @@ import { AuthService } from '../auth.service';
 import { mockExecutionContext } from '../../test/mock-execution-context';
 
 describe('CandidateSessionGuard', () => {
-  const validateCandidateToken = jest.fn();
+  const validateCandidateToken = vi.fn();
   const guard = new CandidateSessionGuard({
     validateCandidateToken,
   } as unknown as AuthService);

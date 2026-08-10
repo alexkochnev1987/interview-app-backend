@@ -5,19 +5,19 @@ import type { MediaCleanupService } from '../upload/media-cleanup.service';
 
 describe('InterviewService list query (findAllPaginated)', () => {
   function makeService() {
-    const query = jest.fn().mockImplementation((sql: string) => {
+    const query = vi.fn().mockImplementation((sql: string) => {
       if (sql.includes('COUNT(*)::text AS total')) {
         return Promise.resolve({ rows: [{ total: '0' }] });
       }
       return Promise.resolve({ rows: [] });
     });
-    const hydrateStoredQuestionCore = jest.fn();
+    const hydrateStoredQuestionCore = vi.fn();
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {
       hydrateStoredQuestionCore,
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
     return {
       service: new InterviewService(
@@ -157,13 +157,13 @@ describe('InterviewService list query (findAllPaginated)', () => {
 
 describe('InterviewService facets query (getFacets)', () => {
   function makeService() {
-    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const query = vi.fn().mockResolvedValue({ rows: [] });
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {
-      hydrateStoredQuestionCore: jest.fn(),
+      hydrateStoredQuestionCore: vi.fn(),
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
     return {
       service: new InterviewService(

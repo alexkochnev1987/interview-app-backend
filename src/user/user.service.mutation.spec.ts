@@ -28,8 +28,8 @@ function userRow(overrides: Record<string, unknown> = {}) {
 }
 
 function makeService() {
-  const query = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-  const withTransaction = jest.fn(
+  const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+  const withTransaction = vi.fn(
     async (cb: (client: PoolClient) => Promise<unknown>) =>
       cb({ query } as unknown as PoolClient),
   );
@@ -38,7 +38,7 @@ function makeService() {
     withTransaction,
   } as unknown as DatabaseService;
   const avatarService = {
-    deleteObjectQuietly: jest.fn().mockResolvedValue(undefined),
+    deleteObjectQuietly: vi.fn().mockResolvedValue(undefined),
   } as unknown as AvatarService;
   return {
     service: new UserService(databaseService, avatarService),

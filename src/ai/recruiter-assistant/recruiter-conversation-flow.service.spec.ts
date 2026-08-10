@@ -3,12 +3,12 @@ import { startConversationFlow } from './recruiter-conversation-slots';
 
 describe('RecruiterConversationFlowService', () => {
   const tools = {
-    continueAssignHrFlow: jest.fn(),
-    continueCreateQuestionFlow: jest.fn(),
-    continueCreateInterviewFlow: jest.fn(),
+    continueAssignHrFlow: vi.fn(),
+    continueCreateQuestionFlow: vi.fn(),
+    continueCreateInterviewFlow: vi.fn(),
   };
   const conversationStore = {
-    update: jest.fn(),
+    update: vi.fn(),
   };
 
   const service = new RecruiterConversationFlowService(
@@ -34,7 +34,7 @@ describe('RecruiterConversationFlowService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('returns null for idle flow', async () => {

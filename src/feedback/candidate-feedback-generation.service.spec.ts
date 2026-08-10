@@ -1,35 +1,36 @@
+import type { Mocked } from 'vitest';
 import { ServiceUnavailableException } from '@nestjs/common';
 import { CandidateFeedbackGenerationService } from './candidate-feedback-generation.service';
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import { DatabaseService } from '../database/database.service';
 import type { Interview } from '../interview/interfaces/interview.interface';
 
-jest.mock('../ai/llm/ai-env', () => ({
-  resolveNativeProvider: jest.fn(() => ({
+vi.mock('../ai/llm/ai-env', () => ({
+  resolveNativeProvider: vi.fn(() => ({
     kind: 'openai',
     model: 'test-model',
   })),
 }));
 
 describe('CandidateFeedbackGenerationService', () => {
-  let candidateFeedbackService: jest.Mocked<CandidateFeedbackService>;
-  let databaseService: jest.Mocked<DatabaseService>;
+  let candidateFeedbackService: Mocked<CandidateFeedbackService>;
+  let databaseService: Mocked<DatabaseService>;
   let service: CandidateFeedbackGenerationService;
 
   beforeEach(() => {
     candidateFeedbackService = {
-      syncQuestionsFromInterview: jest.fn(),
-      findByInterviewId: jest.fn(),
-      prefillQuestionBlockSkipTemplate: jest.fn(),
-      failStuckGeneration: jest.fn(),
-    } as unknown as jest.Mocked<CandidateFeedbackService>;
+      syncQuestionsFromInterview: vi.fn(),
+      findByInterviewId: vi.fn(),
+      prefillQuestionBlockSkipTemplate: vi.fn(),
+      failStuckGeneration: vi.fn(),
+    } as unknown as Mocked<CandidateFeedbackService>;
 
     databaseService = {
-      query: jest.fn(),
-      withAdvisoryLock: jest.fn(async (_key: string, callback: () => Promise<unknown>) =>
+      query: vi.fn(),
+      withAdvisoryLock: vi.fn(async (_key: string, callback: () => Promise<unknown>) =>
         callback(),
       ),
-    } as unknown as jest.Mocked<DatabaseService>;
+    } as unknown as Mocked<DatabaseService>;
 
     service = new CandidateFeedbackGenerationService(
       candidateFeedbackService,

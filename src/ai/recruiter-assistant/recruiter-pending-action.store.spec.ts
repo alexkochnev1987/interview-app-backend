@@ -18,7 +18,7 @@ describe('RecruiterPendingActionStore', () => {
   }> = [];
 
   const databaseService = {
-    query: jest.fn(async (sql: string, params: unknown[] = []) => {
+    query: vi.fn(async (sql: string, params: unknown[] = []) => {
       const normalized = sql.replace(/\s+/g, ' ').trim();
 
       if (normalized.startsWith('DELETE FROM recruiter_pending_actions WHERE expires_at')) {
@@ -96,7 +96,7 @@ describe('RecruiterPendingActionStore', () => {
 
   beforeEach(() => {
     rows.splice(0, rows.length);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('issues and one-shot consumes a pending action for the same user', async () => {

@@ -4,7 +4,7 @@ import { MediaCleanupService } from './media-cleanup.service';
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {
     const service = new MediaCleanupService();
-    const send = jest
+    const send = vi
       .fn()
       .mockResolvedValueOnce({
         Contents: [{ Key: 'uploads/interviews/i1/answers/q0-camera-1.webm' }],
@@ -17,7 +17,7 @@ describe('MediaCleanupService', () => {
         Errors: [{ Key: 'uploads/interviews/i1/answers/q0-camera-1.webm', Code: 'AccessDenied' }],
       });
 
-    (service as unknown as { s3Client: { send: jest.Mock } }).s3Client = { send };
+    (service as unknown as { s3Client: { send: ReturnType<typeof vi.fn> } }).s3Client = { send };
 
     await expect(service.deleteInterviewMedia('i1')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
