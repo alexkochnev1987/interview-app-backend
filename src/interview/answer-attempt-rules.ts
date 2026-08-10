@@ -43,8 +43,12 @@ export function getSavedAnswerVersions(answer?: {
 export function getAnswerAttemptLimitBlockReason(
   versions: AnswerVersionRef[],
   versionNumber?: number,
+  maxAttemptsOverride?: number,
 ): string | null {
-  const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
+  const maxAttempts =
+    typeof maxAttemptsOverride === 'number' && maxAttemptsOverride >= 1
+      ? maxAttemptsOverride
+      : resolveMaxAnswerAttemptsPerQuestion();
   const maxExistingVersionNumber = versions.reduce(
     (max, version) => Math.max(max, version.versionNumber),
     0,

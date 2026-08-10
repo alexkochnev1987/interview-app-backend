@@ -1,5 +1,6 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { MediaCleanupService } from './media-cleanup.service';
+import { AppConfigService } from '../app-config/app-config.service';
 
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {

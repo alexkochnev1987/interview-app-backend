@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service';
@@ -6,6 +6,7 @@ import { demoScopeClause } from '../common/demo-scope';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
 import { Locale } from '../locale/locale.constants';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   QuestionService,
   ResolvedQuestion,
@@ -77,6 +78,7 @@ export class TemplateService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async create(
@@ -89,6 +91,15 @@ export class TemplateService {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         'At least one question must be selected',
+      );
+    }
+
+    const maxQuestions = await this.appConfig?.getNumber('MAX_TEMPLATE_QUESTIONS', 100) ?? 100;
+    if (questionIds.length > maxQuestions) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        `Template cannot contain more than ${maxQuestions} questions`,
+        { maxQuestions, count: questionIds.length },
       );
     }
 

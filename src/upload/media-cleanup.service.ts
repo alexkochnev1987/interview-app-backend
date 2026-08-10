@@ -7,6 +7,7 @@ import {
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiServiceUnavailable } from '../common/errors/api-error';
 import { getInterviewMediaPrefix } from './upload-key';
+import { AppConfigService } from '../app-config/app-config.service';
 
 @Injectable()
 export class MediaCleanupService {
@@ -15,7 +16,7 @@ export class MediaCleanupService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor() {
+  constructor(private readonly appConfig: AppConfigService) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
 
@@ -36,6 +37,14 @@ export class MediaCleanupService {
   }
 
   async deleteInterviewMedia(interviewId: string): Promise<void> {
+    const enabled = await this.appConfig.getBoolean('ENABLE_S3_MEDIA_CLEANUP', true);
+    if (!enabled) {
+      this.logger.log(
+        `S3 media cleanup skipped for interview ${interviewId}: disabled via runtime config`,
+      );
+      return;
+    }
+
     const prefix = getInterviewMediaPrefix(this.prefix, interviewId);
 
     let continuationToken: string | undefined;
