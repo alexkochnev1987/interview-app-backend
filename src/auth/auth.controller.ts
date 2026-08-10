@@ -40,6 +40,7 @@ import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
 } from './staff-session';
+import { isRecruiterAssistantEnabledForRole } from '../ai/recruiter-assistant/recruiter-assistant-env';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 
@@ -52,6 +53,7 @@ export class AuthController {
     return {
       ...user,
       permissions: getEffectivePermissions(user.role, user.demo),
+      recruiterAssistantEnabled: isRecruiterAssistantEnabledForRole(user.role),
     };
   }
 
