@@ -7,6 +7,15 @@ export const OUT_OF_SCOPE_RESPONSE =
 export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
   'Recruiter assistant is disabled in this environment.';
 
+export const RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE =
+  'Recruiter assistant is not available for your role in this environment.';
+
+export function recruiterAssistantDisabledResponse(globalOff: boolean): string {
+  return globalOff
+    ? RECRUITER_ASSISTANT_DISABLED_RESPONSE
+    : RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE;
+}
+
 export const NEW_CHAT_WELCOME_RESPONSE =
   'Started a new conversation. How can I help with interviews, questions, or assignments?';
 
@@ -14,6 +23,8 @@ const CONFIRMATION_KEYWORDS = [
   'yes',
   'y',
   'confirm',
+  'yup',
+  'yeah',
   'do it',
   'да',
   'ага',
@@ -27,6 +38,7 @@ const CANCELLATION_KEYWORDS = [
   'cancel',
   'never mind',
   'nevermind',
+  'abort',
   'stop',
   'нет',
   'отмена',

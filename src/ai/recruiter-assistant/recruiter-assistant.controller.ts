@@ -28,7 +28,11 @@ import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { apiServiceUnavailable } from '../../common/errors/api-error';
-import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
+import {
+  isRecruiterAssistantEnabled,
+  isRecruiterAssistantEnabledForRole,
+} from './recruiter-assistant-env';
+import { recruiterAssistantDisabledResponse } from './recruiter-assistant.policy';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -69,10 +73,10 @@ export class RecruiterAssistantController {
     @CurrentUser() user: ActingUser,
     @CurrentLocale() locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabled()) {
+    if (!isRecruiterAssistantEnabledForRole(user.role)) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,
-        'Recruiter assistant is disabled in this environment.',
+        recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
       );
     }
     return this.recruiterAssistantService.chat(dto, user, locale);
@@ -91,10 +95,10 @@ export class RecruiterAssistantController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   resetChat(@CurrentUser() user: ActingUser): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabled()) {
+    if (!isRecruiterAssistantEnabledForRole(user.role)) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,
-        'Recruiter assistant is disabled in this environment.',
+        recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
       );
     }
     return this.recruiterAssistantService.newChat(user);

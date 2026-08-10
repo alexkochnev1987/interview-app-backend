@@ -9,7 +9,7 @@ import {
   isCancellationMessage,
   isConfirmationMessage,
   OUT_OF_SCOPE_RESPONSE,
-  RECRUITER_ASSISTANT_DISABLED_RESPONSE,
+  recruiterAssistantDisabledResponse,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
@@ -20,7 +20,10 @@ import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { idleConversationState } from './recruiter-conversation-slots';
 import { applyPendingActionOverride } from './recruiter-pending-action-override';
-import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
+import {
+  isRecruiterAssistantEnabled,
+  isRecruiterAssistantEnabledForRole,
+} from './recruiter-assistant-env';
 
 @Injectable()
 export class RecruiterAssistantService {
@@ -38,8 +41,11 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabled()) {
-      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+      return {
+        status: 'refused',
+        response: recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+      };
     }
 
     if (!canAccessChat(user)) {
@@ -203,8 +209,11 @@ export class RecruiterAssistantService {
   }
 
   async newChat(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabled()) {
-      return { status: 'refused', response: RECRUITER_ASSISTANT_DISABLED_RESPONSE };
+    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+      return {
+        status: 'refused',
+        response: recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+      };
     }
 
     if (!canAccessChat(user)) {
