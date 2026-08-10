@@ -1,27 +1,28 @@
 import { AppConfigService } from './app-config.service';
-import { DatabaseService } from '../database/database.service';
+import type { DatabaseService } from '../database/database.service';
 
 describe('AppConfigService', () => {
   let service: AppConfigService;
-  let mockDb: jest.Mocked<DatabaseService>;
+  const mockQuery = vi.fn();
 
   beforeEach(() => {
-    mockDb = {
-      query: jest.fn(),
-      onModuleDestroy: jest.fn(),
-    } as unknown as jest.Mocked<DatabaseService>;
+    mockQuery.mockReset();
+    const mockDb = {
+      query: mockQuery,
+      onModuleDestroy: vi.fn(),
+    } as unknown as DatabaseService;
 
     service = new AppConfigService(mockDb);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete process.env.TEST_CONFIG_KEY;
   });
 
   describe('Cascade Resolution (getString / getNumber / getBoolean)', () => {
     it('should return value from DB when present in database', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: '123e4567-e89b-12d3-a456-426614174000',
@@ -49,7 +50,7 @@ describe('AppConfigService', () => {
     });
 
     it('should fallback to process.env when key is not in DB', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [],
         rowCount: 0,
         command: 'SELECT',
@@ -64,7 +65,7 @@ describe('AppConfigService', () => {
     });
 
     it('should fallback to code default when key is neither in DB nor process.env', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [],
         rowCount: 0,
         command: 'SELECT',
@@ -77,7 +78,7 @@ describe('AppConfigService', () => {
     });
 
     it('should parse getNumber correctly from DB text value', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: '123e4567-e89b-12d3-a456-426614174000',
@@ -103,7 +104,7 @@ describe('AppConfigService', () => {
     });
 
     it('should parse getBoolean correctly for "true", "1", "yes"', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: '123',
@@ -131,7 +132,7 @@ describe('AppConfigService', () => {
 
   describe('Public & Secret Filter (getPublicVariables)', () => {
     it('should return only public, non-secret variables formatted by valueType', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: '1',
@@ -195,7 +196,7 @@ describe('AppConfigService', () => {
 
   describe('getAllVariables & System Defaults', () => {
     it('should return system defaults with isOverridden=false when no DB overrides exist', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [],
         rowCount: 0,
         command: 'SELECT',
@@ -211,7 +212,7 @@ describe('AppConfigService', () => {
     });
 
     it('should mark DB overrides with isOverridden=true', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: 'override-1',
@@ -242,7 +243,7 @@ describe('AppConfigService', () => {
 
   describe('Cache Invalidation (setVariable / deleteVariable)', () => {
     it('should immediately update cache on setVariable', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [
           {
             id: 'uuid-1',
@@ -272,12 +273,12 @@ describe('AppConfigService', () => {
       // Subsequent read should hit local cache without querying DB
       const result = await service.getString('NEW_KEY');
       expect(result).toBe('updated_val');
-      // mockDb.query was called only once for INSERT
-      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      // mockQuery was called only once for INSERT
+      expect(mockQuery).toHaveBeenCalledTimes(1);
     });
 
     it('should clear local cache on deleteVariable', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [],
         rowCount: 1,
         command: 'DELETE',
@@ -290,7 +291,7 @@ describe('AppConfigService', () => {
     });
 
     it('should return true when deleting a default key even if no DB row was deleted', async () => {
-      mockDb.query.mockResolvedValueOnce({
+      mockQuery.mockResolvedValueOnce({
         rows: [],
         rowCount: 0,
         command: 'DELETE',

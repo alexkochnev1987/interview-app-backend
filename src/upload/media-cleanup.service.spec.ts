@@ -4,7 +4,7 @@ import { AppConfigService } from '../app-config/app-config.service';
 
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {
-    const service = new MediaCleanupService();
+    const service = new MediaCleanupService({ getBoolean: vi.fn().mockResolvedValue(true) } as unknown as AppConfigService);
     const send = vi
       .fn()
       .mockResolvedValueOnce({
