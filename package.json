@@ -28,7 +28,8 @@
     "test:pyramid": "npm run test && npm run test:integration && node test/assert-test-pyramid.js",
     "test:pyramid:check": "node test/assert-test-pyramid.js",
     "questions:import": "ts-node src/question/import-questions.ts",
-    "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts"
+    "questions:backfill-embeddings": "ts-node src/question/backfill-embeddings.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
@@ -69,6 +70,8 @@
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",
@@ -78,5 +81,10 @@
     "typescript": "^5.9.3",
     "unplugin-swc": "^1.5.10",
     "vitest": "^4.1.10"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "oxlint -f unix"
+    ]
   }
 }
