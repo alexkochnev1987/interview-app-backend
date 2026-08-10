@@ -32,6 +32,13 @@ export class PresignRequestDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  fileSizeBytes?: number;
 }
 
 export class ConfirmUploadDto {
@@ -53,6 +60,13 @@ export class ConfirmUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  fileSizeBytes?: number;
 }
 
 export class StartMultipartUploadDto {
@@ -78,6 +92,13 @@ export class StartMultipartUploadDto {
   @IsInt()
   @Min(1)
   versionNumber!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  fileSizeBytes?: number;
 }
 
 export class PresignMultipartPartDto {

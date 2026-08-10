@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { DatabaseError } from 'pg';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
@@ -8,6 +8,7 @@ import {
 } from '../common/errors/api-error';
 import { DatabaseService } from '../database/database.service';
 import { InterviewService } from '../interview/interview.service';
+import { AppConfigService } from '../app-config/app-config.service';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { UserRole } from '../user/interfaces/user.interface';
 import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feedback-eligibility';
@@ -48,6 +49,7 @@ export class CandidateFeedbackShareService {
     private readonly databaseService: DatabaseService,
     private readonly interviewService: InterviewService,
     private readonly candidateFeedbackService: CandidateFeedbackService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async createLink(
@@ -59,6 +61,13 @@ export class CandidateFeedbackShareService {
     token: string;
     expiresAt: Date;
   }> {
+    if (await this.appConfig?.getBoolean('ENABLE_FEEDBACK_SHARE_LINKS', true) === false) {
+      throw apiConflict(
+        ApiErrorCode.FORBIDDEN,
+        'Candidate feedback share links are currently disabled via runtime config.',
+      );
+    }
+
     const interview = await this.interviewService.findOneForActor(
       interviewId,
       actor,

@@ -54,6 +54,100 @@ async function repairRenumberedOnboardingMigration(
   );
 }
 
+/** Dev DBs that applied avatar fields as 0047 before recruiter_pending_actions took that slot. */
+async function repairRenumberedAvatarMigration(
+  databaseService: DatabaseService,
+  appliedMigrations: Map<string, string>,
+): Promise<void> {
+  const appliedAt0047 = appliedMigrations.get('0047');
+  const avatarMigration = DATABASE_MIGRATIONS.find(
+    (migration) => migration.name === 'add_user_avatar_fields',
+  );
+
+  if (
+    appliedAt0047 !== 'add_user_avatar_fields' ||
+    avatarMigration === undefined
+  ) {
+    return;
+  }
+
+  const targetVersion = avatarMigration.version;
+  const appliedAtTarget = appliedMigrations.get(targetVersion);
+
+  if (appliedAtTarget === undefined) {
+    await databaseService.query(
+      `
+        UPDATE schema_migrations
+        SET version = $1
+        WHERE version = '0047'
+          AND name = 'add_user_avatar_fields'
+      `,
+      [targetVersion],
+    );
+    appliedMigrations.set(targetVersion, 'add_user_avatar_fields');
+  } else {
+    await databaseService.query(
+      `
+        DELETE FROM schema_migrations
+        WHERE version = '0047'
+          AND name = 'add_user_avatar_fields'
+      `,
+    );
+  }
+
+  appliedMigrations.delete('0047');
+  console.log(
+    `Repaired migration history: moved 0047_add_user_avatar_fields to ${targetVersion}_add_user_avatar_fields`,
+  );
+}
+
+/** Dev DBs that applied assign_demo_interviews_to_demo_hr as 0048 before feature-flags renumbered it to 0052. */
+async function repairRenumberedDemoInterviewsMigration(
+  databaseService: DatabaseService,
+  appliedMigrations: Map<string, string>,
+): Promise<void> {
+  const appliedAt0048 = appliedMigrations.get('0048');
+  const demoInterviewsMigration = DATABASE_MIGRATIONS.find(
+    (migration) => migration.name === 'assign_demo_interviews_to_demo_hr',
+  );
+
+  if (
+    appliedAt0048 !== 'assign_demo_interviews_to_demo_hr' ||
+    demoInterviewsMigration === undefined
+  ) {
+    return;
+  }
+
+  const targetVersion = demoInterviewsMigration.version;
+  const appliedAtTarget = appliedMigrations.get(targetVersion);
+
+  if (appliedAtTarget === undefined) {
+    await databaseService.query(
+      `
+        UPDATE schema_migrations
+        SET version = $1
+        WHERE version = '0048'
+          AND name = 'assign_demo_interviews_to_demo_hr'
+      `,
+      [targetVersion],
+    );
+    appliedMigrations.set(targetVersion, 'assign_demo_interviews_to_demo_hr');
+  } else {
+    await databaseService.query(
+      `
+        DELETE FROM schema_migrations
+        WHERE version = '0048'
+          AND name = 'assign_demo_interviews_to_demo_hr'
+      `,
+    );
+  }
+
+  appliedMigrations.delete('0048');
+  console.log(
+    `Repaired migration history: moved 0048_assign_demo_interviews_to_demo_hr to ${targetVersion}_assign_demo_interviews_to_demo_hr`,
+  );
+}
+
 export async function runMigrations(
   databaseService: DatabaseService,
 ): Promise<void> {
@@ -79,6 +173,8 @@ export async function runMigrations(
   );
 
   await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
+  await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
+  await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
 
   for (const migration of DATABASE_MIGRATIONS) {
     const appliedName = appliedMigrations.get(migration.version);
