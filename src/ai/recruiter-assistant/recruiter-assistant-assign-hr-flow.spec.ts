@@ -35,19 +35,42 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     updatedAt: new Date(),
   };
 
+  const unassignedInterviewListItem = {
+    id: interview.id,
+    candidateName: interview.candidateName,
+    position: interview.position,
+    status: interview.status,
+    questionCount: 3,
+    submittedAnswerCount: 0,
+    createdAt: interview.createdAt,
+    updatedAt: interview.updatedAt,
+  };
+
+  const hrUser = {
+    id: 'hr-1',
+    name: 'Jane Doe',
+    email: 'jane@example.com',
+  };
+
   const conversationStore = {
     update: jest.fn(),
   };
   const pendingActionStore = {
     issue: jest.fn().mockReturnValue('pending-1'),
   };
+  const interviewService = {
+    findAllPaginated: jest.fn(),
+  };
+  const userService = {
+    listAll: jest.fn(),
+  };
 
   const service = new RecruiterAssistantToolsService(
     {} as RecruiterQuestionMatcherService,
-    { findAllPaginated: jest.fn() } as never,
+    interviewService as never,
     {} as never,
     {} as never,
-    { listAll: jest.fn() } as never,
+    userService as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: jest.fn() } as never,
@@ -58,6 +81,13 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     jest.clearAllMocks();
     jest.mocked(resolveInterviewRef).mockReset();
     jest.mocked(resolveHrRef).mockReset();
+    interviewService.findAllPaginated.mockResolvedValue({
+      items: [unassignedInterviewListItem],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+    userService.listAll.mockResolvedValue([hrUser]);
   });
 
   it('asks for interview when neither ref is provided', async () => {
@@ -79,7 +109,10 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     expect(response).toMatchObject({
       status: 'answered',
       awaitingInput: 'interview',
+      response: 'Which interview should I assign?',
+      interviews: [unassignedInterviewListItem],
     });
+    expect(response.response).not.toMatch(/Found \d+ interview/);
   });
 
   it('asks for HR when only interview is resolved', async () => {
@@ -99,6 +132,8 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     expect(response).toMatchObject({
       status: 'answered',
       awaitingInput: 'hr',
+      response: 'Which HR reviewer should I assign?',
+      hrs: [hrUser],
     });
     expect(conversationStore.update).toHaveBeenCalledWith(
       'admin-1',
@@ -112,6 +147,51 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
         }),
       }),
     );
+  });
+
+  it('returns ambiguous interview message with unassigned list', async () => {
+    jest.mocked(resolveInterviewRef).mockResolvedValue(null);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice' },
+        hrRef: {},
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'interview',
+      response: "Couldn't detect singular interview, please choose from the list",
+      interviews: [unassignedInterviewListItem],
+    });
+  });
+
+  it('returns ambiguous HR message with HR list', async () => {
+    jest.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    jest.mocked(resolveHrRef).mockResolvedValue(null);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice Smith' },
+        hrRef: { name: 'Jane' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'hr',
+      response: "Couldn't detect singular HR, please choose from the list",
+      hrs: [hrUser],
+    });
   });
 
   it('returns confirmation when both refs resolve', async () => {
