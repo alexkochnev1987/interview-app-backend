@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import cookieParser = require('cookie-parser');
-import supertest = require('supertest');
+import cookieParser from 'cookie-parser';
+import supertest from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
 import { LoginThrottlerGuard } from '../../src/auth/guards/login-throttler.guard';

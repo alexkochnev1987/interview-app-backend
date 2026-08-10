@@ -24,7 +24,7 @@
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:integration": "vitest run --config ./test/vitest-integration.config.ts",
+    "test:integration": "vitest run --config ./test/vitest-integration.config.mts",
     "test:pyramid": "npm run test && npm run test:integration && node test/assert-test-pyramid.js",
     "test:pyramid:check": "node test/assert-test-pyramid.js",
     "questions:import": "ts-node src/question/import-questions.ts",

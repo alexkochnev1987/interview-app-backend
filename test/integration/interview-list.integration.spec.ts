@@ -1,5 +1,5 @@
 import { DatabaseService } from '../../src/database/database.service';
-import supertest = require('supertest');
+import supertest from 'supertest';
 import {
   getIntegrationApp,
   type IntegrationAgent,

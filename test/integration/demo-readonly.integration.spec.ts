@@ -1,4 +1,4 @@
-import supertest = require('supertest');
+import supertest from 'supertest';
 
 import { getIntegrationApp } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';

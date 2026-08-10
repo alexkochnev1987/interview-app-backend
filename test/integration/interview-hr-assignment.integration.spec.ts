@@ -1,4 +1,4 @@
-import supertest = require('supertest');
+import supertest from 'supertest';
 
 import { DatabaseService } from '../../src/database/database.service';
 import type { InterviewStatus } from '../../src/interview/interfaces/interview.interface';
