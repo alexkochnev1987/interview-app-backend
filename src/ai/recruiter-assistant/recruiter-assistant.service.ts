@@ -144,6 +144,11 @@ export class RecruiterAssistantService {
           await this.tools.listUnassigned(user, locale),
           sessionId,
         );
+      case 'list_hrs':
+        return this.withSession(
+          await this.tools.listHrs(user, locale),
+          sessionId,
+        );
       case 'interview_status':
         return this.withSession(
           await this.tools.getInterviewStatus(

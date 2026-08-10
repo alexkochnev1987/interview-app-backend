@@ -124,6 +124,35 @@ export class RecruiterAssistantToolsService {
     );
   }
 
+  async listHrs(
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canAssignHr(user)) {
+      return {
+        status: 'denied',
+        response: 'Only admins can list HR reviewers.',
+        escalateTo: 'admin',
+      };
+    }
+
+    const hrs = await this.fetchAvailableHrs(user);
+    if (hrs.length === 0) {
+      return {
+        status: 'answered',
+        response: 'No HR reviewers available.',
+        hrs: [],
+      };
+    }
+
+    return {
+      status: 'answered',
+      response: `Found ${hrs.length} HR reviewer(s).`,
+      hrs,
+    };
+  }
+
   async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,

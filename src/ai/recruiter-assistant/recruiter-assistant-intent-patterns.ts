@@ -25,6 +25,13 @@ export const UNASSIGNED_PATTERNS = [
   cyrillicPattern('без\\s+hr'),
 ];
 
+export const LIST_HRS_PATTERNS = [
+  /\b(show|list|get|display)\b(?:\s+\w+){0,4}\s+hrs?\b/i,
+  /\b(show|list|get|display)\b(?:\s+\w+){0,4}\s+hr\s+reviewers?\b/i,
+  /\bavailable\s+hr(?:\s+reviewers?)?\b/i,
+  cyrillicLoosePattern('(?:покажи|список)(?:\\s+\\S+){0,8}\\s+hr'),
+];
+
 export const READY_FOR_REVIEW_PATTERNS = [
   /ready for (my )?review/i,
   /\bawaiting review\b/i,
