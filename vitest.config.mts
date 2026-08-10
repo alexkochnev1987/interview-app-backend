@@ -13,6 +13,13 @@ export default defineConfig({
       include: ['src/**/*.(t|j)s'],
       exclude: ['test/**'],
     },
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+        },
+      },
+    },
   },
   plugins: [
     swc.vite({
