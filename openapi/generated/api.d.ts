@@ -2624,6 +2624,8 @@ export interface components {
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
             interviews?: components["schemas"]["InterviewListItemDto"][];
+            /** @description HR reviewers to pick from during assign_hr flow. */
+            hrs?: components["schemas"]["AssignedHrDto"][];
             interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
         };
         PublicCandidateFeedbackTextBlockDto: {

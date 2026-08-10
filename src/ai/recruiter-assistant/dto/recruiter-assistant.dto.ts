@@ -23,7 +23,10 @@ import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
-import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
+import {
+  AssignedHrDto,
+  InterviewListItemDto,
+} from '../../../interview/dto/interview.responses.dto';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
 export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
@@ -320,6 +323,12 @@ export class RecruiterAssistantResponseDto {
   @ApiPropertyOptional({ type: [InterviewListItemDto] })
   interviews?: InterviewListItemDto[];
 
+  @ApiPropertyOptional({
+    type: [AssignedHrDto],
+    description: 'HR reviewers to pick from during assign_hr flow.',
+  })
+  hrs?: AssignedHrDto[];
+
   @ApiPropertyOptional({ type: RecruiterAssistantInterviewSummaryDto })
   interview?: RecruiterAssistantInterviewSummaryDto;
 }
@@ -335,6 +344,7 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantRedirectDto,
   TemplateSummaryResponseDto,
   InterviewListItemDto,
+  AssignedHrDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })

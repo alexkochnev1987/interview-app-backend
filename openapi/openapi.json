@@ -11470,6 +11470,13 @@
               "$ref": "#/components/schemas/InterviewListItemDto"
             }
           },
+          "hrs": {
+            "description": "HR reviewers to pick from during assign_hr flow.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssignedHrDto"
+            }
+          },
           "interview": {
             "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
           }
