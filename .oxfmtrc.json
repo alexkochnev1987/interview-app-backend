@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "sortImports": true,
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "ignorePatterns": [
+    "*.md",
+    "*.tsbuildinfo",
+    "package-lock.json",
+    ".env*",
+    "dist/**",
+    "node_modules/**",
+    "coverage/**",
+    ".github",
+    ".idea",
+    "openapi/generated/**"
+  ]
+}
