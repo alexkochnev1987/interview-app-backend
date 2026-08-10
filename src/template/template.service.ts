@@ -248,7 +248,7 @@ export class TemplateService {
           demo,
         ]);
         if (updatedRes.rowCount === 0) {
-          throw apiNotFound(ApiErrorCode.TEMPLATE_NOT_FOUND, 'Template not found');
+          throw apiNotFound(ApiErrorCode.NOT_FOUND, 'Template not found');
         }
 
         return {
