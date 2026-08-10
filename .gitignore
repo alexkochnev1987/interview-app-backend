@@ -10,7 +10,7 @@ local-seeds/
 backups/
 tmp-*
 openapi-live.json
-
+.idea/
 # Terraform
 infra/**/.terraform/
 infra/**/*.tfstate
