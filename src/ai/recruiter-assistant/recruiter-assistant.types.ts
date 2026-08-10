@@ -15,6 +15,7 @@ export interface ParsedRecruiterRequest {
 export type RecruiterAssistantIntentKind =
   | 'list_interviews'
   | 'list_unassigned'
+  | 'list_hrs'
   | 'interview_status'
   | 'review_state'
   | 'assign_hr'
@@ -38,6 +39,7 @@ export interface HrRef {
 export type RecruiterAssistantIntent =
   | { kind: 'list_interviews'; filters: QueryInterviewsDto; readyForReview?: boolean }
   | { kind: 'list_unassigned' }
+  | { kind: 'list_hrs' }
   | { kind: 'interview_status'; ref: InterviewRef; ownInterviews?: boolean; scheduleInquiry?: boolean }
   | { kind: 'review_state'; ref: InterviewRef }
   | {

@@ -260,4 +260,29 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     });
     expect(resolveInterviewRef).not.toHaveBeenCalled();
   });
+
+  it('lists all HR reviewers for admins', async () => {
+    const response = await service.listHrs(user, 'en');
+
+    expect(userService.listAll).toHaveBeenCalledWith({
+      role: 'hr',
+      demo: false,
+      limit: 100,
+    });
+    expect(response).toMatchObject({
+      status: 'answered',
+      response: 'Found 1 HR reviewer(s).',
+      hrs: [hrUser],
+    });
+  });
+
+  it('denies HR list for non-admins', async () => {
+    const response = await service.listHrs({ ...user, role: 'hr' }, 'en');
+
+    expect(response).toMatchObject({
+      status: 'denied',
+      escalateTo: 'admin',
+    });
+    expect(userService.listAll).not.toHaveBeenCalled();
+  });
 });

@@ -13,6 +13,7 @@ import {
   CANDIDATE_OWN_STATUS_PATTERNS,
   CANDIDATE_SCHEDULE_PATTERNS,
   INTERVIEW_STATUS_PATTERNS,
+  LIST_HRS_PATTERNS,
   LIST_INTERVIEWS_PATTERNS,
   matchesAnyPattern,
   matchesCreateIntent,
@@ -95,6 +96,10 @@ export class RecruiterAssistantIntentService {
 
     if (matchesAnyPattern(normalized, UNASSIGNED_PATTERNS)) {
       return { kind: 'list_unassigned' };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_HRS_PATTERNS)) {
+      return { kind: 'list_hrs' };
     }
 
     if (matchesAnyPattern(normalized, READY_FOR_REVIEW_PATTERNS)) {
