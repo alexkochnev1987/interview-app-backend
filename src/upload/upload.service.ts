@@ -6,6 +6,7 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListPartsCommand,
   PutObjectCommand,
   S3Client,
@@ -230,7 +231,13 @@ export class UploadService {
       }),
     );
 
-    const parts = (listPartsResponse.Parts ?? [])
+    const rawParts = listPartsResponse.Parts ?? [];
+    const totalSizeBytes = rawParts.reduce((acc, part) => acc + (part?.Size ?? 0), 0);
+    if (totalSizeBytes > 0) {
+      await this.assertFileSizeBytesWithinLimit(totalSizeBytes);
+    }
+
+    const parts = rawParts
       .filter((part) => Boolean(part?.ETag) && typeof part?.PartNumber === 'number')
       .map((part) => ({
         ETag: part!.ETag!,
@@ -303,7 +310,6 @@ export class UploadService {
     versionNumber?: number,
     options?: { requireReservedAttempt?: boolean; fileSizeBytes?: number },
   ): Promise<ConfirmUploadResponseDto> {
-    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
       questionIndex,
@@ -314,6 +320,22 @@ export class UploadService {
       },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
+
+    let actualSizeBytes = options?.fileSizeBytes;
+    try {
+      const head = await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: mediaKey,
+        }),
+      );
+      if (typeof head.ContentLength === 'number' && head.ContentLength > 0) {
+        actualSizeBytes = head.ContentLength;
+      }
+    } catch {
+      // Fallback to client-provided fileSizeBytes if HeadObject fails or in mock S3 env
+    }
+    await this.assertFileSizeBytesWithinLimit(actualSizeBytes);
 
     return { mediaKey, confirmed: true };
   }
