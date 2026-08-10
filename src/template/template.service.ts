@@ -210,7 +210,7 @@ export class TemplateService {
             : existing.position;
 
         let questionIds = existing.question_ids_json ?? [];
-        let resolvedQuestions: ResolvedQuestion[] | null = null;
+        let resolvedList: ResolvedQuestion[] | null = null;
         if (dto.questionIds !== undefined) {
           questionIds = this.normalizeIds(dto.questionIds);
           if (questionIds.length === 0) {
@@ -220,44 +220,49 @@ export class TemplateService {
             );
           }
           // Same guard as create: a replacement set must resolve to live questions.
-          resolvedQuestions = await this.questionService.resolveExistingByIds(
+          resolvedList = await this.questionService.resolveExistingByIds(
             questionIds,
             locale,
             { demo },
           );
-          this.assertAllResolved(questionIds, resolvedQuestions);
+          if (resolvedList.length !== questionIds.length) {
+            throw apiBadRequest(
+              ApiErrorCode.BAD_REQUEST,
+              'One or more requested questionIds are deleted or unavailable',
+            );
+          }
         }
 
-        const result = await client.query<TemplateRow>(
-          `
+        const query = `
           UPDATE interview_templates
-          SET
-            name = $2,
-            description = $3,
-            position = $4,
-            question_ids_json = $5::jsonb,
-            updated_at = NOW()
-          WHERE id = $1
-          ${TEMPLATE_RETURNING}
-        `,
-          [
-            id,
-            name,
-            description,
-            position,
-            JSON.stringify(questionIds),
-          ],
-        );
+          SET name = $1, description = $2, position = $3, question_ids_json = $4, updated_at = NOW()
+          WHERE id = $5 AND demo = $6
+          RETURNING *
+        `;
+        const updatedRes = await client.query<TemplateRow>(query, [
+          name,
+          description,
+          position,
+          JSON.stringify(questionIds),
+          id,
+          demo,
+        ]);
+        if (updatedRes.rowCount === 0) {
+          throw apiNotFound(ApiErrorCode.TEMPLATE_NOT_FOUND, 'Template not found');
+        }
 
-        return { updated: this.mapRow(result.rows[0]), resolvedQuestions };
+        return {
+          updated: updatedRes.rows[0],
+          resolvedQuestions: resolvedList,
+        };
       });
 
     // Reuse the set already resolved for validation; otherwise resolve the
     // unchanged stored ids after commit (no live read under the FOR UPDATE lock).
     if (resolvedQuestions) {
-      return this.toResponse(updated, resolvedQuestions);
+      return this.toResponse(this.mapRow(updated), resolvedQuestions);
     }
-    return this.resolve(updated, locale);
+    return this.resolve(this.mapRow(updated), locale);
   }
 
   async remove(

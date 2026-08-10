@@ -21,7 +21,7 @@ export async function fetchWithLlmTimeout(
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`LLM request timed out after ${timeoutMs}ms`);
+      throw new Error(`LLM request timed out after ${timeoutMs}ms`, { cause: error });
     }
     throw error;
   } finally {

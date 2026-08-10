@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from './database.service';
 import {

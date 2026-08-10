@@ -29,7 +29,7 @@ const FRONTEND_URL = (process.env.FRONTEND_URL ?? 'http://localhost:3001').repla
 );
 
 function pickCookie(res: Response, name: string): string | null {
-  const all = (res.headers as any).getSetCookie?.() as string[] | undefined;
+  const all = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() as string[] | undefined;
   const list =
     all ?? (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
   for (const entry of list) {
@@ -44,7 +44,7 @@ function mergeCookies(existing: string | null, res: Response): string {
     const [name, ...rest] = part.split('=');
     if (name) jar.set(name, rest.join('='));
   }
-  const all = (res.headers as any).getSetCookie?.() as string[] | undefined;
+  const all = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() as string[] | undefined;
   const list =
     all ?? (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
   for (const entry of list) {

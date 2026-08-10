@@ -1,7 +1,7 @@
 import '../database/load-env';
 
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+import path from 'path';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { runMigrations } from '../database/migration-runner';

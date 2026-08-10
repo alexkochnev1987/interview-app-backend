@@ -1,7 +1,7 @@
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import * as crypto from 'crypto';
+import crypto from 'crypto';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { demoScopeClause } from '../common/demo-scope';
@@ -1991,6 +1991,7 @@ export class QuestionService {
     const total = rawWeights.reduce((sum, weight) => sum + weight, 0);
 
     let accumulated = 0;
+    // oxlint-disable-next-line no-map-spread
     return normalized.map((item, index) => {
       const isLast = index === normalized.length - 1;
       const normalizedWeight = isLast

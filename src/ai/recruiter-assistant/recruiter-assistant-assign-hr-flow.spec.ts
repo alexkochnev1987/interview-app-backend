@@ -5,13 +5,6 @@ import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.se
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 
-import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
-import { RecruiterConversationStore } from './recruiter-conversation.store';
-import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
-import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { resolveHrRef } from './recruiter-assistant-hr-ref';
-import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
-
 vi.mock('./recruiter-assistant-hr-ref', () => ({
   resolveHrRef: vi.fn(),
 }));

@@ -1373,7 +1373,7 @@ export class AiService {
       return sum + (Number.isFinite(item.weight) && item.weight > 0 ? item.weight : 1);
     }, 0);
     let accumulated = 0;
-
+    // oxlint-disable-next-line no-map-spread
     return concepts.map((item, index) => {
       const rawWeight =
         Number.isFinite(item.weight) && item.weight > 0 ? item.weight : 1;

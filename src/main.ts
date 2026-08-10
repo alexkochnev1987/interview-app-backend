@@ -5,7 +5,7 @@ import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { SwaggerModule } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import { createOpenApiDocument } from './openapi/swagger';
 
 async function bootstrap(): Promise<void> {

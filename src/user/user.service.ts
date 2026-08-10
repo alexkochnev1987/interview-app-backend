@@ -7,8 +7,8 @@ import {
   OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import { AvatarSource, User } from './interfaces/user.interface';
