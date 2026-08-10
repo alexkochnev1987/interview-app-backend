@@ -40,6 +40,7 @@ import {
 } from './recruiter-assistant.types';
 import { extractQuestionName } from './recruiter-assistant-question-name-extract';
 import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
+import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
 
 @Injectable()
 export class RecruiterAssistantIntentService {
@@ -61,7 +62,7 @@ export class RecruiterAssistantIntentService {
     if (matchesAnyPattern(normalized, LIST_ASSESSMENTS_PATTERNS)) {
       return {
         kind: 'list_assessments',
-        filters: {},
+        filters: extractAssessmentFilters(message),
       };
     }
 

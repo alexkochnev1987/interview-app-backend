@@ -111,6 +111,27 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies list assessments requests with filters', () => {
+    expect(
+      service.classify('show react assessments', admin, 'en'),
+    ).toEqual({
+      kind: 'list_assessments',
+      filters: { position: 'React Developer' },
+    });
+    expect(
+      service.classify('list templates for Java engineer', admin, 'en'),
+    ).toEqual({
+      kind: 'list_assessments',
+      filters: { position: 'Java engineer' },
+    });
+    expect(
+      service.classify('show assessments named "Senior React"', admin, 'en'),
+    ).toEqual({
+      kind: 'list_assessments',
+      filters: { nameContains: 'Senior React' },
+    });
+  });
+
   it('classifies create question requests', () => {
     expect(
       service.classify('create a question about React hooks', admin, 'en'),

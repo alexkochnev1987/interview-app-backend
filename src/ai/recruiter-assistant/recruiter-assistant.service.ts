@@ -200,6 +200,10 @@ export class RecruiterAssistantService {
           sessionId,
         );
       case 'list_assessments':
+        return this.withSession(
+          await this.tools.listAssessments(intent.filters, user, locale),
+          sessionId,
+        );
       case 'interview_activity_summary':
       case 'list_team':
         return this.withSession(

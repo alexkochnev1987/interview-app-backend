@@ -195,12 +195,18 @@ export class RecruiterAssistantToolsService {
       );
     }
 
+    const hasFilters = !!(filters.position || filters.nameContains);
+
     return {
       status: 'answered',
       response:
         assessments.length === 0
-          ? 'No assessments match your request.'
-          : `Found ${assessments.length} assessment(s).`,
+          ? hasFilters
+            ? 'No assessments match your filters.'
+            : 'No assessments match your request.'
+          : hasFilters
+            ? `Found ${assessments.length} assessment(s) matching your filters.`
+            : `Found ${assessments.length} assessment(s).`,
       assessments,
     };
   }
