@@ -172,9 +172,15 @@ export async function runMigrations(
     appliedResult.rows.map((row) => [row.version, row.name]),
   );
 
-  await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
-  await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
-  await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
+  const enableDevRepairs =
+    process.env.NODE_ENV === 'development' ||
+    process.env.ALLOW_DEV_DB_REPAIRS === 'true';
+
+  if (enableDevRepairs) {
+    await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
+    await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
+    await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
+  }
 
   for (const migration of DATABASE_MIGRATIONS) {
     const appliedName = appliedMigrations.get(migration.version);
