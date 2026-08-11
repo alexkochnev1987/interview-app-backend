@@ -289,7 +289,7 @@ describe('AppConfigService', () => {
       expect(deleted).toBe(true);
     });
 
-    it('should return true when deleting a default key even if no DB row was deleted', async () => {
+    it('should return false when deleting a default key if no DB row was deleted', async () => {
       mockDb.query.mockResolvedValueOnce({
         rows: [],
         rowCount: 0,
@@ -299,7 +299,7 @@ describe('AppConfigService', () => {
       });
 
       const deleted = await service.deleteVariable('MAX_ANSWER_DURATION_SECONDS');
-      expect(deleted).toBe(true);
+      expect(deleted).toBe(false);
     });
   });
 });
