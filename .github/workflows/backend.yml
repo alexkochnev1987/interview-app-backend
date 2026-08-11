@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 
-# Автоматически отменяем предыдущие запуски для того же PR/ветки при новом пуше
+# Automatically cancel previous runs for the same PR/branch on new push
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
