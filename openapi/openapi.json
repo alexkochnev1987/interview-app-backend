@@ -1,6 +1,276 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/config/public": {
+      "get": {
+        "operationId": "PublicConfigController_getPublicConfig",
+        "summary": "Get public runtime variables",
+        "description": "Returns a key→value dictionary of all variables marked as public (is_public=true). Available to all users including unauthenticated visitors.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public configuration dictionary"
+          }
+        },
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/config": {
+      "get": {
+        "operationId": "AppConfigController_listAll",
+        "summary": "List all runtime variables",
+        "description": "Returns the full list of runtime configuration variables. Secret variable values are masked with \"********\".",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all configuration variables",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SystemConfigEntryDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "config"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/config/{key}": {
+      "put": {
+        "operationId": "AppConfigController_upsert",
+        "summary": "Create or update a runtime variable",
+        "description": "Upserts a variable in the database. The new value takes effect within 15 seconds across all running Fargate instances. Overrides any value set in .env or process.env.",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "description": "Variable key in UPPER_SNAKE_CASE",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertConfigVariableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The saved variable record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigEntryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "config"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AppConfigController_remove",
+        "summary": "Delete a runtime variable override",
+        "description": "Removes the variable from the database. The application falls back to reading from process.env / .env or the code-level default.",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "description": "Variable key to reset",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Variable deleted successfully"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "config"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "AuthController_login",
@@ -7013,6 +7283,204 @@
       }
     },
     "schemas": {
+      "SystemConfigEntryDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Configuration variable key in UPPER_SNAKE_CASE",
+            "example": "APP_THEME"
+          },
+          "value": {
+            "type": "string",
+            "description": "Current variable value",
+            "example": "innowise"
+          },
+          "valueType": {
+            "type": "string",
+            "description": "Data type hint for parsing and UI rendering",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum",
+              "json",
+              "secret"
+            ],
+            "example": "enum"
+          },
+          "options": {
+            "description": "Allowed option values for enum type variables",
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of variable purpose",
+            "example": "Active UI theme color preset"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether this variable is exposed in GET /api/config/public",
+            "example": true
+          },
+          "isSecret": {
+            "type": "boolean",
+            "description": "Whether the value is masked on the frontend (••••••••)",
+            "example": false
+          },
+          "isOverridden": {
+            "type": "boolean",
+            "description": "Whether this variable has a custom database override applied",
+            "example": false
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "valueType",
+          "isPublic",
+          "isSecret",
+          "isOverridden"
+        ]
+      },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "VALIDATION_ERROR",
+          "INVALID_LOCALE",
+          "REGISTRATION_FAILED",
+          "UPLOAD_FAILED",
+          "UPLOAD_NOT_ALLOWED",
+          "ANSWER_ATTEMPT_LIMIT_REACHED",
+          "ANSWER_VERSION_NOT_RESERVED",
+          "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
+          "AVATAR_UNSUPPORTED_TYPE",
+          "AVATAR_TOO_LARGE",
+          "AVATAR_NO_GOOGLE_PICTURE",
+          "INVALID_CONFIG_VALUE",
+          "UNAUTHORIZED",
+          "INVALID_CREDENTIALS",
+          "AUTHENTICATION_REQUIRED",
+          "CANDIDATE_SESSION_REQUIRED",
+          "INVALID_CANDIDATE_SESSION",
+          "INTERVIEW_TOKEN_REQUIRED",
+          "INVALID_INTERVIEW_TOKEN",
+          "FORBIDDEN",
+          "INSUFFICIENT_PERMISSIONS",
+          "ACCESS_DENIED",
+          "NOT_FOUND",
+          "QUESTION_NOT_FOUND",
+          "INTERVIEW_NOT_FOUND",
+          "USER_NOT_FOUND",
+          "FEEDBACK_NOT_FOUND",
+          "CONFLICT",
+          "QUESTION_IN_USE",
+          "VALIDATION_RUNNING",
+          "QUESTION_DUPLICATE",
+          "SERVICE_UNAVAILABLE",
+          "AI_PROVIDER_NOT_CONFIGURED",
+          "EMBEDDING_PROVIDER_NOT_CONFIGURED",
+          "INTERNAL_SERVER_ERROR"
+        ]
+      },
+      "ApiErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "example": "Validation failed"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "errors": [
+                "email must be an email"
+              ]
+            }
+          },
+          "path": {
+            "type": "string",
+            "example": "/questions/invalid-id"
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message"
+        ]
+      },
+      "UpsertConfigVariableDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "Variable value as string (numbers and booleans are stored as text)",
+            "example": "240"
+          },
+          "valueType": {
+            "type": "string",
+            "description": "Data type hint for parsing and UI rendering",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum",
+              "json",
+              "secret"
+            ],
+            "default": "string"
+          },
+          "options": {
+            "description": "Allowed option values for enum variables",
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether this variable is exposed to the frontend via GET /config/public",
+            "default": false
+          },
+          "isSecret": {
+            "type": "boolean",
+            "description": "Whether the value is masked in Super Admin list responses",
+            "default": false
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable English description shown in Super Admin UI",
+            "example": "Maximum candidate video response recording limit in seconds per question"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
       "LoginDto": {
         "type": "object",
         "properties": {
@@ -7151,80 +7619,6 @@
             "example": "completed"
           }
         }
-      },
-      "ApiErrorCode": {
-        "type": "string",
-        "enum": [
-          "BAD_REQUEST",
-          "VALIDATION_ERROR",
-          "INVALID_LOCALE",
-          "REGISTRATION_FAILED",
-          "UPLOAD_FAILED",
-          "UPLOAD_NOT_ALLOWED",
-          "ANSWER_ATTEMPT_LIMIT_REACHED",
-          "ANSWER_VERSION_NOT_RESERVED",
-          "ANSWER_VERSION_OVERWRITE_FORBIDDEN",
-          "AVATAR_UNSUPPORTED_TYPE",
-          "AVATAR_TOO_LARGE",
-          "AVATAR_NO_GOOGLE_PICTURE",
-          "UNAUTHORIZED",
-          "INVALID_CREDENTIALS",
-          "AUTHENTICATION_REQUIRED",
-          "CANDIDATE_SESSION_REQUIRED",
-          "INVALID_CANDIDATE_SESSION",
-          "INTERVIEW_TOKEN_REQUIRED",
-          "INVALID_INTERVIEW_TOKEN",
-          "FORBIDDEN",
-          "INSUFFICIENT_PERMISSIONS",
-          "ACCESS_DENIED",
-          "NOT_FOUND",
-          "QUESTION_NOT_FOUND",
-          "INTERVIEW_NOT_FOUND",
-          "USER_NOT_FOUND",
-          "FEEDBACK_NOT_FOUND",
-          "CONFLICT",
-          "QUESTION_IN_USE",
-          "VALIDATION_RUNNING",
-          "QUESTION_DUPLICATE",
-          "SERVICE_UNAVAILABLE",
-          "AI_PROVIDER_NOT_CONFIGURED",
-          "EMBEDDING_PROVIDER_NOT_CONFIGURED",
-          "INTERNAL_SERVER_ERROR"
-        ]
-      },
-      "ApiErrorResponseDto": {
-        "type": "object",
-        "properties": {
-          "statusCode": {
-            "type": "number",
-            "example": 400
-          },
-          "code": {
-            "$ref": "#/components/schemas/ApiErrorCode"
-          },
-          "message": {
-            "type": "string",
-            "example": "Validation failed"
-          },
-          "params": {
-            "type": "object",
-            "additionalProperties": true,
-            "example": {
-              "errors": [
-                "email must be an email"
-              ]
-            }
-          },
-          "path": {
-            "type": "string",
-            "example": "/questions/invalid-id"
-          }
-        },
-        "required": [
-          "statusCode",
-          "code",
-          "message"
-        ]
       },
       "UserProfileResponseDto": {
         "type": "object",
@@ -9867,6 +10261,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being recorded."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
@@ -9902,6 +10299,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being confirmed."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
@@ -9948,6 +10348,9 @@
           "versionNumber": {
             "type": "number",
             "description": "Reserved answer attempt/version being recorded."
+          },
+          "fileSizeBytes": {
+            "type": "number"
           }
         },
         "required": [
@@ -10294,6 +10697,10 @@
           "maxAttempts": {
             "type": "number",
             "description": "Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta."
+          },
+          "maxDurationSeconds": {
+            "type": "number",
+            "description": "Maximum recording duration in seconds per question (MAX_ANSWER_DURATION_SECONDS)."
           },
           "completed": {
             "type": "boolean"

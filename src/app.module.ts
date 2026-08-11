@@ -14,10 +14,12 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { LocaleModule } from './locale/locale.module';
 import { RecruiterAssistantModule } from './ai/recruiter-assistant/recruiter-assistant.module';
+import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    AppConfigModule,
     LocaleModule,
     RateLimitModule,
     DatabaseModule,
