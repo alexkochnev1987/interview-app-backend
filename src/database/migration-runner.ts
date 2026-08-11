@@ -176,10 +176,14 @@ export async function runMigrations(
     process.env.NODE_ENV === 'development' ||
     process.env.ALLOW_DEV_DB_REPAIRS === 'true';
 
+  // This repair must run unconditionally: production already has 0048_assign_demo_interviews_to_demo_hr
+  // recorded, but this release renumbers it to 0052. Without the repair the runner would attempt
+  // to re-apply 0052 and crash on the PRIMARY KEY constraint.
+  await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
+
   if (enableDevRepairs) {
     await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
     await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
-    await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
   }
 
   for (const migration of DATABASE_MIGRATIONS) {
