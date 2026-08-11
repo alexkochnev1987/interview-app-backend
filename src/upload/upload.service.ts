@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import {
@@ -6,6 +6,7 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListPartsCommand,
   PutObjectCommand,
   S3Client,
@@ -34,6 +35,7 @@ import {
   getAnswerVersionOverwriteBlockReason,
   getSavedAnswerVersions,
 } from '../interview/answer-attempt-rules';
+import { AppConfigService } from '../app-config/app-config.service';
 
 export interface PresignedDownloadUrlResponse {
   downloadUrl: string;
@@ -42,6 +44,7 @@ export interface PresignedDownloadUrlResponse {
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
   private readonly s3Client: S3Client;
   private readonly bucket: string;
   private readonly prefix: string;
@@ -50,6 +53,7 @@ export class UploadService {
     @Inject(forwardRef(() => InterviewService))
     private readonly interviewService: InterviewService,
     private readonly mediaCleanupService: MediaCleanupService,
+    private readonly appConfig: AppConfigService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
@@ -77,9 +81,10 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
-    options?: { requireReservedAttempt?: boolean },
+    options?: { requireReservedAttempt?: boolean; fileSizeBytes?: number },
   ): Promise<PresignedUrlResponseDto> {
     this.assertSupportedContentType(contentType);
+    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -117,8 +122,10 @@ export class UploadService {
     contentType: string,
     mediaType: 'camera' | 'screen' = 'camera',
     versionNumber?: number,
+    options?: { fileSizeBytes?: number },
   ): Promise<MultipartUploadSessionResponseDto> {
     this.assertSupportedContentType(contentType);
+    await this.assertFileSizeBytesWithinLimit(options?.fileSizeBytes);
 
     const normalizedMediaType = this.normalizeMediaType(mediaType);
     const mediaKey = this.buildMediaKey(
@@ -225,7 +232,13 @@ export class UploadService {
       }),
     );
 
-    const parts = (listPartsResponse.Parts ?? [])
+    const rawParts = listPartsResponse.Parts ?? [];
+    const totalSizeBytes = rawParts.reduce((acc, part) => acc + (part?.Size ?? 0), 0);
+    if (totalSizeBytes > 0) {
+      await this.assertFileSizeBytesWithinLimit(totalSizeBytes);
+    }
+
+    const parts = rawParts
       .filter((part) => Boolean(part?.ETag) && typeof part?.PartNumber === 'number')
       .map((part) => ({
         ETag: part!.ETag!,
@@ -296,7 +309,7 @@ export class UploadService {
     questionIndex: number,
     mediaKey: string,
     versionNumber?: number,
-    options?: { requireReservedAttempt?: boolean },
+    options?: { requireReservedAttempt?: boolean; fileSizeBytes?: number },
   ): Promise<ConfirmUploadResponseDto> {
     await this.assertCurrentQuestionUploadAllowed(
       interviewId,
@@ -308,6 +321,37 @@ export class UploadService {
       },
     );
     this.assertValidMediaKey(interviewId, questionIndex, mediaKey);
+
+    let actualSizeBytes = options?.fileSizeBytes;
+    try {
+      const head = await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: mediaKey,
+        }),
+      );
+      if (typeof head.ContentLength === 'number' && head.ContentLength > 0) {
+        actualSizeBytes = head.ContentLength;
+      }
+    } catch (error) {
+      if (process.env.S3_ENDPOINT) {
+        // Mock S3 (MinIO/LocalStack) — HeadObject may not work correctly, fall back to client size
+        this.logger.warn(
+          `HeadObject failed for ${mediaKey} in mock S3 env, falling back to client-provided size (${options?.fileSizeBytes ?? 'unknown'} bytes)`,
+        );
+      } else {
+        this.logger.error(
+          `HeadObject failed for ${mediaKey}, rejecting upload confirmation to prevent size limit bypass`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_FAILED,
+          'Unable to verify uploaded file size. Please try again.',
+          { mediaKey },
+        );
+      }
+    }
+    await this.assertFileSizeBytesWithinLimit(actualSizeBytes);
 
     return { mediaKey, confirmed: true };
   }
@@ -413,15 +457,34 @@ export class UploadService {
         }
       }
 
+      const maxAttempts = await this.appConfig.getNumber(
+        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+        3,
+      );
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         savedVersions,
         versionNumber,
+        maxAttempts,
       );
       if (attemptLimitReason) {
         throw apiBadRequest(
           ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
           attemptLimitReason,
           { interviewId, questionIndex, versionNumber },
+        );
+      }
+    }
+  }
+
+  async assertFileSizeBytesWithinLimit(fileSizeBytes?: number): Promise<void> {
+    if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
+      const maxMb = await this.appConfig.getNumber('MAX_MEDIA_FILE_SIZE_MB', 100);
+      const maxBytes = maxMb * 1024 * 1024;
+      if (fileSizeBytes > maxBytes) {
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_NOT_ALLOWED,
+          `Media file size (${(fileSizeBytes / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of ${maxMb}MB.`,
+          { maxMb, fileSizeBytes },
         );
       }
     }

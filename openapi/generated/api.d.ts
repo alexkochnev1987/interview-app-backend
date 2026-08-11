@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/config/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get public runtime variables
+         * @description Returns a key→value dictionary of all variables marked as public (is_public=true). Available to all users including unauthenticated visitors.
+         */
+        get: operations["PublicConfigController_getPublicConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all runtime variables
+         * @description Returns the full list of runtime configuration variables. Secret variable values are masked with "********".
+         */
+        get: operations["AppConfigController_listAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/config/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Create or update a runtime variable
+         * @description Upserts a variable in the database. The new value takes effect within 15 seconds across all running Fargate instances. Overrides any value set in .env or process.env.
+         */
+        put: operations["AppConfigController_upsert"];
+        post?: never;
+        /**
+         * Delete a runtime variable override
+         * @description Removes the variable from the database. The application falls back to reading from process.env / .env or the code-level default.
+         */
+        delete: operations["AppConfigController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -1216,6 +1280,113 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SystemConfigEntryDto: {
+            /**
+             * @description Configuration variable key in UPPER_SNAKE_CASE
+             * @example APP_THEME
+             */
+            key: string;
+            /**
+             * @description Current variable value
+             * @example innowise
+             */
+            value: string;
+            /**
+             * @description Data type hint for parsing and UI rendering
+             * @example enum
+             * @enum {string}
+             */
+            valueType: "string" | "number" | "boolean" | "enum" | "json" | "secret";
+            /**
+             * @description Allowed option values for enum type variables
+             * @example [
+             *       "innowise",
+             *       "red",
+             *       "blue",
+             *       "purple"
+             *     ]
+             */
+            options?: string[];
+            /**
+             * @description Human-readable description of variable purpose
+             * @example Active UI theme color preset
+             */
+            description?: string;
+            /**
+             * @description Whether this variable is exposed in GET /api/config/public
+             * @example true
+             */
+            isPublic: boolean;
+            /**
+             * @description Whether the value is masked on the frontend (••••••••)
+             * @example false
+             */
+            isSecret: boolean;
+            /**
+             * @description Whether this variable has a custom database override applied
+             * @example false
+             */
+            isOverridden: boolean;
+        };
+        /** @enum {string} */
+        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "AVATAR_UNSUPPORTED_TYPE" | "AVATAR_TOO_LARGE" | "AVATAR_NO_GOOGLE_PICTURE" | "INVALID_CONFIG_VALUE" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
+        ApiErrorResponseDto: {
+            /** @example 400 */
+            statusCode: number;
+            code: components["schemas"]["ApiErrorCode"];
+            /** @example Validation failed */
+            message: string;
+            /**
+             * @example {
+             *       "errors": [
+             *         "email must be an email"
+             *       ]
+             *     }
+             */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** @example /questions/invalid-id */
+            path?: string;
+        };
+        UpsertConfigVariableDto: {
+            /**
+             * @description Variable value as string (numbers and booleans are stored as text)
+             * @example 240
+             */
+            value: string;
+            /**
+             * @description Data type hint for parsing and UI rendering
+             * @default string
+             * @enum {string}
+             */
+            valueType: "string" | "number" | "boolean" | "enum" | "json" | "secret";
+            /**
+             * @description Allowed option values for enum variables
+             * @example [
+             *       "innowise",
+             *       "red",
+             *       "blue",
+             *       "purple"
+             *     ]
+             */
+            options?: string[];
+            /**
+             * @description Whether this variable is exposed to the frontend via GET /config/public
+             * @default false
+             */
+            isPublic: boolean;
+            /**
+             * @description Whether the value is masked in Super Admin list responses
+             * @default false
+             */
+            isSecret: boolean;
+            /**
+             * @description Human-readable English description shown in Super Admin UI
+             * @example Maximum candidate video response recording limit in seconds per question
+             */
+            description?: string;
+        };
         LoginDto: {
             /** @example admin@interview-app.com */
             email: string;
@@ -1282,27 +1453,6 @@ export interface components {
              * @enum {string}
              */
             status?: "completed" | "skipped";
-        };
-        /** @enum {string} */
-        ApiErrorCode: "BAD_REQUEST" | "VALIDATION_ERROR" | "INVALID_LOCALE" | "REGISTRATION_FAILED" | "UPLOAD_FAILED" | "UPLOAD_NOT_ALLOWED" | "ANSWER_ATTEMPT_LIMIT_REACHED" | "ANSWER_VERSION_NOT_RESERVED" | "ANSWER_VERSION_OVERWRITE_FORBIDDEN" | "AVATAR_UNSUPPORTED_TYPE" | "AVATAR_TOO_LARGE" | "AVATAR_NO_GOOGLE_PICTURE" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "CANDIDATE_SESSION_REQUIRED" | "INVALID_CANDIDATE_SESSION" | "INTERVIEW_TOKEN_REQUIRED" | "INVALID_INTERVIEW_TOKEN" | "FORBIDDEN" | "INSUFFICIENT_PERMISSIONS" | "ACCESS_DENIED" | "NOT_FOUND" | "QUESTION_NOT_FOUND" | "INTERVIEW_NOT_FOUND" | "USER_NOT_FOUND" | "FEEDBACK_NOT_FOUND" | "CONFLICT" | "QUESTION_IN_USE" | "VALIDATION_RUNNING" | "QUESTION_DUPLICATE" | "SERVICE_UNAVAILABLE" | "AI_PROVIDER_NOT_CONFIGURED" | "EMBEDDING_PROVIDER_NOT_CONFIGURED" | "INTERNAL_SERVER_ERROR";
-        ApiErrorResponseDto: {
-            /** @example 400 */
-            statusCode: number;
-            code: components["schemas"]["ApiErrorCode"];
-            /** @example Validation failed */
-            message: string;
-            /**
-             * @example {
-             *       "errors": [
-             *         "email must be an email"
-             *       ]
-             *     }
-             */
-            params?: {
-                [key: string]: unknown;
-            };
-            /** @example /questions/invalid-id */
-            path?: string;
         };
         UserProfileResponseDto: {
             /** @example 8d2a6457-7f4b-4cef-9f10-8cff885f7e15 */
@@ -2122,6 +2272,7 @@ export interface components {
             mediaType?: "camera" | "screen";
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
+            fileSizeBytes?: number;
         };
         PresignedUrlResponseDto: {
             uploadUrl: string;
@@ -2132,6 +2283,7 @@ export interface components {
             mediaKey: string;
             /** @description Reserved answer attempt/version being confirmed. */
             versionNumber: number;
+            fileSizeBytes?: number;
         };
         ConfirmUploadResponseDto: {
             mediaKey: string;
@@ -2146,6 +2298,7 @@ export interface components {
             mediaType?: "camera" | "screen";
             /** @description Reserved answer attempt/version being recorded. */
             versionNumber: number;
+            fileSizeBytes?: number;
         };
         MultipartUploadSessionResponseDto: {
             mediaKey: string;
@@ -2253,6 +2406,8 @@ export interface components {
             currentAnswerMeta?: components["schemas"]["CurrentAnswerMetaDto"];
             /** @description Maximum recording attempts per question (MAX_ANSWER_ATTEMPTS_PER_QUESTION). Sole take-response source for FE attempt budget — not duplicated on currentAnswerMeta. */
             maxAttempts: number;
+            /** @description Maximum recording duration in seconds per question (MAX_ANSWER_DURATION_SECONDS). */
+            maxDurationSeconds?: number;
             completed: boolean;
         };
         BehaviorSignalsDto: {
@@ -2674,6 +2829,168 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    PublicConfigController_getPublicConfig: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public configuration dictionary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppConfigController_listAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of all configuration variables */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemConfigEntryDto"][];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AppConfigController_upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Variable key in UPPER_SNAKE_CASE */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertConfigVariableDto"];
+            };
+        };
+        responses: {
+            /** @description The saved variable record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemConfigEntryDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AppConfigController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Response language for localized content. Defaults to `en` when omitted. */
+                "X-Locale"?: "en" | "be" | "ru" | "pl";
+            };
+            path: {
+                /** @description Variable key to reset */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Variable deleted successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponseDto"];
+                };
+            };
+        };
+    };
     AuthController_login: {
         parameters: {
             query?: never;

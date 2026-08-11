@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiConflict, apiServiceUnavailable } from '../common/errors/api-error';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   BadRequestException,
   Injectable,
@@ -107,6 +108,7 @@ export class AnswerValidationWorkflowService
   constructor(
     private readonly interviewService: InterviewService,
     private readonly databaseService: DatabaseService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -175,11 +177,18 @@ export class AnswerValidationWorkflowService
     );
   }
 
-  startValidation(
+  async startValidation(
     interviewId: string,
     questionIndex: number,
     force = false,
   ): Promise<StartAnswerValidationResult> {
+    const enabled = await this.appConfig.getBoolean('ENABLE_AI_ANSWER_VALIDATION', true);
+    if (!enabled) {
+      this.logger.log(
+        `AI answer validation skipped for interview ${interviewId} q${questionIndex}: disabled via runtime config`,
+      );
+      return { status: 'idle', questionIndex, sourceVersionNumber: 0, reused: false };
+    }
     return this.dispatchValidation(interviewId, questionIndex, force);
   }
 
@@ -187,6 +196,14 @@ export class AnswerValidationWorkflowService
     interviewId: string,
     force = false,
   ): Promise<StartAllAnswerValidationsResult> {
+    const enabled = await this.appConfig.getBoolean('ENABLE_AI_ANSWER_VALIDATION', true);
+    if (!enabled) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
+        'AI answer validation is currently disabled via runtime configuration.',
+      );
+    }
+
     if (!resolveNativeProvider()) {
       throw apiServiceUnavailable(
         ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,
