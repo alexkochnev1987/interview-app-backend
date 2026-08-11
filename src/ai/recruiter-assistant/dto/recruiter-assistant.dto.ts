@@ -215,6 +215,24 @@ export class RecruiterAssistantCreatedQuestionDto {
   href: string;
 }
 
+export class RecruiterAssistantSimilarQuestionDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({
+    description: 'Similarity score from 0 to 1 (e.g. 0.85 = 85% match).',
+    minimum: 0,
+    maximum: 1,
+  })
+  score: number;
+
+  @ApiProperty({ description: 'Frontend route when the similar question card is clicked.' })
+  href: string;
+}
+
 export class RecruiterAssistantRedirectDto {
   @ApiProperty({ example: '/interviews/new' })
   path: string;
@@ -231,6 +249,7 @@ export type RecruiterAssistantAwaitingInput =
   | 'hr'
   | 'interview'
   | 'questionName'
+  | 'confirmAddDespiteSimilar'
   | 'candidateName'
   | 'position'
   | 'templateChoice';
@@ -283,6 +302,13 @@ export class RecruiterAssistantResponseDto {
   suggestedQuestions?: RecruiterAssistantSuggestedQuestionDto[];
 
   @ApiPropertyOptional({
+    type: [RecruiterAssistantSimilarQuestionDto],
+    description:
+      'Existing questions with high similarity during create_question flow (clickable cards).',
+  })
+  similarQuestions?: RecruiterAssistantSimilarQuestionDto[];
+
+  @ApiPropertyOptional({
     oneOf: [
       { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
       { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
@@ -310,7 +336,15 @@ export class RecruiterAssistantResponseDto {
   templates?: TemplateSummaryResponseDto[];
 
   @ApiPropertyOptional({
-    enum: ['hr', 'interview', 'questionName', 'candidateName', 'position', 'templateChoice'],
+    enum: [
+      'hr',
+      'interview',
+      'questionName',
+      'confirmAddDespiteSimilar',
+      'candidateName',
+      'position',
+      'templateChoice',
+    ],
   })
   awaitingInput?: RecruiterAssistantAwaitingInput;
 
@@ -341,6 +375,7 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
   RecruiterAssistantCreatedQuestionDto,
+  RecruiterAssistantSimilarQuestionDto,
   RecruiterAssistantRedirectDto,
   TemplateSummaryResponseDto,
   InterviewListItemDto,
