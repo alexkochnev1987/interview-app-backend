@@ -6,6 +6,7 @@ import { RecruiterAssistantSuggestedQuestionDto } from './dto/recruiter-assistan
 import { ActingUser } from './recruiter-assistant.types';
 
 const SIMILARITY_ACCEPTANCE_SCORE = 0.72;
+const SIMILARITY_LIST_THRESHOLD = 0.8;
 
 @Injectable()
 export class RecruiterQuestionMatcherService {
@@ -30,6 +31,37 @@ export class RecruiterQuestionMatcherService {
         };
       }),
     );
+  }
+
+  async findSimilarMatchesOverThreshold(
+    questionText: string,
+    user: ActingUser,
+    locale: Locale,
+    limit = 10,
+  ): Promise<SimilarQuestionMatch[]> {
+    const trimmed = questionText.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const matches = await this.questionService.findSimilar(
+        { questionText: trimmed },
+        limit,
+        undefined,
+        locale,
+        user.demo,
+      );
+      const overThreshold = matches.filter((m) => m.score >= SIMILARITY_LIST_THRESHOLD);
+      if (overThreshold.length > 0) {
+        return overThreshold;
+      }
+      const literal = await this.findLiteralMatchByText(trimmed, user.demo, locale);
+      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD ? [literal] : [];
+    } catch {
+      const literal = await this.findLiteralMatchByText(trimmed, user.demo, locale);
+      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD ? [literal] : [];
+    }
   }
 
   private async findBestMatch(
@@ -62,9 +94,17 @@ export class RecruiterQuestionMatcherService {
     demo: boolean,
     locale: Locale,
   ): Promise<SimilarQuestionMatch | null> {
+    return this.findLiteralMatchByText(question.questionText, demo, locale);
+  }
+
+  private async findLiteralMatchByText(
+    questionText: string,
+    demo: boolean,
+    locale: Locale,
+  ): Promise<SimilarQuestionMatch | null> {
     const results = await this.questionService.findAll(
       {
-        q: question.questionText,
+        q: questionText,
         locale,
         limit: 10,
         page: 1,
@@ -72,7 +112,7 @@ export class RecruiterQuestionMatcherService {
       },
       { forceActive: true, resolveLocale: locale, demo },
     );
-    const normalizedText = normalizeForComparison(question.questionText);
+    const normalizedText = normalizeForComparison(questionText);
     const match = results.items.find(
       (item) => normalizeForComparison(item.questionText) === normalizedText,
     );
