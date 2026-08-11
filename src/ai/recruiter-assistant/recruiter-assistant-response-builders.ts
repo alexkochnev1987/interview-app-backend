@@ -1,7 +1,9 @@
 import {
   RecruiterAssistantCreatedQuestionDto,
   RecruiterAssistantRedirectDto,
+  RecruiterAssistantSimilarQuestionDto,
 } from './dto/recruiter-assistant.dto';
+import { SimilarQuestionMatch } from '../../question/interfaces/question.interface';
 
 export function buildCreatedQuestionCard(input: {
   id: string;
@@ -12,6 +14,31 @@ export function buildCreatedQuestionCard(input: {
     questionText: input.questionText,
     href: `/questions/${input.id}`,
   };
+}
+
+export function buildSimilarQuestionMatchCard(input: {
+  id: string;
+  questionText: string;
+  score: number;
+}): RecruiterAssistantSimilarQuestionDto {
+  return {
+    id: input.id,
+    questionText: input.questionText,
+    score: input.score,
+    href: `/questions/${input.id}`,
+  };
+}
+
+export function buildSimilarQuestionMatchCards(
+  matches: SimilarQuestionMatch[],
+): RecruiterAssistantSimilarQuestionDto[] {
+  return matches.map((match) =>
+    buildSimilarQuestionMatchCard({
+      id: match.question.id,
+      questionText: match.question.questionText,
+      score: match.score,
+    }),
+  );
 }
 
 export function buildInterviewRedirect(input: {
