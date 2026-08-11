@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
   apiBadRequest,
@@ -16,6 +16,7 @@ import {
 import { DatabaseService } from '../database/database.service';
 import { prepareQuestionForEvaluation } from '../interview/prepare-evaluation-question';
 import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   Answer,
   AnswerBehaviorSignals,
@@ -86,6 +87,7 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
   constructor(
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly databaseService: DatabaseService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -130,6 +132,12 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interview: Interview,
     questionIndex: number,
   ): Promise<CandidateFeedbackQuestionBlockDto> {
+    if (await this.appConfig?.getBoolean('AI_CANDIDATE_FEEDBACK', true) === false) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'AI candidate feedback generation is currently disabled via runtime config.',
+      );
+    }
     const provider = this.requireProvider();
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
 
@@ -198,6 +206,12 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
 
     const feedback = await this.requireFeedback(interview.id);
+    if (await this.appConfig?.getBoolean('AI_CANDIDATE_FEEDBACK', true) === false) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'AI candidate feedback generation is currently disabled via runtime config.',
+      );
+    }
     if (this.hasActiveGeneration(feedback)) {
       throw apiConflict(
         ApiErrorCode.CONFLICT,

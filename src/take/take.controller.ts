@@ -38,6 +38,7 @@ import {
   CANDIDATE_SESSION_COOKIE,
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
+import { AppConfigService } from '../app-config/app-config.service';
 import {
   FinalizeAnswerAttemptDto,
   FinalizeTakeAnswerResponseDto,
@@ -51,9 +52,10 @@ import {
   TakeInterviewResponseDto,
 } from './dto/take.responses.dto';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { apiBadRequest } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 import { buildCurrentAnswerMeta } from './take-answer-meta';
-import { resolveMaxAnswerAttemptsPerQuestion } from '../interview/answer-attempt-rules';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -67,7 +69,8 @@ export class TakeController {
     private readonly interviewService: InterviewService,
     private readonly authService: AuthService,
     private readonly answerValidationWorkflowService: AnswerValidationWorkflowService,
-  ) {}
+    private readonly appConfig: AppConfigService,
+  ) { }
 
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
@@ -115,7 +118,8 @@ export class TakeController {
 
     const interview = await this.interviewService.findOne(id);
     const takeContentLocale = resolveTakeContentLocale(contentLocale, interview);
-    const maxAttempts = resolveMaxAnswerAttemptsPerQuestion();
+    const maxAttempts = await this.appConfig.getNumber('MAX_ANSWER_ATTEMPTS_PER_QUESTION', 3);
+    const maxDurationSeconds = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -138,6 +142,7 @@ export class TakeController {
         currentQuestionIndex: answeredCount,
         currentAnswerMeta: null,
         maxAttempts,
+        maxDurationSeconds,
         completed: true,
       };
     }
@@ -185,6 +190,22 @@ export class TakeController {
     );
     if (tokenMismatch) {
       throw new BadRequestException(tokenMismatch);
+    }
+
+    await this.assertMediaFileSizeBytes(body.cameraFileSizeBytes);
+    await this.assertMediaFileSizeBytes(body.screenFileSizeBytes);
+
+    if (typeof body.durationSeconds === 'number') {
+      if (body.durationSeconds <= 0) {
+        throw new BadRequestException('Answer recording duration must be greater than 0 seconds.');
+      }
+      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
+      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
+      if (body.durationSeconds > maxAllowed) {
+        throw new BadRequestException(
+          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
+        );
+      }
     }
 
     const updated = await this.interviewService.addAnswer(id, body);
@@ -266,6 +287,22 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
+    await this.assertMediaFileSizeBytes(body.cameraFileSizeBytes);
+    await this.assertMediaFileSizeBytes(body.screenFileSizeBytes);
+
+    if (typeof body.durationSeconds === 'number') {
+      if (body.durationSeconds <= 0) {
+        throw new BadRequestException('Answer recording duration must be greater than 0 seconds.');
+      }
+      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
+      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
+      if (body.durationSeconds > maxAllowed) {
+        throw new BadRequestException(
+          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
+        );
+      }
+    }
+
     const updated = await this.interviewService.saveAnswerProgress(id, body);
     const currentAnswer = updated.answers.find(
       (answer) => answer.questionIndex === body.questionIndex,
@@ -340,4 +377,17 @@ export class TakeController {
     };
   }
 
+  private async assertMediaFileSizeBytes(fileSizeBytes?: number): Promise<void> {
+    if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
+      const maxMb = await this.appConfig.getNumber('MAX_MEDIA_FILE_SIZE_MB', 100);
+      const maxBytes = maxMb * 1024 * 1024;
+      if (fileSizeBytes > maxBytes) {
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_NOT_ALLOWED,
+          `Media file size (${(fileSizeBytes / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of ${maxMb}MB.`,
+          { maxMb, fileSizeBytes },
+        );
+      }
+    }
+  }
 }

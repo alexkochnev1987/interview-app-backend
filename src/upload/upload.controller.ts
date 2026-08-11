@@ -59,6 +59,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 
@@ -77,6 +78,7 @@ export class UploadController {
       dto.questionIndex,
       dto.mediaKey,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 
@@ -96,6 +98,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { AppConfigService } from '../app-config/app-config.service';
 import { Locale } from '../locale/locale.constants';
 import { resolveDraftLocale } from './resolve-draft-locale';
 import { QuestionDraftInput } from '../question/question-draft-input';
@@ -67,6 +68,8 @@ function isAiDebugEnabled(): boolean {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+
+  constructor(@Optional() private readonly appConfig?: AppConfigService) {}
 
   async rephrase(question: string): Promise<string> {
     const aiUrl = process.env.AI_API_URL?.trim();
