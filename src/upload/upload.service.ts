@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import {
@@ -44,6 +44,7 @@ export interface PresignedDownloadUrlResponse {
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
   private readonly s3Client: S3Client;
   private readonly bucket: string;
   private readonly prefix: string;
@@ -332,8 +333,23 @@ export class UploadService {
       if (typeof head.ContentLength === 'number' && head.ContentLength > 0) {
         actualSizeBytes = head.ContentLength;
       }
-    } catch {
-      // Fallback to client-provided fileSizeBytes if HeadObject fails or in mock S3 env
+    } catch (error) {
+      if (process.env.S3_ENDPOINT) {
+        // Mock S3 (MinIO/LocalStack) — HeadObject may not work correctly, fall back to client size
+        this.logger.warn(
+          `HeadObject failed for ${mediaKey} in mock S3 env, falling back to client-provided size (${options?.fileSizeBytes ?? 'unknown'} bytes)`,
+        );
+      } else {
+        this.logger.error(
+          `HeadObject failed for ${mediaKey}, rejecting upload confirmation to prevent size limit bypass`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_FAILED,
+          'Unable to verify uploaded file size. Please try again.',
+          { mediaKey },
+        );
+      }
     }
     await this.assertFileSizeBytesWithinLimit(actualSizeBytes);
 
