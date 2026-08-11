@@ -32,9 +32,12 @@ describe('RecruiterAssistantToolsService create question flow', () => {
   const conversationStore = { update: jest.fn() };
   const pendingActionStore = { issue: jest.fn().mockReturnValue('pending-1') };
   const aiService = { draftQuestion: jest.fn().mockResolvedValue(draft) };
+  const questionMatcher = {
+    findSimilarMatchesOverThreshold: jest.fn().mockResolvedValue([]),
+  };
 
   const service = new RecruiterAssistantToolsService(
-    {} as RecruiterQuestionMatcherService,
+    questionMatcher as unknown as RecruiterQuestionMatcherService,
     {} as never,
     {} as never,
     {} as never,
@@ -48,6 +51,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     aiService.draftQuestion.mockResolvedValue(draft);
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([]);
   });
 
   it('asks for a question name when missing', async () => {
@@ -91,5 +95,54 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     );
 
     expect(response.status).toBe('needs_confirmation');
+  });
+
+  it('returns similar questions when matches are found', async () => {
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([
+      {
+        question: { id: 'q1', questionText: 'Explain React hooks.' },
+        score: 0.9,
+        reasons: [],
+      },
+    ]);
+
+    const response = await service.prepareCreateQuestion(
+      'React hooks',
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(aiService.draftQuestion).not.toHaveBeenCalled();
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
+    });
+  });
+
+  it('drafts after user confirms despite similar matches', async () => {
+    const response = await service.continueCreateQuestionDespiteSimilar(
+      {
+        flow: 'create_question',
+        slots: { questionName: 'React hooks' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(aiService.draftQuestion).toHaveBeenCalled();
+    expect(response).toMatchObject({
+      status: 'needs_confirmation',
+      pendingActionId: 'pending-1',
+    });
   });
 });
