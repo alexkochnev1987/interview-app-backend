@@ -22,13 +22,11 @@ on:
 permissions:
   contents: read
 
-# Automatically cancel previous runs for the same PR/branch on new push
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
+    concurrency:
+      group: test-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -95,6 +93,9 @@ jobs:
   deploy-lightsail:
     needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    concurrency:
+      group: deploy-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     env:
