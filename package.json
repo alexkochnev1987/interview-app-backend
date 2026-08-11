@@ -84,7 +84,8 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "oxlint -f unix"
+      "oxfmt --write --no-error-on-unmatched-pattern",
+      "oxlint --no-error-on-unmatched-pattern"
     ]
   }
 }
