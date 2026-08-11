@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { AppConfigService } from './app-config.service';
+import { RecruiterAssistantConfigService } from './recruiter-assistant-config.service';
 import {
   AppConfigController,
   PublicConfigController,
@@ -10,7 +11,7 @@ import { DatabaseModule } from '../database/database.module';
 @Module({
   imports: [DatabaseModule],
   controllers: [PublicConfigController, AppConfigController],
-  providers: [AppConfigService],
-  exports: [AppConfigService],
+  providers: [AppConfigService, RecruiterAssistantConfigService],
+  exports: [AppConfigService, RecruiterAssistantConfigService],
 })
 export class AppConfigModule {}
