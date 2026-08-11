@@ -293,7 +293,7 @@ export class AppConfigService implements OnModuleInit {
     );
     this.cache.delete(key);
     this.allCache = null;
-    return (rowCount ?? 0) > 0 || key in SYSTEM_CONFIG_DEFAULTS;
+    return (rowCount ?? 0) > 0;
   }
 
   // ---------------------------------------------------------------------------

@@ -1,3 +1,6 @@
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -10,23 +13,8 @@ import {
   UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  forwardRef,
-} from '@nestjs/common';
-
-import { AppConfigService } from '../app-config/app-config.service';
-import { apiBadRequest, apiConflict } from '../common/errors/api-error';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import {
-  getAnswerAttemptLimitBlockReason,
-  getAnswerVersionNotReservedBlockReason,
-  getAnswerVersionOverwriteBlockReason,
-  getSavedAnswerVersions,
-} from '../interview/answer-attempt-rules';
 import { InterviewService } from '../interview/interview.service';
+import { MediaCleanupService } from './media-cleanup.service';
 import {
   ConfirmUploadResponseDto,
   MultipartUploadAbortResponseDto,
@@ -35,13 +23,19 @@ import {
   MultipartUploadSessionResponseDto,
   PresignedUrlResponseDto,
 } from './dto/upload.responses.dto';
-import { MediaCleanupService } from './media-cleanup.service';
 import {
   buildInterviewMediaKey,
   InterviewMediaType,
   matchesInterviewMediaKey,
   resolveVersionMediaKeyForArtifact,
 } from './upload-key';
+import {
+  getAnswerAttemptLimitBlockReason,
+  getAnswerVersionNotReservedBlockReason,
+  getAnswerVersionOverwriteBlockReason,
+  getSavedAnswerVersions,
+} from '../interview/answer-attempt-rules';
+import { AppConfigService } from '../app-config/app-config.service';
 
 export interface PresignedDownloadUrlResponse {
   downloadUrl: string;
@@ -50,6 +44,7 @@ export interface PresignedDownloadUrlResponse {
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
   private readonly s3Client: S3Client;
   private readonly bucket: string;
   private readonly prefix: string;
@@ -238,18 +233,13 @@ export class UploadService {
     );
 
     const rawParts = listPartsResponse.Parts ?? [];
-    const totalSizeBytes = rawParts.reduce(
-      (acc, part) => acc + (part?.Size ?? 0),
-      0,
-    );
+    const totalSizeBytes = rawParts.reduce((acc, part) => acc + (part?.Size ?? 0), 0);
     if (totalSizeBytes > 0) {
       await this.assertFileSizeBytesWithinLimit(totalSizeBytes);
     }
 
     const parts = rawParts
-      .filter(
-        (part) => Boolean(part?.ETag) && typeof part?.PartNumber === 'number',
-      )
+      .filter((part) => Boolean(part?.ETag) && typeof part?.PartNumber === 'number')
       .map((part) => ({
         ETag: part!.ETag!,
         PartNumber: part!.PartNumber!,
@@ -343,8 +333,23 @@ export class UploadService {
       if (typeof head.ContentLength === 'number' && head.ContentLength > 0) {
         actualSizeBytes = head.ContentLength;
       }
-    } catch {
-      // Fallback to client-provided fileSizeBytes if HeadObject fails or in mock S3 env
+    } catch (error) {
+      if (process.env.S3_ENDPOINT) {
+        // Mock S3 (MinIO/LocalStack) — HeadObject may not work correctly, fall back to client size
+        this.logger.warn(
+          `HeadObject failed for ${mediaKey} in mock S3 env, falling back to client-provided size (${options?.fileSizeBytes ?? 'unknown'} bytes)`,
+        );
+      } else {
+        this.logger.error(
+          `HeadObject failed for ${mediaKey}, rejecting upload confirmation to prevent size limit bypass`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw apiBadRequest(
+          ApiErrorCode.UPLOAD_FAILED,
+          'Unable to verify uploaded file size. Please try again.',
+          { mediaKey },
+        );
+      }
     }
     await this.assertFileSizeBytesWithinLimit(actualSizeBytes);
 
@@ -473,10 +478,7 @@ export class UploadService {
 
   async assertFileSizeBytesWithinLimit(fileSizeBytes?: number): Promise<void> {
     if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
-      const maxMb = await this.appConfig.getNumber(
-        'MAX_MEDIA_FILE_SIZE_MB',
-        100,
-      );
+      const maxMb = await this.appConfig.getNumber('MAX_MEDIA_FILE_SIZE_MB', 100);
       const maxBytes = maxMb * 1024 * 1024;
       if (fileSizeBytes > maxBytes) {
         throw apiBadRequest(
