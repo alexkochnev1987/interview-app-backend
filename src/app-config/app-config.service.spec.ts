@@ -186,6 +186,7 @@ describe('AppConfigService', () => {
         ENABLE_FEEDBACK_SHARE_LINKS: true,
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
+        RECRUITER_ASSISTANT_ENABLED: true,
         ENABLE_AI_ASSISTANT: true,
       });
       expect(publicVars.PRIVATE_SETTING).toBeUndefined();
