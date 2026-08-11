@@ -24,7 +24,11 @@ async function generateOpenApi(): Promise<void> {
     const document = createOpenApiDocument(app);
     const outputPath = resolve(process.cwd(), 'openapi', 'openapi.json');
     await mkdir(resolve(process.cwd(), 'openapi'), { recursive: true });
-    await writeFile(outputPath, JSON.stringify(document, null, 2), 'utf8');
+    await writeFile(
+      outputPath,
+      JSON.stringify(document, null, 2) + '\n',
+      'utf8',
+    );
     // eslint-disable-next-line no-console
     console.log(`OpenAPI spec generated at ${outputPath}`);
   } finally {

@@ -19,6 +19,6 @@
     "coverage/**",
     ".github",
     ".idea",
-    "openapi/generated/**"
+    "openapi/**"
   ]
 }

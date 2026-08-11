@@ -14,7 +14,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -24,7 +29,9 @@
             "description": "Public configuration dictionary"
           }
         },
-        "tags": ["config"]
+        "tags": [
+          "config"
+        ]
       }
     },
     "/config": {
@@ -40,7 +47,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -80,7 +92,9 @@
             }
           }
         },
-        "tags": ["config"],
+        "tags": [
+          "config"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -110,7 +124,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -167,7 +186,9 @@
             }
           }
         },
-        "tags": ["config"],
+        "tags": [
+          "config"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -195,7 +216,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -235,7 +261,9 @@
             }
           }
         },
-        "tags": ["config"],
+        "tags": [
+          "config"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -255,7 +283,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -288,7 +321,9 @@
             "description": "Too many login attempts"
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/demo": {
@@ -303,7 +338,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -326,7 +366,9 @@
             "description": "Demo access is not available"
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/register": {
@@ -341,7 +383,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -368,7 +415,9 @@
             }
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/google": {
@@ -383,7 +432,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -393,7 +447,9 @@
             "description": "Redirects to Google OAuth consent screen"
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/google/callback": {
@@ -408,7 +464,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -418,7 +479,9 @@
             "description": "Sets session cookie and redirects to frontend"
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/logout": {
@@ -433,7 +496,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -450,7 +518,9 @@
             }
           }
         },
-        "tags": ["auth"]
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/me": {
@@ -465,7 +535,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -485,7 +560,9 @@
             "description": "Missing or invalid session cookie"
           }
         },
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -506,7 +583,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -536,7 +618,9 @@
             "description": "Missing or invalid session cookie"
           }
         },
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -575,7 +659,12 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": ["super_admin", "admin", "hr", "candidate"],
+              "enum": [
+                "super_admin",
+                "admin",
+                "hr",
+                "candidate"
+              ],
               "type": "string"
             }
           },
@@ -586,7 +675,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -616,7 +710,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -644,7 +740,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -681,7 +782,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -707,7 +810,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -784,7 +892,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -810,7 +920,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -850,7 +965,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -878,7 +995,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -915,7 +1037,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -936,7 +1060,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -973,7 +1102,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -993,7 +1124,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1030,7 +1166,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1050,7 +1188,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1087,7 +1230,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1107,7 +1252,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1134,7 +1284,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1154,7 +1306,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1181,7 +1338,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1209,7 +1368,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1229,7 +1393,9 @@
             }
           }
         },
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1257,7 +1423,11 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": ["easy", "medium", "hard"],
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ],
               "type": "string"
             }
           },
@@ -1304,7 +1474,12 @@
             "in": "query",
             "description": "Filter by canonical question locale (primary_locale).",
             "schema": {
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -1324,7 +1499,12 @@
             "in": "query",
             "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
             "schema": {
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -1335,7 +1515,12 @@
             "description": "Non-super_admin callers are forced to \"active\" regardless of what they pass.",
             "schema": {
               "default": "active",
-              "enum": ["active", "inactive", "all", "scheduled"],
+              "enum": [
+                "active",
+                "inactive",
+                "all",
+                "scheduled"
+              ],
               "type": "string"
             }
           },
@@ -1361,7 +1546,10 @@
             "in": "query",
             "schema": {
               "default": "desc",
-              "enum": ["asc", "desc"],
+              "enum": [
+                "asc",
+                "desc"
+              ],
               "type": "string"
             }
           },
@@ -1412,7 +1600,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1439,7 +1632,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1458,7 +1653,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1515,7 +1715,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1659,7 +1861,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1687,7 +1891,11 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": ["easy", "medium", "hard"],
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ],
               "type": "string"
             }
           },
@@ -1734,7 +1942,12 @@
             "in": "query",
             "description": "Filter by canonical question locale (primary_locale).",
             "schema": {
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -1754,7 +1967,12 @@
             "in": "query",
             "description": "Filter: `primaryLocale === locale` OR non-empty `translations[locale].questionText`. When set, each list item resolves `questionText` and rubric for this locale (with primary fallback). When omitted, items follow `X-Locale` (default `en`).",
             "schema": {
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -1765,7 +1983,12 @@
             "description": "Non-super_admin callers are forced to \"active\" regardless of what they pass.",
             "schema": {
               "default": "active",
-              "enum": ["active", "inactive", "all", "scheduled"],
+              "enum": [
+                "active",
+                "inactive",
+                "all",
+                "scheduled"
+              ],
               "type": "string"
             }
           },
@@ -1791,7 +2014,10 @@
             "in": "query",
             "schema": {
               "default": "desc",
-              "enum": ["asc", "desc"],
+              "enum": [
+                "asc",
+                "desc"
+              ],
               "type": "string"
             }
           },
@@ -1842,7 +2068,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1869,7 +2100,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1907,7 +2140,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -1944,7 +2182,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -1971,7 +2211,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2038,7 +2283,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2065,7 +2312,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2132,7 +2384,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2158,7 +2412,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2205,7 +2464,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2226,7 +2487,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2273,7 +2539,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2294,7 +2562,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2351,7 +2624,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2388,7 +2663,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2435,7 +2715,9 @@
             }
           }
         },
-        "tags": ["questions"],
+        "tags": [
+          "questions"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2455,7 +2737,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2502,7 +2789,9 @@
             }
           }
         },
-        "tags": ["ai"],
+        "tags": [
+          "ai"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -2522,7 +2811,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2569,7 +2863,9 @@
             }
           }
         },
-        "tags": ["ai"],
+        "tags": [
+          "ai"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -2819,7 +3115,9 @@
             }
           }
         },
-        "tags": ["ai"],
+        "tags": [
+          "ai"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2840,7 +3138,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2880,7 +3183,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2899,7 +3204,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -2956,7 +3266,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -2985,7 +3297,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3032,7 +3349,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3058,7 +3377,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3125,7 +3449,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3151,7 +3477,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3218,7 +3549,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3244,7 +3577,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3291,7 +3629,9 @@
             }
           }
         },
-        "tags": ["templates"],
+        "tags": [
+          "templates"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3312,7 +3652,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3369,7 +3714,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3447,7 +3794,11 @@
             "in": "query",
             "schema": {
               "default": "updatedAt",
-              "enum": ["candidateName", "createdAt", "updatedAt"],
+              "enum": [
+                "candidateName",
+                "createdAt",
+                "updatedAt"
+              ],
               "type": "string"
             }
           },
@@ -3457,7 +3808,10 @@
             "in": "query",
             "schema": {
               "default": "desc",
-              "enum": ["asc", "desc"],
+              "enum": [
+                "asc",
+                "desc"
+              ],
               "type": "string"
             }
           },
@@ -3489,7 +3843,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3516,7 +3875,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3579,7 +3940,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3606,7 +3972,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3635,7 +4003,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3672,7 +4045,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3698,7 +4073,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3755,7 +4135,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3782,7 +4164,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3849,7 +4236,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3877,7 +4266,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3914,7 +4308,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -3942,7 +4338,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -3999,7 +4400,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4028,7 +4431,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4065,7 +4473,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4102,7 +4512,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4159,7 +4574,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4204,7 +4621,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4271,7 +4693,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4300,7 +4724,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4347,7 +4776,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4376,7 +4807,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4423,7 +4859,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4443,7 +4881,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4490,7 +4933,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4510,7 +4955,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4557,7 +5007,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4577,7 +5029,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4624,7 +5081,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4644,7 +5103,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4691,7 +5155,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4711,7 +5177,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4758,7 +5229,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4778,7 +5251,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4825,7 +5303,9 @@
             }
           }
         },
-        "tags": ["upload"],
+        "tags": [
+          "upload"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -4861,7 +5341,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -4918,7 +5403,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -4954,7 +5441,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5011,7 +5503,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -5047,7 +5541,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5084,7 +5583,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -5104,7 +5605,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5121,7 +5627,9 @@
             }
           }
         },
-        "tags": ["health"]
+        "tags": [
+          "health"
+        ]
       }
     },
     "/take/{id}": {
@@ -5152,7 +5660,12 @@
             "in": "query",
             "description": "Candidate UI language for currentQuestion. Omit to use interviewLocale.",
             "schema": {
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "type": "string"
             }
           },
@@ -5163,7 +5676,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5210,7 +5728,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5238,7 +5758,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5295,7 +5820,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5323,7 +5850,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5380,7 +5912,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5408,7 +5942,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5465,7 +6004,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5493,7 +6034,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5550,7 +6096,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5586,7 +6134,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5633,7 +6186,9 @@
             }
           }
         },
-        "tags": ["take"],
+        "tags": [
+          "take"
+        ],
         "security": [
           {
             "candidateSessionAuth": []
@@ -5654,7 +6209,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5711,7 +6271,9 @@
             }
           }
         },
-        "tags": ["ai"],
+        "tags": [
+          "ai"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -5731,7 +6293,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5768,7 +6335,9 @@
             }
           }
         },
-        "tags": ["ai"],
+        "tags": [
+          "ai"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -5798,7 +6367,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5825,7 +6399,9 @@
             }
           }
         },
-        "tags": ["feedback"]
+        "tags": [
+          "feedback"
+        ]
       }
     },
     "/feedback/{id}": {
@@ -5859,7 +6435,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5886,7 +6467,9 @@
             }
           }
         },
-        "tags": ["feedback"]
+        "tags": [
+          "feedback"
+        ]
       }
     },
     "/interviews/{id}/feedback-link": {
@@ -5910,7 +6493,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5937,7 +6525,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -5964,7 +6554,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -5984,7 +6579,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6014,7 +6611,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6061,7 +6663,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6089,7 +6693,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6156,7 +6765,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6186,7 +6797,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6233,7 +6849,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6261,7 +6879,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6308,7 +6931,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6336,7 +6961,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6353,7 +6983,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["revoked"]
+                  "required": [
+                    "revoked"
+                  ]
                 }
               }
             }
@@ -6389,7 +7021,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6418,7 +7052,9 @@
             "in": "query",
             "description": "Generation scope. MVP supports only `all`.",
             "schema": {
-              "enum": ["all"],
+              "enum": [
+                "all"
+              ],
               "type": "string"
             }
           },
@@ -6429,7 +7065,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6496,7 +7137,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6535,7 +7178,12 @@
             "description": "Response language for localized content. Defaults to `en` when omitted.",
             "schema": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"],
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
               "default": "en"
             }
           }
@@ -6602,7 +7250,9 @@
             }
           }
         },
-        "tags": ["interviews"],
+        "tags": [
+          "interviews"
+        ],
         "security": [
           {
             "sessionAuth": []
@@ -6649,12 +7299,24 @@
           "valueType": {
             "type": "string",
             "description": "Data type hint for parsing and UI rendering",
-            "enum": ["string", "number", "boolean", "enum", "json", "secret"],
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum",
+              "json",
+              "secret"
+            ],
             "example": "enum"
           },
           "options": {
             "description": "Allowed option values for enum type variables",
-            "example": ["innowise", "red", "blue", "purple"],
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
             "type": "array",
             "items": {
               "type": "string"
@@ -6749,7 +7411,9 @@
             "type": "object",
             "additionalProperties": true,
             "example": {
-              "errors": ["email must be an email"]
+              "errors": [
+                "email must be an email"
+              ]
             }
           },
           "path": {
@@ -6757,7 +7421,11 @@
             "example": "/questions/invalid-id"
           }
         },
-        "required": ["statusCode", "code", "message"]
+        "required": [
+          "statusCode",
+          "code",
+          "message"
+        ]
       },
       "UpsertConfigVariableDto": {
         "type": "object",
@@ -6770,12 +7438,24 @@
           "valueType": {
             "type": "string",
             "description": "Data type hint for parsing and UI rendering",
-            "enum": ["string", "number", "boolean", "enum", "json", "secret"],
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "enum",
+              "json",
+              "secret"
+            ],
             "default": "string"
           },
           "options": {
             "description": "Allowed option values for enum variables",
-            "example": ["innowise", "red", "blue", "purple"],
+            "example": [
+              "innowise",
+              "red",
+              "blue",
+              "purple"
+            ],
             "type": "array",
             "items": {
               "type": "string"
@@ -6797,7 +7477,9 @@
             "example": "Maximum candidate video response recording limit in seconds per question"
           }
         },
-        "required": ["value"]
+        "required": [
+          "value"
+        ]
       },
       "LoginDto": {
         "type": "object",
@@ -6811,7 +7493,10 @@
             "example": "admin123"
           }
         },
-        "required": ["email", "password"]
+        "required": [
+          "email",
+          "password"
+        ]
       },
       "AuthUserResponseDto": {
         "type": "object",
@@ -6850,7 +7535,10 @@
           },
           "onboardingStatus": {
             "type": "string",
-            "enum": ["completed", "skipped"],
+            "enum": [
+              "completed",
+              "skipped"
+            ],
             "description": "How the staff onboarding tour was dismissed."
           },
           "createdAt": {
@@ -6865,7 +7553,11 @@
           },
           "avatarSource": {
             "type": "string",
-            "enum": ["none", "google", "upload"]
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
           },
           "hasGoogleAvatar": {
             "type": "boolean",
@@ -6897,7 +7589,11 @@
             "type": "string"
           }
         },
-        "required": ["email", "name", "password"]
+        "required": [
+          "email",
+          "name",
+          "password"
+        ]
       },
       "LogoutResponseDto": {
         "type": "object",
@@ -6907,14 +7603,19 @@
             "example": true
           }
         },
-        "required": ["ok"]
+        "required": [
+          "ok"
+        ]
       },
       "CompleteOnboardingDto": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["completed", "skipped"],
+            "enum": [
+              "completed",
+              "skipped"
+            ],
             "example": "completed"
           }
         }
@@ -6945,7 +7646,11 @@
             "description": "Absolute Google photo URL, a relative /users/{id}/avatar proxy path for a custom upload, or absent when no picture is set."
           }
         },
-        "required": ["id", "name", "role"]
+        "required": [
+          "id",
+          "name",
+          "role"
+        ]
       },
       "UpdateUserDto": {
         "type": "object",
@@ -6965,10 +7670,17 @@
         "properties": {
           "role": {
             "type": "string",
-            "enum": ["super_admin", "admin", "hr", "candidate"]
+            "enum": [
+              "super_admin",
+              "admin",
+              "hr",
+              "candidate"
+            ]
           }
         },
-        "required": ["role"]
+        "required": [
+          "role"
+        ]
       },
       "DemoProvisionCountsDto": {
         "type": "object",
@@ -6986,7 +7698,11 @@
             "example": 1
           }
         },
-        "required": ["users", "questions", "interviews"]
+        "required": [
+          "users",
+          "questions",
+          "interviews"
+        ]
       },
       "DemoProvisionResponseDto": {
         "type": "object",
@@ -6998,14 +7714,21 @@
             "$ref": "#/components/schemas/DemoProvisionCountsDto"
           }
         },
-        "required": ["user", "counts"]
+        "required": [
+          "user",
+          "counts"
+        ]
       },
       "AvatarPresignRequestDto": {
         "type": "object",
         "properties": {
           "contentType": {
             "type": "string",
-            "enum": ["image/jpeg", "image/png", "image/webp"]
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
           },
           "fileSizeBytes": {
             "type": "number",
@@ -7013,7 +7736,10 @@
             "maximum": 5242880
           }
         },
-        "required": ["contentType", "fileSizeBytes"]
+        "required": [
+          "contentType",
+          "fileSizeBytes"
+        ]
       },
       "AvatarPresignResponseDto": {
         "type": "object",
@@ -7025,7 +7751,10 @@
             "type": "string"
           }
         },
-        "required": ["uploadUrl", "avatarKey"]
+        "required": [
+          "uploadUrl",
+          "avatarKey"
+        ]
       },
       "AvatarCompleteUploadDto": {
         "type": "object",
@@ -7034,7 +7763,9 @@
             "type": "string"
           }
         },
-        "required": ["avatarKey"]
+        "required": [
+          "avatarKey"
+        ]
       },
       "AvatarUpdateResponseDto": {
         "type": "object",
@@ -7046,10 +7777,17 @@
           },
           "avatarSource": {
             "type": "string",
-            "enum": ["none", "google", "upload"]
+            "enum": [
+              "none",
+              "google",
+              "upload"
+            ]
           }
         },
-        "required": ["pictureUrl", "avatarSource"]
+        "required": [
+          "pictureUrl",
+          "avatarSource"
+        ]
       },
       "QuestionExpectedConceptDto": {
         "type": "object",
@@ -7067,7 +7805,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "label", "weight", "description"]
+        "required": [
+          "id",
+          "label",
+          "weight",
+          "description"
+        ]
       },
       "QuestionRedFlagDto": {
         "type": "object",
@@ -7080,10 +7823,18 @@
           },
           "severity": {
             "type": "string",
-            "enum": ["low", "medium", "high"]
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
           }
         },
-        "required": ["id", "label", "severity"]
+        "required": [
+          "id",
+          "label",
+          "severity"
+        ]
       },
       "QuestionTranslationDto": {
         "type": "object",
@@ -7117,7 +7868,9 @@
             "description": "Optional for non-primary locales. Required for primaryLocale."
           }
         },
-        "required": ["questionText"]
+        "required": [
+          "questionText"
+        ]
       },
       "QuestionDeleteBlockingInterviewDto": {
         "type": "object",
@@ -7134,7 +7887,11 @@
             "example": "/interviews/550e8400-e29b-41d4-a716-446655440000"
           }
         },
-        "required": ["id", "candidateName", "href"]
+        "required": [
+          "id",
+          "candidateName",
+          "href"
+        ]
       },
       "QuestionResponseDto": {
         "type": "object",
@@ -7144,7 +7901,12 @@
           },
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "externalId": {
             "type": "string"
@@ -7196,7 +7958,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7270,7 +8036,12 @@
           },
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "externalId": {
             "type": "string"
@@ -7322,7 +8093,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7371,19 +8146,34 @@
           },
           "resolvedLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale of returned questionText and rubric fields."
           },
           "availableLocales": {
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"]
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
             }
           },
           "fallbackFromLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Requested X-Locale (or ?locale= on list). Omitted when resolvedLocale matches. Also set when rubric fields partially fall back to primaryLocale while questionText matches the request."
           }
         },
@@ -7427,7 +8217,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "total", "page", "limit"]
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
       },
       "QuestionDraftGenerateResponseDto": {
         "type": "object",
@@ -7470,7 +8265,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7505,7 +8304,12 @@
         "properties": {
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "questionText": {
             "type": "string"
@@ -7563,7 +8367,12 @@
         "properties": {
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "translations": {
             "$ref": "#/components/schemas/QuestionTranslationsMapDto"
@@ -7608,7 +8417,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7636,14 +8449,22 @@
         "properties": {
           "locale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "default": "en",
             "description": "Locale for generated draft text (`en`|`be`|`ru`|`pl`). Defaults to `en`. When omitted, uses `X-Locale` header (also defaults to `en`).",
             "example": "pl"
           },
           "mode": {
             "type": "string",
-            "enum": ["translate", "generate"],
+            "enum": [
+              "translate",
+              "generate"
+            ],
             "description": "Optional explicit mode. `translate` translates the full primary content block from `question.primaryLocale` to body `locale` (one target locale per call); concept/red-flag ids are preserved 1:1; returns content block only. Requires body `locale`, `question.primaryLocale`, and the full primary rubric in the request. `generate` returns identity fields plus the primary locale rubric content block. If omitted, mode is auto-detected: locale mismatch + full primary content => translate, otherwise generate.",
             "example": "translate"
           },
@@ -7663,7 +8484,10 @@
             "description": "Number of active questions with this value, given the rest of the current filters."
           }
         },
-        "required": ["value", "count"]
+        "required": [
+          "value",
+          "count"
+        ]
       },
       "QuestionFacetsResponseDto": {
         "type": "object",
@@ -7717,7 +8541,12 @@
         "properties": {
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "translations": {
             "description": "Locale-keyed rubric blocks. The primaryLocale entry must include all five fields: questionText, followUpQuestions, expectedConcepts, redFlags, sampleGoodAnswer. Additional locales require questionText only; rubric fields are optional.",
@@ -7750,7 +8579,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7769,7 +8602,10 @@
             "additionalProperties": true
           }
         },
-        "required": ["primaryLocale", "translations"]
+        "required": [
+          "primaryLocale",
+          "translations"
+        ]
       },
       "FindSimilarDraftDto": {
         "type": "object",
@@ -7788,7 +8624,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           }
         }
       },
@@ -7824,7 +8664,11 @@
             }
           }
         },
-        "required": ["question", "score", "reasons"]
+        "required": [
+          "question",
+          "score",
+          "reasons"
+        ]
       },
       "FindSimilarResponseDto": {
         "type": "object",
@@ -7836,20 +8680,30 @@
             }
           }
         },
-        "required": ["matches"]
+        "required": [
+          "matches"
+        ]
       },
       "UpdateQuestionDto": {
         "type": "object",
         "properties": {
           "primaryLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "deprecated": true,
             "description": "Ignored on update — primaryLocale is immutable after creation. Update the primary locale block via `translations[primaryLocale]` instead."
           },
           "translationsMode": {
             "type": "string",
-            "enum": ["merge", "replace"],
+            "enum": [
+              "merge",
+              "replace"
+            ],
             "default": "merge",
             "description": "How to apply `translations`. Default `merge` upserts each locale key. Set to `replace` to replace the entire stored map (requires `translations`)."
           },
@@ -7909,7 +8763,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "weight": {
             "type": "number"
@@ -7954,7 +8812,9 @@
             }
           }
         },
-        "required": ["id"]
+        "required": [
+          "id"
+        ]
       },
       "BulkDeleteQuestionsDto": {
         "type": "object",
@@ -7966,7 +8826,9 @@
             }
           }
         },
-        "required": ["ids"]
+        "required": [
+          "ids"
+        ]
       },
       "BulkDeleteScheduledItemDto": {
         "type": "object",
@@ -7987,7 +8849,12 @@
             }
           }
         },
-        "required": ["id", "questionText", "reason", "blockingInterviews"]
+        "required": [
+          "id",
+          "questionText",
+          "reason",
+          "blockingInterviews"
+        ]
       },
       "BulkDeleteQuestionsResponseDto": {
         "type": "object",
@@ -8005,20 +8872,30 @@
             }
           }
         },
-        "required": ["deleted", "scheduled"]
+        "required": [
+          "deleted",
+          "scheduled"
+        ]
       },
       "ChatHistoryItemDto": {
         "type": "object",
         "properties": {
           "role": {
             "type": "string",
-            "enum": ["system", "assistant", "candidate"]
+            "enum": [
+              "system",
+              "assistant",
+              "candidate"
+            ]
           },
           "content": {
             "type": "string"
           }
         },
-        "required": ["role", "content"]
+        "required": [
+          "role",
+          "content"
+        ]
       },
       "ChatDto": {
         "type": "object",
@@ -8057,7 +8934,9 @@
             "type": "string"
           }
         },
-        "required": ["response"]
+        "required": [
+          "response"
+        ]
       },
       "GreetDto": {
         "type": "object",
@@ -8072,7 +8951,11 @@
             "type": "number"
           }
         },
-        "required": ["candidateName", "position", "totalQuestions"]
+        "required": [
+          "candidateName",
+          "position",
+          "totalQuestions"
+        ]
       },
       "TemplateResponseDto": {
         "type": "object",
@@ -8210,7 +9093,10 @@
             }
           }
         },
-        "required": ["name", "questionIds"]
+        "required": [
+          "name",
+          "questionIds"
+        ]
       },
       "UpdateTemplateDto": {
         "type": "object",
@@ -8240,10 +9126,15 @@
           },
           "deleted": {
             "type": "number",
-            "enum": [true]
+            "enum": [
+              true
+            ]
           }
         },
-        "required": ["id", "deleted"]
+        "required": [
+          "id",
+          "deleted"
+        ]
       },
       "CreateInterviewDto": {
         "type": "object",
@@ -8263,7 +9154,12 @@
           },
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "default": "en",
             "description": "Locale for interview UI and feedback. Defaults to en when omitted."
           },
@@ -8278,7 +9174,11 @@
             }
           }
         },
-        "required": ["candidateName", "position", "questionIds"]
+        "required": [
+          "candidateName",
+          "position",
+          "questionIds"
+        ]
       },
       "AssignedHrDto": {
         "type": "object",
@@ -8293,7 +9193,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "email"]
+        "required": [
+          "id",
+          "name",
+          "email"
+        ]
       },
       "MediaArtifactDto": {
         "type": "object",
@@ -8312,7 +9216,11 @@
             "type": "string"
           }
         },
-        "required": ["mediaKey", "contentType", "uploadedAt"]
+        "required": [
+          "mediaKey",
+          "contentType",
+          "uploadedAt"
+        ]
       },
       "AnswerBehaviorSignalsDto": {
         "type": "object",
@@ -8398,14 +9306,22 @@
           },
           "behaviorRisk": {
             "type": "string",
-            "enum": ["low", "medium", "high"]
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
           },
           "summary": {
             "type": "string"
           },
           "decisionHint": {
             "type": "string",
-            "enum": ["pass", "review", "fail"]
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
           },
           "evaluatedAt": {
             "format": "date-time",
@@ -8418,7 +9334,13 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["idle", "queued", "processing", "completed", "failed"]
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
           },
           "executionArn": {
             "type": "string"
@@ -8442,7 +9364,9 @@
             "type": "string"
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "AnswerBehaviorEventDto": {
         "type": "object",
@@ -8466,7 +9390,11 @@
             "type": "number"
           }
         },
-        "required": ["eventType", "occurredAt", "versionNumber"]
+        "required": [
+          "eventType",
+          "occurredAt",
+          "versionNumber"
+        ]
       },
       "AnswerVersionDto": {
         "type": "object",
@@ -8515,7 +9443,9 @@
             }
           }
         },
-        "required": ["versionNumber"]
+        "required": [
+          "versionNumber"
+        ]
       },
       "AnswerDto": {
         "type": "object",
@@ -8528,7 +9458,10 @@
           },
           "status": {
             "type": "string",
-            "enum": ["recording", "submitted"]
+            "enum": [
+              "recording",
+              "submitted"
+            ]
           },
           "mediaKey": {
             "type": "string"
@@ -8601,7 +9534,11 @@
         "properties": {
           "riskLevel": {
             "type": "string",
-            "enum": ["low", "medium", "high"]
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
           },
           "notes": {
             "type": "array",
@@ -8610,7 +9547,9 @@
             }
           }
         },
-        "required": ["notes"]
+        "required": [
+          "notes"
+        ]
       },
       "InterviewQuestionResultDto": {
         "type": "object",
@@ -8635,17 +9574,29 @@
           },
           "decisionHint": {
             "type": "string",
-            "enum": ["pass", "review", "fail"]
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
           }
         },
-        "required": ["questionIndex", "questionId"]
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
       },
       "InterviewResultResponseDto": {
         "type": "object",
         "properties": {
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Interview language used for AI evaluation and summary text."
           },
           "overallScore": {
@@ -8669,7 +9620,11 @@
           },
           "decision": {
             "type": "string",
-            "enum": ["proceed", "review", "reject"]
+            "enum": [
+              "proceed",
+              "review",
+              "reject"
+            ]
           },
           "trustScore": {
             "type": "number"
@@ -8707,7 +9662,13 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["idle", "queued", "processing", "completed", "failed"]
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
           },
           "currentStage": {
             "type": "string",
@@ -8738,7 +9699,10 @@
             "type": "string"
           }
         },
-        "required": ["status", "lastUpdatedAt"]
+        "required": [
+          "status",
+          "lastUpdatedAt"
+        ]
       },
       "InterviewLocaleWarningDto": {
         "type": "object",
@@ -8750,11 +9714,19 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["en", "be", "ru", "pl"]
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ]
             }
           }
         },
-        "required": ["questionId", "availableLocales"]
+        "required": [
+          "questionId",
+          "availableLocales"
+        ]
       },
       "CreateInterviewResultDto": {
         "type": "object",
@@ -8785,11 +9757,21 @@
           },
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "questionsDisplayLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale used for questions[] (always interviewLocale)."
           },
           "questions": {
@@ -8892,7 +9874,11 @@
           },
           "decision": {
             "type": "string",
-            "enum": ["proceed", "review", "reject"]
+            "enum": [
+              "proceed",
+              "review",
+              "reject"
+            ]
           },
           "assignedHrId": {
             "type": "string",
@@ -8946,7 +9932,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "total", "page", "limit"]
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
       },
       "InterviewFacetCountDto": {
         "type": "object",
@@ -8959,7 +9950,10 @@
             "description": "Number of interviews with this value, given all OTHER current filters."
           }
         },
-        "required": ["value", "count"]
+        "required": [
+          "value",
+          "count"
+        ]
       },
       "InterviewFacetsResponseDto": {
         "type": "object",
@@ -8983,7 +9977,11 @@
             }
           }
         },
-        "required": ["totalQuestionCount", "positions", "statuses"]
+        "required": [
+          "totalQuestionCount",
+          "positions",
+          "statuses"
+        ]
       },
       "InterviewResponseDto": {
         "type": "object",
@@ -9014,11 +10012,21 @@
           },
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "questionsDisplayLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale used for questions[] (always interviewLocale)."
           },
           "questions": {
@@ -9078,7 +10086,9 @@
             "type": "string"
           }
         },
-        "required": ["candidateLink"]
+        "required": [
+          "candidateLink"
+        ]
       },
       "InterviewCancelResponseDto": {
         "type": "object",
@@ -9091,7 +10101,10 @@
             "example": true
           }
         },
-        "required": ["id", "canceled"]
+        "required": [
+          "id",
+          "canceled"
+        ]
       },
       "InterviewDeleteResponseDto": {
         "type": "object",
@@ -9104,7 +10117,10 @@
             "example": true
           }
         },
-        "required": ["id", "deleted"]
+        "required": [
+          "id",
+          "deleted"
+        ]
       },
       "UpdateInterviewDto": {
         "type": "object",
@@ -9137,7 +10153,13 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["idle", "queued", "processing", "completed", "failed"]
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
           },
           "questionIndex": {
             "type": "number"
@@ -9149,7 +10171,12 @@
             "type": "boolean"
           }
         },
-        "required": ["status", "questionIndex", "sourceVersionNumber", "reused"]
+        "required": [
+          "status",
+          "questionIndex",
+          "sourceVersionNumber",
+          "reused"
+        ]
       },
       "StartAllAnswerValidationsResponseDto": {
         "type": "object",
@@ -9206,7 +10233,11 @@
             "example": true
           }
         },
-        "required": ["ok", "interviewId", "placeholderRemoved"]
+        "required": [
+          "ok",
+          "interviewId",
+          "placeholderRemoved"
+        ]
       },
       "PresignRequestDto": {
         "type": "object",
@@ -9216,11 +10247,16 @@
           },
           "contentType": {
             "type": "string",
-            "enum": ["video/webm"]
+            "enum": [
+              "video/webm"
+            ]
           },
           "mediaType": {
             "type": "string",
-            "enum": ["camera", "screen"]
+            "enum": [
+              "camera",
+              "screen"
+            ]
           },
           "versionNumber": {
             "type": "number",
@@ -9230,7 +10266,11 @@
             "type": "number"
           }
         },
-        "required": ["questionIndex", "contentType", "versionNumber"]
+        "required": [
+          "questionIndex",
+          "contentType",
+          "versionNumber"
+        ]
       },
       "PresignedUrlResponseDto": {
         "type": "object",
@@ -9242,7 +10282,10 @@
             "type": "string"
           }
         },
-        "required": ["uploadUrl", "mediaKey"]
+        "required": [
+          "uploadUrl",
+          "mediaKey"
+        ]
       },
       "ConfirmUploadDto": {
         "type": "object",
@@ -9261,7 +10304,11 @@
             "type": "number"
           }
         },
-        "required": ["questionIndex", "mediaKey", "versionNumber"]
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "versionNumber"
+        ]
       },
       "ConfirmUploadResponseDto": {
         "type": "object",
@@ -9274,7 +10321,10 @@
             "example": true
           }
         },
-        "required": ["mediaKey", "confirmed"]
+        "required": [
+          "mediaKey",
+          "confirmed"
+        ]
       },
       "StartMultipartUploadDto": {
         "type": "object",
@@ -9284,11 +10334,16 @@
           },
           "contentType": {
             "type": "string",
-            "enum": ["video/webm"]
+            "enum": [
+              "video/webm"
+            ]
           },
           "mediaType": {
             "type": "string",
-            "enum": ["camera", "screen"]
+            "enum": [
+              "camera",
+              "screen"
+            ]
           },
           "versionNumber": {
             "type": "number",
@@ -9298,7 +10353,11 @@
             "type": "number"
           }
         },
-        "required": ["questionIndex", "contentType", "versionNumber"]
+        "required": [
+          "questionIndex",
+          "contentType",
+          "versionNumber"
+        ]
       },
       "MultipartUploadSessionResponseDto": {
         "type": "object",
@@ -9310,7 +10369,10 @@
             "type": "string"
           }
         },
-        "required": ["mediaKey", "uploadId"]
+        "required": [
+          "mediaKey",
+          "uploadId"
+        ]
       },
       "PresignMultipartPartDto": {
         "type": "object",
@@ -9356,7 +10418,12 @@
             "type": "string"
           }
         },
-        "required": ["mediaKey", "uploadId", "partNumber", "uploadUrl"]
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "partNumber",
+          "uploadUrl"
+        ]
       },
       "CompleteMultipartUploadDto": {
         "type": "object",
@@ -9375,7 +10442,12 @@
             "description": "Reserved answer attempt/version being recorded."
           }
         },
-        "required": ["questionIndex", "mediaKey", "uploadId", "versionNumber"]
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "uploadId",
+          "versionNumber"
+        ]
       },
       "MultipartUploadCompleteResponseDto": {
         "type": "object",
@@ -9391,7 +10463,11 @@
             "example": true
           }
         },
-        "required": ["mediaKey", "uploadId", "completed"]
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "completed"
+        ]
       },
       "AbortMultipartUploadDto": {
         "type": "object",
@@ -9410,7 +10486,12 @@
             "description": "Reserved answer attempt/version being recorded."
           }
         },
-        "required": ["questionIndex", "mediaKey", "uploadId", "versionNumber"]
+        "required": [
+          "questionIndex",
+          "mediaKey",
+          "uploadId",
+          "versionNumber"
+        ]
       },
       "MultipartUploadAbortResponseDto": {
         "type": "object",
@@ -9426,21 +10507,32 @@
             "example": true
           }
         },
-        "required": ["mediaKey", "uploadId", "aborted"]
+        "required": [
+          "mediaKey",
+          "uploadId",
+          "aborted"
+        ]
       },
       "RecruiterPresignUploadBodyDto": {
         "type": "object",
         "properties": {
           "contentType": {
             "type": "string",
-            "enum": ["video/webm"]
+            "enum": [
+              "video/webm"
+            ]
           },
           "mediaType": {
             "type": "string",
-            "enum": ["camera", "screen"]
+            "enum": [
+              "camera",
+              "screen"
+            ]
           }
         },
-        "required": ["contentType"]
+        "required": [
+          "contentType"
+        ]
       },
       "RecruiterConfirmUploadBodyDto": {
         "type": "object",
@@ -9449,7 +10541,9 @@
             "type": "string"
           }
         },
-        "required": ["mediaKey"]
+        "required": [
+          "mediaKey"
+        ]
       },
       "InterviewAnswerMediaResponseDto": {
         "type": "object",
@@ -9464,7 +10558,9 @@
             "type": "string"
           }
         },
-        "required": ["questionIndex"]
+        "required": [
+          "questionIndex"
+        ]
       },
       "HealthResponseDto": {
         "type": "object",
@@ -9483,7 +10579,11 @@
             "example": "2026-05-05T12:00:00.000Z"
           }
         },
-        "required": ["status", "message", "timestamp"]
+        "required": [
+          "status",
+          "message",
+          "timestamp"
+        ]
       },
       "CandidateQuestionViewDto": {
         "type": "object",
@@ -9499,23 +10599,40 @@
           },
           "resolvedLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale of returned text and followUpQuestions. Resolved via contentLocale → interviewLocale → primaryLocale → any available translation."
           },
           "fallbackFromLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale the candidate asked for: contentLocale query param, or interviewLocale when contentLocale is omitted. Omitted when resolvedLocale equals that requested locale."
           }
         },
-        "required": ["text", "followUpQuestions", "resolvedLocale"]
+        "required": [
+          "text",
+          "followUpQuestions",
+          "resolvedLocale"
+        ]
       },
       "CurrentAnswerMetaDto": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["recording", "submitted"]
+            "enum": [
+              "recording",
+              "submitted"
+            ]
           },
           "versionCount": {
             "type": "number"
@@ -9552,7 +10669,12 @@
           },
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "candidateName": {
             "type": "string"
@@ -9655,7 +10777,11 @@
             "type": "number"
           }
         },
-        "required": ["eventType", "occurredAt", "versionNumber"]
+        "required": [
+          "eventType",
+          "occurredAt",
+          "versionNumber"
+        ]
       },
       "ClientTranscriptDto": {
         "type": "object",
@@ -9677,7 +10803,13 @@
             "type": "boolean"
           }
         },
-        "required": ["text", "language", "provider", "generatedAt", "isFinal"]
+        "required": [
+          "text",
+          "language",
+          "provider",
+          "generatedAt",
+          "isFinal"
+        ]
       },
       "SubmitAnswerDto": {
         "type": "object",
@@ -9755,7 +10887,12 @@
             "type": "boolean"
           }
         },
-        "required": ["ok", "answeredCount", "totalQuestions", "completed"]
+        "required": [
+          "ok",
+          "answeredCount",
+          "totalQuestions",
+          "completed"
+        ]
       },
       "FinalizeAnswerAttemptDto": {
         "type": "object",
@@ -9764,7 +10901,9 @@
             "type": "number"
           }
         },
-        "required": ["questionIndex"]
+        "required": [
+          "questionIndex"
+        ]
       },
       "FinalizeTakeAnswerResponseDto": {
         "type": "object",
@@ -9861,7 +11000,10 @@
           },
           "status": {
             "type": "string",
-            "enum": ["recording", "submitted"]
+            "enum": [
+              "recording",
+              "submitted"
+            ]
           },
           "versionCount": {
             "type": "number"
@@ -9870,7 +11012,12 @@
             "type": "number"
           }
         },
-        "required": ["ok", "status", "versionCount", "selectedVersionNumber"]
+        "required": [
+          "ok",
+          "status",
+          "versionCount",
+          "selectedVersionNumber"
+        ]
       },
       "ReserveAnswerAttemptDto": {
         "type": "object",
@@ -9879,7 +11026,9 @@
             "type": "number"
           }
         },
-        "required": ["questionIndex"]
+        "required": [
+          "questionIndex"
+        ]
       },
       "ReserveTakeAnswerResponseDto": {
         "type": "object",
@@ -9895,7 +11044,10 @@
           },
           "status": {
             "type": "string",
-            "enum": ["recording", "submitted"]
+            "enum": [
+              "recording",
+              "submitted"
+            ]
           },
           "maxAttempts": {
             "type": "number",
@@ -9919,7 +11071,13 @@
           },
           "status": {
             "type": "string",
-            "enum": ["idle", "queued", "processing", "completed", "failed"]
+            "enum": [
+              "idle",
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ]
           },
           "questionIndex": {
             "type": "number"
@@ -9959,7 +11117,11 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "medium", "hard"]
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
           },
           "tags": {
             "type": "array",
@@ -9992,14 +11154,20 @@
             "type": "boolean"
           }
         },
-        "required": ["key", "questionText"]
+        "required": [
+          "key",
+          "questionText"
+        ]
       },
       "RecruiterAssistantCreatePendingActionDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["create_questions", "create_interview"]
+            "enum": [
+              "create_questions",
+              "create_interview"
+            ]
           },
           "position": {
             "type": "string"
@@ -10012,7 +11180,12 @@
           },
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "questions": {
             "type": "array",
@@ -10021,14 +11194,20 @@
             }
           }
         },
-        "required": ["type", "position", "questions"]
+        "required": [
+          "type",
+          "position",
+          "questions"
+        ]
       },
       "RecruiterAssistantAssignHrPendingActionDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["assign_hr"]
+            "enum": [
+              "assign_hr"
+            ]
           },
           "interviewId": {
             "type": "string"
@@ -10056,7 +11235,9 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["create_single_question"]
+            "enum": [
+              "create_single_question"
+            ]
           },
           "questionName": {
             "type": "string"
@@ -10065,7 +11246,11 @@
             "type": "object"
           }
         },
-        "required": ["type", "questionName", "createQuestion"]
+        "required": [
+          "type",
+          "questionName",
+          "createQuestion"
+        ]
       },
       "RecruiterAssistantChatDto": {
         "type": "object",
@@ -10088,7 +11273,9 @@
             ]
           }
         },
-        "required": ["message"]
+        "required": [
+          "message"
+        ]
       },
       "RecruiterAssistantCreatedQuestionDto": {
         "type": "object",
@@ -10104,7 +11291,11 @@
             "description": "Frontend route when the question card is clicked."
           }
         },
-        "required": ["id", "questionText", "href"]
+        "required": [
+          "id",
+          "questionText",
+          "href"
+        ]
       },
       "RecruiterAssistantRedirectDto": {
         "type": "object",
@@ -10124,7 +11315,9 @@
             }
           }
         },
-        "required": ["path"]
+        "required": [
+          "path"
+        ]
       },
       "RecruiterAssistantCreatedInterviewDto": {
         "type": "object",
@@ -10136,7 +11329,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "candidateLink"]
+        "required": [
+          "id",
+          "candidateLink"
+        ]
       },
       "RecruiterAssistantReviewStateDto": {
         "type": "object",
@@ -10151,7 +11347,9 @@
             "type": "string"
           }
         },
-        "required": ["reviewed"]
+        "required": [
+          "reviewed"
+        ]
       },
       "RecruiterAssistantInterviewSummaryDto": {
         "type": "object",
@@ -10175,7 +11373,12 @@
             "$ref": "#/components/schemas/RecruiterAssistantReviewStateDto"
           }
         },
-        "required": ["id", "candidateName", "position", "status"]
+        "required": [
+          "id",
+          "candidateName",
+          "position",
+          "status"
+        ]
       },
       "RecruiterAssistantResponseDto": {
         "type": "object",
@@ -10220,7 +11423,12 @@
           },
           "locale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"]
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
           },
           "createdQuestion": {
             "$ref": "#/components/schemas/RecruiterAssistantCreatedQuestionDto"
@@ -10250,7 +11458,11 @@
           },
           "escalateTo": {
             "type": "string",
-            "enum": ["hr", "admin", "super_admin"]
+            "enum": [
+              "hr",
+              "admin",
+              "super_admin"
+            ]
           },
           "interviews": {
             "type": "array",
@@ -10262,7 +11474,10 @@
             "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
           }
         },
-        "required": ["response", "status"]
+        "required": [
+          "response",
+          "status"
+        ]
       },
       "PublicCandidateFeedbackTextBlockDto": {
         "type": "object",
@@ -10301,14 +11516,22 @@
             "description": "Interview question snapshot text in interviewLocale when available on the interview."
           }
         },
-        "required": ["questionIndex", "questionId"]
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
       },
       "PublicCandidateFeedbackResponseDto": {
         "type": "object",
         "properties": {
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale of the shared candidate-facing feedback text."
           },
           "position": {
@@ -10331,7 +11554,11 @@
           },
           "outcome": {
             "type": "string",
-            "enum": ["next_stage", "keep_in_touch", "custom"],
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
             "description": "Candidate-facing next-step outcome when HR selected one; omitted otherwise."
           },
           "outcomeMessage": {
@@ -10354,7 +11581,11 @@
             }
           }
         },
-        "required": ["interviewLocale", "position", "expiresAt"]
+        "required": [
+          "interviewLocale",
+          "position",
+          "expiresAt"
+        ]
       },
       "FeedbackQuestionResultDto": {
         "type": "object",
@@ -10370,20 +11601,32 @@
           },
           "decisionHint": {
             "type": "string",
-            "enum": ["pass", "review", "fail"]
+            "enum": [
+              "pass",
+              "review",
+              "fail"
+            ]
           },
           "summary": {
             "type": "string"
           }
         },
-        "required": ["questionIndex", "questionId"]
+        "required": [
+          "questionIndex",
+          "questionId"
+        ]
       },
       "FeedbackResponseDto": {
         "type": "object",
         "properties": {
           "interviewLocale": {
             "type": "string",
-            "enum": ["en", "be", "ru", "pl"],
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ],
             "description": "Locale used for AI-generated feedback text (interview.interviewLocale). v1 is single-locale only — not multi-locale."
           },
           "position": {
@@ -10397,7 +11640,11 @@
           },
           "overallResult": {
             "type": "string",
-            "enum": ["pass", "borderline", "fail"]
+            "enum": [
+              "pass",
+              "borderline",
+              "fail"
+            ]
           },
           "overallScore": {
             "type": "number"
@@ -10424,7 +11671,12 @@
             }
           }
         },
-        "required": ["interviewLocale", "position", "date", "expiresAt"]
+        "required": [
+          "interviewLocale",
+          "position",
+          "date",
+          "expiresAt"
+        ]
       },
       "FeedbackLinkResponseDto": {
         "type": "object",
@@ -10437,7 +11689,10 @@
             "type": "string"
           }
         },
-        "required": ["url", "expiresAt"]
+        "required": [
+          "url",
+          "expiresAt"
+        ]
       },
       "CandidateFeedbackBlockDto": {
         "type": "object",
@@ -10467,7 +11722,9 @@
             "description": "Present when generation failed, or when an eligibility skip stored an HR-only skip-reason hint (not candidate-facing text)."
           }
         },
-        "required": ["state"]
+        "required": [
+          "state"
+        ]
       },
       "CandidateFeedbackQuestionBlockDto": {
         "type": "object",
@@ -10505,7 +11762,11 @@
             "format": "uuid"
           }
         },
-        "required": ["state", "questionIndex", "questionId"]
+        "required": [
+          "state",
+          "questionIndex",
+          "questionId"
+        ]
       },
       "CandidateFeedbackResponseDto": {
         "type": "object",
@@ -10525,7 +11786,11 @@
           },
           "outcome": {
             "type": "string",
-            "enum": ["next_stage", "keep_in_touch", "custom"],
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
             "description": "Candidate-facing next-step outcome. When set, the public share page shows a preset or custom message."
           },
           "outcomeMessage": {
@@ -10537,7 +11802,12 @@
             "format": "date-time"
           }
         },
-        "required": ["interviewId", "overall", "questions", "updatedAt"]
+        "required": [
+          "interviewId",
+          "overall",
+          "questions",
+          "updatedAt"
+        ]
       },
       "PatchCandidateFeedbackOverallBlockDto": {
         "type": "object",
@@ -10554,7 +11824,10 @@
           },
           "state": {
             "type": "string",
-            "enum": ["accepted", "edited"],
+            "enum": [
+              "accepted",
+              "edited"
+            ],
             "description": "HR may accept generated text or mark manual edits. `accepted` and `edited` require at least one non-empty text on the block (from the request or already stored)."
           }
         }
@@ -10578,11 +11851,16 @@
           },
           "state": {
             "type": "string",
-            "enum": ["accepted", "edited"],
+            "enum": [
+              "accepted",
+              "edited"
+            ],
             "description": "HR may accept generated text or mark manual edits. `accepted` and `edited` require at least one non-empty text on the block (from the request or already stored)."
           }
         },
-        "required": ["questionIndex"]
+        "required": [
+          "questionIndex"
+        ]
       },
       "PatchCandidateFeedbackDto": {
         "type": "object",
@@ -10604,7 +11882,11 @@
           },
           "outcome": {
             "type": "string",
-            "enum": ["next_stage", "keep_in_touch", "custom"],
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ],
             "nullable": true,
             "description": "Candidate-facing next-step outcome. Send null to clear outcome and message. `custom` requires outcomeMessage. Presets clear any stored custom message."
           },
@@ -10621,7 +11903,12 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["queued", "generated", "skipped", "failed"]
+            "enum": [
+              "queued",
+              "generated",
+              "skipped",
+              "failed"
+            ]
           },
           "questionIndex": {
             "type": "number",
@@ -10645,24 +11932,38 @@
             "description": "Present for failed generation. Eligibility skips use reason only; the question block is prefilled with edited template text."
           }
         },
-        "required": ["status", "questionIndex"]
+        "required": [
+          "status",
+          "questionIndex"
+        ]
       },
       "GenerateAllCandidateFeedbackOverallResultDto": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["queued", "generated", "skipped", "failed"]
+            "enum": [
+              "queued",
+              "generated",
+              "skipped",
+              "failed"
+            ]
           },
           "reason": {
             "type": "string",
-            "enum": ["locked", "in_progress", "no_question_texts"]
+            "enum": [
+              "locked",
+              "in_progress",
+              "no_question_texts"
+            ]
           },
           "errorMessage": {
             "type": "string"
           }
         },
-        "required": ["status"]
+        "required": [
+          "status"
+        ]
       },
       "GenerateAllCandidateFeedbackResponseDto": {
         "type": "object",
@@ -10680,7 +11981,11 @@
             "$ref": "#/components/schemas/GenerateAllCandidateFeedbackOverallResultDto"
           }
         },
-        "required": ["feedback", "questions", "overall"]
+        "required": [
+          "feedback",
+          "questions",
+          "overall"
+        ]
       },
       "CandidateFeedbackShareLinkResponseDto": {
         "type": "object",
@@ -10694,7 +11999,10 @@
             "type": "string"
           }
         },
-        "required": ["url", "expiresAt"]
+        "required": [
+          "url",
+          "expiresAt"
+        ]
       },
       "CandidateFeedbackShareLinkStatusResponseDto": {
         "type": "object",
@@ -10705,7 +12013,9 @@
             "description": "Expiry of a usable share link (non-revoked, not expired, with publishable feedback). URL is never reconstructed from storage (DB stores sha256 only)."
           }
         },
-        "required": ["expiresAt"]
+        "required": [
+          "expiresAt"
+        ]
       }
     }
   }
