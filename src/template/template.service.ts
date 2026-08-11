@@ -212,6 +212,7 @@ export class TemplateService {
             : existing.position;
 
         let questionIds = existing.question_ids_json ?? [];
+        // oxlint-disable-next-line no-shadow
         let resolvedQuestions: ResolvedQuestion[] | null = null;
         if (dto.questionIds !== undefined) {
           questionIds = this.normalizeIds(dto.questionIds);
