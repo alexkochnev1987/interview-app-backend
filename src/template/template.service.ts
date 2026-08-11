@@ -1,9 +1,8 @@
 import { randomUUID } from 'crypto';
 
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
 
-import { AppConfigService } from '../app-config/app-config.service';
 import { demoScopeClause } from '../common/demo-scope';
 import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
@@ -80,7 +79,6 @@ export class TemplateService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
-    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async create(
@@ -93,16 +91,6 @@ export class TemplateService {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         'At least one question must be selected',
-      );
-    }
-
-    const maxQuestions =
-      (await this.appConfig?.getNumber('MAX_TEMPLATE_QUESTIONS', 100)) ?? 100;
-    if (questionIds.length > maxQuestions) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        `Template cannot contain more than ${maxQuestions} questions`,
-        { maxQuestions, count: questionIds.length },
       );
     }
 
@@ -224,7 +212,7 @@ export class TemplateService {
             : existing.position;
 
         let questionIds = existing.question_ids_json ?? [];
-        let resolvedList: ResolvedQuestion[] | null = null;
+        let resolvedQuestions: ResolvedQuestion[] | null = null;
         if (dto.questionIds !== undefined) {
           questionIds = this.normalizeIds(dto.questionIds);
           if (questionIds.length === 0) {
@@ -234,49 +222,38 @@ export class TemplateService {
             );
           }
           // Same guard as create: a replacement set must resolve to live questions.
-          resolvedList = await this.questionService.resolveExistingByIds(
+          resolvedQuestions = await this.questionService.resolveExistingByIds(
             questionIds,
             locale,
             { demo },
           );
-          if (resolvedList.length !== questionIds.length) {
-            throw apiBadRequest(
-              ApiErrorCode.BAD_REQUEST,
-              'One or more requested questionIds are deleted or unavailable',
-            );
-          }
+          this.assertAllResolved(questionIds, resolvedQuestions);
         }
 
-        const query = `
+        const result = await client.query<TemplateRow>(
+          `
           UPDATE interview_templates
-          SET name = $1, description = $2, position = $3, question_ids_json = $4, updated_at = NOW()
-          WHERE id = $5 AND demo = $6
-          RETURNING *
-        `;
-        const updatedRes = await client.query<TemplateRow>(query, [
-          name,
-          description,
-          position,
-          JSON.stringify(questionIds),
-          id,
-          demo,
-        ]);
-        if (updatedRes.rowCount === 0) {
-          throw apiNotFound(ApiErrorCode.NOT_FOUND, 'Template not found');
-        }
+          SET
+            name = $2,
+            description = $3,
+            position = $4,
+            question_ids_json = $5::jsonb,
+            updated_at = NOW()
+          WHERE id = $1
+          ${TEMPLATE_RETURNING}
+        `,
+          [id, name, description, position, JSON.stringify(questionIds)],
+        );
 
-        return {
-          updated: updatedRes.rows[0],
-          resolvedQuestions: resolvedList,
-        };
+        return { updated: this.mapRow(result.rows[0]), resolvedQuestions };
       });
 
     // Reuse the set already resolved for validation; otherwise resolve the
     // unchanged stored ids after commit (no live read under the FOR UPDATE lock).
     if (resolvedQuestions) {
-      return this.toResponse(this.mapRow(updated), resolvedQuestions);
+      return this.toResponse(updated, resolvedQuestions);
     }
-    return this.resolve(this.mapRow(updated), locale);
+    return this.resolve(updated, locale);
   }
 
   async remove(
