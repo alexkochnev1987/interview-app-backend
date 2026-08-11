@@ -1,7 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
-import { ApiErrorCode } from '../errors/api-error.codes';
+
 import { apiNotFound } from '../errors/api-error';
+import { ApiErrorCode } from '../errors/api-error.codes';
 import { ApiExceptionFilter } from './api-exception.filter';
 
 function createHost(): ArgumentsHost {

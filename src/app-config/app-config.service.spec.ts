@@ -1,5 +1,5 @@
-import { AppConfigService } from './app-config.service';
 import type { DatabaseService } from '../database/database.service';
+import { AppConfigService } from './app-config.service';
 
 describe('AppConfigService', () => {
   let service: AppConfigService;
@@ -299,7 +299,9 @@ describe('AppConfigService', () => {
         fields: [],
       });
 
-      const deleted = await service.deleteVariable('MAX_ANSWER_DURATION_SECONDS');
+      const deleted = await service.deleteVariable(
+        'MAX_ANSWER_DURATION_SECONDS',
+      );
       expect(deleted).toBe(true);
     });
   });

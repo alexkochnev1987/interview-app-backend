@@ -1,5 +1,5 @@
-import { Locale } from '../locale/locale.constants';
 import { localeUiText } from '../locale/locale-ui-text';
+import { Locale } from '../locale/locale.constants';
 import { InterviewQuestionResult } from './interfaces/interview.interface';
 
 export function buildInterviewSummary(

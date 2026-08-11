@@ -1,27 +1,26 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { createHash, randomBytes, randomUUID } from 'crypto';
+
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { DatabaseError } from 'pg';
+
 import {
   apiConflict,
   apiForbidden,
   apiNotFound,
 } from '../common/errors/api-error';
-import { createHash, randomBytes, randomUUID } from 'crypto';
-import { DatabaseError } from 'pg';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
-import { InterviewService } from '../interview/interview.service';
 import {
   Interview,
   InterviewDecision,
 } from '../interview/interfaces/interview.interface';
+import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
+import { buildFeedbackImprovements } from './feedback-text';
 import {
   FeedbackLink,
   FeedbackResponse,
 } from './interfaces/feedback-link.interface';
-import { buildFeedbackImprovements } from './feedback-text';
 
 export const FEEDBACK_LINK_TTL_DAYS = 7;
 
@@ -160,7 +159,8 @@ export class FeedbackService {
       !linkRow ||
       linkRow.interview_id !== interviewId ||
       linkRow.revoked_at !== null ||
-      (linkRow.expires_at !== null && linkRow.expires_at.getTime() <= Date.now())
+      (linkRow.expires_at !== null &&
+        linkRow.expires_at.getTime() <= Date.now())
     ) {
       throw apiNotFound(
         ApiErrorCode.NOT_FOUND,

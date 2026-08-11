@@ -22,20 +22,21 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { CurrentUser } from './decorators/current-user.decorator';
+
 import { User } from '../user/interfaces/user.interface';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthUserResponseDto } from './dto/auth-user.response.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { LoginDto } from './dto/login.dto';
+import { LogoutResponseDto } from './dto/logout.response.dto';
+import { RegisterDto } from './dto/register.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from './guards/register-throttler.guard';
-import { getEffectivePermissions } from './permissions';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
-import { AuthUserResponseDto } from './dto/auth-user.response.dto';
-import { LogoutResponseDto } from './dto/logout.response.dto';
-import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { getEffectivePermissions } from './permissions';
 import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
@@ -91,7 +92,9 @@ export class AuthController {
   })
   @ApiOperation({ summary: 'Sign in to the read-only demo account' })
   @ApiOkResponse({ type: AuthUserResponseDto })
-  @ApiServiceUnavailableResponse({ description: 'Demo access is not available' })
+  @ApiServiceUnavailableResponse({
+    description: 'Demo access is not available',
+  })
   @ApiTooManyRequestsResponse({ description: 'Too many demo sign-in attempts' })
   async demo(@Res({ passthrough: true }) res: Response) {
     const user = await this.authService.demoLogin();
@@ -134,11 +137,10 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback endpoint' })
-  @ApiFoundResponse({ description: 'Sets session cookie and redirects to frontend' })
-  async googleCallback(
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
+  @ApiFoundResponse({
+    description: 'Sets session cookie and redirects to frontend',
+  })
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
     const googleUser = req.user as {
       email: string;
       name: string;

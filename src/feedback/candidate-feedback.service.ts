@@ -1,7 +1,13 @@
-import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { Injectable } from '@nestjs/common';
+
+import {
+  apiBadRequest,
+  apiConflict,
+  apiNotFound,
+} from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
 import { DatabaseService } from '../database/database.service';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { isHrPatchableCandidateFeedbackBlockState } from './candidate-feedback-block-rules';
@@ -13,14 +19,14 @@ import {
   resolveHrPatchFeedbackText,
 } from './candidate-feedback-block-rules';
 import { QUESTION_FEEDBACK_ELIGIBILITY_SKIP_REASONS } from './candidate-feedback-eligibility';
+import { resolveCandidateFeedbackOutcomePatch } from './candidate-feedback-outcome';
+import type { QuestionFeedbackEligibilitySkipReason } from './candidate-feedback-skip-templates';
 import {
   CandidateFeedback,
   CandidateFeedbackBlockState,
   CandidateFeedbackOutcome,
   CandidateFeedbackQuestion,
 } from './interfaces/candidate-feedback.interface';
-import { resolveCandidateFeedbackOutcomePatch } from './candidate-feedback-outcome';
-import type { QuestionFeedbackEligibilitySkipReason } from './candidate-feedback-skip-templates';
 
 interface CandidateFeedbackRow {
   id: string;
@@ -159,12 +165,7 @@ export class CandidateFeedbackService {
         const values: unknown[] = [];
         const placeholders = interview.questions.map((question, index) => {
           const offset = index * 4;
-          values.push(
-            randomUUID(),
-            feedback.id,
-            index,
-            question.id,
-          );
+          values.push(randomUUID(), feedback.id, index, question.id);
           return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
         });
 
@@ -212,7 +213,9 @@ export class CandidateFeedbackService {
         }
 
         if (patch.overall && this.hasHrOverallPatchFields(patch.overall)) {
-          this.assertBlockOpenForHrPatch(feedback.overallState, { interviewId });
+          this.assertBlockOpenForHrPatch(feedback.overallState, {
+            interviewId,
+          });
           this.assertHrPatchableState(patch.overall.state);
           this.assertHrLockedBlockHasPublishableText(
             {
@@ -376,7 +379,11 @@ export class CandidateFeedbackService {
     update: CandidateFeedbackQuestionBlockUpdate,
   ): Promise<CandidateFeedback> {
     const feedback = await this.requireByInterviewId(interviewId);
-    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+    const question = this.findQuestionBlock(
+      feedback,
+      interviewId,
+      questionIndex,
+    );
 
     if (await this.applyQuestionBlockUpdate(question, update)) {
       await this.touchFeedback(feedback.id);
@@ -431,7 +438,11 @@ export class CandidateFeedbackService {
     questionIndex: number,
   ): Promise<boolean> {
     const feedback = await this.requireByInterviewId(interviewId);
-    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+    const question = this.findQuestionBlock(
+      feedback,
+      interviewId,
+      questionIndex,
+    );
 
     const result = await this.databaseService.query(
       `
@@ -470,7 +481,11 @@ export class CandidateFeedbackService {
       | { kind: 'failed'; errorMessage: string },
   ): Promise<boolean> {
     const feedback = await this.requireByInterviewId(interviewId);
-    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+    const question = this.findQuestionBlock(
+      feedback,
+      interviewId,
+      questionIndex,
+    );
 
     const result =
       outcome.kind === 'generated'
@@ -486,11 +501,7 @@ export class CandidateFeedbackService {
               WHERE id = $1 AND state = 'generating'
               RETURNING id
             `,
-            [
-              question.id,
-              outcome.recommendationText,
-              outcome.improvementText,
-            ],
+            [question.id, outcome.recommendationText, outcome.improvementText],
           )
         : await this.databaseService.query(
             `
@@ -523,7 +534,11 @@ export class CandidateFeedbackService {
     },
   ): Promise<boolean> {
     const feedback = await this.requireByInterviewId(interviewId);
-    const question = this.findQuestionBlock(feedback, interviewId, questionIndex);
+    const question = this.findQuestionBlock(
+      feedback,
+      interviewId,
+      questionIndex,
+    );
 
     if (
       getRegenerationBlockReason(question.state, {
@@ -581,7 +596,9 @@ export class CandidateFeedbackService {
       async () => {
         const feedback = await this.requireByInterviewId(interviewId);
 
-        const recoveredQuestions = await this.databaseService.query<{ id: string }>(
+        const recoveredQuestions = await this.databaseService.query<{
+          id: string;
+        }>(
           `
             UPDATE candidate_feedback_questions
             SET
@@ -595,7 +612,9 @@ export class CandidateFeedbackService {
           [feedback.id, errorMessage],
         );
 
-        const recoveredOverall = await this.databaseService.query<{ id: string }>(
+        const recoveredOverall = await this.databaseService.query<{
+          id: string;
+        }>(
           `
             UPDATE candidate_feedback
             SET
@@ -609,7 +628,10 @@ export class CandidateFeedbackService {
           [feedback.id, errorMessage],
         );
 
-        if ((recoveredQuestions.rowCount ?? 0) > 0 && (recoveredOverall.rowCount ?? 0) === 0) {
+        if (
+          (recoveredQuestions.rowCount ?? 0) > 0 &&
+          (recoveredOverall.rowCount ?? 0) === 0
+        ) {
           await this.touchFeedback(feedback.id);
         }
 
@@ -664,11 +686,7 @@ export class CandidateFeedbackService {
               WHERE id = $1 AND overall_state = 'generating'
               RETURNING id
             `,
-            [
-              feedback.id,
-              outcome.recommendationText,
-              outcome.improvementText,
-            ],
+            [feedback.id, outcome.recommendationText, outcome.improvementText],
           )
         : await this.databaseService.query(
             `

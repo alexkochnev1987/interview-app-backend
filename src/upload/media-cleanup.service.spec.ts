@@ -1,10 +1,13 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import { MediaCleanupService } from './media-cleanup.service';
+
 import { AppConfigService } from '../app-config/app-config.service';
+import { MediaCleanupService } from './media-cleanup.service';
 
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {
-    const service = new MediaCleanupService({ getBoolean: vi.fn().mockResolvedValue(true) } as unknown as AppConfigService);
+    const service = new MediaCleanupService({
+      getBoolean: vi.fn().mockResolvedValue(true),
+    } as unknown as AppConfigService);
     const send = vi
       .fn()
       .mockResolvedValueOnce({
@@ -12,13 +15,25 @@ describe('MediaCleanupService', () => {
         IsTruncated: false,
       })
       .mockResolvedValueOnce({
-        Errors: [{ Key: 'uploads/interviews/i1/answers/q0-camera-1.webm', Code: 'AccessDenied' }],
+        Errors: [
+          {
+            Key: 'uploads/interviews/i1/answers/q0-camera-1.webm',
+            Code: 'AccessDenied',
+          },
+        ],
       })
       .mockResolvedValueOnce({
-        Errors: [{ Key: 'uploads/interviews/i1/answers/q0-camera-1.webm', Code: 'AccessDenied' }],
+        Errors: [
+          {
+            Key: 'uploads/interviews/i1/answers/q0-camera-1.webm',
+            Code: 'AccessDenied',
+          },
+        ],
       });
 
-    (service as unknown as { s3Client: { send: ReturnType<typeof vi.fn> } }).s3Client = { send };
+    (
+      service as unknown as { s3Client: { send: ReturnType<typeof vi.fn> } }
+    ).s3Client = { send };
 
     await expect(service.deleteInterviewMedia('i1')).rejects.toBeInstanceOf(
       ServiceUnavailableException,

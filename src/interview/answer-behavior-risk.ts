@@ -16,7 +16,10 @@ export function computeAnswerBehaviorRisk(
   const paste = signals?.pasteCount ?? 0;
 
   let score = tabHidden * 3 + windowBlur * 2 + paste * 5;
-  if (typeof durationSeconds === 'number' && durationSeconds < SHORT_ANSWER_THRESHOLD_SECONDS) {
+  if (
+    typeof durationSeconds === 'number' &&
+    durationSeconds < SHORT_ANSWER_THRESHOLD_SECONDS
+  ) {
     score += 5;
   }
 

@@ -1,5 +1,5 @@
-import { buildFeedbackImprovements } from './feedback-text';
 import { InterviewQuestionResult } from '../interview/interfaces/interview.interface';
+import { buildFeedbackImprovements } from './feedback-text';
 
 function result(
   overrides: Partial<InterviewQuestionResult>,
@@ -43,7 +43,9 @@ describe('buildFeedbackImprovements', () => {
     expect(text).toContain('Question 1 (40%)');
     expect(text).toContain('Incomplete response.');
     expect(text).toMatch(/Question 2 \(55%\)/);
-    expect(text!.indexOf('Question 1')).toBeLessThan(text!.indexOf('Question 2'));
+    expect(text!.indexOf('Question 1')).toBeLessThan(
+      text!.indexOf('Question 2'),
+    );
   });
 
   it('uses Polish labels for pl interview locale', () => {

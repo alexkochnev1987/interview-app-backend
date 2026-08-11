@@ -1,5 +1,6 @@
-import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+
 import { CreateQuestionDto } from '../create-question.dto';
 import { UpdateQuestionDto } from '../update-question.dto';
 
@@ -14,7 +15,8 @@ function validPrimaryBlock(questionText: string) {
 }
 
 function createDto(
-  payload: Partial<CreateQuestionDto> & Pick<CreateQuestionDto, 'primaryLocale' | 'translations'>,
+  payload: Partial<CreateQuestionDto> &
+    Pick<CreateQuestionDto, 'primaryLocale' | 'translations'>,
 ): CreateQuestionDto {
   return plainToInstance(CreateQuestionDto, payload);
 }
@@ -72,7 +74,9 @@ describe('QuestionTranslationsMapConstraint', () => {
           expectedConcepts: [
             { id: 'c1', label: 'Concept', weight: 1, description: 'desc' },
           ],
-          redFlags: [{ id: 'r1', label: 'Flag', severity: 'critical' as 'low' }],
+          redFlags: [
+            { id: 'r1', label: 'Flag', severity: 'critical' as 'low' },
+          ],
           sampleGoodAnswer: 'Sample answer.',
         },
       },

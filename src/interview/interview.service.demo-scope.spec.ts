@@ -1,8 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
-import { InterviewService } from './interview.service';
+
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService demo scoping (findAllPaginated)', () => {
   function makeService() {

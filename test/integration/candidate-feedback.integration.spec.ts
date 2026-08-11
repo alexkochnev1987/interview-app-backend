@@ -3,13 +3,13 @@ import { INestApplication } from '@nestjs/common';
 import * as candidateFeedbackLlm from '../../src/ai/llm/candidate-feedback-llm';
 import * as candidateFeedbackOverallLlm from '../../src/ai/llm/candidate-feedback-overall-llm';
 import { InterviewService } from '../../src/interview/interview.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import {
   getIntegrationApp,
   parseCandidateToken,
   type IntegrationAgent,
 } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
   buildSubmitAnswerPayload,
@@ -224,8 +224,8 @@ describe('Candidate feedback (integration)', () => {
       session,
       interviewId,
       (body) =>
-        body.questions[0]?.state === 'generated'
-        && body.questions[1]?.state === 'edited',
+        body.questions[0]?.state === 'generated' &&
+        body.questions[1]?.state === 'edited',
     );
     expect(questionLlmSpy).toHaveBeenCalledTimes(1);
   });
@@ -289,7 +289,8 @@ describe('Candidate feedback (integration)', () => {
       (body) =>
         body.overall.state === 'generated' &&
         body.questions.every(
-          (question) => question.state === 'generated' || question.state === 'edited',
+          (question) =>
+            question.state === 'generated' || question.state === 'edited',
         ),
     );
 

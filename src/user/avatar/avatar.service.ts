@@ -1,6 +1,3 @@
-import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
-import { ApiErrorCode } from '../../common/errors/api-error.codes';
-import { apiBadRequest } from '../../common/errors/api-error';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -11,9 +8,19 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { UserService } from '../user.service';
-import { canReadUserProfile } from '../user-access-rules';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
+
+import { apiBadRequest } from '../../common/errors/api-error';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { User } from '../interfaces/user.interface';
+import { canReadUserProfile } from '../user-access-rules';
+import { UserService } from '../user.service';
 import {
   buildUserAvatarKey,
   extensionForAvatarContentType,
@@ -132,7 +139,10 @@ export class AvatarService {
       await this.deleteObjectQuietly(previousAvatarKey);
     }
 
-    return { pictureUrl: user.pictureUrl ?? null, avatarSource: user.avatarSource };
+    return {
+      pictureUrl: user.pictureUrl ?? null,
+      avatarSource: user.avatarSource,
+    };
   }
 
   async deleteAvatar(userId: string): Promise<AvatarUpdateResponseDto> {
@@ -154,7 +164,10 @@ export class AvatarService {
       await this.deleteObjectQuietly(previousAvatarKey);
     }
 
-    return { pictureUrl: user.pictureUrl ?? null, avatarSource: user.avatarSource };
+    return {
+      pictureUrl: user.pictureUrl ?? null,
+      avatarSource: user.avatarSource,
+    };
   }
 
   async getRedirectUrl(
@@ -175,7 +188,9 @@ export class AvatarService {
     if (target.avatarSource !== 'upload' || !target.avatarKey) {
       // Google-sourced and unset avatars are served directly from
       // pictureUrl (see avatar-picture-url.ts) and never hit this proxy.
-      throw new NotFoundException(`User ${targetUserId} has no uploaded avatar`);
+      throw new NotFoundException(
+        `User ${targetUserId} has no uploaded avatar`,
+      );
     }
 
     const command = new GetObjectCommand({

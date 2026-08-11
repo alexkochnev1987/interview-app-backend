@@ -36,9 +36,11 @@ describe('candidate feedback rules', () => {
         errorMessage: 'HR manually edited',
       }),
     ).toBe('locked');
-    expect(getRegenerationBlockReason('accepted', { errorMessage: 'unusable_transcript' })).toBe(
-      'locked',
-    );
+    expect(
+      getRegenerationBlockReason('accepted', {
+        errorMessage: 'unusable_transcript',
+      }),
+    ).toBe('locked');
   });
 
   it('requires publishable text when locking a block via HR patch', () => {

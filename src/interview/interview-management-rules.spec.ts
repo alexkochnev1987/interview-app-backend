@@ -32,9 +32,9 @@ describe('interview-management-rules', () => {
 
   describe('hasInterviewPendingOnlyFieldUpdates', () => {
     it('detects pending-only field updates', () => {
-      expect(hasInterviewPendingOnlyFieldUpdates({ candidateName: 'Ada' })).toBe(
-        true,
-      );
+      expect(
+        hasInterviewPendingOnlyFieldUpdates({ candidateName: 'Ada' }),
+      ).toBe(true);
       expect(
         hasInterviewPendingOnlyFieldUpdates({
           candidateName: undefined,
@@ -68,9 +68,9 @@ describe('interview-management-rules', () => {
         'completed',
         'failed',
       ] as const) {
-        expect(
-          getInterviewPendingOnlyBlockReasonForFields(status, true),
-        ).toBe(INTERVIEW_PENDING_ONLY_MESSAGE);
+        expect(getInterviewPendingOnlyBlockReasonForFields(status, true)).toBe(
+          INTERVIEW_PENDING_ONLY_MESSAGE,
+        );
       }
     });
 
@@ -88,11 +88,7 @@ describe('interview-management-rules', () => {
     });
 
     it('blocks active interviews', () => {
-      for (const status of [
-        'pending',
-        'in_progress',
-        'processing',
-      ] as const) {
+      for (const status of ['pending', 'in_progress', 'processing'] as const) {
         expect(getInterviewTerminalOnlyBlockReason(status)).toBe(
           INTERVIEW_TERMINAL_ONLY_MESSAGE,
         );
@@ -124,5 +120,4 @@ describe('interview-management-rules', () => {
       );
     });
   });
-
 });

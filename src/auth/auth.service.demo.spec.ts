@@ -1,8 +1,9 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { AuthService } from './auth.service';
+
 import { UserService } from '../user/user.service';
+import { AuthService } from './auth.service';
 
 describe('AuthService demoLogin', () => {
   function buildService(userService: Partial<UserService>) {

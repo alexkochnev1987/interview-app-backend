@@ -1,5 +1,4 @@
 import '../database/load-env';
-
 import { createEmbeddingProvider } from '../ai/embeddings/create-embedding-provider';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';

@@ -21,7 +21,9 @@ export async function fetchWithLlmTimeout(
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`LLM request timed out after ${timeoutMs}ms`, { cause: error });
+      throw new Error(`LLM request timed out after ${timeoutMs}ms`, {
+        cause: error,
+      });
     }
     throw error;
   } finally {
@@ -94,9 +96,7 @@ async function completeOpenAi(
   }
   const data = (await res.json()) as Record<string, unknown>;
   const choices = data.choices as Array<Record<string, unknown>> | undefined;
-  const message = choices?.[0]?.message as
-    | Record<string, unknown>
-    | undefined;
+  const message = choices?.[0]?.message as Record<string, unknown> | undefined;
   const content = message?.content;
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('OpenAI returned an empty response.');
@@ -193,7 +193,9 @@ async function completeGoogle(
     throw new Error(`Gemini error ${res.status}: ${await readErrorBody(res)}`);
   }
   const data = (await res.json()) as Record<string, unknown>;
-  const candidates = data.candidates as Array<Record<string, unknown>> | undefined;
+  const candidates = data.candidates as
+    | Array<Record<string, unknown>>
+    | undefined;
   const parts = candidates?.[0]?.content as Record<string, unknown> | undefined;
   const partsList = parts?.parts as Array<Record<string, unknown>> | undefined;
   const text = (partsList ?? [])

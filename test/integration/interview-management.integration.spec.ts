@@ -1,10 +1,14 @@
 import { INestApplication } from '@nestjs/common';
+
 import { DatabaseService } from '../../src/database/database.service';
 import { InterviewService } from '../../src/interview/interview.service';
 import { MediaCleanupService } from '../../src/upload/media-cleanup.service';
-import { getIntegrationApp, type IntegrationAgent } from '../helpers/integration-app';
-import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
+import {
+  getIntegrationApp,
+  type IntegrationAgent,
+} from '../helpers/integration-app';
+import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { updateInterviewStatus } from '../helpers/integration-db';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
@@ -48,9 +52,9 @@ async function createPendingInterview(
 
 function stubInterviewMediaDeletion(app: INestApplication): void {
   const mediaCleanupService = app.get(MediaCleanupService);
-  vi
-    .spyOn(mediaCleanupService, 'deleteInterviewMedia')
-    .mockResolvedValue(undefined);
+  vi.spyOn(mediaCleanupService, 'deleteInterviewMedia').mockResolvedValue(
+    undefined,
+  );
 }
 
 describe('Interview management (integration)', () => {
@@ -275,10 +279,12 @@ describe('Interview management (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
-    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
-      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
-      [questionId],
-    );
+    const row = await databaseService.query<{
+      deleted: boolean;
+      pending_deletion: boolean;
+    }>('SELECT deleted, pending_deletion FROM questions WHERE id = $1', [
+      questionId,
+    ]);
 
     expect(row.rows[0]?.deleted).toBe(true);
     expect(row.rows[0]?.pending_deletion).toBe(false);
@@ -289,11 +295,7 @@ describe('Interview management (integration)', () => {
     const session = await loginAsSuperAdmin(agent);
     const questionA = await createQuestion(agent, session, 'Question A.');
     const questionB = await createQuestion(agent, session, 'Question B.');
-    const interviewId = await createPendingInterview(
-      agent,
-      session,
-      questionA,
-    );
+    const interviewId = await createPendingInterview(agent, session, questionA);
 
     const response = await agent
       .patch(`/interviews/${interviewId}`)
@@ -360,10 +362,12 @@ describe('Interview management (integration)', () => {
       .expect(200);
 
     const databaseService = app.get(DatabaseService);
-    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
-      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
-      [questionId],
-    );
+    const row = await databaseService.query<{
+      deleted: boolean;
+      pending_deletion: boolean;
+    }>('SELECT deleted, pending_deletion FROM questions WHERE id = $1', [
+      questionId,
+    ]);
 
     expect(row.rows[0]?.deleted).toBe(true);
     expect(row.rows[0]?.pending_deletion).toBe(false);
@@ -372,8 +376,16 @@ describe('Interview management (integration)', () => {
   it('rejects adding a scheduled-deletion question when updating a pending interview', async () => {
     const { agent } = await getIntegrationApp();
     const session = await loginAsSuperAdmin(agent);
-    const questionA = await createQuestion(agent, session, 'Question A retained.');
-    const questionB = await createQuestion(agent, session, 'Question B scheduled.');
+    const questionA = await createQuestion(
+      agent,
+      session,
+      'Question A retained.',
+    );
+    const questionB = await createQuestion(
+      agent,
+      session,
+      'Question B scheduled.',
+    );
     const blockingInterviewId = await createPendingInterview(
       agent,
       session,
@@ -428,26 +440,31 @@ describe('Interview management (integration)', () => {
       runId,
       requestedAt: completedAt,
     });
-    const interview = await interviewService.completeAnswerValidation(interviewId, {
-      questionIndex: 0,
-      sourceVersionNumber: 1,
-      runId,
-      requestedAt: completedAt,
-      completedAt,
-      evaluation: {
-        overallScore: 82,
-        summary: 'Solid answer.',
-        evaluatedAt: completedAt,
+    const interview = await interviewService.completeAnswerValidation(
+      interviewId,
+      {
+        questionIndex: 0,
+        sourceVersionNumber: 1,
+        runId,
+        requestedAt: completedAt,
+        completedAt,
+        evaluation: {
+          overallScore: 82,
+          summary: 'Solid answer.',
+          evaluatedAt: completedAt,
+        },
       },
-    });
+    );
 
     expect(interview.status).toBe('completed');
 
     const databaseService = app.get(DatabaseService);
-    const row = await databaseService.query<{ deleted: boolean; pending_deletion: boolean }>(
-      'SELECT deleted, pending_deletion FROM questions WHERE id = $1',
-      [questionId],
-    );
+    const row = await databaseService.query<{
+      deleted: boolean;
+      pending_deletion: boolean;
+    }>('SELECT deleted, pending_deletion FROM questions WHERE id = $1', [
+      questionId,
+    ]);
 
     expect(row.rows[0]?.deleted).toBe(true);
     expect(row.rows[0]?.pending_deletion).toBe(false);
@@ -474,10 +491,7 @@ describe('Interview management (integration)', () => {
       .set(authCookie(session))
       .expect(200);
 
-    await agent
-      .get(`/take/${interviewId}`)
-      .query({ token })
-      .expect(404);
+    await agent.get(`/take/${interviewId}`).query({ token }).expect(404);
 
     await agent
       .post(`/take/${interviewId}/answer`)

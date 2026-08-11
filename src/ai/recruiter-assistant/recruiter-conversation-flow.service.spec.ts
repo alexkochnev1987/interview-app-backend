@@ -44,12 +44,19 @@ describe('RecruiterConversationFlowService', () => {
   });
 
   it('cancels an active flow', async () => {
-    const response = await service.resumeActiveFlow({ ...ctx, message: 'cancel' });
-
-    expect(conversationStore.update).toHaveBeenCalledWith('user-1', 'session-1', {
-      flow: 'idle',
-      slots: {},
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'cancel',
     });
+
+    expect(conversationStore.update).toHaveBeenCalledWith(
+      'user-1',
+      'session-1',
+      {
+        flow: 'idle',
+        slots: {},
+      },
+    );
     expect(response).toEqual({
       status: 'answered',
       response: 'Cancelled. No changes were made.',

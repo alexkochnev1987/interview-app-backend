@@ -1,27 +1,36 @@
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest, apiConflict, apiNotFound } from '../common/errors/api-error';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import crypto from 'crypto';
+
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
+
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { demoScopeClause } from '../common/demo-scope';
+import {
+  apiBadRequest,
+  apiConflict,
+  apiNotFound,
+} from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../interview/interfaces/interview.interface';
-import { isLocale, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
-import { CreateQuestionDto } from './dto/create-question.dto';
+import { localeUiText } from '../locale/locale-ui-text';
 import {
-  asQuestionTranslationsMapInput,
-  QuestionTranslationsMapInput,
-} from './dto/question-translations-map.dto';
+  isLocale,
+  Locale,
+  SUPPORTED_LOCALES,
+} from '../locale/locale.constants';
+import { CreateQuestionDto } from './dto/create-question.dto';
 import {
   QueryQuestionsDto,
   QuestionSortField,
   QuestionSortOrder,
   QuestionStatusFilter,
 } from './dto/query-questions.dto';
+import {
+  asQuestionTranslationsMapInput,
+  QuestionTranslationsMapInput,
+} from './dto/question-translations-map.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { applyTranslationsUpdate } from './question-translations-update';
-import { findUnknownTranslationLocaleKeys } from './question-translation.validation';
 import {
   Question,
   QuestionCore,
@@ -49,18 +58,19 @@ import {
   resolveQuestionFields,
   ensurePrimaryTranslationBlock,
 } from './question-locale';
-import { resolveQuestion } from './resolve-question';
-import { localeUiText } from '../locale/locale-ui-text';
-import {
-  buildQuestionSearchText,
-  collectQuestionTextVariants,
-} from './question-search-text';
-import { toResolveQuestionInput } from './to-resolve-question-input';
 import {
   buildScheduledDeleteReason,
   collectPendingDeletionAttachRejectIds,
   mapBlockingInterviews,
 } from './question-scheduled-deletion.helpers';
+import {
+  buildQuestionSearchText,
+  collectQuestionTextVariants,
+} from './question-search-text';
+import { findUnknownTranslationLocaleKeys } from './question-translation.validation';
+import { applyTranslationsUpdate } from './question-translations-update';
+import { resolveQuestion } from './resolve-question';
+import { toResolveQuestionInput } from './to-resolve-question-input';
 
 export type ResolvedQuestion = Omit<Question, 'translations'> & {
   resolvedLocale: Locale;
@@ -78,7 +88,8 @@ export const DEFAULT_QUESTIONS_SORT_ORDER: QuestionSortOrder = 'desc';
 const SORT_FIELD_TO_SQL: Record<QuestionSortField, string> = {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  difficulty: "CASE difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 ELSE 4 END",
+  difficulty:
+    "CASE difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 ELSE 4 END",
   questionText: 'lower(question_text)',
   popularity: 'usage_count',
 };
@@ -290,10 +301,9 @@ export class QuestionService {
 
         if (existing.deleted) {
           await this.runWithDuplicateGuard(normalized, () =>
-            client.query(
-              `UPDATE questions SET deleted = FALSE WHERE id = $1`,
-              [existing.id],
-            ),
+            client.query(`UPDATE questions SET deleted = FALSE WHERE id = $1`, [
+              existing.id,
+            ]),
           );
         }
 
@@ -498,7 +508,10 @@ export class QuestionService {
     const offset = (page - 1) * limit;
 
     const sortBy = query.sortBy ?? DEFAULT_QUESTIONS_SORT_BY;
-    const sortOrder = (query.sortOrder ?? DEFAULT_QUESTIONS_SORT_ORDER) === 'asc' ? 'ASC' : 'DESC';
+    const sortOrder =
+      (query.sortOrder ?? DEFAULT_QUESTIONS_SORT_ORDER) === 'asc'
+        ? 'ASC'
+        : 'DESC';
     const sortExpression = SORT_FIELD_TO_SQL[sortBy];
 
     const status: QuestionStatusFilter = options.forceActive
@@ -526,7 +539,9 @@ export class QuestionService {
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
-    const result = await this.databaseService.query<QuestionRow & { __total: string }>(sql, params);
+    const result = await this.databaseService.query<
+      QuestionRow & { __total: string }
+    >(sql, params);
     const total = result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
     const itemResolveLocale = query.locale ?? options.resolveLocale;
     const items = result.rows.map((row) =>
@@ -558,7 +573,11 @@ export class QuestionService {
 
   private buildQuestionFilterClauses(
     query: QueryQuestionsDto,
-    options: { forceActive?: boolean; excludeField?: FacetField; demo?: boolean } = {},
+    options: {
+      forceActive?: boolean;
+      excludeField?: FacetField;
+      demo?: boolean;
+    } = {},
   ): { whereSql: string; params: unknown[] } {
     const whereClauses: string[] = [];
     const params: unknown[] = [];
@@ -571,7 +590,7 @@ export class QuestionService {
       : (query.status ?? 'active');
     if (status === 'active') {
       whereClauses.push('deleted = FALSE AND pending_deletion = FALSE');
-    }else if (status === 'scheduled') {
+    } else if (status === 'scheduled') {
       whereClauses.push('deleted = FALSE AND pending_deletion = TRUE');
     } else if (status === 'inactive') {
       whereClauses.push('deleted = TRUE');
@@ -617,7 +636,10 @@ export class QuestionService {
     ) {
       params.push(query.primaryLocale);
       whereClauses.push(`primary_locale = $${params.length}`);
-    } else if (query.outputLanguage && options.excludeField !== 'outputLanguage') {
+    } else if (
+      query.outputLanguage &&
+      options.excludeField !== 'outputLanguage'
+    ) {
       const locale = mapOutputLanguageToPrimaryLocale(query.outputLanguage);
       params.push(locale);
       params.push(query.outputLanguage.toLowerCase());
@@ -641,7 +663,8 @@ export class QuestionService {
       whereClauses.push(`tags_lowercase(tags) && $${params.length}::text[]`);
     }
 
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSql =
+      whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     return { whereSql, params };
   }
 
@@ -649,13 +672,14 @@ export class QuestionService {
     query: QueryQuestionsDto = {},
     options: { forceActive?: boolean; demo?: boolean } = {},
   ): Promise<QuestionFacets> {
-    const [difficulties, categories, subcategories, roles, tags] = await Promise.all([
-      this.queryScalarFacet('difficulty', 'difficulty', query, options),
-      this.queryScalarFacet('category', 'category', query, options),
-      this.queryScalarFacet('subcategory', 'subcategory', query, options),
-      this.queryScalarFacet('role', 'role', query, options),
-      this.queryTagFacet(query, options),
-    ]);
+    const [difficulties, categories, subcategories, roles, tags] =
+      await Promise.all([
+        this.queryScalarFacet('difficulty', 'difficulty', query, options),
+        this.queryScalarFacet('category', 'category', query, options),
+        this.queryScalarFacet('subcategory', 'subcategory', query, options),
+        this.queryScalarFacet('role', 'role', query, options),
+        this.queryTagFacet(query, options),
+      ]);
 
     return { difficulties, categories, subcategories, roles, tags };
   }
@@ -800,7 +824,10 @@ export class QuestionService {
     questionId: string,
   ): Promise<QuestionDeleteBlockingInterview[]> {
     return this.databaseService.withClient(async (client) => {
-      const rows = await this.findActiveInterviewsUsingQuestion(client, questionId);
+      const rows = await this.findActiveInterviewsUsingQuestion(
+        client,
+        questionId,
+      );
       return mapBlockingInterviews(rows);
     });
   }
@@ -929,9 +956,7 @@ export class QuestionService {
       params,
     );
 
-    const byId = new Map(
-      result.rows.map((row) => [row.id, row] as const),
-    );
+    const byId = new Map(result.rows.map((row) => [row.id, row] as const));
 
     const missingIds = uniqueIds.filter((id) => !byId.has(id));
     if (missingIds.length > 0) {
@@ -1008,7 +1033,9 @@ export class QuestionService {
 
     return uniqueIds
       .map((id) => byId.get(id))
-      .filter((question): question is ResolvedQuestion => question !== undefined);
+      .filter(
+        (question): question is ResolvedQuestion => question !== undefined,
+      );
   }
 
   private async lockQuestionForDelete(
@@ -1099,10 +1126,7 @@ export class QuestionService {
           AND questions_json @> $2::jsonb
         ORDER BY created_at ASC
       `,
-      [
-        [...ACTIVE_INTERVIEW_STATUSES],
-        JSON.stringify([{ id: questionId }]),
-      ],
+      [[...ACTIVE_INTERVIEW_STATUSES], JSON.stringify([{ id: questionId }])],
     );
 
     return result.rows;
@@ -1130,7 +1154,10 @@ export class QuestionService {
     );
   }
 
-  private async markPendingDeletion(client: PoolClient, id: string): Promise<void> {
+  private async markPendingDeletion(
+    client: PoolClient,
+    id: string,
+  ): Promise<void> {
     await client.query(
       `
         UPDATE questions
@@ -1145,7 +1172,11 @@ export class QuestionService {
     return this.databaseService.withTransaction(async (client) => {
       const existing = await this.lockQuestionForRestore(client, id);
       if (!existing.deleted) {
-        throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Question is not deleted', { id });
+        throw apiBadRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Question is not deleted',
+          { id },
+        );
       }
 
       await this.assertNoActiveDuplicate(client, existing);
@@ -1185,7 +1216,11 @@ export class QuestionService {
     if (typeof err !== 'object' || err === null) {
       return {};
     }
-    const dbErr = err as { code?: string; constraint?: string; detail?: string };
+    const dbErr = err as {
+      code?: string;
+      constraint?: string;
+      detail?: string;
+    };
     return {
       code: dbErr.code,
       constraint: dbErr.constraint,
@@ -1201,14 +1236,20 @@ export class QuestionService {
       return await operation();
     } catch (err) {
       const dbErr = this.getDbError(err);
-      if (dbErr.code === '23505' && dbErr.constraint === 'questions_external_id_unique_idx') {
+      if (
+        dbErr.code === '23505' &&
+        dbErr.constraint === 'questions_external_id_unique_idx'
+      ) {
         throw apiConflict(
           ApiErrorCode.QUESTION_DUPLICATE,
           `An active question with external_id "${payload.externalId}" already exists.`,
           { externalId: payload.externalId },
         );
       }
-      if (dbErr.code === '23505' && dbErr.constraint === 'questions_active_text_unique_idx') {
+      if (
+        dbErr.code === '23505' &&
+        dbErr.constraint === 'questions_active_text_unique_idx'
+      ) {
         throw apiConflict(
           ApiErrorCode.QUESTION_DUPLICATE,
           'An active question with the same text already exists.',
@@ -1296,7 +1337,10 @@ export class QuestionService {
         throw apiConflict(
           ApiErrorCode.QUESTION_DUPLICATE,
           `Cannot restore: an active question with external_id "${question.externalId}" already exists (id: ${externalIdMatch.rows[0].id}).`,
-          { externalId: question.externalId, existingId: externalIdMatch.rows[0].id },
+          {
+            externalId: question.externalId,
+            existingId: externalIdMatch.rows[0].id,
+          },
         );
       }
     }
@@ -1377,7 +1421,12 @@ export class QuestionService {
   }
 
   async findSimilar(
-    draft: Partial<Pick<QuestionCore, 'questionText' | 'category' | 'subcategory' | 'role' | 'difficulty'>>,
+    draft: Partial<
+      Pick<
+        QuestionCore,
+        'questionText' | 'category' | 'subcategory' | 'role' | 'difficulty'
+      >
+    >,
     limit: number,
     excludeQuestionId: string | undefined,
     locale: Locale,
@@ -1403,7 +1452,9 @@ export class QuestionService {
     ];
     const demoClause = demoScopeClause(params, demo, 'q.demo');
 
-    const result = await this.databaseService.query<QuestionRow & { distance: number }>(
+    const result = await this.databaseService.query<
+      QuestionRow & { distance: number }
+    >(
       `
         SELECT
           ${QUESTION_Q_COLUMNS},
@@ -1433,7 +1484,9 @@ export class QuestionService {
   }
 
   private buildSimilarReasons(
-    draft: Partial<Pick<QuestionCore, 'category' | 'subcategory' | 'role' | 'difficulty'>>,
+    draft: Partial<
+      Pick<QuestionCore, 'category' | 'subcategory' | 'role' | 'difficulty'>
+    >,
     match: Question,
     locale: Locale,
   ): string[] {
@@ -1473,7 +1526,9 @@ export class QuestionService {
     locale: Locale,
   ): Promise<ResolvedQuestion> {
     const question = await this.update(id, dto);
-    return this.toResolvedQuestion(question, locale, { includeTranslations: true });
+    return this.toResolvedQuestion(question, locale, {
+      includeTranslations: true,
+    });
   }
 
   hydrateStoredQuestionCore(value: unknown): QuestionCore {
@@ -1484,7 +1539,9 @@ export class QuestionService {
 
     const expectedConcepts = Array.isArray(record.expectedConcepts)
       ? this.normalizeExpectedConcepts(
-          record.expectedConcepts as Array<string | Partial<QuestionExpectedConcept>>,
+          record.expectedConcepts as Array<
+            string | Partial<QuestionExpectedConcept>
+          >,
         )
       : [];
     const redFlags = Array.isArray(record.redFlags)
@@ -1494,7 +1551,8 @@ export class QuestionService {
       : [];
 
     const outputLanguage =
-      this.normalizeOptionalString(record.outputLanguage as string) ?? 'English';
+      this.normalizeOptionalString(record.outputLanguage as string) ??
+      'English';
     const primaryLocale =
       typeof record.primaryLocale === 'string' && isLocale(record.primaryLocale)
         ? record.primaryLocale
@@ -1509,7 +1567,9 @@ export class QuestionService {
         : [],
       expectedConcepts,
       redFlags,
-      sampleGoodAnswer: this.normalizeOptionalString(record.sampleGoodAnswer as string),
+      sampleGoodAnswer: this.normalizeOptionalString(
+        record.sampleGoodAnswer as string,
+      ),
     };
     const translations = ensurePrimaryTranslationBlock(
       primaryLocale,
@@ -1530,14 +1590,14 @@ export class QuestionService {
       subcategory: this.normalizeOptionalString(record.subcategory as string),
       questionText: resolved.questionText,
       followUpQuestions: this.normalizeStringList(resolved.followUpQuestions),
-      expectedConcepts: this.normalizeExpectedConcepts(resolved.expectedConcepts),
+      expectedConcepts: this.normalizeExpectedConcepts(
+        resolved.expectedConcepts,
+      ),
       redFlags: this.normalizeRedFlags(resolved.redFlags),
       difficulty: this.normalizeDifficulty(record.difficulty),
       weight: this.normalizeWeight(record.weight),
       sampleGoodAnswer: this.normalizeOptionalString(resolved.sampleGoodAnswer),
-      minimumPassScore: this.normalizeMinimumPassScore(
-        record.minimumPassScore,
-      ),
+      minimumPassScore: this.normalizeMinimumPassScore(record.minimumPassScore),
       tags: Array.isArray(record.tags)
         ? this.normalizeStringList(record.tags as string[])
         : [],
@@ -1570,13 +1630,12 @@ export class QuestionService {
         dto.translations,
         primaryLocale,
       );
-      const requirePrimary =
-        translationsMode === 'replace' || patchesPrimary;
+      const requirePrimary = translationsMode === 'replace' || patchesPrimary;
       const incoming = this.normalizeTranslationsInput(
         asQuestionTranslationsMapInput(dto.translations),
         {
-        requirePrimaryLocale: requirePrimary ? primaryLocale : undefined,
-      },
+          requirePrimaryLocale: requirePrimary ? primaryLocale : undefined,
+        },
       );
       translations = applyTranslationsUpdate(
         existing.translations,
@@ -1622,8 +1681,14 @@ export class QuestionService {
       );
     }
 
-    const minimumPassScore = Number(dto.minimumPassScore ?? existing.minimumPassScore);
-    if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
+    const minimumPassScore = Number(
+      dto.minimumPassScore ?? existing.minimumPassScore,
+    );
+    if (
+      !Number.isFinite(minimumPassScore) ||
+      minimumPassScore < 0 ||
+      minimumPassScore > 5
+    ) {
       throw apiBadRequest(
         ApiErrorCode.VALIDATION_ERROR,
         'Minimum pass score must be between 0 and 5',
@@ -1631,14 +1696,16 @@ export class QuestionService {
     }
 
     return {
-      externalId: this.normalizeOptionalString(dto.externalId) ?? existing.externalId,
+      externalId:
+        this.normalizeOptionalString(dto.externalId) ?? existing.externalId,
       role: this.normalizeOptionalString(dto.role) ?? existing.role,
       focus: this.normalizeOptionalString(dto.focus) ?? existing.focus,
       primaryLocale,
       translations,
       outputLanguage: primaryLocaleToOutputLanguage(primaryLocale),
       category: this.normalizeOptionalString(dto.category) ?? existing.category,
-      subcategory: this.normalizeOptionalString(dto.subcategory) ?? existing.subcategory,
+      subcategory:
+        this.normalizeOptionalString(dto.subcategory) ?? existing.subcategory,
       questionText: primary.questionText,
       followUpQuestions: primary.followUpQuestions ?? [],
       expectedConcepts: primary.expectedConcepts ?? [],
@@ -1666,8 +1733,8 @@ export class QuestionService {
     const translations = this.normalizeTranslationsInput(
       asQuestionTranslationsMapInput(dto.translations),
       {
-      requirePrimaryLocale: dto.primaryLocale,
-    },
+        requirePrimaryLocale: dto.primaryLocale,
+      },
     );
     const primary = translations[dto.primaryLocale];
     if (!this.isPrimaryTranslationComplete(primary)) {
@@ -1688,7 +1755,11 @@ export class QuestionService {
     }
 
     const minimumPassScore = Number(dto.minimumPassScore ?? 0);
-    if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
+    if (
+      !Number.isFinite(minimumPassScore) ||
+      minimumPassScore < 0 ||
+      minimumPassScore > 5
+    ) {
       throw apiBadRequest(
         ApiErrorCode.VALIDATION_ERROR,
         'Minimum pass score must be between 0 and 5',
@@ -1760,7 +1831,10 @@ export class QuestionService {
       };
     }
     const requiredPrimary = options.requirePrimaryLocale;
-    if (requiredPrimary && !this.isPrimaryTranslationComplete(translations[requiredPrimary])) {
+    if (
+      requiredPrimary &&
+      !this.isPrimaryTranslationComplete(translations[requiredPrimary])
+    ) {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         `translations must include a complete block for primaryLocale "${requiredPrimary}"`,
@@ -1780,12 +1854,12 @@ export class QuestionService {
   } {
     return Boolean(
       translation &&
-        translation.questionText.trim() &&
-        Array.isArray(translation.followUpQuestions) &&
-        Array.isArray(translation.expectedConcepts) &&
-        Array.isArray(translation.redFlags) &&
-        typeof translation.sampleGoodAnswer === 'string' &&
-        translation.sampleGoodAnswer.trim(),
+      translation.questionText.trim() &&
+      Array.isArray(translation.followUpQuestions) &&
+      Array.isArray(translation.expectedConcepts) &&
+      Array.isArray(translation.redFlags) &&
+      typeof translation.sampleGoodAnswer === 'string' &&
+      translation.sampleGoodAnswer.trim(),
     );
   }
 
@@ -1811,7 +1885,10 @@ export class QuestionService {
   }): QuestionDraft {
     const questionText = dto.questionText.trim();
     if (!questionText) {
-      throw apiBadRequest(ApiErrorCode.VALIDATION_ERROR, 'Question text is required');
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Question text is required',
+      );
     }
 
     const weight = Number(dto.weight ?? 1);
@@ -1823,7 +1900,11 @@ export class QuestionService {
     }
 
     const minimumPassScore = Number(dto.minimumPassScore ?? 0);
-    if (!Number.isFinite(minimumPassScore) || minimumPassScore < 0 || minimumPassScore > 5) {
+    if (
+      !Number.isFinite(minimumPassScore) ||
+      minimumPassScore < 0 ||
+      minimumPassScore > 5
+    ) {
       throw apiBadRequest(
         ApiErrorCode.VALIDATION_ERROR,
         'Minimum pass score must be between 0 and 5',
@@ -1831,7 +1912,9 @@ export class QuestionService {
     }
 
     const followUpQuestions = this.normalizeStringList(dto.followUpQuestions);
-    const expectedConcepts = this.normalizeExpectedConcepts(dto.expectedConcepts);
+    const expectedConcepts = this.normalizeExpectedConcepts(
+      dto.expectedConcepts,
+    );
     const redFlags = this.normalizeRedFlags(dto.redFlags);
     const sampleGoodAnswer = this.normalizeOptionalString(dto.sampleGoodAnswer);
     const primaryLocale =
@@ -1847,7 +1930,11 @@ export class QuestionService {
       redFlags,
       sampleGoodAnswer,
     });
-    const translations = mergeTranslations(dto.translations, primaryLocale, translation);
+    const translations = mergeTranslations(
+      dto.translations,
+      primaryLocale,
+      translation,
+    );
 
     return {
       externalId: this.normalizeOptionalString(dto.externalId),
@@ -1964,9 +2051,10 @@ export class QuestionService {
         }
 
         return {
-          id: this.normalizeOptionalString(
-            typeof item.id === 'string' ? item.id : undefined,
-          ) ?? this.slugify(label),
+          id:
+            this.normalizeOptionalString(
+              typeof item.id === 'string' ? item.id : undefined,
+            ) ?? this.slugify(label),
           label,
           weight: Number(
             typeof item.weight === 'number' || typeof item.weight === 'string'
@@ -2001,14 +2089,15 @@ export class QuestionService {
 
       return {
         ...item,
-        weight: normalizedWeight > 0 ? normalizedWeight : Number((1 / normalized.length).toFixed(4)),
+        weight:
+          normalizedWeight > 0
+            ? normalizedWeight
+            : Number((1 / normalized.length).toFixed(4)),
       };
     });
   }
 
-  private normalizeRedFlags(
-    items?: unknown[],
-  ): QuestionRedFlag[] {
+  private normalizeRedFlags(items?: unknown[]): QuestionRedFlag[] {
     return (items ?? [])
       .map((item) => {
         if (typeof item === 'string') {
@@ -2047,9 +2136,10 @@ export class QuestionService {
         }
 
         return {
-          id: this.normalizeOptionalString(
-            typeof item.id === 'string' ? item.id : undefined,
-          ) ?? this.slugify(label),
+          id:
+            this.normalizeOptionalString(
+              typeof item.id === 'string' ? item.id : undefined,
+            ) ?? this.slugify(label),
           label,
           severity: this.normalizeSeverity(
             typeof item.severity === 'string' ? item.severity : undefined,
@@ -2214,8 +2304,7 @@ export class QuestionService {
     );
     const translations = parseTranslationsJson(row.translations_json);
     const legacy: QuestionLegacyFields = {
-      questionText:
-        this.normalizeOptionalString(row.question_text) ?? row.text,
+      questionText: this.normalizeOptionalString(row.question_text) ?? row.text,
       followUpQuestions: row.follow_up_questions ?? [],
       expectedConcepts: this.parseExpectedConcepts(
         row.expected_concepts_json,
@@ -2230,24 +2319,23 @@ export class QuestionService {
       legacy,
     );
     const primaryBlock = hydratedTranslations[primaryLocale];
-    const flatFields =
-      primaryBlock?.questionText?.trim()
-        ? {
-            questionText: primaryBlock.questionText,
-            followUpQuestions: primaryBlock.followUpQuestions ?? [],
-            expectedConcepts: primaryBlock.expectedConcepts ?? [],
-            redFlags: primaryBlock.redFlags ?? [],
-            sampleGoodAnswer: primaryBlock.sampleGoodAnswer,
-          }
-        : {
-            questionText: legacy.questionText,
-            followUpQuestions: this.normalizeStringList(legacy.followUpQuestions),
-            expectedConcepts: this.normalizeExpectedConcepts(
-              legacy.expectedConcepts,
-            ),
-            redFlags: this.normalizeRedFlags(legacy.redFlags),
-            sampleGoodAnswer: legacy.sampleGoodAnswer,
-          };
+    const flatFields = primaryBlock?.questionText?.trim()
+      ? {
+          questionText: primaryBlock.questionText,
+          followUpQuestions: primaryBlock.followUpQuestions ?? [],
+          expectedConcepts: primaryBlock.expectedConcepts ?? [],
+          redFlags: primaryBlock.redFlags ?? [],
+          sampleGoodAnswer: primaryBlock.sampleGoodAnswer,
+        }
+      : {
+          questionText: legacy.questionText,
+          followUpQuestions: this.normalizeStringList(legacy.followUpQuestions),
+          expectedConcepts: this.normalizeExpectedConcepts(
+            legacy.expectedConcepts,
+          ),
+          redFlags: this.normalizeRedFlags(legacy.redFlags),
+          sampleGoodAnswer: legacy.sampleGoodAnswer,
+        };
 
     return {
       id: row.id,
@@ -2265,7 +2353,9 @@ export class QuestionService {
       redFlags: flatFields.redFlags,
       difficulty: row.difficulty,
       weight: row.weight,
-      sampleGoodAnswer: this.normalizeOptionalString(flatFields.sampleGoodAnswer),
+      sampleGoodAnswer: this.normalizeOptionalString(
+        flatFields.sampleGoodAnswer,
+      ),
       minimumPassScore: Number((row.minimum_pass_score ?? 0).toFixed(2)),
       tags: row.tags ?? [],
       metadata: this.normalizeMetadata(row.metadata ?? {}),
@@ -2273,16 +2363,18 @@ export class QuestionService {
       updatedAt: new Date(row.updated_at),
       deleted: Boolean(row.deleted),
       usageCount: Number(row.usage_count ?? 0),
-      pendingDeletion: Boolean(row.pending_deletion)
+      pendingDeletion: Boolean(row.pending_deletion),
     };
   }
 
   private slugify(value: string): string {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 80) || crypto.randomUUID();
+    return (
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 80) || crypto.randomUUID()
+    );
   }
 }

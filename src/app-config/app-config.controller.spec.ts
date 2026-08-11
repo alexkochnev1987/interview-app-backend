@@ -1,8 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
-import { AppConfigController, PublicConfigController } from './app-config.controller';
-import { AppConfigService } from './app-config.service';
+
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { User } from '../user/interfaces/user.interface';
+import {
+  AppConfigController,
+  PublicConfigController,
+} from './app-config.controller';
+import { AppConfigService } from './app-config.service';
 
 describe('AppConfigController & PublicConfigController', () => {
   const getPublicVariables = vi.fn();
@@ -117,11 +121,9 @@ describe('AppConfigController & PublicConfigController', () => {
       });
 
       try {
-        await adminController.upsert(
-          'APP_THEME',
-          { value: 'yellow' },
-          { email: 'admin@example.com' } as unknown as User,
-        );
+        await adminController.upsert('APP_THEME', { value: 'yellow' }, {
+          email: 'admin@example.com',
+        } as unknown as User);
         expect.unreachable('Should have thrown BadRequestException');
       } catch (err: unknown) {
         expect(err).toBeInstanceOf(BadRequestException);

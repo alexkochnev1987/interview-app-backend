@@ -11,7 +11,7 @@
  *   $env:INTERVIEW_ID   = "<your-completed-interview-uuid>"
  *   npx ts-node scripts/mark-demo.ts
  */
-export { };
+export {};
 
 const BASE = (process.env.PROD_BASE_URL ?? '').replace(/\/+$/, '');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? '';
@@ -19,8 +19,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '';
 const INTERVIEW_ID = process.env.INTERVIEW_ID ?? '';
 
 function pickCookie(res: Response, name: string): string | null {
-  const all = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() as string[] | undefined;
-  const list = all ?? (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
+  const all = (
+    res.headers as unknown as { getSetCookie?: () => string[] }
+  ).getSetCookie?.() as string[] | undefined;
+  const list =
+    all ??
+    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
   for (const entry of list) {
     if (entry.startsWith(`${name}=`)) return entry.split(';')[0];
   }
@@ -37,7 +41,9 @@ async function readBody(res: Response): Promise<string> {
 
 async function main(): Promise<void> {
   if (!BASE || !ADMIN_EMAIL || !ADMIN_PASSWORD || !INTERVIEW_ID) {
-    throw new Error('Set PROD_BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD and INTERVIEW_ID.');
+    throw new Error(
+      'Set PROD_BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD and INTERVIEW_ID.',
+    );
   }
 
   console.log(`Marking interview ${INTERVIEW_ID} as demo on ${BASE} ...`);
@@ -46,7 +52,8 @@ async function main(): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
   });
-  if (!loginRes.ok) throw new Error(`login -> ${loginRes.status}: ${await readBody(loginRes)}`);
+  if (!loginRes.ok)
+    throw new Error(`login -> ${loginRes.status}: ${await readBody(loginRes)}`);
   const cookie = pickCookie(loginRes, 'session');
   if (!cookie) throw new Error('No session cookie returned from login.');
 
@@ -60,7 +67,7 @@ async function main(): Promise<void> {
     if (res.status === 403 && /ALLOW_DEMO_SEED/i.test(body)) {
       console.error(
         `\nThis environment runs as production, so it needs ALLOW_DEMO_SEED=true ` +
-        `set on the backend. Ask the mentor to set that one variable, then run this again.`,
+          `set on the backend. Ask the mentor to set that one variable, then run this again.`,
       );
     }
     process.exit(1);

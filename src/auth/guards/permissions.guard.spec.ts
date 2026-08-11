@@ -1,8 +1,9 @@
-import type { Mocked } from 'vitest';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PermissionsGuard } from './permissions.guard';
+import type { Mocked } from 'vitest';
+
 import { mockExecutionContext } from '../../test/mock-execution-context';
+import { PermissionsGuard } from './permissions.guard';
 
 describe('PermissionsGuard', () => {
   let reflector: Mocked<Pick<Reflector, 'getAllAndOverride'>>;

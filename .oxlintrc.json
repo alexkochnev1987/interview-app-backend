@@ -9,7 +9,10 @@
   "rules": {
     "@typescript-eslint/no-extraneous-class": "off",
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      { "argsIgnorePattern": "^_" }
+    ],
     "import/no-unassigned-import": "off",
     "no-await-in-loop": "off",
     "no-underscore-dangle": "off"

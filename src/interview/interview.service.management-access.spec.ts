@@ -1,14 +1,16 @@
 import { ForbiddenException } from '@nestjs/common';
-import { InterviewService } from './interview.service';
+
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService management access', () => {
   function makeService(lockRow: Record<string, unknown>) {
     const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-    const withTransaction = vi.fn(async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
-      fn({ query: clientQuery }),
+    const withTransaction = vi.fn(
+      async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
+        fn({ query: clientQuery }),
     );
     const databaseService = {
       withTransaction,
@@ -27,8 +29,12 @@ describe('InterviewService management access', () => {
       mediaCleanupService,
     );
 
-    vi.spyOn(service as unknown as { lockInterviewForUpdate: ReturnType<typeof vi.fn> }, 'lockInterviewForUpdate')
-      .mockResolvedValue(lockRow);
+    vi.spyOn(
+      service as unknown as {
+        lockInterviewForUpdate: ReturnType<typeof vi.fn>;
+      },
+      'lockInterviewForUpdate',
+    ).mockResolvedValue(lockRow);
 
     return { service, clientQuery, mediaCleanupService };
   }
@@ -54,7 +60,11 @@ describe('InterviewService management access', () => {
     const { service } = makeService(baseRow);
 
     await expect(
-      service.cancel('interview-1', { id: 'other-hr', role: 'hr', demo: false }),
+      service.cancel('interview-1', {
+        id: 'other-hr',
+        role: 'hr',
+        demo: false,
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -79,9 +89,9 @@ describe('InterviewService management access', () => {
       ...baseRow,
       status: 'completed',
     });
-    vi
-      .spyOn(mediaCleanupService, 'deleteInterviewMedia')
-      .mockRejectedValue(new Error('S3 unavailable'));
+    vi.spyOn(mediaCleanupService, 'deleteInterviewMedia').mockRejectedValue(
+      new Error('S3 unavailable'),
+    );
 
     await expect(
       service.deleteCompleted('interview-1', {

@@ -12,6 +12,7 @@ import {
   Length,
   ValidateNested,
 } from 'class-validator';
+
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
@@ -26,7 +27,8 @@ export class QuestionTranslationDto {
 
   @ApiPropertyOptional({
     type: [String],
-    description: 'Optional for non-primary locales. Required for primaryLocale.',
+    description:
+      'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()
   @IsArray()
@@ -36,7 +38,8 @@ export class QuestionTranslationDto {
   @ApiPropertyOptional({
     type: 'array',
     items: { $ref: getSchemaPath(QuestionExpectedConceptDto) },
-    description: 'Optional for non-primary locales. Required for primaryLocale.',
+    description:
+      'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()
   @IsArray()
@@ -47,7 +50,8 @@ export class QuestionTranslationDto {
   @ApiPropertyOptional({
     type: 'array',
     items: { $ref: getSchemaPath(QuestionRedFlagDto) },
-    description: 'Optional for non-primary locales. Required for primaryLocale.',
+    description:
+      'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()
   @IsArray()
@@ -56,7 +60,8 @@ export class QuestionTranslationDto {
   redFlags?: QuestionRedFlagDto[];
 
   @ApiPropertyOptional({
-    description: 'Optional for non-primary locales. Required for primaryLocale.',
+    description:
+      'Optional for non-primary locales. Required for primaryLocale.',
   })
   @IsOptional()
   @IsString()

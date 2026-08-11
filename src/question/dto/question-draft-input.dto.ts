@@ -1,4 +1,8 @@
-import { ApiExtraModels, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -10,15 +14,16 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
-import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question-rubric.dto';
+import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 
 @ApiExtraModels(QuestionExpectedConceptDto, QuestionRedFlagDto)
 export class QuestionDraftInputDto {

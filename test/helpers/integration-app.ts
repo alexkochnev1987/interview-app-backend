@@ -2,10 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import supertest from 'supertest';
+
 import { AppModule } from '../../src/app.module';
-import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
 import { LoginThrottlerGuard } from '../../src/auth/guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from '../../src/auth/guards/register-throttler.guard';
+import { ApiExceptionFilter } from '../../src/common/filters/api-exception.filter';
 import { DatabaseService } from '../../src/database/database.service';
 import { QuestionService } from '../../src/question/question.service';
 import { UserService } from '../../src/user/user.service';
@@ -81,7 +82,9 @@ export async function getIntegrationApp(): Promise<{
 
 export async function resetIntegrationFixtures(): Promise<IntegrationFixtures> {
   if (!app) {
-    throw new Error('Call getIntegrationApp() before resetIntegrationFixtures().');
+    throw new Error(
+      'Call getIntegrationApp() before resetIntegrationFixtures().',
+    );
   }
 
   agent = supertest.agent(app.getHttpServer());

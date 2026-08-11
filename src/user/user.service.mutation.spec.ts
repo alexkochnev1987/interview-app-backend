@@ -1,8 +1,6 @@
-import {
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+
 import type { DatabaseService } from '../database/database.service';
 import type { AvatarService } from './avatar/avatar.service';
 import type { UserRole } from './interfaces/user.interface';
@@ -74,11 +72,9 @@ describe('UserService.updateUser', () => {
     });
 
     await expect(
-      service.updateUser(
-        { id: 'admin-1', role: 'admin' },
-        'admin-2',
-        { name: 'Nope' },
-      ),
+      service.updateUser({ id: 'admin-1', role: 'admin' }, 'admin-2', {
+        name: 'Nope',
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -89,11 +85,9 @@ describe('UserService.updateUser', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'other-1' }] });
 
     await expect(
-      service.updateUser(
-        { id: 'admin-1', role: 'admin' },
-        'admin-1',
-        { email: 'taken@example.com' },
-      ),
+      service.updateUser({ id: 'admin-1', role: 'admin' }, 'admin-1', {
+        email: 'taken@example.com',
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -111,11 +105,9 @@ describe('UserService.updateUser', () => {
     });
 
     await expect(
-      service.updateUser(
-        { id: 'sa-1', role: 'super_admin' },
-        'demo-1',
-        { name: 'Nope' },
-      ),
+      service.updateUser({ id: 'sa-1', role: 'super_admin' }, 'demo-1', {
+        name: 'Nope',
+      }),
     ).rejects.toMatchObject({
       message: 'Cannot modify the demo account',
     });
@@ -148,8 +140,9 @@ describe('UserService.updateUser', () => {
       );
 
       expect(result.role).toBe('hr');
-      const updateCall = query.mock.calls.find((call) =>
-        typeof call[0] === 'string' && call[0].includes('UPDATE users'),
+      const updateCall = query.mock.calls.find(
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('UPDATE users'),
       );
       expect(updateCall?.[0]).not.toMatch(/role\s*=/);
     } finally {
@@ -189,8 +182,9 @@ describe('UserService.deleteUser', () => {
     await service.deleteUser({ id: 'admin-1', role: 'admin' }, 'hr-1');
 
     expect(
-      query.mock.calls.some((call) =>
-        typeof call[0] === 'string' && call[0].includes('DELETE FROM users'),
+      query.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('DELETE FROM users'),
       ),
     ).toBe(true);
   });
@@ -233,8 +227,9 @@ describe('UserService.deleteUser', () => {
     await service.deleteUser({ id: 'sa-1', role: 'super_admin' }, 'demo-1');
 
     expect(
-      query.mock.calls.some((call) =>
-        typeof call[0] === 'string' && call[0].includes('DELETE FROM users'),
+      query.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string' && call[0].includes('DELETE FROM users'),
       ),
     ).toBe(true);
   });

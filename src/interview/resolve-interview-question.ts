@@ -30,5 +30,7 @@ export function resolveInterviewQuestions(
   questions: InterviewQuestion[],
   locale: Locale,
 ): ResolvedInterviewQuestion[] {
-  return questions.map((question) => resolveInterviewQuestion(question, locale));
+  return questions.map((question) =>
+    resolveInterviewQuestion(question, locale),
+  );
 }

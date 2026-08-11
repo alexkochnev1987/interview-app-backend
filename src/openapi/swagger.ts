@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
 import { SUPPORTED_LOCALES } from '../locale/locale.constants';
 
 export function createOpenApiDocument(app: INestApplication) {

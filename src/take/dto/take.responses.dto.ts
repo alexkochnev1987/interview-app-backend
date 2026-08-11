@@ -1,6 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
-import { Locale } from '../../locale/locale.constants';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -15,6 +13,9 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
+import { Locale } from '../../locale/locale.constants';
 
 export class BehaviorSignalsDto {
   @ApiProperty({ type: Number, default: 0 })
@@ -55,11 +56,19 @@ export class BehaviorSignalsDto {
 }
 
 export class BehaviorEventDto {
-  @ApiProperty({ enum: ['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'] })
+  @ApiProperty({
+    enum: ['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'],
+  })
   @IsIn(['tab_hidden', 'window_blur', 'copy', 'paste', 'keydown', 'resize'])
   @IsString()
   @IsNotEmpty()
-  eventType!: 'tab_hidden' | 'window_blur' | 'copy' | 'paste' | 'keydown' | 'resize';
+  eventType!:
+    | 'tab_hidden'
+    | 'window_blur'
+    | 'copy'
+    | 'paste'
+    | 'keydown'
+    | 'resize';
 
   @ApiProperty()
   @Type(() => Date)
@@ -352,7 +361,8 @@ export class TakeInterviewResponseDto {
   maxAttempts!: number;
 
   @ApiPropertyOptional({
-    description: 'Maximum recording duration in seconds per question (MAX_ANSWER_DURATION_SECONDS).',
+    description:
+      'Maximum recording duration in seconds per question (MAX_ANSWER_DURATION_SECONDS).',
   })
   maxDurationSeconds?: number;
 
@@ -437,7 +447,9 @@ export class StartTakeAnswerValidationResponseDto {
   @ApiProperty({ example: true })
   ok!: boolean;
 
-  @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
+  @ApiProperty({
+    enum: ['idle', 'queued', 'processing', 'completed', 'failed'],
+  })
   status!: string;
 
   @ApiProperty()

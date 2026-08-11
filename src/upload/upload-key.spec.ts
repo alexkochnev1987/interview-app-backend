@@ -1,7 +1,4 @@
-import {
-  buildInterviewMediaKey,
-  getInterviewMediaPrefix,
-} from './upload-key';
+import { buildInterviewMediaKey, getInterviewMediaPrefix } from './upload-key';
 
 describe('upload-key', () => {
   describe('getInterviewMediaPrefix', () => {
@@ -19,9 +16,9 @@ describe('upload-key', () => {
       expect(getInterviewMediaPrefix(prefix, interviewId)).toBe(
         'uploads/interviews/abc-123/',
       );
-      expect(mediaKey.startsWith(getInterviewMediaPrefix(prefix, interviewId))).toBe(
-        true,
-      );
+      expect(
+        mediaKey.startsWith(getInterviewMediaPrefix(prefix, interviewId)),
+      ).toBe(true);
     });
 
     it('normalizes empty and slash-padded prefixes', () => {

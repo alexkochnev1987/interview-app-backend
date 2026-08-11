@@ -23,15 +23,17 @@ const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(
 );
 const STAFF_EMAIL = process.env.STAFF_EMAIL ?? 'admin@test.local';
 const STAFF_PASSWORD = process.env.STAFF_PASSWORD ?? 'TestPass123!';
-const FRONTEND_URL = (process.env.FRONTEND_URL ?? 'http://localhost:3001').replace(
-  /\/+$/,
-  '',
-);
+const FRONTEND_URL = (
+  process.env.FRONTEND_URL ?? 'http://localhost:3001'
+).replace(/\/+$/, '');
 
 function pickCookie(res: Response, name: string): string | null {
-  const all = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() as string[] | undefined;
+  const all = (
+    res.headers as unknown as { getSetCookie?: () => string[] }
+  ).getSetCookie?.() as string[] | undefined;
   const list =
-    all ?? (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
+    all ??
+    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
   for (const entry of list) {
     if (entry.startsWith(`${name}=`)) return entry.split(';')[0];
   }
@@ -40,19 +42,27 @@ function pickCookie(res: Response, name: string): string | null {
 
 function mergeCookies(existing: string | null, res: Response): string {
   const jar = new Map<string, string>();
-  for (const part of (existing ?? '').split(';').map((item) => item.trim()).filter(Boolean)) {
+  for (const part of (existing ?? '')
+    .split(';')
+    .map((item) => item.trim())
+    .filter(Boolean)) {
     const [name, ...rest] = part.split('=');
     if (name) jar.set(name, rest.join('='));
   }
-  const all = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() as string[] | undefined;
+  const all = (
+    res.headers as unknown as { getSetCookie?: () => string[] }
+  ).getSetCookie?.() as string[] | undefined;
   const list =
-    all ?? (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
+    all ??
+    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
   for (const entry of list) {
     const [pair] = entry.split(';');
     const [name, ...rest] = pair.split('=');
     if (name) jar.set(name, rest.join('='));
   }
-  return [...jar.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
+  return [...jar.entries()]
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
 }
 
 async function readJson<T>(res: Response): Promise<T> {
@@ -141,7 +151,9 @@ function buildSubmitPayload(
 function parseTakeToken(candidateLink: string): string {
   const match = candidateLink.match(/[?&]token=([^&]+)/);
   if (!match?.[1]) {
-    throw new Error(`Could not parse token from candidate link: ${candidateLink}`);
+    throw new Error(
+      `Could not parse token from candidate link: ${candidateLink}`,
+    );
   }
   return decodeURIComponent(match[1]);
 }
@@ -186,7 +198,9 @@ async function waitForCompleted(
     );
     await sleep(3000);
   }
-  throw new Error(`Interview ${interviewId} did not reach completed within ${timeoutMs}ms`);
+  throw new Error(
+    `Interview ${interviewId} did not reach completed within ${timeoutMs}ms`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -294,10 +308,13 @@ async function main(): Promise<void> {
   }
 
   console.log('Starting validation (Validate all)...');
-  const validateRes = await fetch(`${BASE}/interviews/${interviewId}/validate`, {
-    method: 'POST',
-    headers: authHeaders(cookie),
-  });
+  const validateRes = await fetch(
+    `${BASE}/interviews/${interviewId}/validate`,
+    {
+      method: 'POST',
+      headers: authHeaders(cookie),
+    },
+  );
   const validateBody = await readJson<{
     queuedCount: number;
     skippedCount: number;
@@ -318,10 +335,14 @@ async function main(): Promise<void> {
   console.log(`Status:        ${completed.status}`);
   console.log(`HR UI:         ${hrUrl}`);
   console.log(`Candidate URL: ${takeUrl}`);
-  console.log(`API feedback:  GET ${BASE}/interviews/${interviewId}/candidate-feedback`);
+  console.log(
+    `API feedback:  GET ${BASE}/interviews/${interviewId}/candidate-feedback`,
+  );
   console.log('');
   console.log('Next: open HR UI → Candidate feedback tab → Generate.');
-  console.log('Requires AI_PROVIDER in .env (your server must be restarted after .env changes).');
+  console.log(
+    'Requires AI_PROVIDER in .env (your server must be restarted after .env changes).',
+  );
 }
 
 void main().catch((error) => {

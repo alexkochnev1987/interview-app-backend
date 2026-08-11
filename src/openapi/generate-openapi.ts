@@ -1,15 +1,19 @@
 import { mkdir, writeFile } from 'fs/promises';
 import { resolve } from 'path';
+
 import { NestFactory } from '@nestjs/core';
+
 import { AppModule } from '../app.module';
 import { createOpenApiDocument } from './swagger';
 
 function ensureOpenApiEnvDefaults(): void {
-  process.env.DATABASE_URL ||= 'postgresql://interview_app:localpass@localhost:5433/interview_app_dev';
+  process.env.DATABASE_URL ||=
+    'postgresql://interview_app:localpass@localhost:5433/interview_app_dev';
   process.env.JWT_SECRET ||= 'openapi-local-secret';
   process.env.GOOGLE_CLIENT_ID ||= 'openapi-local-google-client-id';
   process.env.GOOGLE_CLIENT_SECRET ||= 'openapi-local-google-client-secret';
-  process.env.GOOGLE_CALLBACK_URL ||= 'http://localhost:3000/auth/google/callback';
+  process.env.GOOGLE_CALLBACK_URL ||=
+    'http://localhost:3000/auth/google/callback';
   process.env.FRONTEND_URL ||= 'http://localhost:3001';
 }
 

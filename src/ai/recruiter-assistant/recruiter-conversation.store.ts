@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { RecruiterConversationState } from './recruiter-conversation.types';
+
+import { Injectable } from '@nestjs/common';
+
 import { idleConversationState } from './recruiter-conversation-slots';
+import { RecruiterConversationState } from './recruiter-conversation.types';
 
 const CONVERSATION_TTL_MS = 15 * 60 * 1000;
 

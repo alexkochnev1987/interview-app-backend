@@ -1,7 +1,7 @@
-import { InterviewService } from './interview.service';
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService list query (findAllPaginated)', () => {
   function makeService() {
@@ -50,7 +50,9 @@ describe('InterviewService list query (findAllPaginated)', () => {
     expect(sql).toContain('FROM interviews i');
     expect(sql).toContain('LEFT JOIN users ah ON ah.id = i.assigned_hr_id');
     expect(sql).toContain('ah.name AS assigned_hr_name');
-    expect(sql).not.toContain('SELECT name FROM users WHERE id = interviews.assigned_hr_id');
+    expect(sql).not.toContain(
+      'SELECT name FROM users WHERE id = interviews.assigned_hr_id',
+    );
   });
 
   it('maps list rows without hydrating interviews', async () => {
@@ -178,7 +180,9 @@ describe('InterviewService facets query (getFacets)', () => {
   it('sums question counts with all current filters applied', async () => {
     const { service, query } = makeService();
     query.mockImplementation((sql: string) => {
-      if (sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))')) {
+      if (
+        sql.includes('SUM(COALESCE(jsonb_array_length(i.questions_json), 0))')
+      ) {
         return Promise.resolve({ rows: [{ total: '5' }] });
       }
       return Promise.resolve({ rows: [] });

@@ -1,9 +1,10 @@
-import type { Mocked } from 'vitest';
 import { ServiceUnavailableException } from '@nestjs/common';
-import { CandidateFeedbackGenerationService } from './candidate-feedback-generation.service';
-import { CandidateFeedbackService } from './candidate-feedback.service';
+import type { Mocked } from 'vitest';
+
 import { DatabaseService } from '../database/database.service';
 import type { Interview } from '../interview/interfaces/interview.interface';
+import { CandidateFeedbackGenerationService } from './candidate-feedback-generation.service';
+import { CandidateFeedbackService } from './candidate-feedback.service';
 
 vi.mock('../ai/llm/ai-env', () => ({
   resolveNativeProvider: vi.fn(() => ({
@@ -27,8 +28,8 @@ describe('CandidateFeedbackGenerationService', () => {
 
     databaseService = {
       query: vi.fn(),
-      withAdvisoryLock: vi.fn(async (_key: string, callback: () => Promise<unknown>) =>
-        callback(),
+      withAdvisoryLock: vi.fn(
+        async (_key: string, callback: () => Promise<unknown>) => callback(),
       ),
     } as unknown as Mocked<DatabaseService>;
 
@@ -73,8 +74,12 @@ describe('CandidateFeedbackGenerationService', () => {
       ],
     } as unknown as Interview;
 
-    candidateFeedbackService.syncQuestionsFromInterview.mockResolvedValue(undefined as never);
-    candidateFeedbackService.prefillQuestionBlockSkipTemplate.mockResolvedValue(false);
+    candidateFeedbackService.syncQuestionsFromInterview.mockResolvedValue(
+      undefined as never,
+    );
+    candidateFeedbackService.prefillQuestionBlockSkipTemplate.mockResolvedValue(
+      false,
+    );
     candidateFeedbackService.findByInterviewId.mockResolvedValue({
       id: 'feedback-1',
       interviewId: interview.id,
@@ -94,9 +99,9 @@ describe('CandidateFeedbackGenerationService', () => {
       updatedAt: new Date(),
     } as never);
 
-    await expect(service.generateQuestionBlock(interview, 0)).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    await expect(
+      service.generateQuestionBlock(interview, 0),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   it('marks stuck generations as failed on bootstrap', async () => {
@@ -115,12 +120,16 @@ describe('CandidateFeedbackGenerationService', () => {
 
     await service.onApplicationBootstrap();
 
-    expect(candidateFeedbackService.failStuckGeneration).toHaveBeenNthCalledWith(
+    expect(
+      candidateFeedbackService.failStuckGeneration,
+    ).toHaveBeenNthCalledWith(
       1,
       'interview-1',
       'Candidate feedback worker restarted before this run completed. Re-run generation to retry.',
     );
-    expect(candidateFeedbackService.failStuckGeneration).toHaveBeenNthCalledWith(
+    expect(
+      candidateFeedbackService.failStuckGeneration,
+    ).toHaveBeenNthCalledWith(
       2,
       'interview-2',
       'Candidate feedback worker restarted before this run completed. Re-run generation to retry.',

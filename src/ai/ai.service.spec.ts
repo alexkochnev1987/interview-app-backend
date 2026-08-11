@@ -1,15 +1,18 @@
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { AiService } from './ai.service';
 import * as aiEnv from './llm/ai-env';
 import * as questionDraftLlm from './llm/question-draft-llm';
 import * as translateDraftLlm from './llm/question-draft-translate-llm';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import {
+  QuestionDraftContent,
+  QuestionDraftGenerate,
+} from './question-draft-content';
 import {
   collectRubricHumanReadableTexts,
   conceptAndRedFlagIdsAreLatinSnakeCase,
   draftRubricMatchesLocale,
   rubricTextsMatchLocale,
 } from './question-draft-rubric-locale';
-import { QuestionDraftContent, QuestionDraftGenerate } from './question-draft-content';
 
 function assertGenerateDraft(
   draft: QuestionDraftGenerate | QuestionDraftContent,
@@ -35,12 +38,17 @@ describe('draftRubricMatchesLocale', () => {
           description: 'should be explicitly covered',
         },
       ],
-      redFlags: [{ id: 'red_flag_1', label: 'Generic answer', severity: 'medium' }],
-      sampleGoodAnswer: 'A strong answer should explain the idea in simple terms.',
+      redFlags: [
+        { id: 'red_flag_1', label: 'Generic answer', severity: 'medium' },
+      ],
+      sampleGoodAnswer:
+        'A strong answer should explain the idea in simple terms.',
     });
 
     expect(rubricTextsMatchLocale('ru', rubricOnly)).toBe(false);
-    expect(rubricTextsMatchLocale('ru', ['замыкание', ...rubricOnly])).toBe(true);
+    expect(rubricTextsMatchLocale('ru', ['замыкание', ...rubricOnly])).toBe(
+      true,
+    );
   });
 
   it('requires Belarusian glyphs for be locale', () => {
@@ -60,9 +68,24 @@ describe('AiService.draftQuestion', () => {
     primaryLocale: 'ru' as const,
     followUpQuestions: ['Можете привести пример?', 'Какую ошибку избегаете?'],
     expectedConcepts: [
-      { id: 'dom_model', label: 'модель DOM', weight: 0.34, description: 'структура' },
-      { id: 'rendering', label: 'отрисовка', weight: 0.33, description: 'обновления' },
-      { id: 'practical_use', label: 'практика', weight: 0.33, description: 'пример' },
+      {
+        id: 'dom_model',
+        label: 'модель DOM',
+        weight: 0.34,
+        description: 'структура',
+      },
+      {
+        id: 'rendering',
+        label: 'отрисовка',
+        weight: 0.33,
+        description: 'обновления',
+      },
+      {
+        id: 'practical_use',
+        label: 'практика',
+        weight: 0.33,
+        description: 'пример',
+      },
     ],
     redFlags: [
       { id: 'confuses_dom', label: 'Путает DOM', severity: 'medium' as const },
@@ -188,7 +211,10 @@ describe('AiService.draftQuestion', () => {
       apiKey: 'test-key',
       model: 'gpt-4o-mini',
     });
-    vi.spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm').mockResolvedValue({
+    vi.spyOn(
+      questionDraftLlm,
+      'generateQuestionDraftWithNativeLlm',
+    ).mockResolvedValue({
       externalId: 'javascript_closures_v1',
       role: 'junior engineer',
       focus: 'fundamentals',
@@ -220,7 +246,11 @@ describe('AiService.draftQuestion', () => {
         },
       ],
       redFlags: [
-        { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+        {
+          id: 'confuses_scope',
+          label: 'Путает область видимости',
+          severity: 'medium',
+        },
         { id: 'no_example', label: 'Нет примера', severity: 'high' },
       ],
       difficulty: 'easy',
@@ -257,9 +287,24 @@ describe('AiService.draftQuestion', () => {
         questionText: 'Co to jest DOM?',
         followUpQuestions: ['Przykład?', 'Błąd?'],
         expectedConcepts: [
-          { id: 'dom_model', label: 'model DOM', weight: 0.34, description: 'struktura' },
-          { id: 'rendering', label: 'odświeżanie', weight: 0.33, description: 'aktualizacje' },
-          { id: 'practical_use', label: 'praktyka', weight: 0.33, description: 'przykład' },
+          {
+            id: 'dom_model',
+            label: 'model DOM',
+            weight: 0.34,
+            description: 'struktura',
+          },
+          {
+            id: 'rendering',
+            label: 'odświeżanie',
+            weight: 0.33,
+            description: 'aktualizacje',
+          },
+          {
+            id: 'practical_use',
+            label: 'praktyka',
+            weight: 0.33,
+            description: 'przykład',
+          },
         ],
         redFlags: [
           { id: 'confuses_dom', label: 'Myli DOM', severity: 'medium' },

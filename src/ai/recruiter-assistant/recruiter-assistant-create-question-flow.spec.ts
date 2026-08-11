@@ -1,9 +1,9 @@
+import { AiService } from '../ai.service';
+import { QuestionDraftGenerate } from '../question-draft-content';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { AiService } from '../ai.service';
-import { QuestionDraftGenerate } from '../question-draft-content';
 
 describe('RecruiterAssistantToolsService create question flow', () => {
   const user = {

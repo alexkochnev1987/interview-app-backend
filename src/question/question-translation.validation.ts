@@ -1,6 +1,12 @@
-import { isLocale, Locale, SUPPORTED_LOCALES } from '../locale/locale.constants';
+import {
+  isLocale,
+  Locale,
+  SUPPORTED_LOCALES,
+} from '../locale/locale.constants';
 
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(
+  value: unknown,
+): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -65,11 +71,15 @@ export function isPartialTranslationBlock(value: unknown): boolean {
   return true;
 }
 
-export function validateTranslationMapKeys(translations: unknown): translations is Record<string, unknown> {
+export function validateTranslationMapKeys(
+  translations: unknown,
+): translations is Record<string, unknown> {
   if (!isPlainObject(translations)) {
     return false;
   }
-  const keys = Object.keys(translations).filter((key) => translations[key] !== undefined);
+  const keys = Object.keys(translations).filter(
+    (key) => translations[key] !== undefined,
+  );
   if (keys.length === 0) {
     return false;
   }

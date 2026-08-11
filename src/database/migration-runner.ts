@@ -36,11 +36,7 @@ async function repairRenumberedOnboardingMigration(
       WHERE version = '0042'
         AND name = $3
     `,
-    [
-      renumberedOnboarding.version,
-      renumberedOnboarding.name,
-      appliedAt0042,
-    ],
+    [renumberedOnboarding.version, renumberedOnboarding.name, appliedAt0042],
   );
 
   appliedMigrations.delete('0042');
@@ -174,7 +170,10 @@ export async function runMigrations(
 
   await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
   await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
-  await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
+  await repairRenumberedDemoInterviewsMigration(
+    databaseService,
+    appliedMigrations,
+  );
 
   for (const migration of DATABASE_MIGRATIONS) {
     const appliedName = appliedMigrations.get(migration.version);
@@ -203,9 +202,7 @@ export async function runMigrations(
           [migration.version, migration.name],
         );
         await client.query('COMMIT');
-        console.log(
-          `Applied migration ${migration.version}_${migration.name}`,
-        );
+        console.log(`Applied migration ${migration.version}_${migration.name}`);
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;

@@ -1,3 +1,8 @@
+import type {
+  Answer,
+  Interview,
+  InterviewQuestion,
+} from '../interview/interfaces/interview.interface';
 import {
   classifyOverallFeedbackToneMode,
   classifyQuestionFeedbackGeneration,
@@ -5,7 +10,6 @@ import {
   getCandidateFeedbackInterviewStatusBlockReason,
   isUnusableTranscript,
 } from './candidate-feedback-eligibility';
-import type { Answer, Interview, InterviewQuestion } from '../interview/interfaces/interview.interface';
 
 function baseInterview(questionCount = 1): Pick<Interview, 'questions'> {
   return {
@@ -38,7 +42,9 @@ function submittedAnswer(overrides: Partial<Answer> = {}): Answer {
     status: 'submitted',
     mediaKey: 'media',
     uploadedAt: new Date(),
-    transcript: { text: 'I explained caching and database indexing in detail.' },
+    transcript: {
+      text: 'I explained caching and database indexing in detail.',
+    },
     validation: { status: 'completed' },
     evaluation: {
       overallScore: 82,
@@ -52,9 +58,9 @@ function submittedAnswer(overrides: Partial<Answer> = {}): Answer {
 
 describe('candidate-feedback-eligibility', () => {
   it('detects unusable transcripts including multilingual outros', () => {
-    expect(isUnusableTranscript('Thanks for watching! Like and subscribe.')).toBe(
-      true,
-    );
+    expect(
+      isUnusableTranscript('Thanks for watching! Like and subscribe.'),
+    ).toBe(true);
     expect(
       isUnusableTranscript(
         'Thanks for watching! Like and subscribe for more videos.',
@@ -147,9 +153,13 @@ describe('candidate-feedback-eligibility', () => {
   });
 
   it('allows feedback for completed and failed interviews only', () => {
-    expect(getCandidateFeedbackInterviewStatusBlockReason('completed')).toBeNull();
+    expect(
+      getCandidateFeedbackInterviewStatusBlockReason('completed'),
+    ).toBeNull();
     expect(getCandidateFeedbackInterviewStatusBlockReason('failed')).toBeNull();
-    expect(getCandidateFeedbackInterviewStatusBlockReason('in_progress')).toBeTruthy();
+    expect(
+      getCandidateFeedbackInterviewStatusBlockReason('in_progress'),
+    ).toBeTruthy();
   });
 
   it('falls back to decision-only overall tone when no blocks exist', () => {

@@ -1,13 +1,25 @@
 import { randomUUID } from 'crypto';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiConflict, apiServiceUnavailable } from '../common/errors/api-error';
-import { AppConfigService } from '../app-config/app-config.service';
+
 import {
   BadRequestException,
   Injectable,
   Logger,
   OnApplicationBootstrap,
 } from '@nestjs/common';
+
+import { resolveNativeProvider } from '../ai/llm/ai-env';
+import {
+  evaluateAnswerWithNativeLlm,
+  RawAnswerEvaluation,
+} from '../ai/llm/answer-evaluation-llm';
+import { transcribeInterviewMedia } from '../ai/llm/whisper-transcribe';
+import { AppConfigService } from '../app-config/app-config.service';
+import { apiConflict, apiServiceUnavailable } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DatabaseService } from '../database/database.service';
+import { Locale } from '../locale/locale.constants';
+import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
+import { getAnswerValidationSubmissionBlockReason } from './answer-validation-rules';
 import {
   AnswerEvaluation,
   AnswerTranscript,
@@ -17,16 +29,6 @@ import {
   InterviewQuestion,
 } from './interfaces/interview.interface';
 import { InterviewService } from './interview.service';
-import { resolveNativeProvider } from '../ai/llm/ai-env';
-import { getAnswerValidationSubmissionBlockReason } from './answer-validation-rules';
-import { transcribeInterviewMedia } from '../ai/llm/whisper-transcribe';
-import {
-  evaluateAnswerWithNativeLlm,
-  RawAnswerEvaluation,
-} from '../ai/llm/answer-evaluation-llm';
-import { computeAnswerBehaviorRisk } from './answer-behavior-risk';
-import { DatabaseService } from '../database/database.service';
-import { Locale } from '../locale/locale.constants';
 import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
 import { resolveSelectedAnswerVersion } from './resolve-selected-answer-version';
 
@@ -96,9 +98,7 @@ export interface StartAllAnswerValidationsResult {
 }
 
 @Injectable()
-export class AnswerValidationWorkflowService
-  implements OnApplicationBootstrap
-{
+export class AnswerValidationWorkflowService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AnswerValidationWorkflowService.name);
   private readonly validationConcurrency = resolveMaxConcurrentValidations();
   private readonly validationSemaphore = new Semaphore(
@@ -182,12 +182,20 @@ export class AnswerValidationWorkflowService
     questionIndex: number,
     force = false,
   ): Promise<StartAnswerValidationResult> {
-    const enabled = await this.appConfig.getBoolean('ENABLE_AI_ANSWER_VALIDATION', true);
+    const enabled = await this.appConfig.getBoolean(
+      'ENABLE_AI_ANSWER_VALIDATION',
+      true,
+    );
     if (!enabled) {
       this.logger.log(
         `AI answer validation skipped for interview ${interviewId} q${questionIndex}: disabled via runtime config`,
       );
-      return { status: 'idle', questionIndex, sourceVersionNumber: 0, reused: false };
+      return {
+        status: 'idle',
+        questionIndex,
+        sourceVersionNumber: 0,
+        reused: false,
+      };
     }
     return this.dispatchValidation(interviewId, questionIndex, force);
   }
@@ -196,7 +204,10 @@ export class AnswerValidationWorkflowService
     interviewId: string,
     force = false,
   ): Promise<StartAllAnswerValidationsResult> {
-    const enabled = await this.appConfig.getBoolean('ENABLE_AI_ANSWER_VALIDATION', true);
+    const enabled = await this.appConfig.getBoolean(
+      'ENABLE_AI_ANSWER_VALIDATION',
+      true,
+    );
     if (!enabled) {
       throw apiServiceUnavailable(
         ApiErrorCode.AI_PROVIDER_NOT_CONFIGURED,

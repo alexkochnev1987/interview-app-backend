@@ -21,7 +21,11 @@ describe('RecruiterPendingActionStore', () => {
     query: vi.fn(async (sql: string, params: unknown[] = []) => {
       const normalized = sql.replace(/\s+/g, ' ').trim();
 
-      if (normalized.startsWith('DELETE FROM recruiter_pending_actions WHERE expires_at')) {
+      if (
+        normalized.startsWith(
+          'DELETE FROM recruiter_pending_actions WHERE expires_at',
+        )
+      ) {
         return { rows: [] };
       }
 
@@ -49,9 +53,9 @@ describe('RecruiterPendingActionStore', () => {
         const [id, userId] = params as [string, string];
         const index = rows.findIndex(
           (row) =>
-            row.id === id
-            && row.user_id === userId
-            && row.expires_at.getTime() > Date.now(),
+            row.id === id &&
+            row.user_id === userId &&
+            row.expires_at.getTime() > Date.now(),
         );
         if (index === -1) {
           return { rows: [] };
@@ -66,7 +70,9 @@ describe('RecruiterPendingActionStore', () => {
         )
       ) {
         const [id, userId] = params as [string, string];
-        const index = rows.findIndex((row) => row.id === id && row.user_id === userId);
+        const index = rows.findIndex(
+          (row) => row.id === id && row.user_id === userId,
+        );
         if (index === -1) {
           return { rows: [] };
         }
@@ -75,7 +81,9 @@ describe('RecruiterPendingActionStore', () => {
       }
 
       if (
-        normalized.startsWith('DELETE FROM recruiter_pending_actions WHERE user_id = $1')
+        normalized.startsWith(
+          'DELETE FROM recruiter_pending_actions WHERE user_id = $1',
+        )
       ) {
         const [userId] = params as [string];
         for (let index = rows.length - 1; index >= 0; index -= 1) {

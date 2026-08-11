@@ -1,9 +1,9 @@
+import { TemplateService } from '../../template/template.service';
+import { AiService } from '../ai.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { AiService } from '../ai.service';
-import { TemplateService } from '../../template/template.service';
 
 describe('RecruiterAssistantToolsService create interview flow', () => {
   const user = {

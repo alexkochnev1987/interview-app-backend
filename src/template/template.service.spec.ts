@@ -1,10 +1,11 @@
-import { TemplateService } from './template.service';
+import type { PoolClient } from 'pg';
+
 import type { DatabaseService } from '../database/database.service';
 import type {
   QuestionService,
   ResolvedQuestion,
 } from '../question/question.service';
-import type { PoolClient } from 'pg';
+import { TemplateService } from './template.service';
 
 function templateRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -92,11 +93,9 @@ describe('TemplateService', () => {
     it('rejects an empty question set before touching the database', async () => {
       const { service, query } = makeService();
       await expect(
-        service.create(
-          { name: 'Empty', questionIds: [] },
-          'en',
-          { demo: false },
-        ),
+        service.create({ name: 'Empty', questionIds: [] }, 'en', {
+          demo: false,
+        }),
       ).rejects.toMatchObject({ message: expect.stringContaining('question') });
       expect(query).not.toHaveBeenCalled();
     });
@@ -106,12 +105,12 @@ describe('TemplateService', () => {
       const { service, query } = makeService([resolvedQuestion('q1')]);
 
       await expect(
-        service.create(
-          { name: 'Partial', questionIds: ['q1', 'q2'] },
-          'en',
-          { demo: false },
-        ),
-      ).rejects.toMatchObject({ message: expect.stringContaining('unavailable') });
+        service.create({ name: 'Partial', questionIds: ['q1', 'q2'] }, 'en', {
+          demo: false,
+        }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining('unavailable'),
+      });
       expect(query).not.toHaveBeenCalled();
     });
   });
@@ -151,7 +150,9 @@ describe('TemplateService', () => {
 
       await expect(
         service.findOne('missing', 'en', { demo: false }),
-      ).rejects.toMatchObject({ message: expect.stringContaining('not found') });
+      ).rejects.toMatchObject({
+        message: expect.stringContaining('not found'),
+      });
 
       const [sql, params] = query.mock.calls[0];
       expect(sql).toContain('demo = $2');
@@ -177,9 +178,9 @@ describe('TemplateService', () => {
       const { service, query } = makeService();
       query.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(
-        service.remove('t1', { demo: false }),
-      ).rejects.toMatchObject({ message: expect.stringContaining('not found') });
+      await expect(service.remove('t1', { demo: false })).rejects.toMatchObject(
+        { message: expect.stringContaining('not found') },
+      );
     });
   });
 
@@ -188,7 +189,9 @@ describe('TemplateService', () => {
       const { service } = makeService();
       await expect(
         service.update('t1', {}, 'en', { demo: false }),
-      ).rejects.toMatchObject({ message: expect.stringContaining('At least one') });
+      ).rejects.toMatchObject({
+        message: expect.stringContaining('At least one'),
+      });
     });
 
     it('locks the row (FOR UPDATE), keeps unchanged fields, and rejects an empty set', async () => {
@@ -197,7 +200,9 @@ describe('TemplateService', () => {
 
       await expect(
         service.update('t1', { questionIds: [] }, 'en', { demo: false }),
-      ).rejects.toMatchObject({ message: expect.stringContaining('at least one') });
+      ).rejects.toMatchObject({
+        message: expect.stringContaining('at least one'),
+      });
 
       const [sql] = query.mock.calls[0];
       expect(sql).toContain('FOR UPDATE');

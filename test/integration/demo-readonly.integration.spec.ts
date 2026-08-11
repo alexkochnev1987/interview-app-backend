@@ -1,12 +1,12 @@
 import supertest from 'supertest';
 
+import { DatabaseService } from '../../src/database/database.service';
+import { QuestionService } from '../../src/question/question.service';
+import { UserService } from '../../src/user/user.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import { getIntegrationApp } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { useIntegrationHarness } from '../helpers/integration-harness';
-import { DatabaseService } from '../../src/database/database.service';
-import { UserService } from '../../src/user/user.service';
-import { QuestionService } from '../../src/question/question.service';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Read-only demo account, end to end through Nest + Postgres + cookies/guards:
 // reads are scoped to demo rows, every write is 403, and real data never leaks.
@@ -44,10 +44,13 @@ describe('Demo read-only account (integration)', () => {
     // non-demo actor's interview, so the demo interview fixture must reference it
     // while it is still a real row, then both get flipped together.
     const demoQuestion = await questionService.create(
-      buildCreateQuestionPayload('Demo-only question for the integration test.', {
-        difficulty: 'easy',
-        weight: 1,
-      }),
+      buildCreateQuestionPayload(
+        'Demo-only question for the integration test.',
+        {
+          difficulty: 'easy',
+          weight: 1,
+        },
+      ),
     );
 
     // A real interview owned by the super admin, plus a demo interview.
@@ -130,20 +133,36 @@ describe('Demo read-only account (integration)', () => {
       ),
       403,
     );
-    await expectStatus(demo.post(`/interviews/${demoInterviewId}/validate`).send({}), 403);
+    await expectStatus(
+      demo.post(`/interviews/${demoInterviewId}/validate`).send({}),
+      403,
+    );
     await expectStatus(
       demo.post(`/interviews/${demoInterviewId}/questions/0/validate`).send({}),
       403,
     );
-    await expectStatus(demo.patch(`/interviews/${demoInterviewId}/complete`).send({}), 403);
-    await expectStatus(demo.post(`/interviews/${demoInterviewId}/candidate-link`).send({}), 403);
-    await expectStatus(demo.post(`/interviews/${demoInterviewId}/feedback-link`).send({}), 403);
     await expectStatus(
-      demo.post(`/interviews/${demoInterviewId}/candidate-feedback/share-link`).send({}),
+      demo.patch(`/interviews/${demoInterviewId}/complete`).send({}),
       403,
     );
     await expectStatus(
-      demo.delete(`/interviews/${demoInterviewId}/candidate-feedback/share-link`),
+      demo.post(`/interviews/${demoInterviewId}/candidate-link`).send({}),
+      403,
+    );
+    await expectStatus(
+      demo.post(`/interviews/${demoInterviewId}/feedback-link`).send({}),
+      403,
+    );
+    await expectStatus(
+      demo
+        .post(`/interviews/${demoInterviewId}/candidate-feedback/share-link`)
+        .send({}),
+      403,
+    );
+    await expectStatus(
+      demo.delete(
+        `/interviews/${demoInterviewId}/candidate-feedback/share-link`,
+      ),
       403,
     );
     await expectStatus(
@@ -154,7 +173,9 @@ describe('Demo read-only account (integration)', () => {
     );
     await expectStatus(
       demo
-        .post(`/interviews/${demoInterviewId}/candidate-feedback/questions/0/generate`)
+        .post(
+          `/interviews/${demoInterviewId}/candidate-feedback/questions/0/generate`,
+        )
         .send({}),
       403,
     );
@@ -165,6 +186,9 @@ describe('Demo read-only account (integration)', () => {
         .send({}),
       403,
     );
-    await expectStatus(demo.post('/ai/question-draft').send({ question: {} }), 403);
+    await expectStatus(
+      demo.post('/ai/question-draft').send({ question: {} }),
+      403,
+    );
   });
 });

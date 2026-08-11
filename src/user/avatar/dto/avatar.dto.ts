@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
+
 import { AVATAR_SOURCES, AvatarSource } from '../../interfaces/user.interface';
 import {
   MAX_AVATAR_UPLOAD_BYTES,

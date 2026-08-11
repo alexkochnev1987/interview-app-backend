@@ -38,9 +38,9 @@ describe('extractCandidateEmail', () => {
     expect(
       extractCandidateEmail('candidate email: alice@example.com for React'),
     ).toBe('alice@example.com');
-    expect(
-      extractCandidateEmail('candidate alice@example.com for React'),
-    ).toBe('alice@example.com');
+    expect(extractCandidateEmail('candidate alice@example.com for React')).toBe(
+      'alice@example.com',
+    );
     expect(
       extractCandidateEmail('for candidate bob@example.com prepare questions'),
     ).toBe('bob@example.com');

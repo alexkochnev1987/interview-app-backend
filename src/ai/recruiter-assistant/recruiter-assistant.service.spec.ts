@@ -1,6 +1,6 @@
+import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { ActingUser } from './recruiter-assistant.types';
-import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
 
 describe('RecruiterAssistantService', () => {
   const user: ActingUser = {
@@ -79,7 +79,10 @@ describe('RecruiterAssistantService', () => {
       assignedHrName: 'Jane Doe',
       interviewLabel: 'Alice Smith (React Developer)',
     });
-    executor.execute.mockResolvedValue({ status: 'executed', response: 'done' });
+    executor.execute.mockResolvedValue({
+      status: 'executed',
+      response: 'done',
+    });
 
     await service.chat(
       {

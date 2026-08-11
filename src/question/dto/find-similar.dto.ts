@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsIn,
   IsInt,
@@ -11,6 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
 import { QuestionDifficulty } from '../interfaces/question.interface';
 
 export class FindSimilarDraftDto {

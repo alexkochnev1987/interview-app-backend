@@ -32,9 +32,7 @@ function listAnswerVersionsForMeta(
 export function buildCurrentAnswerMeta(answer: Answer): CurrentAnswerMeta {
   const selectedVersion = resolveSelectedAnswerVersion(answer);
   const selectedVersionNumber =
-    selectedVersion?.versionNumber ??
-    answer.selectedVersionNumber ??
-    1;
+    selectedVersion?.versionNumber ?? answer.selectedVersionNumber ?? 1;
   const latestSubmittableVersionNumber =
     resolveLatestVersionWithMedia(listAnswerVersionsForMeta(answer)) ?? null;
 

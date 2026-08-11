@@ -1,11 +1,14 @@
 import { ExecutionContext } from '@nestjs/common';
+
 import { UserRole } from '../user/interfaces/user.interface';
 
-export function mockExecutionContext(options: {
-  user?: { role: UserRole; demo?: boolean };
-  cookies?: Record<string, string>;
-  query?: Record<string, string>;
-} = {}): ExecutionContext {
+export function mockExecutionContext(
+  options: {
+    user?: { role: UserRole; demo?: boolean };
+    cookies?: Record<string, string>;
+    query?: Record<string, string>;
+  } = {},
+): ExecutionContext {
   const handler = function handler() {};
   const Controller = class MockController {};
   const request = {

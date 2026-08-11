@@ -1,19 +1,21 @@
-import { Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { Injectable, Optional } from '@nestjs/common';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
-import { DatabaseService } from '../database/database.service';
-import { demoScopeClause } from '../common/demo-scope';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
-import { Locale } from '../locale/locale.constants';
+
 import { AppConfigService } from '../app-config/app-config.service';
+import { demoScopeClause } from '../common/demo-scope';
+import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DatabaseService } from '../database/database.service';
+import { Locale } from '../locale/locale.constants';
 import {
   QuestionService,
   ResolvedQuestion,
 } from '../question/question.service';
-import { Template } from './interfaces/template.interface';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
+import { Template } from './interfaces/template.interface';
 
 // Stored ids expanded to live question rows for the request locale; omits raw questionIds.
 export interface TemplateWithQuestions extends Omit<Template, 'questionIds'> {
@@ -94,7 +96,8 @@ export class TemplateService {
       );
     }
 
-    const maxQuestions = await this.appConfig?.getNumber('MAX_TEMPLATE_QUESTIONS', 100) ?? 100;
+    const maxQuestions =
+      (await this.appConfig?.getNumber('MAX_TEMPLATE_QUESTIONS', 100)) ?? 100;
     if (questionIds.length > maxQuestions) {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,

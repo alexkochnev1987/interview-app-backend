@@ -1,7 +1,9 @@
-import type { MockedFunction } from 'vitest';
+import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
-import { spawn } from 'child_process';
+
+import type { MockedFunction } from 'vitest';
+
 import {
   assertUnderWhisperLimit,
   extractAudioFromVideo,

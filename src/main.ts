@@ -1,11 +1,12 @@
 import './types/express-augment';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { SwaggerModule } from '@nestjs/swagger';
-import { Request, Response } from 'express';
-import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
+import { Request, Response } from 'express';
+
+import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { createOpenApiDocument } from './openapi/swagger';
 
 async function bootstrap(): Promise<void> {
@@ -19,9 +20,12 @@ async function bootstrap(): Promise<void> {
   const openApiDocument = createOpenApiDocument(app);
 
   SwaggerModule.setup('docs', app, openApiDocument);
-  app.getHttpAdapter().getInstance().get('/openapi.json', (_req: Request, res: Response) => {
-    res.json(openApiDocument);
-  });
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .get('/openapi.json', (_req: Request, res: Response) => {
+      res.json(openApiDocument);
+    });
 
   app.useGlobalFilters(new ApiExceptionFilter());
 

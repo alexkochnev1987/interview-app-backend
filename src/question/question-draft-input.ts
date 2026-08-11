@@ -1,6 +1,6 @@
 import { Locale } from '../locale/locale.constants';
-import { QuestionDifficulty } from './interfaces/question.interface';
 import { QuestionTranslationDto } from './dto/question-translation.dto';
+import { QuestionDifficulty } from './interfaces/question.interface';
 import {
   QuestionExpectedConcept,
   QuestionRedFlag,
