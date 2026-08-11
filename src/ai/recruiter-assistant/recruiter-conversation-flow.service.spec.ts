@@ -5,6 +5,7 @@ describe('RecruiterConversationFlowService', () => {
   const tools = {
     continueAssignHrFlow: jest.fn(),
     continueCreateQuestionFlow: jest.fn(),
+    continueCreateQuestionDespiteSimilar: jest.fn(),
     continueCreateInterviewFlow: jest.fn(),
   };
   const conversationStore = {
@@ -67,5 +68,40 @@ describe('RecruiterConversationFlowService', () => {
     expect(conversationStore.update).toHaveBeenCalled();
     expect(tools.continueAssignHrFlow).toHaveBeenCalled();
     expect(response).toEqual({ status: 'answered', response: 'next' });
+  });
+
+  it('continues create question after user confirms despite similar matches', async () => {
+    tools.continueCreateQuestionDespiteSimilar.mockResolvedValue({
+      status: 'needs_confirmation',
+      response: 'Create question "React hooks" with AI suggestions? Reply yes to confirm.',
+    });
+
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'yes',
+      state: startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+        questionName: 'React hooks',
+      }),
+    });
+
+    expect(tools.continueCreateQuestionDespiteSimilar).toHaveBeenCalled();
+    expect(tools.continueCreateQuestionFlow).not.toHaveBeenCalled();
+    expect(response?.status).toBe('needs_confirmation');
+  });
+
+  it('reprompts on unclear reply during similar match confirmation', async () => {
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'maybe',
+      state: startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+        questionName: 'React hooks',
+      }),
+    });
+
+    expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+    });
   });
 });

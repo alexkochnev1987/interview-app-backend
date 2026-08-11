@@ -4,7 +4,12 @@ import {
   RecruiterConversationState,
 } from './recruiter-conversation.types';
 
-const SLOT_KEYS: Record<RecruiterAssistantAwaitingInput, string> = {
+type SlotAwaitingInput = Exclude<
+  RecruiterAssistantAwaitingInput,
+  'confirmAddDespiteSimilar'
+>;
+
+const SLOT_KEYS: Record<SlotAwaitingInput, string> = {
   hr: 'hrName',
   interview: 'interviewRef',
   questionName: 'questionName',
@@ -12,6 +17,12 @@ const SLOT_KEYS: Record<RecruiterAssistantAwaitingInput, string> = {
   position: 'position',
   templateChoice: 'templateChoice',
 };
+
+export function isSlotAwaitingInput(
+  awaitingInput: RecruiterAssistantAwaitingInput,
+): awaitingInput is SlotAwaitingInput {
+  return awaitingInput !== 'confirmAddDespiteSimilar';
+}
 
 export function idleConversationState(): RecruiterConversationState {
   return { flow: 'idle', slots: {} };
@@ -25,7 +36,7 @@ export function startConversationFlow(
   return { flow, slots: { ...initialSlots }, awaitingInput };
 }
 
-export function slotKeyFor(awaitingInput: RecruiterAssistantAwaitingInput): string {
+export function slotKeyFor(awaitingInput: SlotAwaitingInput): string {
   return SLOT_KEYS[awaitingInput];
 }
 
@@ -33,7 +44,7 @@ export function captureAwaitingSlot(
   state: RecruiterConversationState,
   message: string,
 ): RecruiterConversationState {
-  if (!state.awaitingInput) {
+  if (!state.awaitingInput || !isSlotAwaitingInput(state.awaitingInput)) {
     return state;
   }
   const key = slotKeyFor(state.awaitingInput);

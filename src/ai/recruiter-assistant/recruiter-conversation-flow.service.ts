@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Locale } from '../../locale/locale.constants';
 import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
-import { isCancellationMessage } from './recruiter-assistant.policy';
+import { isCancellationMessage, isConfirmationMessage } from './recruiter-assistant.policy';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
@@ -42,6 +42,24 @@ export class RecruiterConversationFlowService {
       return {
         status: 'answered',
         response: 'Cancelled. No changes were made.',
+      };
+    }
+
+    if (ctx.state.awaitingInput === 'confirmAddDespiteSimilar') {
+      if (isConfirmationMessage(ctx.message)) {
+        const state = { ...ctx.state, awaitingInput: undefined };
+        this.conversationStore.update(ctx.user.id, ctx.sessionId, state);
+        return this.tools.continueCreateQuestionDespiteSimilar(
+          state,
+          ctx.user,
+          ctx.locale,
+          ctx.sessionId,
+        );
+      }
+
+      return {
+        status: 'answered',
+        response: 'Reply yes to add the question anyway, or no/cancel to abort.',
       };
     }
 

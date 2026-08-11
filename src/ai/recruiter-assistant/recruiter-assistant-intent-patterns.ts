@@ -125,10 +125,8 @@ export function matchesCreateInterviewIntent(message: string): boolean {
 }
 
 export const CREATE_INTENT_PATTERNS = [
-  /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
   /\bmake interview\b/i,
-  /\bgenerate questions\b/i,
   cyrillicLoosePattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)'),
   cyrillicLoosePattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
 ];
