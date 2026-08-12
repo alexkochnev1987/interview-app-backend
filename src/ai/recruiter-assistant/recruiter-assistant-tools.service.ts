@@ -29,6 +29,7 @@ import {
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
+import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import {
   buildInterviewRedirect,
@@ -220,6 +221,36 @@ export class RecruiterAssistantToolsService {
             ? `Found ${assessments.length} assessment(s) matching your filters.`
             : `Found ${assessments.length} assessment(s).`,
       assessments,
+    };
+  }
+
+  async summarizeInterviewActivity(
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canListInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to summarize interview activity.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const { statuses } = await this.interviewService.getFacets(
+      {},
+      toInterviewActor(user),
+    );
+    const interviewActivity = buildInterviewActivityFromStatusFacets(statuses);
+
+    return {
+      status: 'answered',
+      response:
+        `Your org has ${interviewActivity.total} interview(s): ` +
+        `${interviewActivity.active} active, ` +
+        `${interviewActivity.completed} completed, ` +
+        `${interviewActivity.failed} failed.`,
+      interviewActivity,
     };
   }
 

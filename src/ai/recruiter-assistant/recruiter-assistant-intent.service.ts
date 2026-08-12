@@ -24,6 +24,7 @@ import {
   matchesCreateSingleQuestionIntent,
   matchesCountQuestionsIntent,
   LIST_ASSESSMENTS_PATTERNS,
+  INTERVIEW_ACTIVITY_SUMMARY_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
 import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
 import {
@@ -67,6 +68,10 @@ export class RecruiterAssistantIntentService {
         kind: 'list_assessments',
         filters: extractAssessmentFilters(message),
       };
+    }
+
+    if (matchesAnyPattern(normalized, INTERVIEW_ACTIVITY_SUMMARY_PATTERNS)) {
+      return { kind: 'interview_activity_summary' };
     }
 
     if (matchesCreateInterviewIntent(normalized)) {

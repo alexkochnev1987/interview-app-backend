@@ -233,6 +233,10 @@ export class RecruiterAssistantService {
           sessionId,
         );
       case 'interview_activity_summary':
+        return this.withSession(
+          await this.tools.summarizeInterviewActivity(user, locale),
+          sessionId,
+        );
       case 'list_team':
         return this.withSession(
           { status: 'refused', response: 'Not implemented yet.' },

@@ -151,6 +151,15 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies interview activity summary requests', () => {
+    expect(
+      service.classify('summarize interview activity in my org', admin, 'en'),
+    ).toEqual({ kind: 'interview_activity_summary' });
+    expect(service.classify('interview activity', hr, 'en')).toEqual({
+      kind: 'interview_activity_summary',
+    });
+  });
+
   it('classifies show HR requests', () => {
     expect(service.classify('show hrs', admin, 'en')).toEqual({
       kind: 'list_hrs',
@@ -238,14 +247,14 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
-  it('returns out_of_scope for unsupported org summaries', () => {
+  it('classifies org activity summary phrasing', () => {
     expect(
       service.classify(
         'summarize interview activity across the org this month',
         admin,
         'en',
       ),
-    ).toEqual({ kind: 'out_of_scope' });
+    ).toEqual({ kind: 'interview_activity_summary' });
   });
 
   it('does not treat HR my-interview prompts as candidate self-status', () => {
