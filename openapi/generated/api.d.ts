@@ -2618,6 +2618,26 @@ export interface components {
             candidateLink?: string;
             reviewState?: components["schemas"]["RecruiterAssistantReviewStateDto"];
         };
+        RecruiterAssistantQuestionCountDto: {
+            total: number;
+            filters?: Record<string, never>;
+        };
+        RecruiterAssistantInterviewActivityDto: {
+            total: number;
+            active: number;
+            completed: number;
+            failed: number;
+            pending: number;
+            inProgress: number;
+            processing: number;
+        };
+        RecruiterAssistantTeamSummaryDto: {
+            superAdmin: number;
+            admin: number;
+            hr: number;
+            candidate: number;
+            total: number;
+        };
         RecruiterAssistantResponseDto: {
             response: string;
             /** @enum {string} */
@@ -2642,6 +2662,11 @@ export interface components {
             /** @description HR reviewers returned for assign_hr picker steps or the list_hrs intent. */
             hrs?: components["schemas"]["AssignedHrDto"][];
             interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
+            questionCount?: components["schemas"]["RecruiterAssistantQuestionCountDto"];
+            assessments?: components["schemas"]["TemplateSummaryResponseDto"][];
+            interviewActivity?: components["schemas"]["RecruiterAssistantInterviewActivityDto"];
+            teamSummary?: components["schemas"]["RecruiterAssistantTeamSummaryDto"];
+            teamMembers?: components["schemas"]["AuthUserResponseDto"][];
         };
         PublicCandidateFeedbackTextBlockDto: {
             /** @description Candidate-facing strengths / recommendations text. */
