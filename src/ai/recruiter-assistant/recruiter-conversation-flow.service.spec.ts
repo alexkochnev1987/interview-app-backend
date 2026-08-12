@@ -87,7 +87,7 @@ describe('RecruiterConversationFlowService', () => {
 
     const response = await service.resumeActiveFlow({
       ...ctx,
-      message: 'yes',
+      message: 'yes create the question anyway',
       state: startConversationFlow(
         'create_question',
         'confirmAddDespiteSimilar',
@@ -100,6 +100,32 @@ describe('RecruiterConversationFlowService', () => {
     expect(tools.continueCreateQuestionDespiteSimilar).toHaveBeenCalled();
     expect(tools.continueCreateQuestionFlow).not.toHaveBeenCalled();
     expect(response?.status).toBe('needs_confirmation');
+  });
+
+  it('cancels similar-question override from UI cancellation label', async () => {
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'no cancel creating the question',
+      state: startConversationFlow(
+        'create_question',
+        'confirmAddDespiteSimilar',
+        {
+          questionName: 'React hooks',
+        },
+      ),
+    });
+
+    expect(conversationStore.update).toHaveBeenCalledWith(
+      'user-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
+    expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();
+    expect(tools.repromptSimilarQuestionConfirmation).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'Cancelled. No changes were made.',
+    });
   });
 
   it('reprompts on unclear reply during similar match confirmation', async () => {

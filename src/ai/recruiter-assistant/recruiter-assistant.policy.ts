@@ -45,15 +45,44 @@ const CANCELLATION_KEYWORDS = [
   'отменить',
 ];
 
+export function normalizeAssistantDecisionMessage(message: string): string {
+  return message
+    .trim()
+    .toLowerCase()
+    .replace(/[,.!?;:]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function isConfirmationMessage(message: string): boolean {
-  const normalized = message.trim().toLowerCase();
+  const normalized = normalizeAssistantDecisionMessage(message);
   return CONFIRMATION_KEYWORDS.includes(normalized);
 }
 
+/** Accepts UI button labels like "yes create the question anyway". */
+export function isSimilarQuestionOverrideConfirmation(
+  message: string,
+): boolean {
+  const normalized = normalizeAssistantDecisionMessage(message);
+  return CONFIRMATION_KEYWORDS.some(
+    (value) => normalized === value || normalized.startsWith(`${value} `),
+  );
+}
+
 export function isCancellationMessage(message: string): boolean {
-  const normalized = message.trim().toLowerCase();
+  const normalized = normalizeAssistantDecisionMessage(message);
   return CANCELLATION_KEYWORDS.some(
     (value) => normalized === value || normalized.startsWith(`${value} `),
+  );
+}
+
+/** Accepts UI button labels like "no cancel creating the question". */
+export function isSimilarQuestionOverrideCancellation(
+  message: string,
+): boolean {
+  return (
+    isCancellationMessage(message) ||
+    normalizeAssistantDecisionMessage(message).includes('cancel creating')
   );
 }
 

@@ -1,6 +1,8 @@
 import {
   isCancellationMessage,
   isConfirmationMessage,
+  isSimilarQuestionOverrideCancellation,
+  isSimilarQuestionOverrideConfirmation,
 } from './recruiter-assistant.policy';
 
 describe('recruiter assistant confirmation messages', () => {
@@ -16,9 +18,27 @@ describe('recruiter assistant confirmation messages', () => {
     expect(isConfirmationMessage('ok')).toBe(false);
   });
 
+  it('recognizes similar-question override UI confirmation labels', () => {
+    expect(
+      isSimilarQuestionOverrideConfirmation('yes create the question anyway'),
+    ).toBe(true);
+    expect(isSimilarQuestionOverrideConfirmation('Yes, create anyway')).toBe(
+      true,
+    );
+  });
+
   it('recognizes cancellation replies', () => {
     expect(isCancellationMessage('no')).toBe(true);
     expect(isCancellationMessage('cancel')).toBe(true);
     expect(isCancellationMessage('never mind')).toBe(true);
+  });
+
+  it('recognizes similar-question override UI cancellation labels', () => {
+    expect(
+      isSimilarQuestionOverrideCancellation('no cancel creating the question'),
+    ).toBe(true);
+    expect(
+      isSimilarQuestionOverrideCancellation('No, cancel creating the question'),
+    ).toBe(true);
   });
 });

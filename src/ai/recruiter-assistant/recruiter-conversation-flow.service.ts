@@ -5,7 +5,8 @@ import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   isCancellationMessage,
-  isConfirmationMessage,
+  isSimilarQuestionOverrideCancellation,
+  isSimilarQuestionOverrideConfirmation,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
 import {
@@ -37,20 +38,20 @@ export class RecruiterConversationFlowService {
       return null;
     }
 
-    if (isCancellationMessage(ctx.message)) {
-      this.conversationStore.update(
-        ctx.user.id,
-        ctx.sessionId,
-        idleConversationState(),
-      );
-      return {
-        status: 'answered',
-        response: 'Cancelled. No changes were made.',
-      };
-    }
-
     if (ctx.state.awaitingInput === 'confirmAddDespiteSimilar') {
-      if (isConfirmationMessage(ctx.message)) {
+      if (isSimilarQuestionOverrideCancellation(ctx.message)) {
+        this.conversationStore.update(
+          ctx.user.id,
+          ctx.sessionId,
+          idleConversationState(),
+        );
+        return {
+          status: 'answered',
+          response: 'Cancelled. No changes were made.',
+        };
+      }
+
+      if (isSimilarQuestionOverrideConfirmation(ctx.message)) {
         const state = { ...ctx.state, awaitingInput: undefined };
         this.conversationStore.update(ctx.user.id, ctx.sessionId, state);
         return this.tools.continueCreateQuestionDespiteSimilar(
@@ -67,6 +68,18 @@ export class RecruiterConversationFlowService {
         ctx.locale,
         ctx.sessionId,
       );
+    }
+
+    if (isCancellationMessage(ctx.message)) {
+      this.conversationStore.update(
+        ctx.user.id,
+        ctx.sessionId,
+        idleConversationState(),
+      );
+      return {
+        status: 'answered',
+        response: 'Cancelled. No changes were made.',
+      };
     }
 
     const state = ctx.state.awaitingInput
