@@ -27,6 +27,13 @@ export const UNASSIGNED_PATTERNS = [
   cyrillicPattern('без\\s+hr'),
 ];
 
+export const LIST_HRS_PATTERNS = [
+  /\b(show|list|get|display)\b(?:\s+\w+){0,4}\s+hrs?\b/i,
+  /\b(show|list|get|display)\b(?:\s+\w+){0,4}\s+hr\s+reviewers?\b/i,
+  /\bavailable\s+hr(?:\s+reviewers?)?\b/i,
+  cyrillicLoosePattern('(?:покажи|список)(?:\\s+\\S+){0,8}\\s+hr'),
+];
+
 export const READY_FOR_REVIEW_PATTERNS = [
   /ready for (my )?review/i,
   /\bawaiting review\b/i,
@@ -96,6 +103,8 @@ export const NEW_CHAT_PATTERNS = [
   /\bstart (?:a )?new conversation\b/i,
   /\breset (?:the )?conversation\b/i,
   /\bclear (?:the )?chat\b/i,
+  /^\s*cancel\s*$/i,
+  /^\s*abort\s*$/i,
   cyrillicLoosePattern('нов(?:ый|ая)\\s+чат'),
   cyrillicLoosePattern('начать\\s+заново'),
 ];
@@ -122,10 +131,8 @@ export function matchesCreateInterviewIntent(message: string): boolean {
 }
 
 export const CREATE_INTENT_PATTERNS = [
-  /\b(?:prepare|generate|create|make|draft|need)\s+(?:\d{1,2}\s+)?questions?\b/i,
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
   /\bmake interview\b/i,
-  /\bgenerate questions\b/i,
   cyrillicLoosePattern(
     '(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)',
   ),

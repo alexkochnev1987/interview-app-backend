@@ -20,6 +20,7 @@ describe('AppConfigService', () => {
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.TEST_CONFIG_KEY;
+    delete process.env.RECRUITER_ASSISTANT_ENABLED_ADMIN;
   });
 
   describe('Cascade Resolution (getString / getNumber / getBoolean)', () => {
@@ -79,6 +80,38 @@ describe('AppConfigService', () => {
       expect(result).toBe('code_default');
     });
 
+    it('should ignore system defaults in getExplicitString', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      const result = await service.getExplicitString(
+        'RECRUITER_ASSISTANT_ENABLED_ADMIN',
+      );
+      expect(result).toBeUndefined();
+    });
+
+    it('should return env value from getExplicitString when set', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      process.env.RECRUITER_ASSISTANT_ENABLED_ADMIN = 'false';
+
+      const result = await service.getExplicitString(
+        'RECRUITER_ASSISTANT_ENABLED_ADMIN',
+      );
+      expect(result).toBe('false');
+    });
+
     it('should parse getNumber correctly from DB text value', async () => {
       mockDb.query.mockResolvedValueOnce({
         rows: [
@@ -129,6 +162,33 @@ describe('AppConfigService', () => {
 
       const boolVal = await service.getBoolean('ENABLE_FEATURE', false);
       expect(boolVal).toBe(true);
+    });
+
+    it('should parse getBoolean on/off the same as env helpers', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: '123',
+            key: 'ENABLE_FEATURE',
+            value: 'off',
+            value_type: 'boolean',
+            is_public: true,
+            is_secret: false,
+            description: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            updated_by: null,
+          },
+        ],
+        rowCount: 1,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      await expect(service.getBoolean('ENABLE_FEATURE', true)).resolves.toBe(
+        false,
+      );
     });
   });
 
@@ -189,6 +249,7 @@ describe('AppConfigService', () => {
         ENABLE_FEEDBACK_SHARE_LINKS: true,
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
+        RECRUITER_ASSISTANT_ENABLED: true,
         ENABLE_AI_ASSISTANT: true,
       });
       expect(publicVars.PRIVATE_SETTING).toBeUndefined();

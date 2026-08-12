@@ -32,9 +32,12 @@ describe('RecruiterAssistantToolsService create question flow', () => {
   const conversationStore = { update: vi.fn() };
   const pendingActionStore = { issue: vi.fn().mockReturnValue('pending-1') };
   const aiService = { draftQuestion: vi.fn().mockResolvedValue(draft) };
+  const questionMatcher = {
+    findSimilarMatchesOverThreshold: vi.fn().mockResolvedValue([]),
+  };
 
   const service = new RecruiterAssistantToolsService(
-    {} as RecruiterQuestionMatcherService,
+    questionMatcher as unknown as RecruiterQuestionMatcherService,
     {} as never,
     {} as never,
     {} as never,
@@ -49,6 +52,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     aiService.draftQuestion.mockResolvedValue(draft);
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([]);
   });
 
   it('asks for a question name when missing', async () => {
@@ -92,5 +96,88 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     );
 
     expect(response.status).toBe('needs_confirmation');
+  });
+
+  it('returns similar questions when matches are found', async () => {
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([
+      {
+        question: { id: 'q1', questionText: 'Explain React hooks.' },
+        score: 0.9,
+        reasons: [],
+      },
+    ]);
+
+    const response = await service.prepareCreateQuestion(
+      'React hooks',
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(aiService.draftQuestion).not.toHaveBeenCalled();
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
+    });
+  });
+
+  it('drafts after user confirms despite similar matches', async () => {
+    const response = await service.continueCreateQuestionDespiteSimilar(
+      {
+        flow: 'create_question',
+        slots: { questionName: 'React hooks' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(aiService.draftQuestion).toHaveBeenCalled();
+    expect(response).toMatchObject({
+      status: 'needs_confirmation',
+      pendingActionId: 'pending-1',
+    });
+  });
+
+  it('returns to similar confirm when draft fails after confirmation', async () => {
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([
+      {
+        question: { id: 'q1', questionText: 'Explain React hooks.' },
+        score: 0.9,
+        reasons: [],
+      },
+    ]);
+    aiService.draftQuestion.mockRejectedValue(new Error('draft failed'));
+
+    const response = await service.continueCreateQuestionDespiteSimilar(
+      {
+        flow: 'create_question',
+        slots: { questionName: 'React hooks' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
+    });
   });
 });

@@ -23,6 +23,7 @@ import {
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 
+import { RecruiterAssistantConfigService } from '../app-config/recruiter-assistant-config.service';
 import { User } from '../user/interfaces/user.interface';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -47,12 +48,21 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
+  ) {}
 
-  private toMeResponse(user: Omit<User, 'passwordHash'>): MeResponse {
+  private async toMeResponse(
+    user: Omit<User, 'passwordHash'>,
+  ): Promise<MeResponse> {
     return {
       ...user,
       permissions: getEffectivePermissions(user.role, user.demo),
+      recruiterAssistantEnabled:
+        await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+          user.role,
+        ),
     };
   }
 
@@ -171,7 +181,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
-  me(@CurrentUser() user: Omit<User, 'passwordHash'>): MeResponse {
+  async me(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<MeResponse> {
     return this.toMeResponse(user);
   }
 

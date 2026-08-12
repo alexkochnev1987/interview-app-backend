@@ -35,20 +35,43 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     updatedAt: new Date(),
   };
 
+  const unassignedInterviewListItem = {
+    id: interview.id,
+    candidateName: interview.candidateName,
+    position: interview.position,
+    status: interview.status,
+    questionCount: 3,
+    submittedAnswerCount: 0,
+    createdAt: interview.createdAt,
+    updatedAt: interview.updatedAt,
+  };
+
+  const hrUser = {
+    id: 'hr-1',
+    name: 'Jane Doe',
+    email: 'jane@example.com',
+  };
+
   const conversationStore = {
     update: vi.fn(),
   };
   const pendingActionStore = {
     issue: vi.fn().mockReturnValue('pending-1'),
   };
+  const interviewService = {
+    findAllPaginated: vi.fn(),
+  };
+  const userService = {
+    listAll: vi.fn(),
+  };
 
   const service = new RecruiterAssistantToolsService(
     {} as RecruiterQuestionMatcherService,
     {} as never,
-    { findAllPaginated: vi.fn() } as never,
+    interviewService as never,
     {} as never,
     {} as never,
-    { listAll: vi.fn() } as never,
+    userService as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: vi.fn() } as never,
@@ -59,6 +82,13 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     vi.clearAllMocks();
     vi.mocked(resolveInterviewRef).mockReset();
     vi.mocked(resolveHrRef).mockReset();
+    interviewService.findAllPaginated.mockResolvedValue({
+      items: [unassignedInterviewListItem],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+    userService.listAll.mockResolvedValue([hrUser]);
   });
 
   it('asks for interview when neither ref is provided', async () => {
@@ -80,7 +110,10 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     expect(response).toMatchObject({
       status: 'answered',
       awaitingInput: 'interview',
+      response: 'Which interview should I assign?',
+      interviews: [unassignedInterviewListItem],
     });
+    expect(response.response).not.toMatch(/Found \d+ interview/);
   });
 
   it('asks for HR when only interview is resolved', async () => {
@@ -100,6 +133,8 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     expect(response).toMatchObject({
       status: 'answered',
       awaitingInput: 'hr',
+      response: 'Which HR reviewer should I assign?',
+      hrs: [hrUser],
     });
     expect(conversationStore.update).toHaveBeenCalledWith(
       'admin-1',
@@ -113,6 +148,52 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
         }),
       }),
     );
+  });
+
+  it('returns ambiguous interview message with unassigned list', async () => {
+    vi.mocked(resolveInterviewRef).mockResolvedValue(null);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice' },
+        hrRef: {},
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'interview',
+      response:
+        "Couldn't detect singular interview, please choose from the list",
+      interviews: [unassignedInterviewListItem],
+    });
+  });
+
+  it('returns ambiguous HR message with HR list', async () => {
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    vi.mocked(resolveHrRef).mockResolvedValue(null);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice Smith' },
+        hrRef: { name: 'Jane' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'hr',
+      response: "Couldn't detect singular HR, please choose from the list",
+      hrs: [hrUser],
+    });
   });
 
   it('returns confirmation when both refs resolve', async () => {
@@ -180,5 +261,84 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
       escalateTo: 'admin',
     });
     expect(resolveInterviewRef).not.toHaveBeenCalled();
+  });
+
+  it('lists all HR reviewers for admins', async () => {
+    const response = await service.listHrs(user, 'en');
+
+    expect(userService.listAll).toHaveBeenCalledWith({
+      role: 'hr',
+      demo: false,
+      limit: 100,
+    });
+    expect(response).toMatchObject({
+      status: 'answered',
+      response: 'Found 1 HR reviewer(s).',
+      hrs: [hrUser],
+    });
+  });
+
+  it('denies HR list for non-admins', async () => {
+    const response = await service.listHrs({ ...user, role: 'hr' }, 'en');
+
+    expect(response).toMatchObject({
+      status: 'denied',
+      escalateTo: 'admin',
+    });
+    expect(userService.listAll).not.toHaveBeenCalled();
+  });
+
+  it('clears assign_hr flow when no unassigned interviews exist', async () => {
+    interviewService.findAllPaginated.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+    });
+
+    const response = await service.prepareAssignHr(
+      { kind: 'assign_hr', interviewRef: {}, hrRef: {} },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(conversationStore.update).toHaveBeenLastCalledWith(
+      'admin-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'No unassigned interviews available.',
+      interviews: [],
+    });
+  });
+
+  it('clears assign_hr flow when no HR reviewers exist', async () => {
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    userService.listAll.mockResolvedValue([]);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice Smith' },
+        hrRef: {},
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(conversationStore.update).toHaveBeenLastCalledWith(
+      'admin-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'No HR reviewers available.',
+      hrs: [],
+    });
   });
 });

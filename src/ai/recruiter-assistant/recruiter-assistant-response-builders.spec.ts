@@ -3,6 +3,7 @@ import {
   buildInterviewCardHref,
   buildInterviewRedirect,
   buildQuestionsListRedirect,
+  buildSimilarQuestionMatchCard,
 } from './recruiter-assistant-response-builders';
 
 describe('recruiter-assistant-response-builders', () => {
@@ -15,6 +16,21 @@ describe('recruiter-assistant-response-builders', () => {
     ).toEqual({
       id: 'abc',
       questionText: 'Tell me about React hooks.',
+      href: '/questions/abc',
+    });
+  });
+
+  it('builds a similar question match card href', () => {
+    expect(
+      buildSimilarQuestionMatchCard({
+        id: 'abc',
+        questionText: 'Explain React hooks.',
+        score: 0.85,
+      }),
+    ).toEqual({
+      id: 'abc',
+      questionText: 'Explain React hooks.',
+      score: 0.85,
       href: '/questions/abc',
     });
   });
