@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
@@ -19,6 +20,7 @@ import {
   TemplateSummary,
 } from '../../template/template.service';
 import { UserService } from '../../user/user.service';
+import { UserRole } from '../../user/interfaces/user.interface';
 import { AiService } from '../ai.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
@@ -36,6 +38,10 @@ import {
   buildQuestionsListRedirect,
   buildSimilarQuestionMatchCards,
 } from './recruiter-assistant-response-builders';
+import {
+  buildTeamSummaryFromRoleCounts,
+  mapUsersToAuthUserResponseDtos,
+} from './recruiter-assistant-team';
 import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import {
   canAssignHr,
@@ -44,6 +50,7 @@ import {
   canReadQuestions,
   canReadTemplates,
   canListInterviews,
+  canListTeam,
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import {
@@ -68,6 +75,7 @@ import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.se
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
+const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -83,6 +91,7 @@ export class RecruiterAssistantToolsService {
     private readonly conversationStore: RecruiterConversationStore,
     private readonly aiService: AiService,
     private readonly templateService: TemplateService,
+    private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
   ) {}
 
   async listInterviews(
@@ -251,6 +260,59 @@ export class RecruiterAssistantToolsService {
         `${interviewActivity.completed} completed, ` +
         `${interviewActivity.failed} failed.`,
       interviewActivity,
+    };
+  }
+
+  async listTeam(
+    user: ActingUser,
+    locale: Locale,
+    options: { role?: UserRole; includeSummary: boolean },
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canListTeam(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to list team members.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const [teamSummary, members] = await Promise.all([
+      options.includeSummary
+        ? this.userService
+            .countUsersByRole({ demo: user.demo })
+            .then(buildTeamSummaryFromRoleCounts)
+        : Promise.resolve(undefined),
+      this.userService.listAll({
+        demo: user.demo,
+        role: options.role,
+        limit: MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT,
+      }),
+    ]);
+
+    const teamMembers = await mapUsersToAuthUserResponseDtos(
+      members,
+      this.recruiterAssistantConfig,
+    );
+
+    if (teamMembers.length === 0) {
+      return {
+        status: 'answered',
+        response: 'No team members found.',
+        teamSummary,
+        teamMembers: [],
+      };
+    }
+
+    const summaryLine = teamSummary
+      ? `${teamSummary.superAdmin} super_admin, ${teamSummary.admin} admin, ${teamSummary.hr} hr, ${teamSummary.candidate} candidate (${teamSummary.total} total). `
+      : '';
+
+    return {
+      status: 'answered',
+      response: `${summaryLine}Showing ${teamMembers.length} team member(s).`,
+      teamSummary,
+      teamMembers,
     };
   }
 

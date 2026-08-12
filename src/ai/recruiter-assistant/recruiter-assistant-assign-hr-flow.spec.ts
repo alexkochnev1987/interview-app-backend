@@ -76,6 +76,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: vi.fn() } as never,
     { findAll: vi.fn() } as never,
+    {} as never,
   );
 
   beforeEach(() => {

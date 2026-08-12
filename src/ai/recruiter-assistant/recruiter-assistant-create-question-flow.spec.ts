@@ -47,6 +47,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     conversationStore as unknown as RecruiterConversationStore,
     aiService as unknown as AiService,
     { findAll: vi.fn() } as never,
+    {} as never,
   );
 
   beforeEach(() => {

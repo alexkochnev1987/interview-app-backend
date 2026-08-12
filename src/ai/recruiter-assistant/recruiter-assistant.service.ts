@@ -239,7 +239,10 @@ export class RecruiterAssistantService {
         );
       case 'list_team':
         return this.withSession(
-          { status: 'refused', response: 'Not implemented yet.' },
+          await this.tools.listTeam(user, locale, {
+            role: intent.role,
+            includeSummary: intent.includeSummary,
+          }),
           sessionId,
         );
       case 'out_of_scope':

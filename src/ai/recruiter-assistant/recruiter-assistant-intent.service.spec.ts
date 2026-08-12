@@ -160,6 +160,17 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies list team requests', () => {
+    expect(service.classify('show my team', admin, 'en')).toEqual({
+      kind: 'list_team',
+      includeSummary: true,
+    });
+    expect(service.classify('list team members', admin, 'en')).toEqual({
+      kind: 'list_team',
+      includeSummary: true,
+    });
+  });
+
   it('classifies show HR requests', () => {
     expect(service.classify('show hrs', admin, 'en')).toEqual({
       kind: 'list_hrs',
