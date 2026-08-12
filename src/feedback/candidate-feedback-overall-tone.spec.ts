@@ -1,6 +1,12 @@
-import { classifyOverallToneFromQuestionBlocks, resolveOverallFeedbackTone } from './candidate-feedback-overall-tone';
+import type {
+  Answer,
+  Interview,
+} from '../interview/interfaces/interview.interface';
+import {
+  classifyOverallToneFromQuestionBlocks,
+  resolveOverallFeedbackTone,
+} from './candidate-feedback-overall-tone';
 import type { CandidateFeedbackQuestion } from './interfaces/candidate-feedback.interface';
-import type { Answer, Interview } from '../interview/interfaces/interview.interface';
 
 describe('candidate-feedback-overall-tone', () => {
   it('classifies mixed interviews without balanced overall praise', () => {
@@ -12,10 +18,16 @@ describe('candidate-feedback-overall-tone', () => {
       ]),
     ).toBe('honest_weak');
     expect(
-      classifyOverallToneFromQuestionBlocks('proceed', ['balanced', 'no_substantive']),
+      classifyOverallToneFromQuestionBlocks('proceed', [
+        'balanced',
+        'no_substantive',
+      ]),
     ).toBe('growth_focused');
     expect(
-      classifyOverallToneFromQuestionBlocks('proceed', ['balanced', 'balanced']),
+      classifyOverallToneFromQuestionBlocks('proceed', [
+        'balanced',
+        'balanced',
+      ]),
     ).toBe('balanced');
   });
 

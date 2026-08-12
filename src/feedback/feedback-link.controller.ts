@@ -14,15 +14,15 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../user/interfaces/user.interface';
-import { FeedbackService } from './feedback.service';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-
+import { User } from '../user/interfaces/user.interface';
 import { FeedbackLinkResponseDto } from './dto/feedback-link.response.dto';
+import { FeedbackService } from './feedback.service';
 
 @ApiTags('interviews')
 @ApiCookieAuth('sessionAuth')
@@ -33,7 +33,9 @@ export class FeedbackLinkController {
 
   @Post(':id/feedback-link')
   @RequirePermissions('feedback:create_share_link')
-  @ApiOperation({ summary: 'Create a shareable feedback link for an interview' })
+  @ApiOperation({
+    summary: 'Create a shareable feedback link for an interview',
+  })
   @ApiParam({ name: 'id', description: 'Interview ID' })
   @ApiOkResponse({ type: FeedbackLinkResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

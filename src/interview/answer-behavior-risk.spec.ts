@@ -23,7 +23,10 @@ describe('answer-behavior-risk', () => {
     expect(computeAnswerBehaviorRisk(undefined, 60)).toBe('low');
     expect(computeAnswerBehaviorRisk(undefined, 10)).toBe('medium');
     expect(
-      computeAnswerBehaviorRisk(signals({ tabHiddenCount: 2, pasteCount: 2 }), 60),
+      computeAnswerBehaviorRisk(
+        signals({ tabHiddenCount: 2, pasteCount: 2 }),
+        60,
+      ),
     ).toBe('high');
     expect(
       computeAnswerBehaviorRisk(

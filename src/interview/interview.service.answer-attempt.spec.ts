@@ -1,9 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
+
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { InterviewService } from './interview.service';
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService answer attempt reserve + finalize', () => {
   const envBackup = process.env.MAX_ANSWER_ATTEMPTS_PER_QUESTION;
@@ -18,28 +19,31 @@ describe('InterviewService answer attempt reserve + finalize', () => {
 
   function makeService(lockRow: Record<string, unknown>) {
     let currentRow = lockRow;
-    const clientQuery = jest.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
-      const answersJson = JSON.parse(String(params[5]));
-      currentRow = {
-        ...currentRow,
-        answers_json: answersJson,
-        status: 'in_progress',
-        updated_at: new Date(),
-      };
-      return { rows: [currentRow], rowCount: 1 };
-    });
-    const withTransaction = jest.fn(async (fn: (client: { query: jest.Mock }) => unknown) =>
-      fn({ query: clientQuery }),
+    const clientQuery = vi
+      .fn()
+      .mockImplementation(async (_sql: string, params: unknown[]) => {
+        const answersJson = JSON.parse(String(params[5]));
+        currentRow = {
+          ...currentRow,
+          answers_json: answersJson,
+          status: 'in_progress',
+          updated_at: new Date(),
+        };
+        return { rows: [currentRow], rowCount: 1 };
+      });
+    const withTransaction = vi.fn(
+      async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
+        fn({ query: clientQuery }),
     );
     const databaseService = {
       withTransaction,
     } as unknown as DatabaseService;
     const questionService = {
-      hydrateStoredQuestionCore: jest.fn((question) => question),
-      processPendingDeletionsAfterTerminalInterview: jest.fn(),
+      hydrateStoredQuestionCore: vi.fn((question) => question),
+      processPendingDeletionsAfterTerminalInterview: vi.fn(),
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
 
     const service = new InterviewService(
@@ -48,12 +52,12 @@ describe('InterviewService answer attempt reserve + finalize', () => {
       mediaCleanupService,
     );
 
-    jest
-      .spyOn(
-        service as unknown as { lockInterviewForUpdate: jest.Mock },
-        'lockInterviewForUpdate',
-      )
-      .mockImplementation(async () => currentRow);
+    vi.spyOn(
+      service as unknown as {
+        lockInterviewForUpdate: ReturnType<typeof vi.fn>;
+      },
+      'lockInterviewForUpdate',
+    ).mockImplementation(async () => currentRow);
 
     return { service };
   }
@@ -125,7 +129,8 @@ describe('InterviewService answer attempt reserve + finalize', () => {
     expect(
       preserved.answers
         .find((item) => item.questionIndex === 0)
-        ?.versions?.find((version) => version.versionNumber === 1)?.screenMediaKey,
+        ?.versions?.find((version) => version.versionNumber === 1)
+        ?.screenMediaKey,
     ).toBe(screenKey);
 
     await expect(
@@ -204,7 +209,8 @@ describe('InterviewService answer attempt reserve + finalize', () => {
     expect(first.selectedVersionNumber).toBe(2);
     expect(first.alreadySubmitted).toBe(false);
     expect(
-      first.interview.answers.find((item) => item.questionIndex === 0)?.mediaKey,
+      first.interview.answers.find((item) => item.questionIndex === 0)
+        ?.mediaKey,
     ).toBe(mediaKey);
 
     const second = await service.finalizeAnswer('interview-1', {

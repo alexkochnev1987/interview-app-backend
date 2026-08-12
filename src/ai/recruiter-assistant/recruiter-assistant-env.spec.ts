@@ -1,4 +1,7 @@
-import { isRecruiterAssistantEnabled, isRecruiterAssistantEnabledForRole } from './recruiter-assistant-env';
+import {
+  isRecruiterAssistantEnabled,
+  isRecruiterAssistantEnabledForRole,
+} from './recruiter-assistant-env';
 
 describe('recruiter-assistant-env', () => {
   const envSnapshot = { ...process.env };
@@ -61,5 +64,4 @@ describe('recruiter-assistant-env', () => {
       expect(isRecruiterAssistantEnabledForRole('candidate')).toBe(true);
     });
   });
-
 });

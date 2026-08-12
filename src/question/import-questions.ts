@@ -1,7 +1,7 @@
 import '../database/load-env';
+import fs from 'fs';
+import path from 'path';
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { EmbeddingsService } from '../ai/embeddings/embeddings.service';
 import { DatabaseService } from '../database/database.service';
 import { runMigrations } from '../database/migration-runner';
@@ -111,16 +111,18 @@ function toCreateQuestionDto(item: unknown): CreateQuestionDto {
       : mapOutputLanguageToPrimaryLocale(outputLanguage);
 
   const rawTranslations =
-    record.translations && typeof record.translations === 'object' && !Array.isArray(record.translations)
+    record.translations &&
+    typeof record.translations === 'object' &&
+    !Array.isArray(record.translations)
       ? (record.translations as Partial<Record<Locale, QuestionTranslationDto>>)
       : undefined;
 
-  const questionText =
-    String(record.question_text ?? record.questionText ?? record.text ?? '').trim();
+  const questionText = String(
+    record.question_text ?? record.questionText ?? record.text ?? '',
+  ).trim();
 
-  const translations: Partial<Record<Locale, QuestionTranslationDto>> = rawTranslations
-    ? { ...rawTranslations }
-    : {};
+  const translations: Partial<Record<Locale, QuestionTranslationDto>> =
+    rawTranslations ? { ...rawTranslations } : {};
 
   if (!rawTranslations && questionText) {
     translations[primaryLocale] = toTranslationBlock(record, questionText);
@@ -138,7 +140,10 @@ function toCreateQuestionDto(item: unknown): CreateQuestionDto {
     primaryLocale,
     translations,
     externalId: String(
-      record.external_id ?? record.externalId ?? record.id ?? slugify(questionText || primaryLocale),
+      record.external_id ??
+        record.externalId ??
+        record.id ??
+        slugify(questionText || primaryLocale),
     ),
     role: typeof record.role === 'string' ? record.role : undefined,
     focus: typeof record.focus === 'string' ? record.focus : undefined,
@@ -158,7 +163,9 @@ function toCreateQuestionDto(item: unknown): CreateQuestionDto {
     ),
     tags,
     metadata:
-      record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+      record.metadata &&
+      typeof record.metadata === 'object' &&
+      !Array.isArray(record.metadata)
         ? (record.metadata as Record<string, unknown>)
         : {},
   };

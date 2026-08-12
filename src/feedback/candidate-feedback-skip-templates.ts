@@ -27,8 +27,7 @@ interface LocaleSkipTemplates {
 const TEMPLATES: Record<Locale, LocaleSkipTemplates> = {
   en: {
     noAnswerSubmitted: 'No answer was submitted for this question.',
-    missingTranscript:
-      'We could not review a spoken answer for this question.',
+    missingTranscript: 'We could not review a spoken answer for this question.',
     unusableTranscript:
       'The recorded response did not contain a substantive answer to this question.',
     defaultRecommendation:
@@ -38,8 +37,7 @@ const TEMPLATES: Record<Locale, LocaleSkipTemplates> = {
   },
   ru: {
     noAnswerSubmitted: 'На этот вопрос не был отправлен ответ.',
-    missingTranscript:
-      'Мы не смогли просмотреть устный ответ на этот вопрос.',
+    missingTranscript: 'Мы не смогли просмотреть устный ответ на этот вопрос.',
     unusableTranscript:
       'Записанный ответ не содержал содержательного ответа на этот вопрос.',
     defaultRecommendation:
@@ -60,8 +58,7 @@ const TEMPLATES: Record<Locale, LocaleSkipTemplates> = {
   },
   be: {
     noAnswerSubmitted: 'На гэтае пытанне адказ не быў дасланы.',
-    missingTranscript:
-      'Мы не змаглі праглядзець вусны адказ на гэтае пытанне.',
+    missingTranscript: 'Мы не змаглі праглядзець вусны адказ на гэтае пытанне.',
     unusableTranscript:
       'Запісаны адказ не змяшчаў змесцевага адказу на гэтае пытанне.',
     defaultRecommendation:

@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
+
 import { Locale } from '../../locale/locale.constants';
 import {
   RecruiterAssistantChatDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
+import {
+  isRecruiterAssistantEnabled,
+  isRecruiterAssistantEnabledForRole,
+} from './recruiter-assistant-env';
+import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
+import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   canAccessChat,
   isCancellationMessage,
@@ -12,18 +19,12 @@ import {
   recruiterAssistantDisabledResponse,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
-import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
-import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
-import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
-import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
-import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { idleConversationState } from './recruiter-conversation-slots';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { applyPendingActionOverride } from './recruiter-pending-action-override';
-import {
-  isRecruiterAssistantEnabled,
-  isRecruiterAssistantEnabledForRole,
-} from './recruiter-assistant-env';
+import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 
 @Injectable()
 export class RecruiterAssistantService {
@@ -44,7 +45,9 @@ export class RecruiterAssistantService {
     if (!isRecruiterAssistantEnabledForRole(user.role)) {
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+        response: recruiterAssistantDisabledResponse(
+          !isRecruiterAssistantEnabled(),
+        ),
       };
     }
 
@@ -85,7 +88,10 @@ export class RecruiterAssistantService {
 
         let confirmedAction = action;
         if (dto.pendingAction) {
-          const overridden = applyPendingActionOverride(action, dto.pendingAction);
+          const overridden = applyPendingActionOverride(
+            action,
+            dto.pendingAction,
+          );
           if (!overridden) {
             return this.withSession(
               {
@@ -100,7 +106,11 @@ export class RecruiterAssistantService {
         }
 
         return this.withSession(
-          await this.pendingActionExecutor.execute(confirmedAction, user, locale),
+          await this.pendingActionExecutor.execute(
+            confirmedAction,
+            user,
+            locale,
+          ),
           sessionId,
         );
       }
@@ -217,7 +227,9 @@ export class RecruiterAssistantService {
     if (!isRecruiterAssistantEnabledForRole(user.role)) {
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+        response: recruiterAssistantDisabledResponse(
+          !isRecruiterAssistantEnabled(),
+        ),
       };
     }
 
@@ -228,7 +240,9 @@ export class RecruiterAssistantService {
     return this.resetConversation(user);
   }
 
-  private async resetConversation(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+  private async resetConversation(
+    user: ActingUser,
+  ): Promise<RecruiterAssistantResponseDto> {
     this.conversationStore.clearAllForUser(user.id);
     await this.pendingActionStore.revokeAllForUser(user.id);
     const sessionId = this.conversationStore.issue(user.id);

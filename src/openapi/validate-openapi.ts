@@ -1,5 +1,6 @@
-import SwaggerParser from '@apidevtools/swagger-parser';
 import { resolve } from 'path';
+
+import SwaggerParser from '@apidevtools/swagger-parser';
 
 async function validateOpenApi(): Promise<void> {
   const specPath = resolve(process.cwd(), 'openapi', 'openapi.json');

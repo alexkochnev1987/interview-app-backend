@@ -1,8 +1,6 @@
 import { demoScopeClause } from '../common/demo-scope';
 import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
-import {
-  isAssignedHrFilterUnassigned,
-} from './assigned-hr-filter';
+import { isAssignedHrFilterUnassigned } from './assigned-hr-filter';
 import { InterviewListFiltersDto } from './dto/query-interviews.dto';
 import type { InterviewActor } from './interfaces/interview.interface';
 

@@ -41,9 +41,8 @@ describe('question-scheduled-deletion.helpers', () => {
   it('collects ids scheduled for deletion from an attach candidate set', () => {
     const pending = new Set(['q-2', 'q-4']);
     expect(
-      collectPendingDeletionAttachRejectIds(
-        ['q-1', 'q-2', 'q-3'],
-        (id) => pending.has(id),
+      collectPendingDeletionAttachRejectIds(['q-1', 'q-2', 'q-3'], (id) =>
+        pending.has(id),
       ),
     ).toEqual(['q-2']);
   });

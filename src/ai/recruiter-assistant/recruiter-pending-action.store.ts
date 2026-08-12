@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { Injectable } from '@nestjs/common';
+
 import { DatabaseService } from '../../database/database.service';
 import { RecruiterAssistantPendingActionDto } from './dto/recruiter-assistant.dto';
 

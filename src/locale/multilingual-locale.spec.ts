@@ -1,10 +1,12 @@
 import { InterviewQuestion } from '../interview/interfaces/interview.interface';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { collectInterviewLocaleWarnings } from '../interview/interview-locale-warnings';
-import { buildCandidateQuestionView } from '../take/take-question-view';
 import { resolveTakeContentLocale } from '../take/take-locale';
+import { buildCandidateQuestionView } from '../take/take-question-view';
 
-function snapshot(overrides: Partial<InterviewQuestion> = {}): InterviewQuestion {
+function snapshot(
+  overrides: Partial<InterviewQuestion> = {},
+): InterviewQuestion {
   return {
     id: 'q1',
     primaryLocale: 'en',
@@ -61,9 +63,7 @@ describe('multilingual locale', () => {
       'pl',
     );
 
-    expect(warnings).toEqual([
-      { questionId: 'q1', availableLocales: ['en'] },
-    ]);
+    expect(warnings).toEqual([{ questionId: 'q1', availableLocales: ['en'] }]);
   });
 
   it('uses interviewLocale when take contentLocale is omitted', () => {

@@ -1,12 +1,13 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
-import { ApiErrorCode } from '../errors/api-error.codes';
+
 import { apiNotFound } from '../errors/api-error';
+import { ApiErrorCode } from '../errors/api-error.codes';
 import { ApiExceptionFilter } from './api-exception.filter';
 
 function createHost(): ArgumentsHost {
-  const json = jest.fn();
-  const status = jest.fn(() => ({ json }));
+  const json = vi.fn();
+  const status = vi.fn(() => ({ json }));
   const response = { status };
   const request = { url: '/questions/1?token=secret' };
   return {
@@ -30,7 +31,7 @@ describe('ApiExceptionFilter', () => {
 
     filter.catch(exception, host);
     const response = host.switchToHttp().getResponse() as {
-      status: jest.Mock;
+      status: ReturnType<typeof vi.fn>;
     };
     expect(response.status).toHaveBeenCalledWith(404);
     expect(response.status.mock.results[0].value.json).toHaveBeenCalledWith(
@@ -48,7 +49,7 @@ describe('ApiExceptionFilter', () => {
       host,
     );
     const response = host.switchToHttp().getResponse() as {
-      status: jest.Mock;
+      status: ReturnType<typeof vi.fn>;
     };
     expect(response.status.mock.results[0].value.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -69,7 +70,7 @@ describe('ApiExceptionFilter', () => {
       host,
     );
     const response = host.switchToHttp().getResponse() as {
-      status: jest.Mock;
+      status: ReturnType<typeof vi.fn>;
     };
     expect(response.status.mock.results[0].value.json).toHaveBeenCalledWith(
       expect.objectContaining({

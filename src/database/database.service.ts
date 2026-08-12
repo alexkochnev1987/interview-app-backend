@@ -1,11 +1,5 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import {
-  Pool,
-  PoolClient,
-  PoolConfig,
-  QueryResult,
-  QueryResultRow,
-} from 'pg';
+import { Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
 const DEFAULT_POOL_MAX = 10;
 

@@ -1,3 +1,10 @@
+import type {
+  Answer,
+  AnswerDecisionHint,
+  Interview,
+  InterviewResult,
+} from '../interview/interfaces/interview.interface';
+import type { Locale } from '../locale/locale.constants';
 /**
  * Static demo content (no secrets). The seed runner upserts these by stable id
  * and stamps the `demo` column so read paths isolate them to demo users.
@@ -10,13 +17,6 @@ import type {
   QuestionRedFlag,
   QuestionTranslations,
 } from '../question/interfaces/question.interface';
-import type {
-  Answer,
-  AnswerDecisionHint,
-  Interview,
-  InterviewResult,
-} from '../interview/interfaces/interview.interface';
-import type { Locale } from '../locale/locale.constants';
 
 export const DEMO_USER_ID = '00000000-0000-4000-8000-0000000000d0';
 export const DEMO_USER_EMAIL = 'demo@interview-app.com';
@@ -96,10 +96,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'JavaScript fundamentals',
     category: 'JavaScript',
     subcategory: 'Closures',
-    questionText: 'What is a closure in JavaScript, and when would you use one?',
+    questionText:
+      'What is a closure in JavaScript, and when would you use one?',
     expectedConcepts: [
-      concept('c1', 'Function + lexical scope', 0.5, 'A closure is a function bundled with references to its surrounding scope.'),
-      concept('c2', 'Practical use', 0.5, 'Data privacy, factory functions, or preserving state in callbacks.'),
+      concept(
+        'c1',
+        'Function + lexical scope',
+        0.5,
+        'A closure is a function bundled with references to its surrounding scope.',
+      ),
+      concept(
+        'c2',
+        'Practical use',
+        0.5,
+        'Data privacy, factory functions, or preserving state in callbacks.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Confuses closures with objects', 'medium')],
     difficulty: 'easy',
@@ -117,11 +128,27 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'React rendering model',
     category: 'React',
     subcategory: 'State management',
-    questionText: 'Explain the difference between state and props in React, and what triggers a re-render.',
+    questionText:
+      'Explain the difference between state and props in React, and what triggers a re-render.',
     expectedConcepts: [
-      concept('c1', 'Props are read-only inputs', 0.4, 'Props are passed by the parent and not mutated by the child.'),
-      concept('c2', 'State is owned and mutable', 0.3, 'State is local, owned by the component, updated via the setter.'),
-      concept('c3', 'Re-render triggers', 0.3, 'A state change or new props re-render the component.'),
+      concept(
+        'c1',
+        'Props are read-only inputs',
+        0.4,
+        'Props are passed by the parent and not mutated by the child.',
+      ),
+      concept(
+        'c2',
+        'State is owned and mutable',
+        0.3,
+        'State is local, owned by the component, updated via the setter.',
+      ),
+      concept(
+        'c3',
+        'Re-render triggers',
+        0.3,
+        'A state change or new props re-render the component.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Mutates state directly', 'high')],
     difficulty: 'medium',
@@ -139,12 +166,25 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'Async JavaScript',
     category: 'JavaScript',
     subcategory: 'Event loop',
-    questionText: 'Walk me through the JavaScript event loop. How do microtasks differ from macrotasks?',
+    questionText:
+      'Walk me through the JavaScript event loop. How do microtasks differ from macrotasks?',
     expectedConcepts: [
-      concept('c1', 'Call stack + queues', 0.5, 'Synchronous stack drains, then queued tasks run.'),
-      concept('c2', 'Microtask priority', 0.5, 'Promises (microtasks) run before timers (macrotasks) after each tick.'),
+      concept(
+        'c1',
+        'Call stack + queues',
+        0.5,
+        'Synchronous stack drains, then queued tasks run.',
+      ),
+      concept(
+        'c2',
+        'Microtask priority',
+        0.5,
+        'Promises (microtasks) run before timers (macrotasks) after each tick.',
+      ),
     ],
-    redFlags: [redFlag('r1', 'Thinks JS is multithreaded by default', 'medium')],
+    redFlags: [
+      redFlag('r1', 'Thinks JS is multithreaded by default', 'medium'),
+    ],
     difficulty: 'medium',
     weight: 1.5,
     sampleGoodAnswer:
@@ -160,10 +200,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'CSS layout',
     category: 'CSS',
     subcategory: 'Flexbox',
-    questionText: 'How does flexbox differ from the normal flow, and when would you reach for it over grid?',
+    questionText:
+      'How does flexbox differ from the normal flow, and when would you reach for it over grid?',
     expectedConcepts: [
-      concept('c1', 'One-dimensional layout', 0.5, 'Flexbox lays out items along a single axis.'),
-      concept('c2', 'Flex vs grid trade-off', 0.5, 'Grid is two-dimensional; flexbox suits one-axis distribution.'),
+      concept(
+        'c1',
+        'One-dimensional layout',
+        0.5,
+        'Flexbox lays out items along a single axis.',
+      ),
+      concept(
+        'c2',
+        'Flex vs grid trade-off',
+        0.5,
+        'Grid is two-dimensional; flexbox suits one-axis distribution.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Uses floats for everything', 'low')],
     difficulty: 'easy',
@@ -181,10 +232,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'React hooks',
     category: 'React',
     subcategory: 'Hooks',
-    questionText: 'When does a useEffect cleanup function run, and why does the dependency array matter?',
+    questionText:
+      'When does a useEffect cleanup function run, and why does the dependency array matter?',
     expectedConcepts: [
-      concept('c1', 'Cleanup timing', 0.5, 'Runs before the next effect and on unmount.'),
-      concept('c2', 'Dependency correctness', 0.5, 'Deps control when the effect re-runs; stale deps cause bugs.'),
+      concept(
+        'c1',
+        'Cleanup timing',
+        0.5,
+        'Runs before the next effect and on unmount.',
+      ),
+      concept(
+        'c2',
+        'Dependency correctness',
+        0.5,
+        'Deps control when the effect re-runs; stale deps cause bugs.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Leaves out deps to "fix" loops', 'high')],
     difficulty: 'medium',
@@ -202,10 +264,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'Web platform',
     category: 'Networking',
     subcategory: 'Caching',
-    questionText: 'Explain how HTTP caching works with Cache-Control and ETag headers.',
+    questionText:
+      'Explain how HTTP caching works with Cache-Control and ETag headers.',
     expectedConcepts: [
-      concept('c1', 'Cache-Control directives', 0.5, 'max-age, no-cache, no-store control freshness.'),
-      concept('c2', 'Conditional revalidation', 0.5, 'ETag + If-None-Match returns 304 when unchanged.'),
+      concept(
+        'c1',
+        'Cache-Control directives',
+        0.5,
+        'max-age, no-cache, no-store control freshness.',
+      ),
+      concept(
+        'c2',
+        'Conditional revalidation',
+        0.5,
+        'ETag + If-None-Match returns 304 when unchanged.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Confuses no-cache with no-store', 'low')],
     difficulty: 'medium',
@@ -225,8 +298,18 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     subcategory: 'Semantics',
     questionText: 'What are the basics of building an accessible web form?',
     expectedConcepts: [
-      concept('c1', 'Labels + semantics', 0.5, 'Associate labels with inputs; use native elements.'),
-      concept('c2', 'Keyboard + errors', 0.5, 'Keyboard operable and accessible error messaging.'),
+      concept(
+        'c1',
+        'Labels + semantics',
+        0.5,
+        'Associate labels with inputs; use native elements.',
+      ),
+      concept(
+        'c2',
+        'Keyboard + errors',
+        0.5,
+        'Keyboard operable and accessible error messaging.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Relies on placeholder as label', 'medium')],
     difficulty: 'easy',
@@ -244,10 +327,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'Performance patterns',
     category: 'JavaScript',
     subcategory: 'Rate limiting',
-    questionText: 'What is the difference between debounce and throttle, and when do you use each?',
+    questionText:
+      'What is the difference between debounce and throttle, and when do you use each?',
     expectedConcepts: [
-      concept('c1', 'Debounce semantics', 0.5, 'Waits for a pause before firing once.'),
-      concept('c2', 'Throttle semantics', 0.5, 'Fires at most once per interval.'),
+      concept(
+        'c1',
+        'Debounce semantics',
+        0.5,
+        'Waits for a pause before firing once.',
+      ),
+      concept(
+        'c2',
+        'Throttle semantics',
+        0.5,
+        'Fires at most once per interval.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Uses them interchangeably', 'low')],
     difficulty: 'medium',
@@ -265,10 +359,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'TypeScript',
     category: 'TypeScript',
     subcategory: 'Generics',
-    questionText: 'Explain TypeScript generics and give an example where they prevent a bug.',
+    questionText:
+      'Explain TypeScript generics and give an example where they prevent a bug.',
     expectedConcepts: [
-      concept('c1', 'Parametric reuse', 0.5, 'Generics keep type relationships across inputs/outputs.'),
-      concept('c2', 'Constraint usage', 0.5, 'extends constraints narrow allowed types safely.'),
+      concept(
+        'c1',
+        'Parametric reuse',
+        0.5,
+        'Generics keep type relationships across inputs/outputs.',
+      ),
+      concept(
+        'c2',
+        'Constraint usage',
+        0.5,
+        'extends constraints narrow allowed types safely.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Reaches for any instead', 'high')],
     difficulty: 'hard',
@@ -286,10 +391,21 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
     focus: 'Web performance',
     category: 'Performance',
     subcategory: 'Core Web Vitals',
-    questionText: 'What are the Core Web Vitals, and how would you improve LCP?',
+    questionText:
+      'What are the Core Web Vitals, and how would you improve LCP?',
     expectedConcepts: [
-      concept('c1', 'The three vitals', 0.5, 'LCP, INP (was FID), CLS and what they measure.'),
-      concept('c2', 'LCP levers', 0.5, 'Optimise critical resources, images, server response, fonts.'),
+      concept(
+        'c1',
+        'The three vitals',
+        0.5,
+        'LCP, INP (was FID), CLS and what they measure.',
+      ),
+      concept(
+        'c2',
+        'LCP levers',
+        0.5,
+        'Optimise critical resources, images, server response, fonts.',
+      ),
     ],
     redFlags: [redFlag('r1', 'Only mentions Lighthouse score', 'low')],
     difficulty: 'hard',
@@ -406,13 +522,19 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
   const answers = input.answers.map((answer, index) =>
     buildDemoAnswer(input.id, answer, index),
   );
-  const scored = answers.filter((a) => typeof a.evaluation?.overallScore === 'number');
+  const scored = answers.filter(
+    (a) => typeof a.evaluation?.overallScore === 'number',
+  );
   const overallScore = Math.round(
     scored.reduce((sum, a) => sum + (a.evaluation?.overallScore ?? 0), 0) /
       Math.max(scored.length, 1),
   );
   const decision =
-    overallScore < 50 ? 'reject' : overallScore < PASS_SCORE ? 'review' : 'proceed';
+    overallScore < 50
+      ? 'reject'
+      : overallScore < PASS_SCORE
+        ? 'review'
+        : 'proceed';
 
   const result: InterviewResult = {
     overallScore,
@@ -424,7 +546,9 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
     trustFlags: [],
     behaviorSummary: {
       riskLevel: 'low',
-      notes: ['No tab-switching or paste activity detected during the session.'],
+      notes: [
+        'No tab-switching or paste activity detected during the session.',
+      ],
     },
     questionResults: answers.map((answer) => ({
       questionIndex: answer.questionIndex,
@@ -455,7 +579,9 @@ function buildDemoInterview(input: DemoInterviewInput): Interview {
 }
 
 // A not-started interview (questions only) so the demo can show the take flow.
-function buildPendingDemoInterview(input: PendingDemoInterviewInput): Interview {
+function buildPendingDemoInterview(
+  input: PendingDemoInterviewInput,
+): Interview {
   return {
     id: input.id,
     candidateName: input.candidateName,
@@ -511,14 +637,16 @@ export const DEMO_INTERVIEWS: Interview[] = [
         score: 85,
         transcript:
           'Flexbox is one-dimensional, great for a row or column of items; I use grid when I need both rows and columns at once.',
-        summary: 'Good one-vs-two-dimensional distinction and when to pick grid.',
+        summary:
+          'Good one-vs-two-dimensional distinction and when to pick grid.',
       },
       {
         questionId: '00000000-0000-4000-8000-000000000005',
         score: 60,
         transcript:
           'Cleanup runs before the next effect and on unmount. The dependency array decides when the effect re-runs, so I list everything it reads.',
-        summary: 'Mostly correct; dependency-array reasoning was slightly hand-wavy.',
+        summary:
+          'Mostly correct; dependency-array reasoning was slightly hand-wavy.',
       },
     ],
   }),

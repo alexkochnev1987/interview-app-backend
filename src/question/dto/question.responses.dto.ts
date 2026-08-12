@@ -1,13 +1,19 @@
-import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionTranslations } from '../interfaces/question.interface';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
-import { QuestionTranslationDto } from './question-translation.dto';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question-rubric.dto';
+import { QuestionTranslationDto } from './question-translation.dto';
 
 export {
   QuestionExpectedConceptDto,
@@ -118,7 +124,9 @@ export class QuestionResponseDto {
   })
   blockingInterviews?: QuestionDeleteBlockingInterviewDto[];
 
-  @ApiProperty({ description: 'Number of times this question has been used in an interview.' })
+  @ApiProperty({
+    description: 'Number of times this question has been used in an interview.',
+  })
   usageCount: number;
 }
 
@@ -147,7 +155,9 @@ export class PaginatedQuestionsResponseDto {
   @ApiProperty({ type: [ResolvedQuestionResponseDto] })
   items: ResolvedQuestionResponseDto[];
 
-  @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
+  @ApiProperty({
+    description: 'Total rows matching the filter, ignoring page/limit.',
+  })
   total: number;
 
   @ApiProperty()
@@ -337,38 +347,46 @@ export class FacetCountDto {
   @ApiProperty()
   value: string;
 
-  @ApiProperty({ description: 'Number of active questions with this value, given the rest of the current filters.' })
+  @ApiProperty({
+    description:
+      'Number of active questions with this value, given the rest of the current filters.',
+  })
   count: number;
 }
 
 export class QuestionFacetsResponseDto {
   @ApiProperty({
     type: [FacetCountDto],
-    description: 'Difficulty value + count, given all OTHER current filters (difficulty itself is not applied).',
+    description:
+      'Difficulty value + count, given all OTHER current filters (difficulty itself is not applied).',
   })
   difficulties: FacetCountDto[];
 
   @ApiProperty({
     type: [FacetCountDto],
-    description: 'Category value + count, given all OTHER current filters (category itself is not applied).',
+    description:
+      'Category value + count, given all OTHER current filters (category itself is not applied).',
   })
   categories: FacetCountDto[];
 
   @ApiProperty({
     type: [FacetCountDto],
-    description: 'Subcategory value + count, given all OTHER current filters (subcategory itself is not applied). Exposed as the "Type" facet in the picker.',
+    description:
+      'Subcategory value + count, given all OTHER current filters (subcategory itself is not applied). Exposed as the "Type" facet in the picker.',
   })
   subcategories: FacetCountDto[];
 
   @ApiProperty({
     type: [FacetCountDto],
-    description: 'Role value + count, given all OTHER current filters (role itself is not applied).',
+    description:
+      'Role value + count, given all OTHER current filters (role itself is not applied).',
   })
   roles: FacetCountDto[];
 
   @ApiProperty({
     type: [FacetCountDto],
-    description: 'Tag value + count, given all OTHER current filters (tag overlap is not applied).',
+    description:
+      'Tag value + count, given all OTHER current filters (tag overlap is not applied).',
   })
   tags: FacetCountDto[];
 }

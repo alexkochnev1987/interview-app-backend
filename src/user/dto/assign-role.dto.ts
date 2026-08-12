@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
+
 import { ALL_ROLES } from '../../auth/role-policy';
 import { UserRole } from '../interfaces/user.interface';
 

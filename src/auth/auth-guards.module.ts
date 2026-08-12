@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+
 import { AuthModule } from './auth.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';

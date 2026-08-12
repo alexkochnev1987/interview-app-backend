@@ -1,22 +1,42 @@
-import { Injectable, Logger, Optional } from '@nestjs/common'
-import { ApiErrorCode } from '../common/errors/api-error.codes'
-import { MediaCleanupService } from '../upload/media-cleanup.service'
-import { AppConfigService } from '../app-config/app-config.service'
-import { apiBadRequest, apiConflict, apiForbidden, apiNotFound } from '../common/errors/api-error'
-import { randomUUID } from 'crypto'
-import { PoolClient } from 'pg'
-import { DatabaseService } from '../database/database.service'
-import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants'
-import { QuestionService } from '../question/question.service'
-import { CreateInterviewDto } from './dto/create-interview.dto'
-import { UpdateInterviewDto } from './dto/update-interview.dto'
+import { randomUUID } from 'crypto';
+
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { PoolClient } from 'pg';
+
+import { AppConfigService } from '../app-config/app-config.service';
+import {
+  apiBadRequest,
+  apiConflict,
+  apiForbidden,
+  apiNotFound,
+} from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DatabaseService } from '../database/database.service';
+import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core';
+import {
+  DEMO_PLACEHOLDER_INTERVIEW_ID,
+  DEMO_USER_ID,
+} from '../database/demo-seed-data';
+import { buildFeedbackImprovements } from '../feedback/feedback-text';
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
+import { QuestionService } from '../question/question.service';
+import { MediaCleanupService } from '../upload/media-cleanup.service';
+import { matchesInterviewMediaKey } from '../upload/upload-key';
+import {
+  getAnswerAttemptLimitBlockReason,
+  getAnswerVersionNotReservedBlockReason,
+  getAnswerVersionOverwriteBlockReason,
+} from './answer-attempt-rules';
+import { compareBehaviorRisk } from './answer-behavior-risk';
+import { buildInterviewSummary } from './build-interview-summary';
+import { CreateInterviewDto } from './dto/create-interview.dto';
+import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import {
   InterviewSortField,
   InterviewSortOrder,
   QueryInterviewsDto,
-} from './dto/query-interviews.dto'
-import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto'
-import { matchesInterviewMediaKey } from '../upload/upload-key'
+} from './dto/query-interviews.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 import {
   Answer,
   AnswerBehaviorEvent,
@@ -37,25 +57,23 @@ import {
   InterviewResult,
   InterviewWorkflow,
   MediaArtifact,
-} from './interfaces/interview.interface'
-import { compareBehaviorRisk } from './answer-behavior-risk'
-import {
-  getAnswerAttemptLimitBlockReason,
-  getAnswerVersionNotReservedBlockReason,
-  getAnswerVersionOverwriteBlockReason,
-} from './answer-attempt-rules'
-import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version'
-import {
-  getInterviewCompletionBlockReason,
-  getSubmittedAnswerCount as countSubmittedAnswers,
-} from './interview-completion-rules'
-import { getInterviewResultsUnavailableMessage } from './interview-results-rules'
+} from './interfaces/interview.interface';
 import {
   getDemoScopeDenialReason,
   getInterviewAccessDenialReason,
   INTERVIEW_ACCESS_DENIED_MESSAGE,
-} from './interview-access-rules'
-import { assertActorCanSetAssignedHr } from './interview-assignment-rules'
+} from './interview-access-rules';
+import { assertActorCanSetAssignedHr } from './interview-assignment-rules';
+import {
+  getInterviewCompletionBlockReason,
+  getSubmittedAnswerCount as countSubmittedAnswers,
+} from './interview-completion-rules';
+import { buildInterviewFilterClauses } from './interview-list-filters';
+import { fromInterviewListRow, InterviewListRow } from './interview-list-item';
+import {
+  collectInterviewLocaleWarnings,
+  InterviewLocaleWarning,
+} from './interview-locale-warnings';
 import {
   getInterviewDemoDeleteBlockReason,
   getInterviewPendingOnlyBlockReason,
@@ -63,17 +81,9 @@ import {
   getInterviewTerminalOnlyBlockReason,
   hasInterviewPendingOnlyFieldUpdates,
   isTerminalInterviewStatus,
-} from './interview-management-rules'
-import { buildFeedbackImprovements } from '../feedback/feedback-text'
-import { buildInterviewSummary } from './build-interview-summary'
-import {
-  collectInterviewLocaleWarnings,
-  InterviewLocaleWarning,
-} from './interview-locale-warnings'
-import { isDemoSeedAllowed, upsertDemoUser } from '../database/demo-seed-core'
-import { DEMO_PLACEHOLDER_INTERVIEW_ID, DEMO_USER_ID } from '../database/demo-seed-data'
-import { buildInterviewFilterClauses } from './interview-list-filters'
-import { fromInterviewListRow, InterviewListRow } from './interview-list-item'
+} from './interview-management-rules';
+import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
+import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
 
 export const DEFAULT_INTERVIEWS_PAGE = 1;
 export const DEFAULT_INTERVIEWS_LIMIT = 20;
@@ -335,7 +345,10 @@ export class InterviewService {
     const questionIds = dto.questionIds.map((id) => id.trim()).filter(Boolean);
 
     if (!candidateName) {
-      throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Candidate name is required',
+      );
     }
     if (!position) {
       throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Position is required');
@@ -358,9 +371,9 @@ export class InterviewService {
         assignedHrId = context.actor.id;
       } else if (dto.assignedHrId) {
         await this.assertAssignableHrUser(
-            client,
-            dto.assignedHrId,
-            context.demo === true,
+          client,
+          dto.assignedHrId,
+          context.demo === true,
         );
         assignedHrId = dto.assignedHrId;
       }
@@ -449,7 +462,10 @@ export class InterviewService {
     });
   }
 
-  async cancel(id: string, actor: InterviewActor): Promise<InterviewCancelResult> {
+  async cancel(
+    id: string,
+    actor: InterviewActor,
+  ): Promise<InterviewCancelResult> {
     return this.databaseService.withTransaction(async (client) => {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
@@ -472,35 +488,41 @@ export class InterviewService {
     id: string,
     actor: InterviewActor,
   ): Promise<InterviewDeleteResult> {
-    const result = await this.databaseService.withTransaction(async (client) => {
-      const row = await this.lockInterviewForUpdate(client, id);
-      const interview = this.mapRow(row);
-      this.assertActorCanManageInterview(interview, actor);
+    const result = await this.databaseService.withTransaction(
+      async (client) => {
+        const row = await this.lockInterviewForUpdate(client, id);
+        const interview = this.mapRow(row);
+        this.assertActorCanManageInterview(interview, actor);
 
-      const blockReason = getInterviewTerminalOnlyBlockReason(interview.status);
-      if (blockReason) {
-        throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
-          interviewId: id,
-          status: interview.status,
-        });
-      }
+        const blockReason = getInterviewTerminalOnlyBlockReason(
+          interview.status,
+        );
+        if (blockReason) {
+          throw apiConflict(ApiErrorCode.CONFLICT, blockReason, {
+            interviewId: id,
+            status: interview.status,
+          });
+        }
 
-      const demoBlockReason = getInterviewDemoDeleteBlockReason(interview);
-      if (demoBlockReason) {
-        throw apiForbidden(ApiErrorCode.FORBIDDEN, demoBlockReason, {
-          interviewId: id,
-        });
-      }
+        const demoBlockReason = getInterviewDemoDeleteBlockReason(interview);
+        if (demoBlockReason) {
+          throw apiForbidden(ApiErrorCode.FORBIDDEN, demoBlockReason, {
+            interviewId: id,
+          });
+        }
 
-      await this.removeInterview(client, interview);
-      return { id, deleted: true as const };
-    });
+        await this.removeInterview(client, interview);
+        return { id, deleted: true as const };
+      },
+    );
 
     await this.purgeInterviewMediaBestEffort(id);
     return result;
   }
 
-  private async purgeInterviewMediaBestEffort(interviewId: string): Promise<void> {
+  private async purgeInterviewMediaBestEffort(
+    interviewId: string,
+  ): Promise<void> {
     try {
       await this.mediaCleanupService.deleteInterviewMedia(interviewId);
     } catch (error) {
@@ -573,7 +595,10 @@ export class InterviewService {
       if (dto.candidateName !== undefined) {
         candidateName = dto.candidateName.trim();
         if (!candidateName) {
-          throw apiBadRequest(ApiErrorCode.BAD_REQUEST, 'Candidate name is required');
+          throw apiBadRequest(
+            ApiErrorCode.BAD_REQUEST,
+            'Candidate name is required',
+          );
         }
       }
 
@@ -614,8 +639,12 @@ export class InterviewService {
         }
 
         const oldIds = interview.questions.map((question) => question.id);
-        const added = questionIds.filter((questionId) => !oldIds.includes(questionId));
-        const removed = oldIds.filter((questionId) => !questionIds.includes(questionId));
+        const added = questionIds.filter(
+          (questionId) => !oldIds.includes(questionId),
+        );
+        const removed = oldIds.filter(
+          (questionId) => !questionIds.includes(questionId),
+        );
 
         const nextQuestions = await this.questionService.findManyByIdsForUpdate(
           client,
@@ -659,8 +688,14 @@ export class InterviewService {
     limit?: number;
     offset?: number;
     page?: number;
-  }): Promise<{ items: Interview[]; total: number; page: number; limit: number }> {
-    const limit = Math.min(MAX_INTERVIEW_LIST_LIMIT,
+  }): Promise<{
+    items: Interview[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const limit = Math.min(
+      MAX_INTERVIEW_LIST_LIMIT,
       Math.max(1, options?.limit ?? DEFAULT_INTERVIEW_LIST_LIMIT),
     );
     const page = Math.max(1, options?.page ?? 1);
@@ -1026,10 +1061,7 @@ export class InterviewService {
     }
   }
 
-  async addAnswer(
-    id: string,
-    input: AddAnswerInput,
-  ): Promise<Interview> {
+  async addAnswer(id: string, input: AddAnswerInput): Promise<Interview> {
     return this.persistAnswerVersion(id, input, {
       mergeBehaviorEvents: false,
       preserveLatestSelectedVersion: false,
@@ -1083,8 +1115,9 @@ export class InterviewService {
 
       const question = interview.questions[questionIndex];
       const existingAnswer =
-        interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
-        undefined;
+        interview.answers.find(
+          (answer) => answer.questionIndex === questionIndex,
+        ) ?? undefined;
       if (existingAnswer?.status === 'submitted') {
         throw apiBadRequest(
           ApiErrorCode.BAD_REQUEST,
@@ -1099,10 +1132,11 @@ export class InterviewService {
           (max, version) => Math.max(max, version.versionNumber),
           0,
         ) + 1;
-      const maxAttempts = await this.appConfig?.getNumber(
-        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
-        3,
-      ) ?? 3;
+      const maxAttempts =
+        (await this.appConfig?.getNumber(
+          'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+          3,
+        )) ?? 3;
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         existingVersions.map((version) => ({
           versionNumber: version.versionNumber,
@@ -1129,8 +1163,9 @@ export class InterviewService {
         (left, right) => left.versionNumber - right.versionNumber,
       );
       const selectedVersion =
-        nextVersions.find((version) => version.versionNumber === versionNumber) ??
-        stubVersion;
+        nextVersions.find(
+          (version) => version.versionNumber === versionNumber,
+        ) ?? stubVersion;
 
       const nextAnswer: Answer = {
         questionIndex,
@@ -1261,7 +1296,11 @@ export class InterviewService {
         throw apiBadRequest(
           ApiErrorCode.BAD_REQUEST,
           'No uploaded recording is available to submit',
-          { interviewId: id, questionIndex, versionNumber: finalizeVersionNumber },
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: finalizeVersionNumber,
+          },
         );
       }
 
@@ -1387,14 +1426,11 @@ export class InterviewService {
       evaluation: input.evaluation ?? answer.evaluation,
       validation: {
         status: 'completed',
-        executionArn:
-          input.executionArn ?? answer.validation?.executionArn,
+        executionArn: input.executionArn ?? answer.validation?.executionArn,
         sourceVersionNumber: input.sourceVersionNumber,
         runId: input.runId,
-        requestedAt:
-          answer.validation?.requestedAt ?? input.completedAt,
-        startedAt:
-          answer.validation?.startedAt ?? input.completedAt,
+        requestedAt: answer.validation?.requestedAt ?? input.completedAt,
+        startedAt: answer.validation?.startedAt ?? input.completedAt,
         completedAt: input.completedAt,
       },
     };
@@ -1439,13 +1475,11 @@ export class InterviewService {
       ...answer,
       validation: {
         status: 'failed',
-        executionArn:
-          input.executionArn ?? answer.validation?.executionArn,
+        executionArn: input.executionArn ?? answer.validation?.executionArn,
         sourceVersionNumber:
           input.sourceVersionNumber ?? answer.validation?.sourceVersionNumber,
         runId: input.runId ?? answer.validation?.runId,
-        requestedAt:
-          answer.validation?.requestedAt ?? input.completedAt,
+        requestedAt: answer.validation?.requestedAt ?? input.completedAt,
         startedAt:
           answer.validation?.startedAt ?? answer.validation?.requestedAt,
         completedAt: input.completedAt,
@@ -1461,7 +1495,9 @@ export class InterviewService {
       item.questionIndex === nextAnswer.questionIndex ? nextAnswer : item,
     );
 
-    const submittedAnswers = updatedAnswers.filter((a) => a.status === 'submitted');
+    const submittedAnswers = updatedAnswers.filter(
+      (a) => a.status === 'submitted',
+    );
     const allFailed =
       submittedAnswers.length > 0 &&
       submittedAnswers.every((a) => a.validation?.status === 'failed');
@@ -1565,8 +1601,9 @@ export class InterviewService {
 
       const question = interview.questions[questionIndex];
       const existingAnswer =
-        interview.answers.find((answer) => answer.questionIndex === questionIndex) ??
-        undefined;
+        interview.answers.find(
+          (answer) => answer.questionIndex === questionIndex,
+        ) ?? undefined;
       if (existingAnswer?.status === 'submitted' && !submitAnswer) {
         throw apiBadRequest(
           ApiErrorCode.BAD_REQUEST,
@@ -1637,10 +1674,11 @@ export class InterviewService {
         );
       }
 
-      const maxAttempts = await this.appConfig?.getNumber(
-        'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
-        3,
-      ) ?? 3;
+      const maxAttempts =
+        (await this.appConfig?.getNumber(
+          'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+          3,
+        )) ?? 3;
       const attemptLimitReason = getAnswerAttemptLimitBlockReason(
         versionRefs,
         normalizedVersionNumber,
@@ -1650,7 +1688,11 @@ export class InterviewService {
         throw apiBadRequest(
           ApiErrorCode.ANSWER_ATTEMPT_LIMIT_REACHED,
           attemptLimitReason,
-          { interviewId: id, questionIndex, versionNumber: normalizedVersionNumber },
+          {
+            interviewId: id,
+            questionIndex,
+            versionNumber: normalizedVersionNumber,
+          },
         );
       }
 
@@ -1688,13 +1730,11 @@ export class InterviewService {
       }
 
       const normalizedBehaviorSignals = this.mergeBehaviorSignals(
-        existingVersion?.behaviorSignals ??
-          existingAnswer?.behaviorSignals,
+        existingVersion?.behaviorSignals ?? existingAnswer?.behaviorSignals,
         behaviorSignals,
       );
       const normalizedBehaviorEvents = this.buildBehaviorEventsSnapshot(
-        existingVersion?.behaviorEvents ??
-          existingAnswer?.behaviorEvents,
+        existingVersion?.behaviorEvents ?? existingAnswer?.behaviorEvents,
         behaviorEvents,
         normalizedVersionNumber,
         options.mergeBehaviorEvents,
@@ -1918,7 +1958,8 @@ export class InterviewService {
       (answer) => answer.status === 'submitted',
     );
     const evaluatedAnswers = submittedAnswers.filter(
-      (answer) => answer.evaluation && typeof answer.evaluation.overallScore === 'number',
+      (answer) =>
+        answer.evaluation && typeof answer.evaluation.overallScore === 'number',
     );
 
     if (evaluatedAnswers.length === 0) {
@@ -1955,8 +1996,7 @@ export class InterviewService {
           if (typeof value !== 'number' || !Number.isFinite(value)) {
             continue;
           }
-          const bucket =
-            categorySums[key] ?? { weight: 0, total: 0 };
+          const bucket = categorySums[key] ?? { weight: 0, total: 0 };
           bucket.weight += weight;
           bucket.total += value * weight;
           categorySums[key] = bucket;
@@ -2076,7 +2116,11 @@ export class InterviewService {
     userId: string,
     interviewDemo: boolean,
   ): Promise<void> {
-    const result = await client.query<{ id: string; role: string; demo: boolean }>(
+    const result = await client.query<{
+      id: string;
+      role: string;
+      demo: boolean;
+    }>(
       `
         SELECT id, role, demo
         FROM users
@@ -2126,9 +2170,7 @@ export class InterviewService {
       position: row.position,
       assignedHrId: row.assigned_hr_id ?? undefined,
       assignedHr:
-        row.assigned_hr_id &&
-        row.assigned_hr_name &&
-        row.assigned_hr_email
+        row.assigned_hr_id && row.assigned_hr_name && row.assigned_hr_email
           ? {
               id: row.assigned_hr_id,
               name: row.assigned_hr_name,
@@ -2162,24 +2204,34 @@ export class InterviewService {
     const uploadedAt = this.asDate(rawAnswer.uploadedAt) ?? new Date();
     const mediaKey =
       this.asString(rawAnswer.mediaKey) ??
-      this.asString((rawAnswer.camera as Record<string, unknown> | undefined)?.mediaKey) ??
+      this.asString(
+        (rawAnswer.camera as Record<string, unknown> | undefined)?.mediaKey,
+      ) ??
       '';
     const screenMediaKey =
       this.asString(rawAnswer.screenMediaKey) ??
-      this.asString((rawAnswer.screen as Record<string, unknown> | undefined)?.mediaKey);
+      this.asString(
+        (rawAnswer.screen as Record<string, unknown> | undefined)?.mediaKey,
+      );
     const questionId =
       this.asString(rawAnswer.questionId) ??
       questions[questionIndex]?.id ??
       `question-${questionIndex}`;
-    const versions = this.normalizeAnswerVersions(rawAnswer, mediaKey, screenMediaKey, uploadedAt);
+    const versions = this.normalizeAnswerVersions(
+      rawAnswer,
+      mediaKey,
+      screenMediaKey,
+      uploadedAt,
+    );
     const latestVersion =
       versions.length > 0 ? versions[versions.length - 1] : undefined;
     const selectedVersionNumber =
       this.asNumber(rawAnswer.selectedVersionNumber) ??
       latestVersion?.versionNumber;
     const selectedVersion =
-      versions.find((version) => version.versionNumber === selectedVersionNumber) ??
-      latestVersion;
+      versions.find(
+        (version) => version.versionNumber === selectedVersionNumber,
+      ) ?? latestVersion;
 
     return {
       questionIndex,
@@ -2194,7 +2246,8 @@ export class InterviewService {
         selectedVersion?.durationSeconds ??
         this.asNumber(rawAnswer.durationSeconds),
       retakeCount:
-        this.asNumber(rawAnswer.retakeCount) ?? Math.max(versions.length - 1, 0),
+        this.asNumber(rawAnswer.retakeCount) ??
+        Math.max(versions.length - 1, 0),
       startedAt: selectedVersion?.startedAt ?? this.asDate(rawAnswer.startedAt),
       submittedAt:
         selectedVersion?.submittedAt ?? this.asDate(rawAnswer.submittedAt),
@@ -2238,7 +2291,9 @@ export class InterviewService {
     const normalizedVersions = rawVersions
       .map((version) => this.asRecord(version))
       .filter((version): version is Record<string, unknown> => Boolean(version))
-      .map((version) => this.normalizeAnswerVersion(version, fallbackUploadedAt))
+      .map((version) =>
+        this.normalizeAnswerVersion(version, fallbackUploadedAt),
+      )
       .filter((version): version is AnswerVersion => Boolean(version));
 
     if (normalizedVersions.length > 0) {
@@ -2270,7 +2325,9 @@ export class InterviewService {
           fallbackScreenMediaKey,
           fallbackUploadedAt,
         ),
-        behaviorSignals: this.normalizeBehaviorSignals(rawAnswer.behaviorSignals),
+        behaviorSignals: this.normalizeBehaviorSignals(
+          rawAnswer.behaviorSignals,
+        ),
         behaviorEvents: this.normalizeBehaviorEvents(
           rawAnswer.behaviorEvents,
           1,
@@ -2305,18 +2362,16 @@ export class InterviewService {
       startedAt: this.asDate(rawVersion.startedAt),
       submittedAt: this.asDate(rawVersion.submittedAt),
       camera: mediaKey
-        ? this.normalizeMediaArtifact(
-            rawVersion.camera,
-            mediaKey,
-            uploadedAt,
-          )
+        ? this.normalizeMediaArtifact(rawVersion.camera, mediaKey, uploadedAt)
         : undefined,
       screen: this.normalizeMediaArtifact(
         rawVersion.screen,
         this.asString(rawVersion.screenMediaKey),
         uploadedAt,
       ),
-      behaviorSignals: this.normalizeBehaviorSignals(rawVersion.behaviorSignals),
+      behaviorSignals: this.normalizeBehaviorSignals(
+        rawVersion.behaviorSignals,
+      ),
       behaviorEvents: this.normalizeBehaviorEvents(
         rawVersion.behaviorEvents,
         versionNumber,
@@ -2489,7 +2544,13 @@ export class InterviewService {
         ? rawTranscript.isFinal
         : undefined;
 
-    if (!text && !language && !provider && !generatedAt && isFinal === undefined) {
+    if (
+      !text &&
+      !language &&
+      !provider &&
+      !generatedAt &&
+      isFinal === undefined
+    ) {
       return undefined;
     }
 
@@ -2510,7 +2571,9 @@ export class InterviewService {
 
     const overallScore = this.asNumber(rawEvaluation.overallScore);
     const categoryScores = this.asNumberRecord(rawEvaluation.categoryScores);
-    const coveredConceptIds = this.asStringArray(rawEvaluation.coveredConceptIds);
+    const coveredConceptIds = this.asStringArray(
+      rawEvaluation.coveredConceptIds,
+    );
     const missedConceptIds = this.asStringArray(rawEvaluation.missedConceptIds);
     const redFlagIds = this.asStringArray(rawEvaluation.redFlagIds);
     const behaviorRisk = this.asString(rawEvaluation.behaviorRisk) as

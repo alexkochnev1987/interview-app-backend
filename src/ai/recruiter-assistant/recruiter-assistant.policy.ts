@@ -59,25 +59,23 @@ export function isCancellationMessage(message: string): boolean {
 
 export function canAccessChat(user: ActingUser): boolean {
   return (
-    user.role === 'super_admin'
-    || user.role === 'admin'
-    || user.role === 'hr'
-    || user.role === 'candidate'
+    user.role === 'super_admin' ||
+    user.role === 'admin' ||
+    user.role === 'hr' ||
+    user.role === 'candidate'
   );
 }
 
 export function canListInterviews(user: ActingUser): boolean {
   return (
-    user.role === 'super_admin'
-    || user.role === 'admin'
-    || user.role === 'hr'
+    user.role === 'super_admin' || user.role === 'admin' || user.role === 'hr'
   );
 }
 
 export function canAssignHr(user: ActingUser): boolean {
   return (
-    (user.role === 'super_admin' || user.role === 'admin')
-    && hasEffectivePermission(user.role, user.demo, 'interviews:assign')
+    (user.role === 'super_admin' || user.role === 'admin') &&
+    hasEffectivePermission(user.role, user.demo, 'interviews:assign')
   );
 }
 

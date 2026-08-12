@@ -22,25 +22,26 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { Response, Request } from 'express';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { CurrentUser } from './decorators/current-user.decorator';
+
+import { RecruiterAssistantConfigService } from '../app-config/recruiter-assistant-config.service';
 import { User } from '../user/interfaces/user.interface';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthUserResponseDto } from './dto/auth-user.response.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { LoginDto } from './dto/login.dto';
+import { LogoutResponseDto } from './dto/logout.response.dto';
+import { RegisterDto } from './dto/register.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginThrottlerGuard } from './guards/login-throttler.guard';
 import { RegisterThrottlerGuard } from './guards/register-throttler.guard';
-import { getEffectivePermissions } from './permissions';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { MeResponse } from './interfaces/me.interface';
-import { AuthUserResponseDto } from './dto/auth-user.response.dto';
-import { LogoutResponseDto } from './dto/logout.response.dto';
-import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { getEffectivePermissions } from './permissions';
 import {
   getStaffSessionCookieOptions,
   STAFF_SESSION_COOKIE,
 } from './staff-session';
-import { RecruiterAssistantConfigService } from '../app-config/recruiter-assistant-config.service';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 
@@ -52,12 +53,16 @@ export class AuthController {
     private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
   ) {}
 
-  private async toMeResponse(user: Omit<User, 'passwordHash'>): Promise<MeResponse> {
+  private async toMeResponse(
+    user: Omit<User, 'passwordHash'>,
+  ): Promise<MeResponse> {
     return {
       ...user,
       permissions: getEffectivePermissions(user.role, user.demo),
       recruiterAssistantEnabled:
-        await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(user.role),
+        await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+          user.role,
+        ),
     };
   }
 
@@ -97,7 +102,9 @@ export class AuthController {
   })
   @ApiOperation({ summary: 'Sign in to the read-only demo account' })
   @ApiOkResponse({ type: AuthUserResponseDto })
-  @ApiServiceUnavailableResponse({ description: 'Demo access is not available' })
+  @ApiServiceUnavailableResponse({
+    description: 'Demo access is not available',
+  })
   @ApiTooManyRequestsResponse({ description: 'Too many demo sign-in attempts' })
   async demo(@Res({ passthrough: true }) res: Response) {
     const user = await this.authService.demoLogin();
@@ -140,11 +147,10 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback endpoint' })
-  @ApiFoundResponse({ description: 'Sets session cookie and redirects to frontend' })
-  async googleCallback(
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
+  @ApiFoundResponse({
+    description: 'Sets session cookie and redirects to frontend',
+  })
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
     const googleUser = req.user as {
       email: string;
       name: string;
@@ -175,7 +181,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiOkResponse({ type: AuthUserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid session cookie' })
-  async me(@CurrentUser() user: Omit<User, 'passwordHash'>): Promise<MeResponse> {
+  async me(
+    @CurrentUser() user: Omit<User, 'passwordHash'>,
+  ): Promise<MeResponse> {
     return this.toMeResponse(user);
   }
 

@@ -1,19 +1,19 @@
+import { Interview } from '../interview/interfaces/interview.interface';
+import { Locale } from '../locale/locale.constants';
 import {
   hasPublishableCandidateFeedbackText,
   isCandidateFeedbackBlockProtected,
 } from './candidate-feedback-block-rules';
 import {
-  CandidateFeedback,
-  CandidateFeedbackBlockState,
-  CandidateFeedbackQuestion,
-} from './interfaces/candidate-feedback.interface';
-import {
   PublicCandidateFeedbackQuestionBlock,
   PublicCandidateFeedbackResponse,
   PublicCandidateFeedbackTextBlock,
 } from './interfaces/candidate-feedback-share-link.interface';
-import { Interview } from '../interview/interfaces/interview.interface';
-import { Locale } from '../locale/locale.constants';
+import {
+  CandidateFeedback,
+  CandidateFeedbackBlockState,
+  CandidateFeedbackQuestion,
+} from './interfaces/candidate-feedback.interface';
 
 function resolveSnapshotQuestionText(
   interview: Interview,

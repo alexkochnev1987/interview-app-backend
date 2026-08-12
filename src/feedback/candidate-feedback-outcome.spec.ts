@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+
 import { resolveCandidateFeedbackOutcomePatch } from './candidate-feedback-outcome';
 
 describe('resolveCandidateFeedbackOutcomePatch', () => {

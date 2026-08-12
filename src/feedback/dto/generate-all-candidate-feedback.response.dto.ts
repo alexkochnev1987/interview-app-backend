@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { CandidateFeedbackResponseDto } from './candidate-feedback.responses.dto';
 
 export const CANDIDATE_FEEDBACK_GENERATION_RESULT_STATUSES = [

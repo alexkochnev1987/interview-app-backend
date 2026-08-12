@@ -1,5 +1,5 @@
-import { buildAnswerEvaluationUserPrompt } from './answer-evaluation-llm';
 import { InterviewQuestion } from '../../interview/interfaces/interview.interface';
+import { buildAnswerEvaluationUserPrompt } from './answer-evaluation-llm';
 
 const baseQuestion: InterviewQuestion = {
   id: 'q1',

@@ -3,10 +3,7 @@ import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
-import {
-  isPlainRecord,
-  parseJsonFromModelOutput,
-} from './parse-model-json';
+import { isPlainRecord, parseJsonFromModelOutput } from './parse-model-json';
 
 export interface RawAnswerEvaluation {
   overallScore?: number;
