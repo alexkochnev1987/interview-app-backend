@@ -62,6 +62,8 @@ import {
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 
+const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
+
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
@@ -1065,7 +1067,7 @@ export class RecruiterAssistantToolsService {
     const hrUsers = await this.userService.listAll({
       role: 'hr',
       demo: user.demo,
-      limit: MAX_INTERVIEWS_LIMIT,
+      limit: MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT,
     });
     return hrUsers.map((hrUser) => ({
       id: hrUser.id,
@@ -1104,10 +1106,14 @@ export class RecruiterAssistantToolsService {
     if (awaitingInput === 'interview') {
       const interviews = await this.fetchUnassignedInterviews(user);
       if (interviews.length === 0) {
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          idleConversationState(),
+        );
         return {
           status: 'answered',
           response: 'No unassigned interviews available.',
-          awaitingInput,
           interviews: [],
         };
       }
@@ -1124,10 +1130,14 @@ export class RecruiterAssistantToolsService {
 
     const hrs = await this.fetchAvailableHrs(user);
     if (hrs.length === 0) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        idleConversationState(),
+      );
       return {
         status: 'answered',
         response: 'No HR reviewers available.',
-        awaitingInput,
         hrs: [],
       };
     }

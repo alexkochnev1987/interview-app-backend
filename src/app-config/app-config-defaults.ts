@@ -103,6 +103,15 @@ export const SYSTEM_CONFIG_DEFAULTS: Record<string, SystemConfigDefaultEntry> =
       isPublic: false,
       isSecret: false,
     },
+    RECRUITER_ASSISTANT_ENABLED_ROLES: {
+      key: 'RECRUITER_ASSISTANT_ENABLED_ROLES',
+      value: '',
+      valueType: 'string',
+      description:
+        'Optional comma-separated roles allowed to use Herman (super_admin, admin, hr, candidate). Empty = all roles when no per-role override is set.',
+      isPublic: false,
+      isSecret: false,
+    },
     ENABLE_AI_ASSISTANT: {
       key: 'ENABLE_AI_ASSISTANT',
       value: 'true',

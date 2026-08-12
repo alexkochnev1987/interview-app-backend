@@ -7563,6 +7563,11 @@
             "type": "boolean",
             "example": true,
             "description": "Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source."
+          },
+          "recruiterAssistantEnabled": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether Herman (recruiter AI assistant) is enabled for this user, based on org config and role."
           }
         },
         "required": [
@@ -7573,7 +7578,8 @@
           "demo",
           "createdAt",
           "avatarSource",
-          "hasGoogleAvatar"
+          "hasGoogleAvatar",
+          "recruiterAssistantEnabled"
         ]
       },
       "RegisterDto": {
@@ -11506,7 +11512,7 @@
             }
           },
           "hrs": {
-            "description": "HR reviewers to pick from during assign_hr flow.",
+            "description": "HR reviewers returned for assign_hr picker steps or the list_hrs intent.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AssignedHrDto"

@@ -1437,6 +1437,11 @@ export interface components {
              * @example true
              */
             hasGoogleAvatar: boolean;
+            /**
+             * @description Whether Herman (recruiter AI assistant) is enabled for this user, based on org config and role.
+             * @example true
+             */
+            recruiterAssistantEnabled: boolean;
         };
         RegisterDto: {
             email: string;
@@ -2634,7 +2639,7 @@ export interface components {
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
             interviews?: components["schemas"]["InterviewListItemDto"][];
-            /** @description HR reviewers to pick from during assign_hr flow. */
+            /** @description HR reviewers returned for assign_hr picker steps or the list_hrs intent. */
             hrs?: components["schemas"]["AssignedHrDto"][];
             interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
         };
