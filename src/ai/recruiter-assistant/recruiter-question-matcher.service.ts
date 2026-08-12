@@ -120,28 +120,32 @@ export class RecruiterQuestionMatcherService {
     demo: boolean,
     locale: Locale,
   ): Promise<SimilarQuestionMatch | null> {
-    const results = await this.questionService.findAll(
-      {
-        q: questionText,
-        locale,
-        limit: 10,
-        page: 1,
-        status: 'active',
-      },
-      { forceActive: true, resolveLocale: locale, demo },
-    );
-    const normalizedText = normalizeForComparison(questionText);
-    const match = results.items.find(
-      (item) => normalizeForComparison(item.questionText) === normalizedText,
-    );
-    if (!match) {
+    try {
+      const results = await this.questionService.findAll(
+        {
+          q: questionText,
+          locale,
+          limit: 10,
+          page: 1,
+          status: 'active',
+        },
+        { forceActive: true, resolveLocale: locale, demo },
+      );
+      const normalizedText = normalizeForComparison(questionText);
+      const match = results.items.find(
+        (item) => normalizeForComparison(item.questionText) === normalizedText,
+      );
+      if (!match) {
+        return null;
+      }
+      return {
+        question: match,
+        score: 1,
+        reasons: ['Exact question text already exists in the question bank.'],
+      };
+    } catch {
       return null;
     }
-    return {
-      question: match,
-      score: 1,
-      reasons: ['Exact question text already exists in the question bank.'],
-    };
   }
 }
 

@@ -145,4 +145,38 @@ describe('RecruiterAssistantToolsService create question flow', () => {
       pendingActionId: 'pending-1',
     });
   });
+
+  it('returns to similar confirm when draft fails after confirmation', async () => {
+    questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([
+      {
+        question: { id: 'q1', questionText: 'Explain React hooks.' },
+        score: 0.9,
+        reasons: [],
+      },
+    ]);
+    aiService.draftQuestion.mockRejectedValue(new Error('draft failed'));
+
+    const response = await service.continueCreateQuestionDespiteSimilar(
+      {
+        flow: 'create_question',
+        slots: { questionName: 'React hooks' },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
+    });
+  });
 });

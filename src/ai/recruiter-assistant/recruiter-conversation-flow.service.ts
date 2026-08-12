@@ -61,11 +61,12 @@ export class RecruiterConversationFlowService {
         );
       }
 
-      return {
-        status: 'answered',
-        response:
-          'Reply yes to add the question anyway, or no/cancel to abort.',
-      };
+      return this.tools.repromptSimilarQuestionConfirmation(
+        ctx.state,
+        ctx.user,
+        ctx.locale,
+        ctx.sessionId,
+      );
     }
 
     const state = ctx.state.awaitingInput

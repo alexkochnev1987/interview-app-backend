@@ -540,12 +540,80 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    return this.progressCreateQuestionDraftAndConfirm(
+    const response = await this.progressCreateQuestionDraftAndConfirm(
       questionName,
       user,
       locale,
       sessionId,
     );
+
+    if (response.status === 'refused') {
+      const matches =
+        await this.questionMatcher.findSimilarMatchesOverThreshold(
+          questionName,
+          user,
+          locale,
+        );
+      if (matches.length > 0) {
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+            questionName,
+          }),
+        );
+        return {
+          status: 'answered',
+          response: `${response.response} Reply yes to try again, or no/cancel to abort.`,
+          awaitingInput: 'confirmAddDespiteSimilar',
+          similarQuestions: buildSimilarQuestionMatchCards(matches),
+        };
+      }
+    }
+
+    return response;
+  }
+
+  async repromptSimilarQuestionConfirmation(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const questionName = state.slots.questionName;
+    if (!questionName) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'questionName'),
+      );
+      return {
+        status: 'answered',
+        response: 'What should the question be called?',
+        awaitingInput: 'questionName',
+      };
+    }
+
+    const matches = await this.questionMatcher.findSimilarMatchesOverThreshold(
+      questionName,
+      user,
+      locale,
+    );
+
+    this.conversationStore.update(
+      user.id,
+      sessionId,
+      startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+        questionName,
+      }),
+    );
+
+    return {
+      status: 'answered',
+      response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: buildSimilarQuestionMatchCards(matches),
+    };
   }
 
   async prepareCreateInterview(

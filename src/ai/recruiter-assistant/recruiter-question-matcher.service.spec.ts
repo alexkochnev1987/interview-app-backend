@@ -86,6 +86,21 @@ describe('RecruiterQuestionMatcherService', () => {
       });
     });
 
+    it('returns empty when literal fallback also fails', async () => {
+      questionService.findSimilar.mockRejectedValue(
+        new Error('embeddings down'),
+      );
+      questionService.findAll.mockRejectedValue(new Error('db down'));
+
+      const results = await service.findSimilarMatchesOverThreshold(
+        'React hooks',
+        user,
+        'en',
+      );
+
+      expect(results).toEqual([]);
+    });
+
     it('returns empty for blank input', async () => {
       await expect(
         service.findSimilarMatchesOverThreshold('   ', user, 'en'),

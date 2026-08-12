@@ -7,6 +7,7 @@ describe('RecruiterConversationFlowService', () => {
     continueCreateQuestionFlow: vi.fn(),
     continueCreateQuestionDespiteSimilar: vi.fn(),
     continueCreateInterviewFlow: vi.fn(),
+    repromptSimilarQuestionConfirmation: vi.fn(),
   };
   const conversationStore = {
     update: vi.fn(),
@@ -102,6 +103,20 @@ describe('RecruiterConversationFlowService', () => {
   });
 
   it('reprompts on unclear reply during similar match confirmation', async () => {
+    tools.repromptSimilarQuestionConfirmation.mockResolvedValue({
+      status: 'answered',
+      response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
+    });
+
     const response = await service.resumeActiveFlow({
       ...ctx,
       message: 'maybe',
@@ -114,10 +129,20 @@ describe('RecruiterConversationFlowService', () => {
       ),
     });
 
+    expect(tools.repromptSimilarQuestionConfirmation).toHaveBeenCalled();
     expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();
     expect(response).toEqual({
       status: 'answered',
       response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: [
+        {
+          id: 'q1',
+          questionText: 'Explain React hooks.',
+          score: 0.9,
+          href: '/questions/q1',
+        },
+      ],
     });
   });
 });
