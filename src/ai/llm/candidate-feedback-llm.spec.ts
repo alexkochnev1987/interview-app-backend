@@ -1,7 +1,5 @@
-import {
-  getCandidateFeedbackQuestionSystemPrompt,
-} from './candidate-feedback-llm';
 import { classifyQuestionFeedbackToneMode } from '../../feedback/candidate-feedback-eligibility';
+import { getCandidateFeedbackQuestionSystemPrompt } from './candidate-feedback-llm';
 
 describe('candidate-feedback-llm', () => {
   it('uses honest_weak prompts for failed evaluations', () => {

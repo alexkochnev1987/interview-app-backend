@@ -1,15 +1,21 @@
-import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
-import { ApiErrorCode } from '../../common/errors/api-error.codes';
-import { apiForbidden, apiUnauthorized } from '../../common/errors/api-error';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+
+import { apiForbidden, apiUnauthorized } from '../../common/errors/api-error';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
+import { UserRole } from '../../user/interfaces/user.interface';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import {
   hasEffectivePermission,
   isReadOnlyPermission,
   Permission,
 } from '../permissions';
-import { UserRole } from '../../user/interfaces/user.interface';
 
 interface AuthenticatedRequest extends Request {
   user?: { role?: UserRole; demo?: boolean };
@@ -74,7 +80,10 @@ export class PermissionsGuard implements CanActivate {
       hasEffectivePermission(role, demo, permission),
     );
     if (!allowed) {
-      if (demo && required.some((permission) => !isReadOnlyPermission(permission))) {
+      if (
+        demo &&
+        required.some((permission) => !isReadOnlyPermission(permission))
+      ) {
         throw apiForbidden(
           ApiErrorCode.INSUFFICIENT_PERMISSIONS,
           'Demo accounts are read-only',

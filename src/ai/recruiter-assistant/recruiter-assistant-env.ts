@@ -12,7 +12,10 @@ function trimEnv(key: string): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-function parseBooleanEnv(raw: string | undefined, defaultValue: boolean): boolean {
+function parseBooleanEnv(
+  raw: string | undefined,
+  defaultValue: boolean,
+): boolean {
   if (!raw) return defaultValue;
   const lower = raw.toLowerCase();
   if (['0', 'false', 'no', 'off'].includes(lower)) return false;
@@ -50,7 +53,9 @@ export function isRecruiterAssistantEnabledForRole(role: UserRole): boolean {
     return parseBooleanEnv(perRoleRaw, true);
   }
 
-  const allowlist = parseRoleAllowlist(trimEnv('RECRUITER_ASSISTANT_ENABLED_ROLES'));
+  const allowlist = parseRoleAllowlist(
+    trimEnv('RECRUITER_ASSISTANT_ENABLED_ROLES'),
+  );
   if (allowlist) {
     return allowlist.includes(role);
   }

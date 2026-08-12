@@ -1,12 +1,12 @@
-import supertest = require('supertest');
+import supertest from 'supertest';
 
+import { DatabaseService } from '../../src/database/database.service';
+import { QuestionService } from '../../src/question/question.service';
+import { UserService } from '../../src/user/user.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import { getIntegrationApp } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
 import { useIntegrationHarness } from '../helpers/integration-harness';
-import { DatabaseService } from '../../src/database/database.service';
-import { UserService } from '../../src/user/user.service';
-import { QuestionService } from '../../src/question/question.service';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Templates end to end: staff CRUD plus usage tracking, and demo accounts reading demo rows only.
 describe('Interview templates (integration)', () => {
@@ -44,7 +44,10 @@ describe('Interview templates (integration)', () => {
     expect(created.body.usageCount).toBe(0);
     expect(created.body.demo).toBe(false);
 
-    const list = await agent.get('/templates').set(authCookie(session)).expect(200);
+    const list = await agent
+      .get('/templates')
+      .set(authCookie(session))
+      .expect(200);
     expect(list.body.map((t: { id: string }) => t.id)).toContain(templateId);
 
     const fetched = await agent
@@ -89,8 +92,14 @@ describe('Interview templates (integration)', () => {
       400,
     );
 
-    await agent.delete(`/templates/${templateId}`).set(authCookie(session)).expect(200);
-    await agent.get(`/templates/${templateId}`).set(authCookie(session)).expect(404);
+    await agent
+      .delete(`/templates/${templateId}`)
+      .set(authCookie(session))
+      .expect(200);
+    await agent
+      .get(`/templates/${templateId}`)
+      .set(authCookie(session))
+      .expect(404);
   });
 
   it('lets a demo account read templates but blocks every write, scoped to demo rows', async () => {
@@ -155,7 +164,9 @@ describe('Interview templates (integration)', () => {
 
     // Every write is 403 in read-only mode.
     await expectStatus(
-      demo.post('/templates').send({ name: 'Nope', questionIds: [demoQuestion.id] }),
+      demo
+        .post('/templates')
+        .send({ name: 'Nope', questionIds: [demoQuestion.id] }),
       403,
     );
     await expectStatus(
@@ -166,14 +177,12 @@ describe('Interview templates (integration)', () => {
     // Usage is only ever recorded through interview creation, which demo accounts
     // cannot perform, so they can never inflate a template's popularity.
     await expectStatus(
-      demo
-        .post('/interviews')
-        .send({
-          candidateName: 'Nope',
-          position: 'Nope',
-          questionIds: [demoQuestion.id],
-          templateId: demoTemplateId,
-        }),
+      demo.post('/interviews').send({
+        candidateName: 'Nope',
+        position: 'Nope',
+        questionIds: [demoQuestion.id],
+        templateId: demoTemplateId,
+      }),
       403,
     );
   });

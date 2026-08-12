@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { Locale } from '../../locale/locale.constants';
 import { SimilarQuestionMatch } from '../../question/interfaces/question.interface';
 import { QuestionService } from '../../question/question.service';
@@ -52,15 +53,29 @@ export class RecruiterQuestionMatcherService {
         locale,
         user.demo,
       );
-      const overThreshold = matches.filter((m) => m.score >= SIMILARITY_LIST_THRESHOLD);
+      const overThreshold = matches.filter(
+        (m) => m.score >= SIMILARITY_LIST_THRESHOLD,
+      );
       if (overThreshold.length > 0) {
         return overThreshold;
       }
-      const literal = await this.findLiteralMatchByText(trimmed, user.demo, locale);
-      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD ? [literal] : [];
+      const literal = await this.findLiteralMatchByText(
+        trimmed,
+        user.demo,
+        locale,
+      );
+      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD
+        ? [literal]
+        : [];
     } catch {
-      const literal = await this.findLiteralMatchByText(trimmed, user.demo, locale);
-      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD ? [literal] : [];
+      const literal = await this.findLiteralMatchByText(
+        trimmed,
+        user.demo,
+        locale,
+      );
+      return literal && literal.score >= SIMILARITY_LIST_THRESHOLD
+        ? [literal]
+        : [];
     }
   }
 
@@ -83,7 +98,10 @@ export class RecruiterQuestionMatcherService {
         locale,
         demo,
       );
-      return matches[0] ?? (await this.findLiteralQuestionMatch(question, demo, locale));
+      return (
+        matches[0] ??
+        (await this.findLiteralQuestionMatch(question, demo, locale))
+      );
     } catch {
       return this.findLiteralQuestionMatch(question, demo, locale);
     }

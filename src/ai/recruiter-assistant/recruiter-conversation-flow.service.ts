@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
+
 import { Locale } from '../../locale/locale.constants';
 import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
-import { isCancellationMessage, isConfirmationMessage } from './recruiter-assistant.policy';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
+import {
+  isCancellationMessage,
+  isConfirmationMessage,
+} from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
-import { RecruiterConversationStore } from './recruiter-conversation.store';
-import { RecruiterConversationState } from './recruiter-conversation.types';
 import {
   captureAwaitingSlot,
   idleConversationState,
 } from './recruiter-conversation-slots';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationState } from './recruiter-conversation.types';
 
 export interface ActiveFlowContext {
   user: ActingUser;
@@ -59,7 +63,8 @@ export class RecruiterConversationFlowService {
 
       return {
         status: 'answered',
-        response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+        response:
+          'Reply yes to add the question anyway, or no/cancel to abort.',
       };
     }
 

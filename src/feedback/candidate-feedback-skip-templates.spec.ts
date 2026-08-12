@@ -7,7 +7,9 @@ describe('candidate-feedback-skip-templates', () => {
   const questionText = 'Explain database indexing and query plans.';
 
   it('builds candidate-facing templates by skip reason and locale', () => {
-    expect(buildSkipTemplateTexts('unusable_transcript', questionText, 'en')).toEqual({
+    expect(
+      buildSkipTemplateTexts('unusable_transcript', questionText, 'en'),
+    ).toEqual({
       recommendationText:
         'The recorded response did not contain a substantive answer to this question.',
       improvementText: expect.stringContaining('Explain database indexing'),
@@ -24,7 +26,9 @@ describe('candidate-feedback-skip-templates', () => {
   });
 
   it('ignores non-eligibility skip reasons', () => {
-    expect(buildSkipTemplateTexts('missing_question', questionText, 'en')).toBeNull();
+    expect(
+      buildSkipTemplateTexts('missing_question', questionText, 'en'),
+    ).toBeNull();
     expect(isQuestionFeedbackEligibilitySkipReason('locked')).toBe(false);
   });
 });

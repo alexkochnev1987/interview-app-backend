@@ -21,18 +21,19 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../user/interfaces/user.interface';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { AppConfigService, AppVariableRecord } from './app-config.service';
-import { UpsertConfigVariableDto } from './dto/upsert-config-variable.dto';
-import { SystemConfigEntryDto } from './dto/system-config-entry.dto';
+import { User } from '../user/interfaces/user.interface';
 import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
+import { AppConfigService, AppVariableRecord } from './app-config.service';
+import { SystemConfigEntryDto } from './dto/system-config-entry.dto';
+import { UpsertConfigVariableDto } from './dto/upsert-config-variable.dto';
 
 // ---------------------------------------------------------------------------
 // Response helpers
@@ -124,7 +125,8 @@ export class AppConfigController {
   ): Promise<AppVariableRecord> {
     const existing = await this.appConfig.getVariableRecord(key);
     const defaultEntry = SYSTEM_CONFIG_DEFAULTS[key];
-    const allowedOptions = dto.options ?? existing?.options ?? defaultEntry?.options;
+    const allowedOptions =
+      dto.options ?? existing?.options ?? defaultEntry?.options;
 
     if (allowedOptions && allowedOptions.length > 0) {
       if (!allowedOptions.includes(dto.value)) {
@@ -136,11 +138,13 @@ export class AppConfigController {
     }
 
     const record = await this.appConfig.setVariable(key, dto.value, {
-      valueType: dto.valueType ?? existing?.valueType ?? defaultEntry?.valueType,
+      valueType:
+        dto.valueType ?? existing?.valueType ?? defaultEntry?.valueType,
       options: dto.options ?? existing?.options ?? defaultEntry?.options,
       isPublic: dto.isPublic ?? existing?.isPublic ?? defaultEntry?.isPublic,
       isSecret: dto.isSecret ?? existing?.isSecret ?? defaultEntry?.isSecret,
-      description: dto.description ?? existing?.description ?? defaultEntry?.description,
+      description:
+        dto.description ?? existing?.description ?? defaultEntry?.description,
       updatedBy: actor.email,
     });
     return maskSecrets(record);

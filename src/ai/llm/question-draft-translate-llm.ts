@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { Locale } from '../../locale/locale.constants';
+
 import { localeUiText } from '../../locale/locale-ui-text';
+import { Locale } from '../../locale/locale.constants';
 import type { QuestionDraftContent } from '../question-draft-content';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';

@@ -9,7 +9,10 @@ describe('parseTemplateChoice', () => {
 
   it('parses numeric template choices', () => {
     expect(parseTemplateChoice('1')).toEqual({ kind: 'index', index: 1 });
-    expect(parseTemplateChoice('template 2')).toEqual({ kind: 'index', index: 2 });
+    expect(parseTemplateChoice('template 2')).toEqual({
+      kind: 'index',
+      index: 2,
+    });
   });
 
   it('returns null for invalid input', () => {

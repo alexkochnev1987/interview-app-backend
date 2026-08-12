@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { UserRole } from '../user/interfaces/user.interface';
 import { AppConfigService } from './app-config.service';
 
@@ -31,7 +32,9 @@ export class RecruiterAssistantConfigService {
 
   /** Default: enabled when unset (backward compatible). */
   async isRecruiterAssistantEnabled(): Promise<boolean> {
-    const primary = await this.appConfig.getString('RECRUITER_ASSISTANT_ENABLED');
+    const primary = await this.appConfig.getString(
+      'RECRUITER_ASSISTANT_ENABLED',
+    );
     if (primary !== undefined) {
       return this.appConfig.getBoolean('RECRUITER_ASSISTANT_ENABLED', true);
     }

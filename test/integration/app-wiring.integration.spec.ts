@@ -1,5 +1,6 @@
-import supertest = require('supertest');
+import supertest from 'supertest';
 
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import {
   getIntegrationApp,
   INTEGRATION_USERS,
@@ -17,7 +18,6 @@ import {
   openCandidateTakeSession,
   reserveCandidateAnswerAttempt,
 } from '../helpers/take-flow';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 
 // Thin integration layer (~20% of backend tests): Nest + Postgres + cookies/guards.
 // Business rules live in unit specs under src/.
@@ -110,11 +110,29 @@ describe('App wiring (integration)', () => {
         question: {
           primaryLocale: 'ru',
           questionText: 'Что такое DOM?',
-          followUpQuestions: ['Можете привести пример?', 'Какую ошибку избегаете?'],
+          followUpQuestions: [
+            'Можете привести пример?',
+            'Какую ошибку избегаете?',
+          ],
           expectedConcepts: [
-            { id: 'dom_model', label: 'модель DOM', weight: 0.34, description: 'структура' },
-            { id: 'rendering', label: 'отрисовка', weight: 0.33, description: 'обновления' },
-            { id: 'practical_use', label: 'практика', weight: 0.33, description: 'пример' },
+            {
+              id: 'dom_model',
+              label: 'модель DOM',
+              weight: 0.34,
+              description: 'структура',
+            },
+            {
+              id: 'rendering',
+              label: 'отрисовка',
+              weight: 0.33,
+              description: 'обновления',
+            },
+            {
+              id: 'practical_use',
+              label: 'практика',
+              weight: 0.33,
+              description: 'пример',
+            },
           ],
           redFlags: [
             { id: 'confuses_dom', label: 'Путает DOM', severity: 'medium' },
@@ -200,9 +218,7 @@ describe('App wiring (integration)', () => {
     const reserved = await reserveCandidateAnswerAttempt(agent, interviewId, 0);
     const submitted = await agent
       .post(`/take/${interviewId}/answer`)
-      .send(
-        buildSubmitAnswerPayload(interviewId, 0, reserved.versionNumber),
-      )
+      .send(buildSubmitAnswerPayload(interviewId, 0, reserved.versionNumber))
       .expect(201);
 
     expect(submitted.body.completed).toBe(true);

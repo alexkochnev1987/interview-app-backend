@@ -46,7 +46,9 @@ export const INTERVIEW_TERMINAL_ONLY_MESSAGE =
 export function getInterviewTerminalOnlyBlockReason(
   status: InterviewStatus,
 ): string | null {
-  return isTerminalInterviewStatus(status) ? null : INTERVIEW_TERMINAL_ONLY_MESSAGE;
+  return isTerminalInterviewStatus(status)
+    ? null
+    : INTERVIEW_TERMINAL_ONLY_MESSAGE;
 }
 
 export function isTerminalInterviewStatus(status: InterviewStatus): boolean {
@@ -56,10 +58,8 @@ export function isTerminalInterviewStatus(status: InterviewStatus): boolean {
 export const INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE =
   'Demo interviews cannot be deleted';
 
-export function getInterviewDemoDeleteBlockReason(
-  interview: { demo: boolean },
-): string | null {
-  return interview.demo === true
-    ? INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE
-    : null;
+export function getInterviewDemoDeleteBlockReason(interview: {
+  demo: boolean;
+}): string | null {
+  return interview.demo === true ? INTERVIEW_DEMO_DELETE_BLOCKED_MESSAGE : null;
 }

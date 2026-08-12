@@ -17,7 +17,10 @@ export function canReadUserProfile(
   if (actor.id === target.id) return true;
   if (actor.role === 'super_admin') return true;
   if (actor.role === 'admin' && target.role !== 'super_admin') return true;
-  if (actor.role === 'hr' && (target.role === 'hr' || target.role === 'candidate')) {
+  if (
+    actor.role === 'hr' &&
+    (target.role === 'hr' || target.role === 'candidate')
+  ) {
     return true;
   }
   return false;

@@ -1,6 +1,6 @@
+import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { ActingUser } from './recruiter-assistant.types';
-import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
 
 describe('RecruiterAssistantService', () => {
   const user: ActingUser = {
@@ -15,36 +15,36 @@ describe('RecruiterAssistantService', () => {
   };
 
   const executor = {
-    execute: jest.fn(),
+    execute: vi.fn(),
   };
   const pendingActionStore = {
-    consume: jest.fn(),
-    revoke: jest.fn(),
-    issue: jest.fn(),
-    revokeAllForUser: jest.fn(),
+    consume: vi.fn(),
+    revoke: vi.fn(),
+    issue: vi.fn(),
+    revokeAllForUser: vi.fn(),
   };
   const conversationStore = {
-    issue: jest.fn().mockReturnValue('session-1'),
-    get: jest.fn().mockReturnValue({ flow: 'idle', slots: {} }),
-    update: jest.fn(),
-    clear: jest.fn(),
-    clearAllForUser: jest.fn(),
+    issue: vi.fn().mockReturnValue('session-1'),
+    get: vi.fn().mockReturnValue({ flow: 'idle', slots: {} }),
+    update: vi.fn(),
+    clear: vi.fn(),
+    clearAllForUser: vi.fn(),
   };
   const conversationFlow = {
-    resumeActiveFlow: jest.fn().mockResolvedValue(null),
+    resumeActiveFlow: vi.fn().mockResolvedValue(null),
   };
   const intentRouter = {
-    classify: jest.fn(),
+    classify: vi.fn(),
   };
   const tools = {
-    listInterviews: jest.fn(),
-    listUnassigned: jest.fn(),
-    getInterviewStatus: jest.fn(),
-    getReviewState: jest.fn(),
-    prepareAssignHr: jest.fn(),
-    prepareCreateQuestions: jest.fn(),
-    switchLocale: jest.fn(),
-    startNewChat: jest.fn().mockReturnValue({
+    listInterviews: vi.fn(),
+    listUnassigned: vi.fn(),
+    getInterviewStatus: vi.fn(),
+    getReviewState: vi.fn(),
+    prepareAssignHr: vi.fn(),
+    prepareCreateQuestions: vi.fn(),
+    switchLocale: vi.fn(),
+    startNewChat: vi.fn().mockReturnValue({
       status: 'answered',
       response: NEW_CHAT_WELCOME_RESPONSE,
     }),
@@ -60,7 +60,7 @@ describe('RecruiterAssistantService', () => {
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     conversationStore.issue.mockReturnValue('session-1');
     conversationStore.get.mockReturnValue({ flow: 'idle', slots: {} });
     conversationFlow.resumeActiveFlow.mockResolvedValue(null);
@@ -79,7 +79,10 @@ describe('RecruiterAssistantService', () => {
       assignedHrName: 'Jane Doe',
       interviewLabel: 'Alice Smith (React Developer)',
     });
-    executor.execute.mockResolvedValue({ status: 'executed', response: 'done' });
+    executor.execute.mockResolvedValue({
+      status: 'executed',
+      response: 'done',
+    });
 
     await service.chat(
       {

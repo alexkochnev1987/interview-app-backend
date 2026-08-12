@@ -1,16 +1,16 @@
+import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { resolveHrRef } from './recruiter-assistant-hr-ref';
-import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 
-jest.mock('./recruiter-assistant-hr-ref', () => ({
-  resolveHrRef: jest.fn(),
+vi.mock('./recruiter-assistant-hr-ref', () => ({
+  resolveHrRef: vi.fn(),
 }));
 
-jest.mock('./recruiter-assistant-interview-ref', () => ({
-  resolveInterviewRef: jest.fn(),
+vi.mock('./recruiter-assistant-interview-ref', () => ({
+  resolveInterviewRef: vi.fn(),
 }));
 
 describe('RecruiterAssistantToolsService assign HR flow', () => {
@@ -53,16 +53,16 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   };
 
   const conversationStore = {
-    update: jest.fn(),
+    update: vi.fn(),
   };
   const pendingActionStore = {
-    issue: jest.fn().mockReturnValue('pending-1'),
+    issue: vi.fn().mockReturnValue('pending-1'),
   };
   const interviewService = {
-    findAllPaginated: jest.fn(),
+    findAllPaginated: vi.fn(),
   };
   const userService = {
-    listAll: jest.fn(),
+    listAll: vi.fn(),
   };
 
   const service = new RecruiterAssistantToolsService(
@@ -73,14 +73,14 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     userService as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
-    { draftQuestion: jest.fn() } as never,
-    { findAll: jest.fn() } as never,
+    { draftQuestion: vi.fn() } as never,
+    { findAll: vi.fn() } as never,
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.mocked(resolveInterviewRef).mockReset();
-    jest.mocked(resolveHrRef).mockReset();
+    vi.clearAllMocks();
+    vi.mocked(resolveInterviewRef).mockReset();
+    vi.mocked(resolveHrRef).mockReset();
     interviewService.findAllPaginated.mockResolvedValue({
       items: [unassignedInterviewListItem],
       total: 1,
@@ -116,7 +116,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('asks for HR when only interview is resolved', async () => {
-    jest.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
 
     const response = await service.prepareAssignHr(
       {
@@ -150,7 +150,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('returns ambiguous interview message with unassigned list', async () => {
-    jest.mocked(resolveInterviewRef).mockResolvedValue(null);
+    vi.mocked(resolveInterviewRef).mockResolvedValue(null);
 
     const response = await service.prepareAssignHr(
       {
@@ -166,14 +166,15 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     expect(response).toMatchObject({
       status: 'answered',
       awaitingInput: 'interview',
-      response: "Couldn't detect singular interview, please choose from the list",
+      response:
+        "Couldn't detect singular interview, please choose from the list",
       interviews: [unassignedInterviewListItem],
     });
   });
 
   it('returns ambiguous HR message with HR list', async () => {
-    jest.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
-    jest.mocked(resolveHrRef).mockResolvedValue(null);
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    vi.mocked(resolveHrRef).mockResolvedValue(null);
 
     const response = await service.prepareAssignHr(
       {
@@ -195,8 +196,8 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('returns confirmation when both refs resolve', async () => {
-    jest.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
-    jest.mocked(resolveHrRef).mockResolvedValue({ id: 'hr-1', name: 'Jane Doe' });
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    vi.mocked(resolveHrRef).mockResolvedValue({ id: 'hr-1', name: 'Jane Doe' });
 
     const response = await service.prepareAssignHr(
       {
@@ -221,8 +222,8 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('continues the flow from captured slots', async () => {
-    jest.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
-    jest.mocked(resolveHrRef).mockResolvedValue({ id: 'hr-1', name: 'Jane Doe' });
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    vi.mocked(resolveHrRef).mockResolvedValue({ id: 'hr-1', name: 'Jane Doe' });
 
     const response = await service.continueAssignHrFlow(
       {

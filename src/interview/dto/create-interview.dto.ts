@@ -11,7 +11,11 @@ import {
   IsUUID,
   Length,
 } from 'class-validator';
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../../locale/locale.constants';
+
+import {
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+} from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 
 export class CreateInterviewDto {
@@ -31,7 +35,8 @@ export class CreateInterviewDto {
   position: string;
 
   @ApiPropertyOptional({
-    description: 'HR reviewer assigned to this interview. Admin/super_admin only.',
+    description:
+      'HR reviewer assigned to this interview. Admin/super_admin only.',
   })
   @IsOptional()
   @IsUUID()
@@ -40,7 +45,8 @@ export class CreateInterviewDto {
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
     default: DEFAULT_LOCALE,
-    description: 'Locale for interview UI and feedback. Defaults to en when omitted.',
+    description:
+      'Locale for interview UI and feedback. Defaults to en when omitted.',
   })
   @IsOptional()
   @IsIn([...SUPPORTED_LOCALES])

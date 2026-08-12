@@ -1,7 +1,8 @@
 import { plainToInstance } from 'class-transformer';
 import { validateSync, ValidationError } from 'class-validator';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+
 import { apiBadRequest } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 
 const FACETS_QUERY_KEYS = new Set(['q', 'position', 'status', 'assignedHrId']);
@@ -25,7 +26,9 @@ function flattenValidationErrors(
 export function parseInterviewFacetsQuery(
   raw: Record<string, unknown>,
 ): QueryInterviewFacetsDto {
-  const unknownKeys = Object.keys(raw).filter((key) => !FACETS_QUERY_KEYS.has(key));
+  const unknownKeys = Object.keys(raw).filter(
+    (key) => !FACETS_QUERY_KEYS.has(key),
+  );
   if (unknownKeys.length > 0) {
     throw apiBadRequest(ApiErrorCode.VALIDATION_ERROR, 'Validation failed', {
       errors: unknownKeys.map((property) => ({

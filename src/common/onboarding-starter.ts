@@ -4,8 +4,7 @@ export function isOnboardingStarterEmail(
   email: string | null | undefined,
 ): boolean {
   return (
-    typeof email === 'string'
-    && email.endsWith(ONBOARDING_STARTER_EMAIL_SUFFIX)
+    typeof email === 'string' && email.endsWith(ONBOARDING_STARTER_EMAIL_SUFFIX)
   );
 }
 

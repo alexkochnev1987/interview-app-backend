@@ -1,5 +1,5 @@
-import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { Interview } from '../interview/interfaces/interview.interface';
+import { DEFAULT_LOCALE, isLocale, Locale } from '../locale/locale.constants';
 import { invalidContentLocaleException } from '../locale/locale.exceptions';
 
 export interface TakeContentLocaleResolution {

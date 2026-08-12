@@ -4,6 +4,7 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -18,15 +19,15 @@ import {
   ArrayMaxSize,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
-import { Locale } from '../../../locale/locale.constants';
-import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
-import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
+
 import {
   AssignedHrDto,
   InterviewListItemDto,
 } from '../../../interview/dto/interview.responses.dto';
+import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
+import { Locale } from '../../../locale/locale.constants';
+import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
+import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
 export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
@@ -211,7 +212,9 @@ export class RecruiterAssistantCreatedQuestionDto {
   @ApiProperty()
   questionText: string;
 
-  @ApiProperty({ description: 'Frontend route when the question card is clicked.' })
+  @ApiProperty({
+    description: 'Frontend route when the question card is clicked.',
+  })
   href: string;
 }
 
@@ -229,7 +232,9 @@ export class RecruiterAssistantSimilarQuestionDto {
   })
   score: number;
 
-  @ApiProperty({ description: 'Frontend route when the similar question card is clicked.' })
+  @ApiProperty({
+    description: 'Frontend route when the similar question card is clicked.',
+  })
   href: string;
 }
 
@@ -277,9 +282,9 @@ export class RecruiterAssistantCreateSingleQuestionPendingActionDto {
 }
 
 export type RecruiterAssistantPendingActionDto =
-    | RecruiterAssistantCreatePendingActionDto
-    | RecruiterAssistantAssignHrPendingActionDto
-    | RecruiterAssistantCreateSingleQuestionPendingActionDto;
+  | RecruiterAssistantCreatePendingActionDto
+  | RecruiterAssistantAssignHrPendingActionDto
+  | RecruiterAssistantCreateSingleQuestionPendingActionDto;
 
 export class RecruiterAssistantInterviewSummaryDto {
   @ApiProperty() id: string;
@@ -295,7 +300,9 @@ export class RecruiterAssistantResponseDto {
   @ApiProperty()
   response: string;
 
-  @ApiProperty({ enum: ['answered', 'needs_confirmation', 'executed', 'refused', 'denied'] })
+  @ApiProperty({
+    enum: ['answered', 'needs_confirmation', 'executed', 'refused', 'denied'],
+  })
   status: 'answered' | 'needs_confirmation' | 'executed' | 'refused' | 'denied';
 
   @ApiPropertyOptional({ type: [RecruiterAssistantSuggestedQuestionDto] })
@@ -312,7 +319,11 @@ export class RecruiterAssistantResponseDto {
     oneOf: [
       { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
       { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
-      { $ref: getSchemaPath(RecruiterAssistantCreateSingleQuestionPendingActionDto) },
+      {
+        $ref: getSchemaPath(
+          RecruiterAssistantCreateSingleQuestionPendingActionDto,
+        ),
+      },
     ],
   })
   pendingAction?: RecruiterAssistantPendingActionDto;

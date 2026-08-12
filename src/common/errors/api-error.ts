@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import { ApiErrorCode } from './api-error.codes';
 
 export interface ApiErrorPayload {
@@ -67,5 +68,9 @@ export function apiServiceUnavailable(
   message: string,
   params?: Record<string, unknown>,
 ): ServiceUnavailableException {
-  return createException(ServiceUnavailableException, { code, message, params });
+  return createException(ServiceUnavailableException, {
+    code,
+    message,
+    params,
+  });
 }

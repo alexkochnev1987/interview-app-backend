@@ -1,8 +1,7 @@
 import './load-env';
-
 import { DatabaseService } from './database.service';
-import { runMigrations } from './migration-runner';
 import { isDemoSeedAllowed, seedDemoData } from './demo-seed-core';
+import { runMigrations } from './migration-runner';
 
 function assertSeedAllowed(): void {
   if (isDemoSeedAllowed()) {

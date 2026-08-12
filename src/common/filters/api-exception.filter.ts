@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+
 import { ApiErrorCode, isApiErrorCode } from '../errors/api-error.codes';
 import { API_ERROR_CODE_BY_CODE } from '../errors/api-error.registry';
 
@@ -162,9 +163,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     return DEFAULT_CODE_BY_STATUS[statusCode] ?? ApiErrorCode.BAD_REQUEST;
   }
 
-  private sanitizeParams(
-    value: unknown,
-  ): Record<string, unknown> | undefined {
+  private sanitizeParams(value: unknown): Record<string, unknown> | undefined {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return undefined;
     }

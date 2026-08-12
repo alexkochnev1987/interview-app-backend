@@ -71,7 +71,10 @@ describe('computeAvatarPictureUrl', () => {
 describe('canRestoreGoogleAvatar', () => {
   it('is false when there is no Google picture on file', () => {
     expect(
-      canRestoreGoogleAvatar({ avatarSource: 'upload', hasGoogleAvatar: false }),
+      canRestoreGoogleAvatar({
+        avatarSource: 'upload',
+        hasGoogleAvatar: false,
+      }),
     ).toBe(false);
   });
 

@@ -1,9 +1,9 @@
+import { AiService } from '../ai.service';
+import { QuestionDraftGenerate } from '../question-draft-content';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { AiService } from '../ai.service';
-import { QuestionDraftGenerate } from '../question-draft-content';
 
 describe('RecruiterAssistantToolsService create question flow', () => {
   const user = {
@@ -29,11 +29,11 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     tags: [],
   };
 
-  const conversationStore = { update: jest.fn() };
-  const pendingActionStore = { issue: jest.fn().mockReturnValue('pending-1') };
-  const aiService = { draftQuestion: jest.fn().mockResolvedValue(draft) };
+  const conversationStore = { update: vi.fn() };
+  const pendingActionStore = { issue: vi.fn().mockReturnValue('pending-1') };
+  const aiService = { draftQuestion: vi.fn().mockResolvedValue(draft) };
   const questionMatcher = {
-    findSimilarMatchesOverThreshold: jest.fn().mockResolvedValue([]),
+    findSimilarMatchesOverThreshold: vi.fn().mockResolvedValue([]),
   };
 
   const service = new RecruiterAssistantToolsService(
@@ -45,11 +45,11 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     aiService as unknown as AiService,
-    { findAll: jest.fn() } as never,
+    { findAll: vi.fn() } as never,
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     aiService.draftQuestion.mockResolvedValue(draft);
     questionMatcher.findSimilarMatchesOverThreshold.mockResolvedValue([]);
   });

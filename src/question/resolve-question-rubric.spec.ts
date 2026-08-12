@@ -1,12 +1,19 @@
 import { resolveQuestion, ResolveQuestionInput } from './resolve-question';
 
-function baseQuestion(overrides: Partial<ResolveQuestionInput> = {}): ResolveQuestionInput {
+function baseQuestion(
+  overrides: Partial<ResolveQuestionInput> = {},
+): ResolveQuestionInput {
   return {
     primaryLocale: 'en',
     questionText: 'English question',
     followUpQuestions: ['English follow-up'],
     expectedConcepts: [
-      { id: 'en_concept', label: 'English concept', weight: 1, description: 'en' },
+      {
+        id: 'en_concept',
+        label: 'English concept',
+        weight: 1,
+        description: 'en',
+      },
     ],
     redFlags: [{ id: 'en_flag', label: 'English flag', severity: 'medium' }],
     sampleGoodAnswer: 'English sample',
@@ -15,9 +22,16 @@ function baseQuestion(overrides: Partial<ResolveQuestionInput> = {}): ResolveQue
         questionText: 'English question',
         followUpQuestions: ['English follow-up'],
         expectedConcepts: [
-          { id: 'en_concept', label: 'English concept', weight: 1, description: 'en' },
+          {
+            id: 'en_concept',
+            label: 'English concept',
+            weight: 1,
+            description: 'en',
+          },
         ],
-        redFlags: [{ id: 'en_flag', label: 'English flag', severity: 'medium' }],
+        redFlags: [
+          { id: 'en_flag', label: 'English flag', severity: 'medium' },
+        ],
         sampleGoodAnswer: 'English sample',
       },
     },
@@ -33,9 +47,16 @@ describe('resolveQuestion rubric locale bundle', () => {
           questionText: 'English question',
           followUpQuestions: ['English follow-up'],
           expectedConcepts: [
-            { id: 'en_concept', label: 'English concept', weight: 1, description: 'en' },
+            {
+              id: 'en_concept',
+              label: 'English concept',
+              weight: 1,
+              description: 'en',
+            },
           ],
-          redFlags: [{ id: 'en_flag', label: 'English flag', severity: 'medium' }],
+          redFlags: [
+            { id: 'en_flag', label: 'English flag', severity: 'medium' },
+          ],
           sampleGoodAnswer: 'English sample',
         },
         pl: {

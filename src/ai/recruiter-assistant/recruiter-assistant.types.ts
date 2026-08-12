@@ -1,5 +1,5 @@
-import { Locale } from '../../locale/locale.constants';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { Locale } from '../../locale/locale.constants';
 import { User } from '../../user/interfaces/user.interface';
 
 export type ActingUser = Omit<User, 'passwordHash'>;
@@ -37,10 +37,19 @@ export interface HrRef {
 }
 
 export type RecruiterAssistantIntent =
-  | { kind: 'list_interviews'; filters: QueryInterviewsDto; readyForReview?: boolean }
+  | {
+      kind: 'list_interviews';
+      filters: QueryInterviewsDto;
+      readyForReview?: boolean;
+    }
   | { kind: 'list_unassigned' }
   | { kind: 'list_hrs' }
-  | { kind: 'interview_status'; ref: InterviewRef; ownInterviews?: boolean; scheduleInquiry?: boolean }
+  | {
+      kind: 'interview_status';
+      ref: InterviewRef;
+      ownInterviews?: boolean;
+      scheduleInquiry?: boolean;
+    }
   | { kind: 'review_state'; ref: InterviewRef }
   | {
       kind: 'assign_hr';

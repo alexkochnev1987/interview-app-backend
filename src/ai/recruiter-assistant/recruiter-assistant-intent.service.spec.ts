@@ -121,7 +121,11 @@ describe('RecruiterAssistantIntentService', () => {
       position: undefined,
     });
     expect(
-      service.classify('create interview for Alice for React developer', admin, 'en'),
+      service.classify(
+        'create interview for Alice for React developer',
+        admin,
+        'en',
+      ),
     ).toEqual({
       kind: 'create_interview',
       candidateName: 'Alice',
@@ -131,10 +135,18 @@ describe('RecruiterAssistantIntentService', () => {
 
   it('does not classify English prepare/generate bulk phrasing as create', () => {
     expect(
-      service.classify('prepare 5 questions for a React developer', admin, 'en'),
+      service.classify(
+        'prepare 5 questions for a React developer',
+        admin,
+        'en',
+      ),
     ).toEqual({ kind: 'out_of_scope' });
     expect(
-      service.classify('generate 5 questions for a React developer', admin, 'en'),
+      service.classify(
+        'generate 5 questions for a React developer',
+        admin,
+        'en',
+      ),
     ).toEqual({ kind: 'out_of_scope' });
   });
 
@@ -150,9 +162,7 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('flags schedule inquiries for candidate when/where prompts', () => {
-    expect(
-      service.classify('when is my interview', candidate, 'en'),
-    ).toEqual({
+    expect(service.classify('when is my interview', candidate, 'en')).toEqual({
       kind: 'interview_status',
       ref: {},
       ownInterviews: true,
@@ -205,8 +215,16 @@ describe('RecruiterAssistantIntentService', () => {
       ['ru', 'мой интервью статус', 'interview_status'],
       ['ru', 'назначь интервью для Alice на Jane', 'assign_hr'],
       ['ru', 'статус интервью Alice', 'interview_status'],
-      ['ru', 'создай 5 вопросов для React разработчик', 'create_questions_interview'],
-      ['en', 'set up an interview for an hr manager role', 'create_questions_interview'],
+      [
+        'ru',
+        'создай 5 вопросов для React разработчик',
+        'create_questions_interview',
+      ],
+      [
+        'en',
+        'set up an interview for an hr manager role',
+        'create_questions_interview',
+      ],
     ] as const)(
       'classifies %s message "%s" as %s',
       (locale, message, expectedKind) => {
@@ -225,12 +243,12 @@ describe('RecruiterAssistantIntentService', () => {
     });
 
     it('does not treat bare English nouns as create', () => {
-      expect(service.classify('show pending interviews', admin, 'en').kind).toBe(
-        'list_interviews',
-      );
-      expect(service.classify('what developer tools do we use', admin, 'en').kind).toBe(
-        'out_of_scope',
-      );
+      expect(
+        service.classify('show pending interviews', admin, 'en').kind,
+      ).toBe('list_interviews');
+      expect(
+        service.classify('what developer tools do we use', admin, 'en').kind,
+      ).toBe('out_of_scope');
     });
   });
 });

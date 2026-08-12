@@ -3,13 +3,13 @@ import { startConversationFlow } from './recruiter-conversation-slots';
 
 describe('RecruiterConversationFlowService', () => {
   const tools = {
-    continueAssignHrFlow: jest.fn(),
-    continueCreateQuestionFlow: jest.fn(),
-    continueCreateQuestionDespiteSimilar: jest.fn(),
-    continueCreateInterviewFlow: jest.fn(),
+    continueAssignHrFlow: vi.fn(),
+    continueCreateQuestionFlow: vi.fn(),
+    continueCreateQuestionDespiteSimilar: vi.fn(),
+    continueCreateInterviewFlow: vi.fn(),
   };
   const conversationStore = {
-    update: jest.fn(),
+    update: vi.fn(),
   };
 
   const service = new RecruiterConversationFlowService(
@@ -35,7 +35,7 @@ describe('RecruiterConversationFlowService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('returns null for idle flow', async () => {
@@ -45,12 +45,19 @@ describe('RecruiterConversationFlowService', () => {
   });
 
   it('cancels an active flow', async () => {
-    const response = await service.resumeActiveFlow({ ...ctx, message: 'cancel' });
-
-    expect(conversationStore.update).toHaveBeenCalledWith('user-1', 'session-1', {
-      flow: 'idle',
-      slots: {},
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'cancel',
     });
+
+    expect(conversationStore.update).toHaveBeenCalledWith(
+      'user-1',
+      'session-1',
+      {
+        flow: 'idle',
+        slots: {},
+      },
+    );
     expect(response).toEqual({
       status: 'answered',
       response: 'Cancelled. No changes were made.',
@@ -73,15 +80,20 @@ describe('RecruiterConversationFlowService', () => {
   it('continues create question after user confirms despite similar matches', async () => {
     tools.continueCreateQuestionDespiteSimilar.mockResolvedValue({
       status: 'needs_confirmation',
-      response: 'Create question "React hooks" with AI suggestions? Reply yes to confirm.',
+      response:
+        'Create question "React hooks" with AI suggestions? Reply yes to confirm.',
     });
 
     const response = await service.resumeActiveFlow({
       ...ctx,
       message: 'yes',
-      state: startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
-        questionName: 'React hooks',
-      }),
+      state: startConversationFlow(
+        'create_question',
+        'confirmAddDespiteSimilar',
+        {
+          questionName: 'React hooks',
+        },
+      ),
     });
 
     expect(tools.continueCreateQuestionDespiteSimilar).toHaveBeenCalled();
@@ -93,9 +105,13 @@ describe('RecruiterConversationFlowService', () => {
     const response = await service.resumeActiveFlow({
       ...ctx,
       message: 'maybe',
-      state: startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
-        questionName: 'React hooks',
-      }),
+      state: startConversationFlow(
+        'create_question',
+        'confirmAddDespiteSimilar',
+        {
+          questionName: 'React hooks',
+        },
+      ),
     });
 
     expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();

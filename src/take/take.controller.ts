@@ -27,18 +27,21 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
-import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
-import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
-import { InterviewService } from '../interview/interview.service';
+
+import { AppConfigService } from '../app-config/app-config.service';
 import { AuthService } from '../auth/auth.service';
-import { buildCandidateQuestionView } from './take-question-view';
-import { resolveTakeContentLocale } from './take-locale';
-import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import {
   CANDIDATE_SESSION_COOKIE,
   getCandidateSessionCookieOptions,
 } from '../auth/candidate-session';
-import { AppConfigService } from '../app-config/app-config.service';
+import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
+import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { apiBadRequest } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
+import { InterviewService } from '../interview/interview.service';
+import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 import {
   FinalizeAnswerAttemptDto,
   FinalizeTakeAnswerResponseDto,
@@ -51,11 +54,9 @@ import {
   SubmitTakeAnswerResponseDto,
   TakeInterviewResponseDto,
 } from './dto/take.responses.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { apiBadRequest } from '../common/errors/api-error';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 import { buildCurrentAnswerMeta } from './take-answer-meta';
+import { resolveTakeContentLocale } from './take-locale';
+import { buildCandidateQuestionView } from './take-question-view';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -70,7 +71,7 @@ export class TakeController {
     private readonly authService: AuthService,
     private readonly answerValidationWorkflowService: AnswerValidationWorkflowService,
     private readonly appConfig: AppConfigService,
-  ) { }
+  ) {}
 
   @Get(':id')
   @UseGuards(CandidateAuthGuard)
@@ -117,9 +118,18 @@ export class TakeController {
     }
 
     const interview = await this.interviewService.findOne(id);
-    const takeContentLocale = resolveTakeContentLocale(contentLocale, interview);
-    const maxAttempts = await this.appConfig.getNumber('MAX_ANSWER_ATTEMPTS_PER_QUESTION', 3);
-    const maxDurationSeconds = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
+    const takeContentLocale = resolveTakeContentLocale(
+      contentLocale,
+      interview,
+    );
+    const maxAttempts = await this.appConfig.getNumber(
+      'MAX_ANSWER_ATTEMPTS_PER_QUESTION',
+      3,
+    );
+    const maxDurationSeconds = await this.appConfig.getNumber(
+      'MAX_ANSWER_DURATION_SECONDS',
+      240,
+    );
 
     // Return only what candidate needs — one question at a time
     const answeredCount = interview.answers.filter(
@@ -197,9 +207,14 @@ export class TakeController {
 
     if (typeof body.durationSeconds === 'number') {
       if (body.durationSeconds <= 0) {
-        throw new BadRequestException('Answer recording duration must be greater than 0 seconds.');
+        throw new BadRequestException(
+          'Answer recording duration must be greater than 0 seconds.',
+        );
       }
-      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
+      const maxDuration = await this.appConfig.getNumber(
+        'MAX_ANSWER_DURATION_SECONDS',
+        240,
+      );
       const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
       if (body.durationSeconds > maxAllowed) {
         throw new BadRequestException(
@@ -226,7 +241,8 @@ export class TakeController {
   @UseGuards(CandidateSessionGuard)
   @ApiCookieAuth('candidateSessionAuth')
   @ApiOperation({
-    summary: 'Finalize and submit the current question using stored answer media',
+    summary:
+      'Finalize and submit the current question using stored answer media',
   })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: FinalizeAnswerAttemptDto })
@@ -292,9 +308,14 @@ export class TakeController {
 
     if (typeof body.durationSeconds === 'number') {
       if (body.durationSeconds <= 0) {
-        throw new BadRequestException('Answer recording duration must be greater than 0 seconds.');
+        throw new BadRequestException(
+          'Answer recording duration must be greater than 0 seconds.',
+        );
       }
-      const maxDuration = await this.appConfig.getNumber('MAX_ANSWER_DURATION_SECONDS', 240);
+      const maxDuration = await this.appConfig.getNumber(
+        'MAX_ANSWER_DURATION_SECONDS',
+        240,
+      );
       const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
       if (body.durationSeconds > maxAllowed) {
         throw new BadRequestException(
@@ -312,7 +333,8 @@ export class TakeController {
       ok: true,
       status: currentAnswer?.status ?? 'recording',
       versionCount: currentAnswer?.versions?.length ?? 0,
-      selectedVersionNumber: currentAnswer?.selectedVersionNumber ?? body.versionNumber,
+      selectedVersionNumber:
+        currentAnswer?.selectedVersionNumber ?? body.versionNumber,
     };
   }
 
@@ -366,10 +388,11 @@ export class TakeController {
       throw new BadRequestException(tokenMismatch);
     }
 
-    const validation = await this.answerValidationWorkflowService.startValidation(
-      id,
-      questionIndex,
-    );
+    const validation =
+      await this.answerValidationWorkflowService.startValidation(
+        id,
+        questionIndex,
+      );
 
     return {
       ok: true,
@@ -377,9 +400,14 @@ export class TakeController {
     };
   }
 
-  private async assertMediaFileSizeBytes(fileSizeBytes?: number): Promise<void> {
+  private async assertMediaFileSizeBytes(
+    fileSizeBytes?: number,
+  ): Promise<void> {
     if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
-      const maxMb = await this.appConfig.getNumber('MAX_MEDIA_FILE_SIZE_MB', 100);
+      const maxMb = await this.appConfig.getNumber(
+        'MAX_MEDIA_FILE_SIZE_MB',
+        100,
+      );
       const maxBytes = maxMb * 1024 * 1024;
       if (fileSizeBytes > maxBytes) {
         throw apiBadRequest(

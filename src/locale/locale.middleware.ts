@@ -1,6 +1,7 @@
 import '../types/express-augment';
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
+
 import {
   DEFAULT_LOCALE,
   LOCALE_HEADER,

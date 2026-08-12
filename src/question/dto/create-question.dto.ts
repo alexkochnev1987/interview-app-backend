@@ -3,6 +3,7 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsDefined,
@@ -15,20 +16,18 @@ import {
   Validate,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
+import { QuestionTranslationDto } from './question-translation.dto';
+import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question.responses.dto';
-import { QuestionTranslationDto } from './question-translation.dto';
-import {
-  QuestionTranslationsMapDto,
-} from './question-translations-map.dto';
 import { QuestionTranslationsMapConstraint } from './validators/question-translations.validator';
-import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 @ApiExtraModels(
   QuestionExpectedConceptDto,
