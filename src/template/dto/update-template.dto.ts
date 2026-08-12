@@ -10,6 +10,7 @@ import {
   IsUUID,
   Length,
 } from 'class-validator';
+
 import { MAX_TEMPLATE_QUESTIONS } from './create-template.dto';
 
 const trimString = ({ value }: { value: unknown }) =>

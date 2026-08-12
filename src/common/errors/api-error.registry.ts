@@ -1,4 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
+
 import { ApiErrorCode } from './api-error.codes';
 
 export interface ApiErrorCodeDefinition {
@@ -126,7 +127,8 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
     code: ApiErrorCode.INTERVIEW_TOKEN_REQUIRED,
     httpStatus: HttpStatus.UNAUTHORIZED,
     defaultMessage: 'Interview token required',
-    whenUsed: 'Take/interview link accessed without token query param or cookie.',
+    whenUsed:
+      'Take/interview link accessed without token query param or cookie.',
   },
   {
     code: ApiErrorCode.INVALID_INTERVIEW_TOKEN,
@@ -208,7 +210,8 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
     code: ApiErrorCode.QUESTION_DUPLICATE,
     httpStatus: HttpStatus.CONFLICT,
     defaultMessage: 'An active question with the same identity already exists',
-    whenUsed: 'Create/update violates unique index on external_id or question text.',
+    whenUsed:
+      'Create/update violates unique index on external_id or question text.',
   },
   {
     code: ApiErrorCode.SERVICE_UNAVAILABLE,
@@ -238,14 +241,16 @@ export const API_ERROR_CODE_REGISTRY: readonly ApiErrorCodeDefinition[] = [
   },
 ] as const;
 
-export const API_ERROR_CODE_BY_CODE: Record<ApiErrorCode, ApiErrorCodeDefinition> =
-  API_ERROR_CODE_REGISTRY.reduce(
-    (acc, entry) => {
-      acc[entry.code] = entry;
-      return acc;
-    },
-    {} as Record<ApiErrorCode, ApiErrorCodeDefinition>,
-  );
+export const API_ERROR_CODE_BY_CODE: Record<
+  ApiErrorCode,
+  ApiErrorCodeDefinition
+> = API_ERROR_CODE_REGISTRY.reduce(
+  (acc, entry) => {
+    acc[entry.code] = entry;
+    return acc;
+  },
+  {} as Record<ApiErrorCode, ApiErrorCodeDefinition>,
+);
 
 const _assertRegistryComplete: Record<ApiErrorCode, ApiErrorCodeDefinition> =
   API_ERROR_CODE_BY_CODE;

@@ -1,5 +1,5 @@
-import { applyTranslationsUpdate } from './question-translations-update';
 import { QuestionTranslations } from './interfaces/question.interface';
+import { applyTranslationsUpdate } from './question-translations-update';
 
 const block = (text: string) => ({
   questionText: text,

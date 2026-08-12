@@ -1,8 +1,8 @@
+import { InterviewActor } from './interfaces/interview.interface';
 import {
   assertActorCanSetAssignedHr,
   HR_ASSIGNMENT_FORBIDDEN_MESSAGE,
 } from './interview-assignment-rules';
-import { InterviewActor } from './interfaces/interview.interface';
 
 describe('interview-assignment-rules', () => {
   const admin: InterviewActor = { id: 'admin', role: 'admin', demo: false };
@@ -10,7 +10,10 @@ describe('interview-assignment-rules', () => {
 
   it('allows admins to set or clear assigned HR', () => {
     expect(() =>
-      assertActorCanSetAssignedHr(admin, '00000000-0000-4000-8000-000000000001'),
+      assertActorCanSetAssignedHr(
+        admin,
+        '00000000-0000-4000-8000-000000000001',
+      ),
     ).not.toThrow();
     expect(() => assertActorCanSetAssignedHr(admin, null)).not.toThrow();
   });

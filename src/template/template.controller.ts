@@ -22,22 +22,23 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
-import { Locale } from '../locale/locale.constants';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { User } from '../user/interfaces/user.interface';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
 import { ResolvedQuestionResponseDto } from '../question/dto/question.responses.dto';
+import { User } from '../user/interfaces/user.interface';
 import { CreateTemplateDto } from './dto/create-template.dto';
-import { UpdateTemplateDto } from './dto/update-template.dto';
 import {
   DeleteTemplateResponseDto,
   TemplateResponseDto,
   TemplateSummaryResponseDto,
 } from './dto/template.responses.dto';
+import { UpdateTemplateDto } from './dto/update-template.dto';
 import {
   TemplateService,
   TemplateSummary,
@@ -118,7 +119,9 @@ export class TemplateController {
 
   @Put(':id')
   @RequirePermissions('templates:update')
-  @ApiOperation({ summary: 'Update an interview template (PUT and PATCH are equivalent)' })
+  @ApiOperation({
+    summary: 'Update an interview template (PUT and PATCH are equivalent)',
+  })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: UpdateTemplateDto })
   @ApiOkResponse({ type: TemplateResponseDto })
@@ -137,7 +140,9 @@ export class TemplateController {
 
   @Patch(':id')
   @RequirePermissions('templates:update')
-  @ApiOperation({ summary: 'Update an interview template (PUT and PATCH are equivalent)' })
+  @ApiOperation({
+    summary: 'Update an interview template (PUT and PATCH are equivalent)',
+  })
   @ApiParam({ name: 'id' })
   @ApiBody({ type: UpdateTemplateDto })
   @ApiOkResponse({ type: TemplateResponseDto })

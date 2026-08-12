@@ -11,6 +11,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+
 import {
   CANDIDATE_FEEDBACK_TEXT_MAX_LENGTH,
   HR_PATCHABLE_CANDIDATE_FEEDBACK_BLOCK_STATES,

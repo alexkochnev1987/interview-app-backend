@@ -1,15 +1,14 @@
-import { Injectable, Optional } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'crypto';
+
+import { Injectable, Optional } from '@nestjs/common';
 import { DatabaseError } from 'pg';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import {
-  apiConflict,
-  apiNotFound,
-} from '../common/errors/api-error';
-import { DatabaseService } from '../database/database.service';
-import { InterviewService } from '../interview/interview.service';
+
 import { AppConfigService } from '../app-config/app-config.service';
+import { apiConflict, apiNotFound } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DatabaseService } from '../database/database.service';
 import { Interview } from '../interview/interfaces/interview.interface';
+import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
 import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feedback-eligibility';
 import { CandidateFeedbackService } from './candidate-feedback.service';
@@ -61,7 +60,12 @@ export class CandidateFeedbackShareService {
     token: string;
     expiresAt: Date;
   }> {
-    if (await this.appConfig?.getBoolean('ENABLE_FEEDBACK_SHARE_LINKS', true) === false) {
+    if (
+      (await this.appConfig?.getBoolean(
+        'ENABLE_FEEDBACK_SHARE_LINKS',
+        true,
+      )) === false
+    ) {
       throw apiConflict(
         ApiErrorCode.FORBIDDEN,
         'Candidate feedback share links are currently disabled via runtime config.',
@@ -224,9 +228,7 @@ export class CandidateFeedbackShareService {
 
     const feedback =
       await this.candidateFeedbackService.findByInterviewId(interviewId);
-    return (
-      !!feedback && hasAnyPublishableCandidateFeedbackBlock(feedback)
-    );
+    return !!feedback && hasAnyPublishableCandidateFeedbackBlock(feedback);
   }
 
   private async findActiveShareLinkExpiresAt(
@@ -250,17 +252,20 @@ export class CandidateFeedbackShareService {
     return result.rows[0]?.expires_at ?? null;
   }
 
-  async resolveByToken(token: string): Promise<PublicCandidateFeedbackResponse> {
+  async resolveByToken(
+    token: string,
+  ): Promise<PublicCandidateFeedbackResponse> {
     const tokenHash = this.hashToken(token);
-    const result = await this.databaseService.query<CandidateFeedbackShareLinkRow>(
-      `
+    const result =
+      await this.databaseService.query<CandidateFeedbackShareLinkRow>(
+        `
         SELECT id, interview_id, created_by_id, expires_at, revoked_at, created_at
         FROM candidate_feedback_share_links
         WHERE token = $1
         LIMIT 1
       `,
-      [tokenHash],
-    );
+        [tokenHash],
+      );
 
     const linkRow = result.rows[0];
     if (
@@ -331,7 +336,9 @@ export class CandidateFeedbackShareService {
     );
   }
 
-  private mapRow(row: CandidateFeedbackShareLinkRow): CandidateFeedbackShareLink {
+  private mapRow(
+    row: CandidateFeedbackShareLinkRow,
+  ): CandidateFeedbackShareLink {
     return {
       id: row.id,
       interviewId: row.interview_id,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { AuthService } from '../../auth/auth.service';
 import { InterviewService } from '../../interview/interview.service';
 import { Locale } from '../../locale/locale.constants';
@@ -11,13 +12,13 @@ import {
   RecruiterAssistantResponseDto,
   RecruiterAssistantSuggestedQuestionDto,
 } from './dto/recruiter-assistant.dto';
+import { mergeCreatedQuestionSuggestions } from './recruiter-assistant-response';
+import { buildCreatedQuestionCard } from './recruiter-assistant-response-builders';
 import {
   canAssignHr,
   canCreateInterviews,
   canCreateQuestions,
 } from './recruiter-assistant.policy';
-import { buildCreatedQuestionCard } from './recruiter-assistant-response-builders';
-import { mergeCreatedQuestionSuggestions } from './recruiter-assistant-response';
 import { ActingUser } from './recruiter-assistant.types';
 import { toCreateQuestionDto } from './recruiter-question-create-dto.mapper';
 
@@ -89,7 +90,9 @@ export class RecruiterPendingActionExecutorService {
     }
 
     try {
-      const created = await this.questionService.createResolved(action.createQuestion);
+      const created = await this.questionService.createResolved(
+        action.createQuestion,
+      );
 
       return {
         status: 'executed',
@@ -200,7 +203,9 @@ export class RecruiterPendingActionExecutorService {
           actor: { id: user.id, role: user.role, demo: user.demo },
         },
       );
-      const token = this.authService.generateCandidateToken(created.interview.id);
+      const token = this.authService.generateCandidateToken(
+        created.interview.id,
+      );
       const candidateLink = `/take/${created.interview.id}?token=${token}`;
 
       return {

@@ -5,9 +5,9 @@ import {
 
 describe('parseJsonFromModelOutput', () => {
   it('parses fenced JSON', () => {
-    expect(
-      parseJsonFromModelOutput('```json\n{"ok":true}\n```'),
-    ).toEqual({ ok: true });
+    expect(parseJsonFromModelOutput('```json\n{"ok":true}\n```')).toEqual({
+      ok: true,
+    });
   });
 
   it('returns undefined for truncated JSON', () => {

@@ -1,5 +1,6 @@
+import supertest from 'supertest';
+
 import { DatabaseService } from '../../src/database/database.service';
-import supertest = require('supertest');
 import {
   getIntegrationApp,
   type IntegrationAgent,
@@ -117,10 +118,15 @@ describe('Interview list API (integration)', () => {
       candidateName: 'Alice Pending',
       position: 'Engineer',
     });
-    const completedInterviewId = await createInterview(agent, session, seedQuestionId, {
-      candidateName: 'Bob Complete',
-      position: 'Designer',
-    });
+    const completedInterviewId = await createInterview(
+      agent,
+      session,
+      seedQuestionId,
+      {
+        candidateName: 'Bob Complete',
+        position: 'Designer',
+      },
+    );
     await updateInterviewStatus(
       databaseService,
       completedInterviewId,

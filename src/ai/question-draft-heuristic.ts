@@ -24,20 +24,35 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
     conceptPresets: {
       html: ['semantic HTML', 'accessibility basics', 'correct structure'],
       css: ['layout reasoning', 'box model awareness', 'responsive styling'],
-      javascript: ['language fundamentals', 'runtime behavior', 'practical example'],
+      javascript: [
+        'language fundamentals',
+        'runtime behavior',
+        'practical example',
+      ],
       typescript: ['type safety', 'interface usage', 'trade-offs of typing'],
       react: ['component reasoning', 'state flow', 'render behavior'],
       soft_skills: ['clear communication', 'specific example', 'ownership'],
-      processes: ['practical workflow', 'quality mindset', 'team collaboration'],
+      processes: [
+        'practical workflow',
+        'quality mindset',
+        'team collaboration',
+      ],
     },
-    defaultConcepts: ['clear reasoning', 'relevant example', 'practical outcome'],
+    defaultConcepts: [
+      'clear reasoning',
+      'relevant example',
+      'practical outcome',
+    ],
     conceptDescription: (label, difficulty) =>
       difficulty === 'hard'
         ? `${label} should be explained with enough detail to show strong fundamentals.`
         : `${label} should be explicitly covered in the answer.`,
     redFlagPresets: {
       html: [
-        { label: 'Confuses HTML with CSS responsibilities', severity: 'medium' },
+        {
+          label: 'Confuses HTML with CSS responsibilities',
+          severity: 'medium',
+        },
         { label: 'Ignores accessibility implications', severity: 'high' },
       ],
       css: [
@@ -46,7 +61,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
       ],
       javascript: [
         { label: 'Uses keywords without explanation', severity: 'medium' },
-        { label: 'Incorrect explanation of core runtime behavior', severity: 'high' },
+        {
+          label: 'Incorrect explanation of core runtime behavior',
+          severity: 'high',
+        },
       ],
       typescript: [
         { label: 'Treats TypeScript as runtime validation', severity: 'high' },
@@ -57,7 +75,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Misses state and rendering implications', severity: 'high' },
       ],
       soft_skills: [
-        { label: 'Answer is generic and not evidence-based', severity: 'medium' },
+        {
+          label: 'Answer is generic and not evidence-based',
+          severity: 'medium',
+        },
         { label: 'Avoids ownership in examples', severity: 'high' },
       ],
       processes: [
@@ -83,13 +104,37 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
     conceptPresets: {
       html: ['semantyczny HTML', 'podstawy dostępności', 'poprawna struktura'],
       css: ['układ strony', 'świadomość box model', 'stylowanie responsywne'],
-      javascript: ['fundamenty języka', 'zachowanie runtime', 'praktyczny przykład'],
-      typescript: ['bezpieczeństwo typów', 'użycie interfejsów', 'kompromisy typowania'],
-      react: ['rozumienie komponentów', 'przepływ stanu', 'zachowanie renderowania'],
-      soft_skills: ['jasna komunikacja', 'konkretny przykład', 'odpowiedzialność'],
-      processes: ['praktyczny workflow', 'nastawienie na jakość', 'współpraca w zespole'],
+      javascript: [
+        'fundamenty języka',
+        'zachowanie runtime',
+        'praktyczny przykład',
+      ],
+      typescript: [
+        'bezpieczeństwo typów',
+        'użycie interfejsów',
+        'kompromisy typowania',
+      ],
+      react: [
+        'rozumienie komponentów',
+        'przepływ stanu',
+        'zachowanie renderowania',
+      ],
+      soft_skills: [
+        'jasna komunikacja',
+        'konkretny przykład',
+        'odpowiedzialność',
+      ],
+      processes: [
+        'praktyczny workflow',
+        'nastawienie na jakość',
+        'współpraca w zespole',
+      ],
     },
-    defaultConcepts: ['jasne rozumowanie', 'trafny przykład', 'praktyczny efekt'],
+    defaultConcepts: [
+      'jasne rozumowanie',
+      'trafny przykład',
+      'praktyczny efekt',
+    ],
     conceptDescription: (label, difficulty) =>
       difficulty === 'hard'
         ? `${label} powinno być omówione na tyle szczegółowo, by pokazać solidne fundamenty.`
@@ -100,7 +145,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Pomija implikacje dostępności', severity: 'high' },
       ],
       css: [
-        { label: 'Opiera się tylko na zapamiętanych właściwościach', severity: 'medium' },
+        {
+          label: 'Opiera się tylko na zapamiętanych właściwościach',
+          severity: 'medium',
+        },
         { label: 'Brak uwzględnienia responsywności', severity: 'high' },
       ],
       javascript: [
@@ -108,15 +156,24 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Błędne wyjaśnienie zachowania runtime', severity: 'high' },
       ],
       typescript: [
-        { label: 'Traktuje TypeScript jak walidację w runtime', severity: 'high' },
+        {
+          label: 'Traktuje TypeScript jak walidację w runtime',
+          severity: 'high',
+        },
         { label: 'Brak zrozumienia zawężania typów', severity: 'medium' },
       ],
       react: [
-        { label: 'Opisuje tylko składnię bez przepływu danych', severity: 'medium' },
+        {
+          label: 'Opisuje tylko składnię bez przepływu danych',
+          severity: 'medium',
+        },
         { label: 'Pomija stan i konsekwencje renderowania', severity: 'high' },
       ],
       soft_skills: [
-        { label: 'Odpowiedź jest ogólnikowa i bez dowodów', severity: 'medium' },
+        {
+          label: 'Odpowiedź jest ogólnikowa i bez dowodów',
+          severity: 'medium',
+        },
         { label: 'Unika odpowiedzialności w przykładach', severity: 'high' },
       ],
       processes: [
@@ -132,7 +189,8 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
       category === 'soft_skills'
         ? 'Czy możesz podać konkretny przykład ze swojego doświadczenia?'
         : 'Czy możesz podać prosty praktyczny przykład?',
-    followUpSecond: 'Jakiego powszechnego błędu lub nieporozumienia byś unikał?',
+    followUpSecond:
+      'Jakiego powszechnego błędu lub nieporozumienia byś unikał?',
     sampleSoftSkills:
       'Odpowiedziałbym krótkim realnym przykładem: moja rola, co zrobiłem i jaki był praktyczny rezultat.',
     sampleTechnical: (questionText) =>
@@ -140,15 +198,35 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
   },
   ru: {
     conceptPresets: {
-      html: ['семантический HTML', 'основы доступности', 'корректная структура'],
+      html: [
+        'семантический HTML',
+        'основы доступности',
+        'корректная структура',
+      ],
       css: ['вёрстка и layout', 'понимание box model', 'адаптивная вёрстка'],
       javascript: ['основы языка', 'поведение runtime', 'практический пример'],
-      typescript: ['типобезопасность', 'использование интерфейсов', 'компромиссы типизации'],
+      typescript: [
+        'типобезопасность',
+        'использование интерфейсов',
+        'компромиссы типизации',
+      ],
       react: ['понимание компонентов', 'поток состояния', 'поведение рендера'],
-      soft_skills: ['ясная коммуникация', 'конкретный пример', 'ответственность'],
-      processes: ['практичный workflow', 'фокус на качестве', 'командная работа'],
+      soft_skills: [
+        'ясная коммуникация',
+        'конкретный пример',
+        'ответственность',
+      ],
+      processes: [
+        'практичный workflow',
+        'фокус на качестве',
+        'командная работа',
+      ],
     },
-    defaultConcepts: ['ясное рассуждение', 'релевантный пример', 'практический результат'],
+    defaultConcepts: [
+      'ясное рассуждение',
+      'релевантный пример',
+      'практический результат',
+    ],
     conceptDescription: (label, difficulty) =>
       difficulty === 'hard'
         ? `${label} нужно раскрыть достаточно подробно, чтобы показать сильную базу.`
@@ -171,7 +249,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Не понимает сужение типов', severity: 'medium' },
       ],
       react: [
-        { label: 'Описывает только синтаксис без потока данных', severity: 'medium' },
+        {
+          label: 'Описывает только синтаксис без потока данных',
+          severity: 'medium',
+        },
         { label: 'Упускает состояние и последствия рендера', severity: 'high' },
       ],
       soft_skills: [
@@ -191,7 +272,8 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
       category === 'soft_skills'
         ? 'Можете привести конкретный пример из своего опыта?'
         : 'Можете привести простой практический пример?',
-    followUpSecond: 'Какую распространённую ошибку или заблуждение вы бы избегали?',
+    followUpSecond:
+      'Какую распространённую ошибку или заблуждение вы бы избегали?',
     sampleSoftSkills:
       'Я бы ответил коротким реальным примером: моя роль, что я сделал и какой был практический результат.',
     sampleTechnical: (questionText) =>
@@ -202,12 +284,20 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
       html: ['семантычны HTML', 'асновы даступнасці', 'карэктная структура'],
       css: ['вёрстка і layout', 'разуменне box model', 'адаптыўная вёрстка'],
       javascript: ['асновы мовы', 'паводзіны runtime', 'практычны прыклад'],
-      typescript: ['тыпабяспека', 'выкарыстанне інтэрфейсаў', 'кампрамісы тыпізацыі'],
+      typescript: [
+        'тыпабяспека',
+        'выкарыстанне інтэрфейсаў',
+        'кампрамісы тыпізацыі',
+      ],
       react: ['разуменне кампанентаў', 'поток стану', 'паводзіны рэндэра'],
       soft_skills: ['ясная камунікацыя', 'канкрэтны прыклад', 'адказнасць'],
       processes: ['практычны workflow', 'фокус на якасці', 'камандная работа'],
     },
-    defaultConcepts: ['яснае рассужданне', 'рэлевантны прыклад', 'практычны вынік'],
+    defaultConcepts: [
+      'яснае рассужданне',
+      'рэлевантны прыклад',
+      'практычны вынік',
+    ],
     conceptDescription: (label, difficulty) =>
       difficulty === 'hard'
         ? `${label} трэба раскрыць дастаткова падрабязна, каб паказаць моцную базу.`
@@ -218,7 +308,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Ігнаруе даступнасць', severity: 'high' },
       ],
       css: [
-        { label: 'Апіраецца толькі на зазубраныя ўласцівасці', severity: 'medium' },
+        {
+          label: 'Апіраецца толькі на зазубраныя ўласцівасці',
+          severity: 'medium',
+        },
         { label: 'Не ўлічвае адаптыўнасць', severity: 'high' },
       ],
       javascript: [
@@ -230,7 +323,10 @@ const HEURISTIC_BY_LOCALE: Record<Locale, HeuristicLocaleCopy> = {
         { label: 'Не разумее звужэнне тыпаў', severity: 'medium' },
       ],
       react: [
-        { label: 'Апісвае толькі сінтаксіс без патоку даных', severity: 'medium' },
+        {
+          label: 'Апісвае толькі сінтаксіс без патоку даных',
+          severity: 'medium',
+        },
         { label: 'Прапускае стан і наступствы рэндэра', severity: 'high' },
       ],
       soft_skills: [

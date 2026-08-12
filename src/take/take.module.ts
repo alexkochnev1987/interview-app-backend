@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { TakeController } from './take.controller';
-import { InterviewModule } from '../interview/interview.module';
+
 import { AuthModule } from '../auth/auth.module';
+import { InterviewModule } from '../interview/interview.module';
+import { TakeController } from './take.controller';
 
 @Module({
   imports: [InterviewModule, AuthModule],

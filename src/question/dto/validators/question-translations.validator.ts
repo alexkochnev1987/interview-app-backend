@@ -3,14 +3,15 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
+
 import { isLocale } from '../../../locale/locale.constants';
-import { CreateQuestionDto } from '../create-question.dto';
-import { UpdateQuestionDto } from '../update-question.dto';
 import {
   supportedLocaleListHint,
   validatePrimaryTranslationBlock,
   validateTranslationMapKeys,
 } from '../../question-translation.validation';
+import { CreateQuestionDto } from '../create-question.dto';
+import { UpdateQuestionDto } from '../update-question.dto';
 
 @ValidatorConstraint({ name: 'questionTranslationsMap', async: false })
 export class QuestionTranslationsMapConstraint implements ValidatorConstraintInterface {

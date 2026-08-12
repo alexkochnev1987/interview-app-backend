@@ -7,7 +7,10 @@ export type InterviewQuestionPreview = {
   resolvedLocale: Interview['interviewLocale'];
 };
 
-export type InterviewListItemPresentation = Omit<InterviewPresentation, 'questions'> & {
+export type InterviewListItemPresentation = Omit<
+  InterviewPresentation,
+  'questions'
+> & {
   questionCount: number;
   questionsPreview: InterviewQuestionPreview[];
 };

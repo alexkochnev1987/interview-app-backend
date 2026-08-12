@@ -1,22 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import { AiService } from '../ai.service';
-import { TemplateService } from '../../template/template.service';
-import { TemplateSummary } from '../../template/template.service';
+
+import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
-import { Locale } from '../../locale/locale.constants';
 import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
+import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { toInterviewActor } from '../../interview/interview-actor';
 import { InterviewService } from '../../interview/interview.service';
-import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { Locale } from '../../locale/locale.constants';
+import { TemplateService } from '../../template/template.service';
+import { TemplateSummary } from '../../template/template.service';
 import { UserService } from '../../user/user.service';
-import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
+import { AiService } from '../ai.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
+import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
+import { scorePersonNameMatch } from './recruiter-assistant-name-match';
+import { buildQuestionPlanResponse } from './recruiter-assistant-response';
+import { buildInterviewRedirect } from './recruiter-assistant-response-builders';
+import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import {
   canAssignHr,
   canCreateInterviews,
@@ -25,12 +32,6 @@ import {
   canListInterviews,
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
-import { buildQuestionPlanResponse } from './recruiter-assistant-response';
-import { buildInterviewRedirect } from './recruiter-assistant-response-builders';
-import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
-import { resolveHrRef } from './recruiter-assistant-hr-ref';
-import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
-import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import {
   ActingUser,
   HrRef,
@@ -38,19 +39,19 @@ import {
   ParsedRecruiterRequest,
   RecruiterAssistantIntent,
 } from './recruiter-assistant.types';
-import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
-import { buildQuestionSuggestions } from './recruiter-question-plan';
-import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
-import { RecruiterConversationStore } from './recruiter-conversation.store';
-import { RecruiterConversationState } from './recruiter-conversation.types';
 import {
   idleConversationState,
   startConversationFlow,
 } from './recruiter-conversation-slots';
+import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationState } from './recruiter-conversation.types';
+import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
 import {
   isQuestionDraftGenerate,
   mapDraftGenerateToCreateQuestionDto,
 } from './recruiter-question-draft.mapper';
+import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
+import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -130,12 +131,18 @@ export class RecruiterAssistantToolsService {
     void locale;
     if (ownInterviews) {
       if (user.role !== 'candidate') {
-        return { status: 'refused', response: 'That question is only for candidates.' };
+        return {
+          status: 'refused',
+          response: 'That question is only for candidates.',
+        };
       }
 
       const interview = await this.findCandidateOwnInterview(user);
       if (!interview) {
-        return { status: 'answered', response: 'You do not have an interview yet.' };
+        return {
+          status: 'answered',
+          response: 'You do not have an interview yet.',
+        };
       }
 
       const statusText = interview.status.replace('_', ' ');
@@ -171,7 +178,8 @@ export class RecruiterAssistantToolsService {
     if (!interview) {
       return {
         status: 'answered',
-        response: 'I could not find a unique interview. Provide an interview id or candidate name.',
+        response:
+          'I could not find a unique interview. Provide an interview id or candidate name.',
       };
     }
 
@@ -219,17 +227,18 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);
+    const feedback = await this.candidateFeedbackService.findByInterviewId(
+      interview.id,
+    );
     const shareLinkActive =
       await this.candidateFeedbackShareService.hasActiveShareLink(interview.id);
 
     const reviewed =
-      interview.status === 'completed'
-      && (
-        !!interview.result?.decision
-        || !!feedback?.outcome
-        || (feedback != null && hasAnyPublishableCandidateFeedbackBlock(feedback))
-      );
+      interview.status === 'completed' &&
+      (!!interview.result?.decision ||
+        !!feedback?.outcome ||
+        (feedback != null &&
+          hasAnyPublishableCandidateFeedbackBlock(feedback)));
 
     const reviewState = {
       reviewed,
@@ -307,7 +316,12 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    return this.progressCreateQuestionFlow(questionName, user, locale, sessionId);
+    return this.progressCreateQuestionFlow(
+      questionName,
+      user,
+      locale,
+      sessionId,
+    );
   }
 
   async prepareCreateQuestions(
@@ -330,7 +344,9 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
-    const existingCount = resolved.filter((question) => !question.needsCreation).length;
+    const existingCount = resolved.filter(
+      (question) => !question.needsCreation,
+    ).length;
     const missingCount = resolved.length - existingCount;
     const userCanCreateQuestions = canCreateQuestions(user);
     const userCanCreateInterviews = canCreateInterviews(user);
@@ -357,7 +373,10 @@ export class RecruiterAssistantToolsService {
       }),
       suggestedQuestions: resolved,
       pendingAction,
-      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(
+        user.id,
+        pendingAction,
+      ),
     };
   }
 
@@ -445,7 +464,12 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    return this.progressCreateQuestionFlow(questionName, user, locale, sessionId);
+    return this.progressCreateQuestionFlow(
+      questionName,
+      user,
+      locale,
+      sessionId,
+    );
   }
 
   async prepareCreateInterview(
@@ -533,7 +557,11 @@ export class RecruiterAssistantToolsService {
     }
 
     if (choice.kind === 'own') {
-      this.conversationStore.update(user.id, sessionId, idleConversationState());
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        idleConversationState(),
+      );
       return {
         status: 'answered',
         response: 'Opening the interview form.',
@@ -564,7 +592,11 @@ export class RecruiterAssistantToolsService {
     });
 
     if (template.questions.length === 0) {
-      this.conversationStore.update(user.id, sessionId, idleConversationState());
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        idleConversationState(),
+      );
       return {
         status: 'refused',
         response: `Template "${template.name}" has no available questions. Try another template or say "create my own".`,
@@ -595,7 +627,10 @@ export class RecruiterAssistantToolsService {
       response: `Create interview for ${candidateName} using "${template.name}" (${questions.length} questions)? Reply yes to confirm.`,
       suggestedQuestions: questions,
       pendingAction,
-      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(
+        user.id,
+        pendingAction,
+      ),
     };
   }
 
@@ -633,7 +668,11 @@ export class RecruiterAssistantToolsService {
       );
     }
 
-    const templates = await this.findTemplatesForPosition(position, user, locale);
+    const templates = await this.findTemplatesForPosition(
+      position,
+      user,
+      locale,
+    );
     const slots = {
       candidateName,
       position,
@@ -642,7 +681,11 @@ export class RecruiterAssistantToolsService {
 
     if (templates.length === 0) {
       if (options.persistFlowOnMissing) {
-        this.conversationStore.update(user.id, sessionId, idleConversationState());
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          idleConversationState(),
+        );
       }
       return {
         status: 'answered',
@@ -715,7 +758,11 @@ export class RecruiterAssistantToolsService {
     if (!position) {
       return [];
     }
-    const templates = await this.findTemplatesForPosition(position, user, locale);
+    const templates = await this.findTemplatesForPosition(
+      position,
+      user,
+      locale,
+    );
     const ids = new Set((slots.templateIds ?? '').split(',').filter(Boolean));
     return templates.filter((template) => ids.has(template.id));
   }
@@ -740,24 +787,33 @@ export class RecruiterAssistantToolsService {
       }
 
       const createQuestion = mapDraftGenerateToCreateQuestionDto(draft, locale);
-      const pendingAction: RecruiterAssistantCreateSingleQuestionPendingActionDto = {
-        type: 'create_single_question',
-        questionName,
-        createQuestion,
-      };
+      const pendingAction: RecruiterAssistantCreateSingleQuestionPendingActionDto =
+        {
+          type: 'create_single_question',
+          questionName,
+          createQuestion,
+        };
 
-      this.conversationStore.update(user.id, sessionId, idleConversationState());
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        idleConversationState(),
+      );
 
       return {
         status: 'needs_confirmation',
         response: `Create question "${questionName}" with AI suggestions? Reply yes to confirm.`,
         pendingAction,
-        pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
+        pendingActionId: await this.pendingActionStore.issue(
+          user.id,
+          pendingAction,
+        ),
       };
     } catch {
       return {
         status: 'refused',
-        response: 'Question draft generation failed. Try again or create the question manually.',
+        response:
+          'Question draft generation failed. Try again or create the question manually.',
       };
     }
   }
@@ -775,7 +831,9 @@ export class RecruiterAssistantToolsService {
     const actor = toInterviewActor(user);
     const interviewRef = this.interviewRefFromAssignInput(input);
     const hrRef = this.hrRefFromAssignInput(input);
-    const hasInterviewInput = !!(interviewRef.interviewId || interviewRef.candidateName);
+    const hasInterviewInput = !!(
+      interviewRef.interviewId || interviewRef.candidateName
+    );
     const hasHrInput = !!(hrRef.id || hrRef.name);
 
     const interview = hasInterviewInput
@@ -909,8 +967,8 @@ export class RecruiterAssistantToolsService {
     return {
       status: 'answered',
       response:
-        response
-        ?? (awaitingInput === 'interview'
+        response ??
+        (awaitingInput === 'interview'
           ? 'Which interview should I assign? Provide a candidate name or interview id.'
           : 'Which HR reviewer should I assign?'),
       awaitingInput,
@@ -935,7 +993,10 @@ export class RecruiterAssistantToolsService {
       status: 'needs_confirmation',
       response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
       pendingAction,
-      pendingActionId: await this.pendingActionStore.issue(user.id, pendingAction),
+      pendingActionId: await this.pendingActionStore.issue(
+        user.id,
+        pendingAction,
+      ),
     };
   }
 
@@ -946,7 +1007,10 @@ export class RecruiterAssistantToolsService {
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {
-    return this.interviewService.findLatestByCandidateEmail(user.email, user.demo);
+    return this.interviewService.findLatestByCandidateEmail(
+      user.email,
+      user.demo,
+    );
   }
 
   private async getCandidateReviewState(
@@ -955,15 +1019,18 @@ export class RecruiterAssistantToolsService {
   ): Promise<RecruiterAssistantResponseDto> {
     const interview = await this.findCandidateOwnInterview(user);
     if (!interview) {
-      return { status: 'answered', response: 'You do not have an interview yet.' };
+      return {
+        status: 'answered',
+        response: 'You do not have an interview yet.',
+      };
     }
 
     if (ref.interviewId || ref.candidateName) {
       const idMismatch =
         ref.interviewId != null && ref.interviewId !== interview.id;
       const nameMismatch =
-        ref.candidateName != null
-        && scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
+        ref.candidateName != null &&
+        scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
 
       if (idMismatch || nameMismatch) {
         return {
@@ -974,17 +1041,18 @@ export class RecruiterAssistantToolsService {
       }
     }
 
-    const feedback = await this.candidateFeedbackService.findByInterviewId(interview.id);
+    const feedback = await this.candidateFeedbackService.findByInterviewId(
+      interview.id,
+    );
     const shareLinkActive =
       await this.candidateFeedbackShareService.hasActiveShareLink(interview.id);
 
     const reviewed =
-      interview.status === 'completed'
-      && (
-        !!interview.decision
-        || !!feedback?.outcome
-        || (feedback != null && hasAnyPublishableCandidateFeedbackBlock(feedback))
-      );
+      interview.status === 'completed' &&
+      (!!interview.decision ||
+        !!feedback?.outcome ||
+        (feedback != null &&
+          hasAnyPublishableCandidateFeedbackBlock(feedback)));
 
     const reviewState = {
       reviewed,

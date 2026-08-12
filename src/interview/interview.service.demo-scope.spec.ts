@@ -1,12 +1,13 @@
 import { ForbiddenException } from '@nestjs/common';
-import { InterviewService } from './interview.service';
+
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService demo scoping (findAllPaginated)', () => {
   function makeService() {
-    const query = jest.fn().mockImplementation((sql: string) => {
+    const query = vi.fn().mockImplementation((sql: string) => {
       if (sql.includes('COUNT(*)::text AS total')) {
         return Promise.resolve({ rows: [{ total: '0' }] });
       }
@@ -15,7 +16,7 @@ describe('InterviewService demo scoping (findAllPaginated)', () => {
     const databaseService = { query } as unknown as DatabaseService;
     const questionService = {} as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
     return {
       service: new InterviewService(

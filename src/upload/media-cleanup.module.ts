@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { MediaCleanupService } from './media-cleanup.service';
+
 import { AppConfigModule } from '../app-config/app-config.module';
+import { MediaCleanupService } from './media-cleanup.service';
 
 @Module({
   imports: [AppConfigModule],

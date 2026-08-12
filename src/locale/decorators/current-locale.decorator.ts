@@ -1,4 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
 import { DEFAULT_LOCALE, Locale } from '../locale.constants';
 
 export const CurrentLocale = createParamDecorator(

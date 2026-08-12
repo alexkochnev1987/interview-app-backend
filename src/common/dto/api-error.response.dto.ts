@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { ApiErrorCode } from '../errors/api-error.codes';
 
 export class ApiErrorResponseDto {

@@ -1,5 +1,5 @@
-import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -12,11 +12,12 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+
+import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../assigned-hr-filter';
 import {
   INTERVIEW_STATUSES,
   InterviewStatus,
 } from '../interfaces/interview.interface';
-import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../assigned-hr-filter';
 import { parseBooleanQuery } from './list-interviews-query.dto';
 
 export const INTERVIEW_SORT_FIELDS = [

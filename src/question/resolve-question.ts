@@ -54,11 +54,17 @@ export function contentFallbackFromLocale(
   return resolvedLocale !== requestedLocale ? requestedLocale : undefined;
 }
 
-export function listAvailableLocales(translations: QuestionTranslations): Locale[] {
-  return SUPPORTED_LOCALES.filter((locale) => hasTranslation(translations, locale));
+export function listAvailableLocales(
+  translations: QuestionTranslations,
+): Locale[] {
+  return SUPPORTED_LOCALES.filter((locale) =>
+    hasTranslation(translations, locale),
+  );
 }
 
-function effectiveTranslations(question: ResolveQuestionInput): QuestionTranslations {
+function effectiveTranslations(
+  question: ResolveQuestionInput,
+): QuestionTranslations {
   if (listAvailableLocales(question.translations).length > 0) {
     return question.translations;
   }
@@ -100,7 +106,10 @@ function pickResolvedLocale(
   requestedLocale: Locale,
   primaryLocale: Locale,
 ): Locale | undefined {
-  return pickResolvedLocaleFromChain(translations, [requestedLocale, primaryLocale]);
+  return pickResolvedLocaleFromChain(translations, [
+    requestedLocale,
+    primaryLocale,
+  ]);
 }
 
 function toLocalizedFields(
@@ -157,8 +166,11 @@ export function resolveQuestion(
           ...options.localeFallbackChain,
           question.primaryLocale,
         ])
-      : pickResolvedLocale(translations, requestedLocale, question.primaryLocale)) ??
-    question.primaryLocale;
+      : pickResolvedLocale(
+          translations,
+          requestedLocale,
+          question.primaryLocale,
+        )) ?? question.primaryLocale;
   const resolvedTranslation = translations[resolvedLocale];
   const primaryTranslation = translations[question.primaryLocale];
 
@@ -195,7 +207,10 @@ export function resolveQuestion(
     resolvedLocale,
     availableLocales,
   };
-  const textFallback = contentFallbackFromLocale(resolvedLocale, requestedLocale);
+  const textFallback = contentFallbackFromLocale(
+    resolvedLocale,
+    requestedLocale,
+  );
   if (textFallback) {
     resolved.fallbackFromLocale = textFallback;
   } else if (rubricFallbackFromPrimary) {

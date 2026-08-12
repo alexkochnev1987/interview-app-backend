@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { Locale, SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { ResolvedQuestionResponseDto } from '../../question/dto/question.responses.dto';
 import { INTERVIEW_STATUSES } from '../interfaces/interview.interface';
@@ -28,7 +29,9 @@ export class InterviewLocaleWarningDto {
 }
 
 export class StartAnswerValidationResultDto {
-  @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
+  @ApiProperty({
+    enum: ['idle', 'queued', 'processing', 'completed', 'failed'],
+  })
   status: string;
 
   @ApiProperty()
@@ -115,7 +118,10 @@ export class AnswerEvaluationDto {
   @ApiPropertyOptional()
   overallScore?: number;
 
-  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'number' } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'number' },
+  })
   categoryScores?: Record<string, number>;
 
   @ApiPropertyOptional({ type: [String] })
@@ -141,7 +147,9 @@ export class AnswerEvaluationDto {
 }
 
 export class AnswerValidationDto {
-  @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
+  @ApiProperty({
+    enum: ['idle', 'queued', 'processing', 'completed', 'failed'],
+  })
   status: string;
 
   @ApiPropertyOptional()
@@ -286,7 +294,9 @@ export class InterviewBehaviorSummaryDto {
 }
 
 export class InterviewWorkflowDto {
-  @ApiProperty({ enum: ['idle', 'queued', 'processing', 'completed', 'failed'] })
+  @ApiProperty({
+    enum: ['idle', 'queued', 'processing', 'completed', 'failed'],
+  })
   status: string;
 
   @ApiPropertyOptional({
@@ -326,7 +336,10 @@ export class InterviewQuestionResultDto {
   @ApiPropertyOptional()
   score?: number;
 
-  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'number' } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'number' },
+  })
   categoryScores?: Record<string, number>;
 
   @ApiPropertyOptional()
@@ -350,7 +363,8 @@ export class InterviewResultResponseDto {
   summary: string;
 
   @ApiPropertyOptional({
-    description: 'Improvement notes in interviewLocale (same language as general summary).',
+    description:
+      'Improvement notes in interviewLocale (same language as general summary).',
   })
   improvements?: string;
 
@@ -408,8 +422,7 @@ export class InterviewResponseDto {
 
   @ApiPropertyOptional({
     enum: SUPPORTED_LOCALES,
-    description:
-      'Locale used for questions[] (always interviewLocale).',
+    description: 'Locale used for questions[] (always interviewLocale).',
   })
   questionsDisplayLocale?: Locale;
 
@@ -461,7 +474,9 @@ export class InterviewListItemDto {
   @ApiProperty({ description: 'Number of submitted answers.' })
   submittedAnswerCount: number;
 
-  @ApiPropertyOptional({ description: 'Present when a result has been computed.' })
+  @ApiPropertyOptional({
+    description: 'Present when a result has been computed.',
+  })
   overallScore?: number;
 
   @ApiPropertyOptional({ enum: ['proceed', 'review', 'reject'] })
@@ -489,7 +504,9 @@ export class PaginatedInterviewsResponseDto {
   @ApiProperty({ type: [InterviewListItemDto] })
   items: InterviewListItemDto[];
 
-  @ApiProperty({ description: 'Total rows matching the filter, ignoring page/limit.' })
+  @ApiProperty({
+    description: 'Total rows matching the filter, ignoring page/limit.',
+  })
   total: number;
 
   @ApiProperty()
@@ -505,7 +522,7 @@ export class InterviewFacetCountDto {
 
   @ApiProperty({
     description:
-        'Number of interviews with this value, given all OTHER current filters.',
+      'Number of interviews with this value, given all OTHER current filters.',
   })
   count: number;
 }
@@ -513,21 +530,21 @@ export class InterviewFacetCountDto {
 export class InterviewFacetsResponseDto {
   @ApiProperty({
     description:
-        'Sum of question counts across interviews matching all current filters.',
+      'Sum of question counts across interviews matching all current filters.',
   })
   totalQuestionCount: number;
 
   @ApiProperty({
     type: [InterviewFacetCountDto],
     description:
-        'Position value + count, given all OTHER current filters (position itself is not applied).',
+      'Position value + count, given all OTHER current filters (position itself is not applied).',
   })
   positions: InterviewFacetCountDto[];
 
   @ApiProperty({
     type: [InterviewFacetCountDto],
     description:
-        'Status value + count, given all OTHER current filters (status itself is not applied).',
+      'Status value + count, given all OTHER current filters (status itself is not applied).',
   })
   statuses: InterviewFacetCountDto[];
 }
@@ -600,7 +617,9 @@ export class InterviewListItemResponseDto {
   @ApiProperty({ type: [AnswerDto] })
   answers: AnswerDto[];
 
-  @ApiProperty({ enum: ['pending', 'in_progress', 'processing', 'completed', 'failed'] })
+  @ApiProperty({
+    enum: ['pending', 'in_progress', 'processing', 'completed', 'failed'],
+  })
   status: string;
 
   @ApiPropertyOptional({ type: InterviewResultResponseDto })

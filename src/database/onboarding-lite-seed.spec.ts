@@ -21,9 +21,9 @@ describe('onboarding lite seed', () => {
     expect(interview.result).toBeUndefined();
     expect(interview.questions).toHaveLength(2);
     expect(interview.answers).toHaveLength(2);
-    expect(interview.answers.every((answer) => answer.status === 'submitted')).toBe(
-      true,
-    );
+    expect(
+      interview.answers.every((answer) => answer.status === 'submitted'),
+    ).toBe(true);
     expect(
       interview.answers.every(
         (answer) => answer.evaluation?.overallScore === undefined,

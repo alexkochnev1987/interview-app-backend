@@ -1,6 +1,5 @@
-import { ApiErrorCode } from '../../../common/errors/api-error.codes';
 import { apiServiceUnavailable } from '../../../common/errors/api-error';
-
+import { ApiErrorCode } from '../../../common/errors/api-error.codes';
 import {
   EmbeddingProvider,
   EmbeddingProviderName,

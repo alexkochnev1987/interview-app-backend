@@ -11,9 +11,10 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.dto';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
+import { QuestionDraftInputDto } from '../../question/dto/question-draft-input.dto';
 
 export type DraftQuestionMode = 'translate' | 'generate';
 

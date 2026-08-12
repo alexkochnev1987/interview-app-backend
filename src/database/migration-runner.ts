@@ -36,11 +36,7 @@ async function repairRenumberedOnboardingMigration(
       WHERE version = '0042'
         AND name = $3
     `,
-    [
-      renumberedOnboarding.version,
-      renumberedOnboarding.name,
-      appliedAt0042,
-    ],
+    [renumberedOnboarding.version, renumberedOnboarding.name, appliedAt0042],
   );
 
   appliedMigrations.delete('0042');
@@ -179,10 +175,16 @@ export async function runMigrations(
   // This repair must run unconditionally: production already has 0048_assign_demo_interviews_to_demo_hr
   // recorded, but this release renumbers it to 0052. Without the repair the runner would attempt
   // to re-apply 0052 and crash on the PRIMARY KEY constraint.
-  await repairRenumberedDemoInterviewsMigration(databaseService, appliedMigrations);
+  await repairRenumberedDemoInterviewsMigration(
+    databaseService,
+    appliedMigrations,
+  );
 
   if (enableDevRepairs) {
-    await repairRenumberedOnboardingMigration(databaseService, appliedMigrations);
+    await repairRenumberedOnboardingMigration(
+      databaseService,
+      appliedMigrations,
+    );
     await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
   }
 
@@ -213,9 +215,7 @@ export async function runMigrations(
           [migration.version, migration.name],
         );
         await client.query('COMMIT');
-        console.log(
-          `Applied migration ${migration.version}_${migration.name}`,
-        );
+        console.log(`Applied migration ${migration.version}_${migration.name}`);
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;

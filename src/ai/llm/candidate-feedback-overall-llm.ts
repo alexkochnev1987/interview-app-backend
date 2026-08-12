@@ -1,15 +1,12 @@
-import { Locale } from '../../locale/locale.constants';
-import { localeUiText } from '../../locale/locale-ui-text';
 import type { OverallFeedbackToneMode } from '../../feedback/candidate-feedback-eligibility';
 import type { OverallInterviewMixMetadata } from '../../feedback/candidate-feedback-overall-tone';
 import { isMixedInterviewMetadata } from '../../feedback/candidate-feedback-overall-tone';
+import type { CandidateFeedbackQuestionSourceText } from '../../feedback/candidate-feedback-source-text';
+import { localeUiText } from '../../locale/locale-ui-text';
+import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
-import {
-  isPlainRecord,
-  parseJsonFromModelOutput,
-} from './parse-model-json';
-import type { CandidateFeedbackQuestionSourceText } from '../../feedback/candidate-feedback-source-text';
+import { isPlainRecord, parseJsonFromModelOutput } from './parse-model-json';
 
 export interface RawCandidateFeedbackOverall {
   recommendationText: string;
@@ -37,14 +34,15 @@ Synthesize a development-focused overall message grounded only in the snippets: 
 ${SHARED_OVERALL_GUARDRAILS}`,
 };
 
-const OVERALL_TONE_USER_INSTRUCTIONS: Record<OverallFeedbackToneMode, string> = {
-  balanced:
-    'Overall tone: balanced positive synthesis when supported by the snippets.',
-  growth_focused:
-    'Overall tone: growth-focused synthesis with modest positives only when earned.',
-  honest_weak:
-    'Overall tone: respectful development focus. No false praise or "strong interview" language.',
-};
+const OVERALL_TONE_USER_INSTRUCTIONS: Record<OverallFeedbackToneMode, string> =
+  {
+    balanced:
+      'Overall tone: balanced positive synthesis when supported by the snippets.',
+    growth_focused:
+      'Overall tone: growth-focused synthesis with modest positives only when earned.',
+    honest_weak:
+      'Overall tone: respectful development focus. No false praise or "strong interview" language.',
+  };
 
 export function getCandidateFeedbackOverallSystemPrompt(
   toneMode: OverallFeedbackToneMode,

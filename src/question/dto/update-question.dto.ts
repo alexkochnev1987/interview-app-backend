@@ -1,7 +1,5 @@
-import {
-  ApiExtraModels,
-  ApiPropertyOptional,
-} from '@nestjs/swagger';
+import { ApiExtraModels, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
@@ -14,7 +12,7 @@ import {
   Validate,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 import {
@@ -23,14 +21,14 @@ import {
   QuestionRedFlag,
 } from '../interfaces/question.interface';
 import { QuestionTranslationsMode } from '../question-translations-update';
+import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
+import { QuestionTranslationDto } from './question-translation.dto';
+import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import {
   QuestionExpectedConceptDto,
   QuestionRedFlagDto,
 } from './question.responses.dto';
-import { QuestionTranslationDto } from './question-translation.dto';
-import { QuestionTranslationsMapDto } from './question-translations-map.dto';
 import { QuestionTranslationsUpdateMapConstraint } from './validators/question-translations.validator';
-import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
 @ApiExtraModels(
   QuestionExpectedConceptDto,
@@ -107,7 +105,8 @@ export class UpdateQuestionDto {
 
   @ApiPropertyOptional({
     deprecated: true,
-    description: 'Updates the primary locale block when translations are omitted (legacy partial update).',
+    description:
+      'Updates the primary locale block when translations are omitted (legacy partial update).',
   })
   @IsOptional()
   @IsString()

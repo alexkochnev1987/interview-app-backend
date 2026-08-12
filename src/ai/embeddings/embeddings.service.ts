@@ -1,9 +1,10 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'crypto';
 
+import { Injectable, Logger, Optional } from '@nestjs/common';
+
+import { AppConfigService } from '../../app-config/app-config.service';
 import { DatabaseService } from '../../database/database.service';
 import { EmbeddingProvider } from './providers/embedding-provider.base';
-import { AppConfigService } from '../../app-config/app-config.service';
 
 @Injectable()
 export class EmbeddingsService {
@@ -26,7 +27,9 @@ export class EmbeddingsService {
 
   async generateAndStore(questionId: string, text: string): Promise<void> {
     if (await this.appConfig?.getBoolean('DISABLE_AI_EMBEDDINGS_SYNC', false)) {
-      this.logger.log(`Skipped embedding sync for question ${questionId}: disabled via runtime config`);
+      this.logger.log(
+        `Skipped embedding sync for question ${questionId}: disabled via runtime config`,
+      );
       return;
     }
 

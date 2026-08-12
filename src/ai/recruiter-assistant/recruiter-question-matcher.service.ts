@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { Locale } from '../../locale/locale.constants';
 import { SimilarQuestionMatch } from '../../question/interfaces/question.interface';
 import { QuestionService } from '../../question/question.service';
@@ -51,7 +52,10 @@ export class RecruiterQuestionMatcherService {
         locale,
         demo,
       );
-      return matches[0] ?? (await this.findLiteralQuestionMatch(question, demo, locale));
+      return (
+        matches[0] ??
+        (await this.findLiteralQuestionMatch(question, demo, locale))
+      );
     } catch {
       return this.findLiteralQuestionMatch(question, demo, locale);
     }

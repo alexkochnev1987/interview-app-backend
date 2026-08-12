@@ -15,8 +15,7 @@ export interface PublicCandidateFeedbackTextBlock {
   improvementText?: string;
 }
 
-export interface PublicCandidateFeedbackQuestionBlock
-  extends PublicCandidateFeedbackTextBlock {
+export interface PublicCandidateFeedbackQuestionBlock extends PublicCandidateFeedbackTextBlock {
   questionIndex: number;
   questionId: string;
   /** Interview question snapshot text in interview locale when available. */

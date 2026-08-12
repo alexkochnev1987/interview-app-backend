@@ -75,33 +75,57 @@ describe('permissions', () => {
       expect(effective).not.toContain('interviews:update_own');
       expect(effective).not.toContain('interviews:assign');
       expect(effective).not.toContain('feedback:create_share_link');
-      expect(effective.every((p) => READ_ONLY_PERMISSIONS.includes(p))).toBe(true);
+      expect(effective.every((p) => READ_ONLY_PERMISSIONS.includes(p))).toBe(
+        true,
+      );
     });
 
     it('does not change permissions for a non-demo user', () => {
-      expect(getEffectivePermissions('hr', false)).toEqual(getPermissions('hr'));
+      expect(getEffectivePermissions('hr', false)).toEqual(
+        getPermissions('hr'),
+      );
     });
 
     it('denies a demo user any write permission their role would otherwise grant', () => {
       expect(hasEffectivePermission('hr', true, 'questions:read')).toBe(true);
-      expect(hasEffectivePermission('hr', true, 'interviews:read_own')).toBe(true);
-      expect(hasEffectivePermission('hr', true, 'interviews:create')).toBe(false);
-      expect(hasEffectivePermission('hr', true, 'interviews:update_own')).toBe(false);
+      expect(hasEffectivePermission('hr', true, 'interviews:read_own')).toBe(
+        true,
+      );
+      expect(hasEffectivePermission('hr', true, 'interviews:create')).toBe(
+        false,
+      );
+      expect(hasEffectivePermission('hr', true, 'interviews:update_own')).toBe(
+        false,
+      );
     });
 
     it('lets a demo user read templates but not mutate them', () => {
       expect(hasEffectivePermission('hr', true, 'templates:read')).toBe(true);
-      expect(hasEffectivePermission('hr', true, 'templates:create')).toBe(false);
-      expect(hasEffectivePermission('hr', true, 'templates:update')).toBe(false);
-      expect(hasEffectivePermission('hr', true, 'templates:delete')).toBe(false);
+      expect(hasEffectivePermission('hr', true, 'templates:create')).toBe(
+        false,
+      );
+      expect(hasEffectivePermission('hr', true, 'templates:update')).toBe(
+        false,
+      );
+      expect(hasEffectivePermission('hr', true, 'templates:delete')).toBe(
+        false,
+      );
       expect(getEffectivePermissions('hr', true)).toContain('templates:read');
-      expect(getEffectivePermissions('hr', true)).not.toContain('templates:create');
+      expect(getEffectivePermissions('hr', true)).not.toContain(
+        'templates:create',
+      );
     });
 
     it('still requires the underlying role permission even in read-only mode', () => {
-      expect(hasEffectivePermission('candidate', true, 'questions:read')).toBe(false);
-      expect(hasEffectivePermission('admin', true, 'questions:read')).toBe(true);
-      expect(hasEffectivePermission('admin', true, 'users:assign_role')).toBe(false);
+      expect(hasEffectivePermission('candidate', true, 'questions:read')).toBe(
+        false,
+      );
+      expect(hasEffectivePermission('admin', true, 'questions:read')).toBe(
+        true,
+      );
+      expect(hasEffectivePermission('admin', true, 'users:assign_role')).toBe(
+        false,
+      );
     });
 
     it('classifies every read-style permission as either demo-read-only or explicitly excluded', () => {
@@ -132,7 +156,9 @@ describe('permissions', () => {
 
     it('denies users:read to a demo account regardless of role', () => {
       expect(hasEffectivePermission('admin', true, 'users:read')).toBe(false);
-      expect(hasEffectivePermission('super_admin', true, 'users:read')).toBe(false);
+      expect(hasEffectivePermission('super_admin', true, 'users:read')).toBe(
+        false,
+      );
     });
   });
 });

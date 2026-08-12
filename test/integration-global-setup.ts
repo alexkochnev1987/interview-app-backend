@@ -1,5 +1,6 @@
 import './integration-env';
 import { Pool } from 'pg';
+
 import { DatabaseService } from '../src/database/database.service';
 import { runMigrations } from '../src/database/migration-runner';
 

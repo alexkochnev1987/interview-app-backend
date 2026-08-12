@@ -1,6 +1,7 @@
 import { ApiExtraModels, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, ValidateNested } from 'class-validator';
+
 import { Locale } from '../../locale/locale.constants';
 import { QuestionTranslationDto } from './question-translation.dto';
 

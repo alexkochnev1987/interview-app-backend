@@ -1,12 +1,14 @@
-import { mapDraftGenerateToCreateQuestionDto } from './recruiter-question-draft.mapper';
 import { QuestionDraftGenerate } from '../question-draft-content';
+import { mapDraftGenerateToCreateQuestionDto } from './recruiter-question-draft.mapper';
 
 describe('recruiter-question-draft.mapper', () => {
   it('maps a generated draft to CreateQuestionDto', () => {
     const draft: QuestionDraftGenerate = {
       questionText: 'Explain React hooks.',
       followUpQuestions: ['Which hook would you use?'],
-      expectedConcepts: [{ id: 'hooks', label: 'Hooks', weight: 1, description: 'Uses hooks' }],
+      expectedConcepts: [
+        { id: 'hooks', label: 'Hooks', weight: 1, description: 'Uses hooks' },
+      ],
       redFlags: [{ id: 'vague', label: 'Vague', severity: 'medium' }],
       difficulty: 'medium',
       weight: 1,

@@ -1,24 +1,26 @@
 import { ForbiddenException } from '@nestjs/common';
-import { InterviewService } from './interview.service';
+
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
+import { InterviewService } from './interview.service';
 
 describe('InterviewService management access', () => {
   function makeService(lockRow: Record<string, unknown>) {
-    const clientQuery = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-    const withTransaction = jest.fn(async (fn: (client: { query: jest.Mock }) => unknown) =>
-      fn({ query: clientQuery }),
+    const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+    const withTransaction = vi.fn(
+      async (fn: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
+        fn({ query: clientQuery }),
     );
     const databaseService = {
       withTransaction,
     } as unknown as DatabaseService;
     const questionService = {
-      hydrateStoredQuestionCore: jest.fn((question) => question),
-      processPendingDeletionsAfterTerminalInterview: jest.fn(),
+      hydrateStoredQuestionCore: vi.fn((question) => question),
+      processPendingDeletionsAfterTerminalInterview: vi.fn(),
     } as unknown as QuestionService;
     const mediaCleanupService = {
-      deleteInterviewMedia: jest.fn(),
+      deleteInterviewMedia: vi.fn(),
     } as unknown as MediaCleanupService;
 
     const service = new InterviewService(
@@ -27,8 +29,12 @@ describe('InterviewService management access', () => {
       mediaCleanupService,
     );
 
-    jest.spyOn(service as unknown as { lockInterviewForUpdate: jest.Mock }, 'lockInterviewForUpdate')
-      .mockResolvedValue(lockRow);
+    vi.spyOn(
+      service as unknown as {
+        lockInterviewForUpdate: ReturnType<typeof vi.fn>;
+      },
+      'lockInterviewForUpdate',
+    ).mockResolvedValue(lockRow);
 
     return { service, clientQuery, mediaCleanupService };
   }
@@ -54,7 +60,11 @@ describe('InterviewService management access', () => {
     const { service } = makeService(baseRow);
 
     await expect(
-      service.cancel('interview-1', { id: 'other-hr', role: 'hr', demo: false }),
+      service.cancel('interview-1', {
+        id: 'other-hr',
+        role: 'hr',
+        demo: false,
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -79,9 +89,9 @@ describe('InterviewService management access', () => {
       ...baseRow,
       status: 'completed',
     });
-    jest
-      .spyOn(mediaCleanupService, 'deleteInterviewMedia')
-      .mockRejectedValue(new Error('S3 unavailable'));
+    vi.spyOn(mediaCleanupService, 'deleteInterviewMedia').mockRejectedValue(
+      new Error('S3 unavailable'),
+    );
 
     await expect(
       service.deleteCompleted('interview-1', {
