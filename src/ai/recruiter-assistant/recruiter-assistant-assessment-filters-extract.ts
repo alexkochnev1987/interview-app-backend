@@ -9,7 +9,10 @@ const NAME_PATTERNS = [
 const POSITION_AFTER_FOR =
   /\b(?:assessments?|templates?)\s+for\s+(?:a\s+)?(.+?)(?:[.?!]|$)/i;
 
-function messageWithoutExtractedName(message: string, nameContains?: string): string {
+function messageWithoutExtractedName(
+  message: string,
+  nameContains?: string,
+): string {
   if (!nameContains) {
     return message;
   }

@@ -19,11 +19,17 @@ const CONTAINING_PATTERN = /\bcontaining\s+(.+?)(?:[.?!]|$)/i;
 const DIFFICULTIES = new Set<QuestionDifficulty>(['easy', 'medium', 'hard']);
 const STATUSES = new Set<string>(QUESTION_STATUS_VALUES);
 
-function trimField(value: string | undefined, maxLength: number): string | undefined {
+function trimField(
+  value: string | undefined,
+  maxLength: number,
+): string | undefined {
   if (!value) {
     return undefined;
   }
-  const trimmed = value.trim().replace(/[.?!]+$/, '').slice(0, maxLength);
+  const trimmed = value
+    .trim()
+    .replace(/[.?!]+$/, '')
+    .slice(0, maxLength);
   return trimmed.length > 0 ? trimmed : undefined;
 }
 

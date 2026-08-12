@@ -11,8 +11,7 @@ export function buildTeamSummaryFromRoleCounts(
     admin: counts.admin,
     hr: counts.hr,
     candidate: counts.candidate,
-    total:
-      counts.super_admin + counts.admin + counts.hr + counts.candidate,
+    total: counts.super_admin + counts.admin + counts.hr + counts.candidate,
   };
 }
 

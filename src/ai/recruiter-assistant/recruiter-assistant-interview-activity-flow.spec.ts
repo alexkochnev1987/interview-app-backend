@@ -66,8 +66,7 @@ describe('RecruiterAssistantToolsService interview activity summary', () => {
     );
     expect(result).toEqual({
       status: 'answered',
-      response:
-        'Your org has 7 interview(s): 3 active, 3 completed, 1 failed.',
+      response: 'Your org has 7 interview(s): 3 active, 3 completed, 1 failed.',
       interviewActivity: {
         pending: 2,
         inProgress: 1,

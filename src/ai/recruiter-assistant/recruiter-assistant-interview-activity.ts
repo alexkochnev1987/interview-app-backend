@@ -1,5 +1,5 @@
-import { FacetCount } from '../../interview/interview.service';
 import { ACTIVE_INTERVIEW_STATUSES } from '../../interview/interfaces/interview.interface';
+import { FacetCount } from '../../interview/interview.service';
 import { RecruiterAssistantInterviewActivityDto } from './dto/recruiter-assistant.dto';
 
 export function buildInterviewActivityFromStatusFacets(

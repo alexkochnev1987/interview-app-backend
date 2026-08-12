@@ -6,7 +6,9 @@ describe('extractAssessmentFilters', () => {
   });
 
   it('extracts position from "for" phrasing', () => {
-    expect(extractAssessmentFilters('list templates for Java engineer')).toEqual({
+    expect(
+      extractAssessmentFilters('list templates for Java engineer'),
+    ).toEqual({
       position: 'Java engineer',
     });
   });
@@ -18,13 +20,17 @@ describe('extractAssessmentFilters', () => {
   });
 
   it('extracts quoted assessment names', () => {
-    expect(extractAssessmentFilters('show assessments named "Senior React"')).toEqual({
+    expect(
+      extractAssessmentFilters('show assessments named "Senior React"'),
+    ).toEqual({
       nameContains: 'Senior React',
     });
   });
 
   it('extracts named assessment titles', () => {
-    expect(extractAssessmentFilters('list templates called Backend Basics')).toEqual({
+    expect(
+      extractAssessmentFilters('list templates called Backend Basics'),
+    ).toEqual({
       nameContains: 'Backend Basics',
     });
   });

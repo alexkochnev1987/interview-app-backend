@@ -6,7 +6,9 @@ describe('extractQuestionFilters', () => {
   });
 
   it('extracts difficulty', () => {
-    expect(extractQuestionFilters('how many hard questions do we have')).toEqual({
+    expect(
+      extractQuestionFilters('how many hard questions do we have'),
+    ).toEqual({
       difficulty: 'hard',
     });
   });
@@ -18,9 +20,11 @@ describe('extractQuestionFilters', () => {
   });
 
   it('extracts role from "for" phrasing', () => {
-    expect(extractQuestionFilters('count questions for Java engineer')).toEqual({
-      role: 'Java engineer',
-    });
+    expect(extractQuestionFilters('count questions for Java engineer')).toEqual(
+      {
+        role: 'Java engineer',
+      },
+    );
   });
 
   it('extracts tags', () => {
