@@ -341,7 +341,8 @@ export class RecruiterAssistantResponseDto {
 
   @ApiPropertyOptional({
     type: [AssignedHrDto],
-    description: 'HR reviewers to pick from during assign_hr flow.',
+    description:
+      'HR reviewers returned for assign_hr picker steps or the list_hrs intent.',
   })
   hrs?: AssignedHrDto[];
 

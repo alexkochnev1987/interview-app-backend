@@ -286,4 +286,58 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     });
     expect(userService.listAll).not.toHaveBeenCalled();
   });
+
+  it('clears assign_hr flow when no unassigned interviews exist', async () => {
+    interviewService.findAllPaginated.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+    });
+
+    const response = await service.prepareAssignHr(
+      { kind: 'assign_hr', interviewRef: {}, hrRef: {} },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(conversationStore.update).toHaveBeenLastCalledWith(
+      'admin-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'No unassigned interviews available.',
+      interviews: [],
+    });
+  });
+
+  it('clears assign_hr flow when no HR reviewers exist', async () => {
+    vi.mocked(resolveInterviewRef).mockResolvedValue(interview as never);
+    userService.listAll.mockResolvedValue([]);
+
+    const response = await service.prepareAssignHr(
+      {
+        kind: 'assign_hr',
+        interviewRef: { candidateName: 'Alice Smith' },
+        hrRef: {},
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(conversationStore.update).toHaveBeenLastCalledWith(
+      'admin-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'No HR reviewers available.',
+      hrs: [],
+    });
+  });
 });

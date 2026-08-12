@@ -2629,7 +2629,7 @@ export interface components {
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
             interviews?: components["schemas"]["InterviewListItemDto"][];
-            /** @description HR reviewers to pick from during assign_hr flow. */
+            /** @description HR reviewers returned for assign_hr picker steps or the list_hrs intent. */
             hrs?: components["schemas"]["AssignedHrDto"][];
             interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
         };
