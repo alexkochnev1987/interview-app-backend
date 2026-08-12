@@ -11,12 +11,16 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
+
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiErrorResponseDto } from '../../common/dto/api-error.response.dto';
+import { apiServiceUnavailable } from '../../common/errors/api-error';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { CurrentLocale } from '../../locale/decorators/current-locale.decorator';
 import { Locale } from '../../locale/locale.constants';
 import { User } from '../../user/interfaces/user.interface';
+import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantChatDto,
@@ -24,11 +28,8 @@ import {
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
-import { RecruiterAssistantService } from './recruiter-assistant.service';
-import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
-import { ApiErrorCode } from '../../common/errors/api-error.codes';
-import { apiServiceUnavailable } from '../../common/errors/api-error';
 import { isRecruiterAssistantEnabled } from './recruiter-assistant-env';
+import { RecruiterAssistantService } from './recruiter-assistant.service';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -90,7 +91,9 @@ export class RecruiterAssistantController {
   @ApiOkResponse({ type: RecruiterAssistantResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
-  resetChat(@CurrentUser() user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+  resetChat(
+    @CurrentUser() user: ActingUser,
+  ): Promise<RecruiterAssistantResponseDto> {
     if (!isRecruiterAssistantEnabled()) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,

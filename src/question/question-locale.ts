@@ -1,6 +1,6 @@
-import { DEFAULT_LOCALE, Locale, isLocale } from '../locale/locale.constants';
 import { apiBadRequest } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DEFAULT_LOCALE, Locale, isLocale } from '../locale/locale.constants';
 import {
   QuestionExpectedConcept,
   QuestionRedFlag,
@@ -75,7 +75,9 @@ export interface QuestionLegacyFields {
   sampleGoodAnswer?: string;
 }
 
-export function buildTranslation(fields: QuestionLegacyFields): QuestionTranslation {
+export function buildTranslation(
+  fields: QuestionLegacyFields,
+): QuestionTranslation {
   return {
     questionText: fields.questionText,
     followUpQuestions: fields.followUpQuestions,
@@ -100,7 +102,9 @@ export function mergeTranslations(
 
 const RED_FLAG_SEVERITIES = new Set(['low', 'medium', 'high']);
 
-function parseStoredExpectedConcepts(items: unknown): QuestionExpectedConcept[] | undefined {
+function parseStoredExpectedConcepts(
+  items: unknown,
+): QuestionExpectedConcept[] | undefined {
   if (!Array.isArray(items)) {
     return undefined;
   }
@@ -166,7 +170,12 @@ export function parseTranslationsJson(value: unknown): QuestionTranslations {
 
   const translations: QuestionTranslations = {};
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (!isLocale(key) || !entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    if (
+      !isLocale(key) ||
+      !entry ||
+      typeof entry !== 'object' ||
+      Array.isArray(entry)
+    ) {
       continue;
     }
     const record = entry as Record<string, unknown>;
@@ -175,7 +184,9 @@ export function parseTranslationsJson(value: unknown): QuestionTranslations {
     if (!questionText) {
       continue;
     }
-    const expectedConcepts = parseStoredExpectedConcepts(record.expectedConcepts);
+    const expectedConcepts = parseStoredExpectedConcepts(
+      record.expectedConcepts,
+    );
     const redFlags = parseStoredRedFlags(record.redFlags);
     translations[key] = {
       questionText,
@@ -219,14 +230,18 @@ export function resolveQuestionFields(
   primaryLocale: Locale,
   translations: QuestionTranslations,
   legacy: QuestionLegacyFields,
-): QuestionLegacyFields & { primaryLocale: Locale; translations: QuestionTranslations } {
+): QuestionLegacyFields & {
+  primaryLocale: Locale;
+  translations: QuestionTranslations;
+} {
   const localized = translations[primaryLocale];
   if (localized?.questionText) {
     return {
       primaryLocale,
       translations,
       questionText: localized.questionText,
-      followUpQuestions: localized.followUpQuestions ?? legacy.followUpQuestions,
+      followUpQuestions:
+        localized.followUpQuestions ?? legacy.followUpQuestions,
       expectedConcepts: localized.expectedConcepts ?? legacy.expectedConcepts,
       redFlags: localized.redFlags ?? legacy.redFlags,
       sampleGoodAnswer: localized.sampleGoodAnswer ?? legacy.sampleGoodAnswer,

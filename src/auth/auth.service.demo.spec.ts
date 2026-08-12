@@ -1,8 +1,9 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { AuthService } from './auth.service';
+
 import { UserService } from '../user/user.service';
+import { AuthService } from './auth.service';
 
 describe('AuthService demoLogin', () => {
   function buildService(userService: Partial<UserService>) {
@@ -24,8 +25,8 @@ describe('AuthService demoLogin', () => {
     };
     const publicUser = { ...demoUser } as Omit<typeof demoUser, 'passwordHash'>;
     const moduleRef = await buildService({
-      findDemoUser: jest.fn().mockResolvedValue(demoUser),
-      toPublicUser: jest.fn().mockReturnValue(publicUser),
+      findDemoUser: vi.fn().mockResolvedValue(demoUser),
+      toPublicUser: vi.fn().mockReturnValue(publicUser),
     });
     const authService = moduleRef.get(AuthService);
 
@@ -34,7 +35,7 @@ describe('AuthService demoLogin', () => {
 
   it('throws when no demo user is seeded', async () => {
     const moduleRef = await buildService({
-      findDemoUser: jest.fn().mockResolvedValue(undefined),
+      findDemoUser: vi.fn().mockResolvedValue(undefined),
     });
     const authService = moduleRef.get(AuthService);
 

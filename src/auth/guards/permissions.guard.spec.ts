@@ -1,14 +1,16 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PermissionsGuard } from './permissions.guard';
+import type { Mocked } from 'vitest';
+
 import { mockExecutionContext } from '../../test/mock-execution-context';
+import { PermissionsGuard } from './permissions.guard';
 
 describe('PermissionsGuard', () => {
-  let reflector: jest.Mocked<Pick<Reflector, 'getAllAndOverride'>>;
+  let reflector: Mocked<Pick<Reflector, 'getAllAndOverride'>>;
   let guard: PermissionsGuard;
 
   beforeEach(() => {
-    reflector = { getAllAndOverride: jest.fn() };
+    reflector = { getAllAndOverride: vi.fn() };
     guard = new PermissionsGuard(reflector as unknown as Reflector);
   });
 

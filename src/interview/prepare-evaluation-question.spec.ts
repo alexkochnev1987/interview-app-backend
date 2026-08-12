@@ -1,7 +1,9 @@
-import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
 import { InterviewQuestion } from './interfaces/interview.interface';
+import { prepareQuestionForEvaluation } from './prepare-evaluation-question';
 
-function question(overrides: Partial<InterviewQuestion> = {}): InterviewQuestion {
+function question(
+  overrides: Partial<InterviewQuestion> = {},
+): InterviewQuestion {
   return {
     id: 'q1',
     primaryLocale: 'en',

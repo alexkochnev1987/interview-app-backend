@@ -23,7 +23,10 @@ export function collectRubricHumanReadableTexts(draft: {
     .filter(Boolean);
 }
 
-export function rubricTextsMatchLocale(locale: Locale, texts: string[]): boolean {
+export function rubricTextsMatchLocale(
+  locale: Locale,
+  texts: string[],
+): boolean {
   if (texts.length === 0) {
     return false;
   }

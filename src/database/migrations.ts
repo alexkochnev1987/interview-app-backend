@@ -603,7 +603,8 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   {
     version: '0030',
     name: 'questions_translations_primary_locale_check',
-    rollbackStatements: QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
+    rollbackStatements:
+      QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
     statements: [
       `
         DO $$

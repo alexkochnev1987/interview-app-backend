@@ -1,12 +1,19 @@
-import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { apiForbidden, apiUnauthorized } from '../common/errors/api-error';
-import { AppConfigService } from '../app-config/app-config.service';
-import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
-import { UserService } from '../user/user.service';
+
+import {
+  BadRequestException,
+  Injectable,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+
+import { AppConfigService } from '../app-config/app-config.service';
+import { apiForbidden, apiUnauthorized } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { User } from '../user/interfaces/user.interface';
 import { UserRole } from '../user/interfaces/user.interface';
+import { UserService } from '../user/user.service';
 import { CANDIDATE_SESSION_TTL_MS } from './candidate-session';
 import { RegisterDto } from './dto/register.dto';
 
@@ -29,15 +36,24 @@ export class AuthService {
     @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'>> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<Omit<User, 'passwordHash'>> {
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
+      throw apiUnauthorized(
+        ApiErrorCode.INVALID_CREDENTIALS,
+        'Invalid credentials',
+      );
     }
 
     const isValid = await this.userService.validatePassword(user, password);
     if (!isValid) {
-      throw apiUnauthorized(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid credentials');
+      throw apiUnauthorized(
+        ApiErrorCode.INVALID_CREDENTIALS,
+        'Invalid credentials',
+      );
     }
 
     return this.userService.toPublicUser(user);
@@ -61,8 +77,13 @@ export class AuthService {
     name: string,
     pictureUrl?: string,
   ): Promise<Omit<User, 'passwordHash'>> {
-    if (await this.appConfig?.getBoolean('ENABLE_GOOGLE_OAUTH', true) === false) {
-      throw apiForbidden(ApiErrorCode.FORBIDDEN, 'Google OAuth is currently disabled');
+    if (
+      (await this.appConfig?.getBoolean('ENABLE_GOOGLE_OAUTH', true)) === false
+    ) {
+      throw apiForbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Google OAuth is currently disabled',
+      );
     }
 
     const existing = await this.userService.findByEmail(email);
@@ -86,13 +107,19 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<Omit<User, 'passwordHash'>> {
     if (await this.appConfig?.getBoolean('DISABLE_USER_REGISTRATION', false)) {
-      throw apiForbidden(ApiErrorCode.FORBIDDEN, 'User registration is temporarily disabled');
+      throw apiForbidden(
+        ApiErrorCode.FORBIDDEN,
+        'User registration is temporarily disabled',
+      );
     }
 
     // Self-registration must never grant elevated roles. Both privileged-email
     // and already-registered cases return the same generic 400 (not a 409) to
     // avoid leaking which addresses are taken or privileged.
-    if (this.isSuperAdminEmail(dto.email) || (await this.userService.findByEmail(dto.email))) {
+    if (
+      this.isSuperAdminEmail(dto.email) ||
+      (await this.userService.findByEmail(dto.email))
+    ) {
       throw new BadRequestException('Unable to complete registration');
     }
 
@@ -138,8 +165,7 @@ export class AuthService {
   }
 
   private isSuperAdminEmail(email: string): boolean {
-    const configured = process.env.SUPER_ADMIN_EMAILS
-      ?.split(',')
+    const configured = process.env.SUPER_ADMIN_EMAILS?.split(',')
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean);
 

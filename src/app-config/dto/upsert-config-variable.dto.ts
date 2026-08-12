@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
@@ -7,11 +8,11 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpsertConfigVariableDto {
   @ApiProperty({
-    description: 'Variable value as string (numbers and booleans are stored as text)',
+    description:
+      'Variable value as string (numbers and booleans are stored as text)',
     example: '240',
   })
   @IsString()
@@ -38,7 +39,8 @@ export class UpsertConfigVariableDto {
   options?: string[];
 
   @ApiPropertyOptional({
-    description: 'Whether this variable is exposed to the frontend via GET /config/public',
+    description:
+      'Whether this variable is exposed to the frontend via GET /config/public',
     default: false,
   })
   @IsOptional()
@@ -55,7 +57,8 @@ export class UpsertConfigVariableDto {
 
   @ApiPropertyOptional({
     description: 'Human-readable English description shown in Super Admin UI',
-    example: 'Maximum candidate video response recording limit in seconds per question',
+    example:
+      'Maximum candidate video response recording limit in seconds per question',
   })
   @IsOptional()
   @IsString()

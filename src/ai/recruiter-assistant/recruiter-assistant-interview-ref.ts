@@ -1,5 +1,8 @@
+import {
+  Interview,
+  InterviewActor,
+} from '../../interview/interfaces/interview.interface';
 import { InterviewService } from '../../interview/interview.service';
-import { Interview, InterviewActor } from '../../interview/interfaces/interview.interface';
 import { pickUniqueByPersonName } from './recruiter-assistant-name-match';
 import { InterviewRef } from './recruiter-assistant.types';
 
@@ -17,7 +20,8 @@ export async function resolveInterviewRef(
     }
   }
 
-  const searchTerm = ref.candidateName ?? options?.candidateEmail?.split('@')[0];
+  const searchTerm =
+    ref.candidateName ?? options?.candidateEmail?.split('@')[0];
   if (!searchTerm) {
     return null;
   }

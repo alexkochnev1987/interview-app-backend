@@ -1,5 +1,4 @@
 import { getAnswerValidationSubmissionBlockReason } from '../interview/answer-validation-rules';
-import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 import {
   Answer,
   AnswerEvaluation,
@@ -8,6 +7,7 @@ import {
   InterviewStatus,
 } from '../interview/interfaces/interview.interface';
 import { isTerminalInterviewStatus } from '../interview/interview-management-rules';
+import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 
 export const CANDIDATE_FEEDBACK_TERMINAL_INTERVIEW_MESSAGE =
   'Candidate feedback is only available after the interview is completed or failed';
@@ -172,10 +172,7 @@ function isSubstantiveBoilerplateRemainder(remainder: string): boolean {
 }
 
 function normalizeBoilerplateText(text: string): string {
-  return text
-    .replace(/İ/g, 'i')
-    .replace(/I/g, 'i')
-    .toLocaleLowerCase('tr');
+  return text.replace(/İ/g, 'i').replace(/I/g, 'i').toLocaleLowerCase('tr');
 }
 
 function textMatchesBoilerplatePattern(text: string, pattern: RegExp): boolean {
@@ -253,7 +250,9 @@ export function isUnusableTranscript(text: string | undefined): boolean {
   return false;
 }
 
-function hasUsableEvaluation(evaluation: AnswerEvaluation | undefined): boolean {
+function hasUsableEvaluation(
+  evaluation: AnswerEvaluation | undefined,
+): boolean {
   if (!evaluation) {
     return false;
   }
@@ -266,7 +265,9 @@ function hasUsableEvaluation(evaluation: AnswerEvaluation | undefined): boolean 
   );
 }
 
-function resolvePrimaryScore(evaluation: AnswerEvaluation | undefined): number | undefined {
+function resolvePrimaryScore(
+  evaluation: AnswerEvaluation | undefined,
+): number | undefined {
   if (!evaluation) {
     return undefined;
   }
@@ -385,7 +386,10 @@ export function classifyQuestionFeedbackGeneration(
   };
 }
 
-export type OverallFeedbackToneMode = 'balanced' | 'growth_focused' | 'honest_weak';
+export type OverallFeedbackToneMode =
+  | 'balanced'
+  | 'growth_focused'
+  | 'honest_weak';
 
 /** Decision-only fallback when no per-question blocks are available yet. */
 export function classifyOverallFeedbackToneMode(

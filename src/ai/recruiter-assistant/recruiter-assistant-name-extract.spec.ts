@@ -35,7 +35,9 @@ describe('extractCandidateNameFromCreateRequest', () => {
 
   it('captures explicit candidate names', () => {
     expect(
-      extractCandidateNameFromCreateRequest('prepare interview for Alice Smith'),
+      extractCandidateNameFromCreateRequest(
+        'prepare interview for Alice Smith',
+      ),
     ).toBe('Alice Smith');
   });
 });

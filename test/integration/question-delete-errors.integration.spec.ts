@@ -1,11 +1,16 @@
 import { INestApplication } from '@nestjs/common';
+
 import { DatabaseService } from '../../src/database/database.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import {
   getIntegrationApp,
   type IntegrationAgent,
 } from '../helpers/integration-app';
-import { authCookie, loginAsStaffAdmin, loginAsSuperAdmin } from '../helpers/integration-auth';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
+import {
+  authCookie,
+  loginAsStaffAdmin,
+  loginAsSuperAdmin,
+} from '../helpers/integration-auth';
 import { updateInterviewStatus } from '../helpers/integration-db';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 

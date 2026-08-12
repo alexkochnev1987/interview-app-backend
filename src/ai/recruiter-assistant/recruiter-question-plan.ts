@@ -47,7 +47,8 @@ function positionSpecificTopics(position: string): QuestionTopic[] {
   if (position === 'Backend Developer') {
     return [
       {
-        questionText: 'How would you design a reliable REST API for a high-traffic service?',
+        questionText:
+          'How would you design a reliable REST API for a high-traffic service?',
         category: 'backend',
         subcategory: 'api-design',
         tags: ['backend', 'api', 'architecture'],
@@ -56,7 +57,8 @@ function positionSpecificTopics(position: string): QuestionTopic[] {
           'A strong answer covers resource boundaries, validation, pagination, idempotency, observability, and backwards-compatible versioning.',
       },
       {
-        questionText: 'Explain how you would handle database transactions in a service with concurrent writes.',
+        questionText:
+          'Explain how you would handle database transactions in a service with concurrent writes.',
         category: 'backend',
         subcategory: 'database',
         tags: ['backend', 'database', 'transactions'],
@@ -65,11 +67,16 @@ function positionSpecificTopics(position: string): QuestionTopic[] {
           'A strong answer explains transaction scope, isolation, locking, retries, and how to avoid duplicate side effects.',
       },
       {
-        questionText: 'How would you design background job processing for delayed and retryable tasks?',
+        questionText:
+          'How would you design background job processing for delayed and retryable tasks?',
         category: 'backend',
         subcategory: 'queues',
         tags: ['backend', 'queues', 'reliability'],
-        expectedConcepts: ['retry policy', 'dead-letter queue', 'idempotent workers'],
+        expectedConcepts: [
+          'retry policy',
+          'dead-letter queue',
+          'idempotent workers',
+        ],
         sampleGoodAnswer:
           'A strong answer covers queue semantics, retry backoff, dead-letter handling, idempotency, monitoring, and operational recovery.',
       },
@@ -113,7 +120,11 @@ function genericTopics(position: string): QuestionTopic[] {
       category: 'software-engineering',
       subcategory: 'testing',
       tags: ['testing', 'quality', 'risk'],
-      expectedConcepts: ['risk-based testing', 'unit tests', 'integration tests'],
+      expectedConcepts: [
+        'risk-based testing',
+        'unit tests',
+        'integration tests',
+      ],
       sampleGoodAnswer:
         'A strong answer ties test scope to risk and explains what belongs in unit, integration, and end-to-end tests.',
     },
@@ -131,7 +142,11 @@ function genericTopics(position: string): QuestionTopic[] {
       category: 'software-engineering',
       subcategory: 'delivery',
       tags: ['delivery', 'trade-offs', 'communication'],
-      expectedConcepts: ['scope control', 'risk communication', 'follow-up work'],
+      expectedConcepts: [
+        'scope control',
+        'risk communication',
+        'follow-up work',
+      ],
       sampleGoodAnswer:
         'A strong answer explains constraints, options considered, risk communication, and how technical debt was managed after delivery.',
     },
@@ -158,7 +173,11 @@ function genericTopics(position: string): QuestionTopic[] {
       category: 'software-engineering',
       subcategory: 'security',
       tags: ['security', 'validation', 'access-control'],
-      expectedConcepts: ['input validation', 'authorization', 'data protection'],
+      expectedConcepts: [
+        'input validation',
+        'authorization',
+        'data protection',
+      ],
       sampleGoodAnswer:
         'A strong answer covers validation, authorization, secrets, sensitive data, dependency risk, and secure defaults.',
     },
@@ -185,7 +204,11 @@ function genericTopics(position: string): QuestionTopic[] {
       category: 'software-engineering',
       subcategory: 'simplicity',
       tags: ['simplicity', 'refactoring', 'design'],
-      expectedConcepts: ['complexity reduction', 'behavior preservation', 'tests'],
+      expectedConcepts: [
+        'complexity reduction',
+        'behavior preservation',
+        'tests',
+      ],
       sampleGoodAnswer:
         'A strong answer explains the original complexity, the simpler design, how behavior was preserved, and what improved afterward.',
     },

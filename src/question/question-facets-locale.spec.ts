@@ -3,7 +3,9 @@ import { QuestionService } from './question.service';
 describe('GET /questions/facets filters (BE-010)', () => {
   const service = Object.create(QuestionService.prototype) as QuestionService;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buildFilters = (service as any).buildQuestionFilterClauses.bind(service);
+  const buildFilters = (service as any).buildQuestionFilterClauses.bind(
+    service,
+  );
 
   it('applies locale translation filter like list', () => {
     const { whereSql, params } = buildFilters(
@@ -14,7 +16,7 @@ describe('GET /questions/facets filters (BE-010)', () => {
     expect(whereSql).toContain('translations_json');
     expect(params).toContain('pl');
     expect(whereSql).toContain('deleted = FALSE');
-    expect(whereSql).toContain("translations_json -> $");
+    expect(whereSql).toContain('translations_json -> $');
     expect(whereSql).not.toMatch(/primary_locale = \$1\s*OR/);
   });
 

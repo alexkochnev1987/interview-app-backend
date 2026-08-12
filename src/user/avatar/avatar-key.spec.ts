@@ -62,9 +62,7 @@ describe('avatar-key', () => {
         timestamp: 1700000000000,
       });
 
-      expect(matchesUserAvatarKey({ avatarKey, userId: 'user-2' })).toBe(
-        false,
-      );
+      expect(matchesUserAvatarKey({ avatarKey, userId: 'user-2' })).toBe(false);
     });
 
     it('rejects an unsupported extension', () => {

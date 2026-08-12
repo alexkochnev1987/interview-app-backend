@@ -19,10 +19,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Response } from 'express';
+
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
-import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ApiErrorResponseDto } from '../../common/dto/api-error.response.dto';
 import { User } from '../interfaces/user.interface';
 import { AvatarService } from './avatar.service';
@@ -94,7 +95,7 @@ export class AvatarController {
 
   @Get(':id/avatar')
   @RequirePermissions('users:read_profile')
-  @ApiOperation({ summary: 'Redirect to a presigned URL for a user\'s avatar' })
+  @ApiOperation({ summary: "Redirect to a presigned URL for a user's avatar" })
   @ApiParam({ name: 'id' })
   @ApiFoundResponse({ description: 'Redirects to a short-lived S3 URL' })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })

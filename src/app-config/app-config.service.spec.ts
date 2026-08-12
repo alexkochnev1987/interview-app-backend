@@ -1,21 +1,24 @@
-import { AppConfigService } from './app-config.service';
+import { vi } from 'vitest';
+import type { Mocked } from 'vitest';
+
 import { DatabaseService } from '../database/database.service';
+import { AppConfigService } from './app-config.service';
 
 describe('AppConfigService', () => {
   let service: AppConfigService;
-  let mockDb: jest.Mocked<DatabaseService>;
+  let mockDb: Mocked<DatabaseService>;
 
   beforeEach(() => {
     mockDb = {
-      query: jest.fn(),
-      onModuleDestroy: jest.fn(),
-    } as unknown as jest.Mocked<DatabaseService>;
+      query: vi.fn(),
+      onModuleDestroy: vi.fn(),
+    } as unknown as Mocked<DatabaseService>;
 
     service = new AppConfigService(mockDb);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete process.env.TEST_CONFIG_KEY;
   });
 
@@ -298,7 +301,9 @@ describe('AppConfigService', () => {
         fields: [],
       });
 
-      const deleted = await service.deleteVariable('MAX_ANSWER_DURATION_SECONDS');
+      const deleted = await service.deleteVariable(
+        'MAX_ANSWER_DURATION_SECONDS',
+      );
       expect(deleted).toBe(false);
     });
   });

@@ -1,5 +1,5 @@
-import { toUserProfileForActor } from './user-profile';
 import { UserRole } from './interfaces/user.interface';
+import { toUserProfileForActor } from './user-profile';
 
 describe('toUserProfileForActor', () => {
   const target = {

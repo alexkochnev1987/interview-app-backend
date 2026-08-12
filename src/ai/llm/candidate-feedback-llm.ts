@@ -1,17 +1,14 @@
+import type { QuestionFeedbackToneMode } from '../../feedback/candidate-feedback-eligibility';
 import type {
   AnswerBehaviorSignals,
   AnswerDecisionHint,
   InterviewQuestion,
 } from '../../interview/interfaces/interview.interface';
-import type { QuestionFeedbackToneMode } from '../../feedback/candidate-feedback-eligibility';
 import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';
-import {
-  isPlainRecord,
-  parseJsonFromModelOutput,
-} from './parse-model-json';
+import { isPlainRecord, parseJsonFromModelOutput } from './parse-model-json';
 
 export interface RawCandidateFeedbackQuestion {
   recommendationText: string;

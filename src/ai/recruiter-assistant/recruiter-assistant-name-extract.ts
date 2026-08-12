@@ -1,5 +1,4 @@
-const PERSON_NAME =
-  `[\\p{L}'][\\p{L}'-]*(?:\\s+[\\p{L}'][\\p{L}'-]*){0,2}`;
+const PERSON_NAME = `[\\p{L}'][\\p{L}'-]*(?:\\s+[\\p{L}'][\\p{L}'-]*){0,2}`;
 
 const ROLE_TITLE_WORDS = new Set([
   'a',
@@ -104,7 +103,10 @@ function firstCapture(message: string, patterns: RegExp[]): string | undefined {
   return undefined;
 }
 
-function firstCaptureAllowRole(message: string, patterns: RegExp[]): string | undefined {
+function firstCaptureAllowRole(
+  message: string,
+  patterns: RegExp[],
+): string | undefined {
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
@@ -117,7 +119,9 @@ function firstCaptureAllowRole(message: string, patterns: RegExp[]): string | un
   return undefined;
 }
 
-export function extractInterviewCandidateName(message: string): string | undefined {
+export function extractInterviewCandidateName(
+  message: string,
+): string | undefined {
   return firstCaptureAllowRole(message, [
     new RegExp(
       `\\bassign\\b(?:.*?)\\binterview\\b\\s+for\\s+(${PERSON_NAME})\\s+to\\b`,
@@ -158,6 +162,9 @@ export function extractCandidateNameFromCreateRequest(
     new RegExp(`\\binterview\\s+for\\s+(${PERSON_NAME})\\s+for\\b`, 'iu'),
     new RegExp(`\\binterview\\s+for\\s+(${PERSON_NAME})\\b`, 'iu'),
     new RegExp(`\\bcandidate\\s+(?!email\\b)(${PERSON_NAME})\\b`, 'iu'),
-    new RegExp(`\\b(?:for|кандидат(?:а|у)?|для кандидата)\\s+(${PERSON_NAME})\\b`, 'iu'),
+    new RegExp(
+      `\\b(?:for|кандидат(?:а|у)?|для кандидата)\\s+(${PERSON_NAME})\\b`,
+      'iu',
+    ),
   ]);
 }

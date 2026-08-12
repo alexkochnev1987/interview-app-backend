@@ -47,7 +47,9 @@ describe('pickUniqueByPersonName', () => {
   ];
 
   it('returns null for an empty list', () => {
-    expect(pickUniqueByPersonName<Person>([], 'Alice', (item) => item.name)).toBeNull();
+    expect(
+      pickUniqueByPersonName<Person>([], 'Alice', (item) => item.name),
+    ).toBeNull();
   });
 
   it('returns null when the only item does not meet the score floor', () => {

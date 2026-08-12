@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+
 import { ALL_ROLES } from '../../auth/role-policy';
 import { UserRole } from '../interfaces/user.interface';
 

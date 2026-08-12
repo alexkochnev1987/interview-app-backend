@@ -24,7 +24,9 @@ export const ASSIGNABLE_BY: Record<UserRole, UserRole[]> = {
   candidate: [],
 };
 
-export const ALL_ROLES: readonly UserRole[] = Object.keys(ROLE_RANK) as UserRole[];
+export const ALL_ROLES: readonly UserRole[] = Object.keys(
+  ROLE_RANK,
+) as UserRole[];
 
 export function outranks(actor: UserRole, target: UserRole): boolean {
   return ROLE_RANK[actor] > ROLE_RANK[target];

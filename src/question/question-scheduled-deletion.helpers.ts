@@ -21,7 +21,9 @@ export function buildScheduledDeleteReason(
     return 'Question is scheduled for deletion when related active interviews finish.';
   }
 
-  const links = blockingInterviews.map((interview) => interview.href).join(', ');
+  const links = blockingInterviews
+    .map((interview) => interview.href)
+    .join(', ');
   return `Question is scheduled for deletion when these active interviews finish: ${links}`;
 }
 

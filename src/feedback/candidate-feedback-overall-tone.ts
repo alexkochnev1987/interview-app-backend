@@ -1,11 +1,14 @@
-import type { Interview, InterviewDecision } from '../interview/interfaces/interview.interface';
+import type {
+  Interview,
+  InterviewDecision,
+} from '../interview/interfaces/interview.interface';
 import {
   classifyQuestionFeedbackGeneration,
   classifyOverallFeedbackToneMode,
   type OverallFeedbackToneMode,
 } from './candidate-feedback-eligibility';
-import type { CandidateFeedbackQuestion } from './interfaces/candidate-feedback.interface';
 import { isQuestionFeedbackEligibilitySkipReason } from './candidate-feedback-eligibility';
+import type { CandidateFeedbackQuestion } from './interfaces/candidate-feedback.interface';
 
 export type ContributingQuestionTone =
   | 'balanced'
@@ -65,7 +68,8 @@ export function buildOverallInterviewMixMetadata(
   contributions: ContributingQuestionTone[],
 ): OverallInterviewMixMetadata {
   return {
-    answeredWellCount: contributions.filter((tone) => tone === 'balanced').length,
+    answeredWellCount: contributions.filter((tone) => tone === 'balanced')
+      .length,
     noSubstantiveAnswerCount: contributions.filter(
       (tone) => tone === 'no_substantive',
     ).length,
@@ -84,11 +88,16 @@ export function classifyOverallToneFromQuestionBlocks(
     return classifyOverallFeedbackToneMode(decision);
   }
 
-  if (decision === 'reject' || contributions.some((tone) => tone === 'honest_weak')) {
+  if (
+    decision === 'reject' ||
+    contributions.some((tone) => tone === 'honest_weak')
+  ) {
     return 'honest_weak';
   }
 
-  const hasSkipTemplate = contributions.some((tone) => tone === 'no_substantive');
+  const hasSkipTemplate = contributions.some(
+    (tone) => tone === 'no_substantive',
+  );
   const weakQuestionCount = contributions.filter(
     (tone) => tone === 'honest_weak' || tone === 'growth_focused',
   ).length;

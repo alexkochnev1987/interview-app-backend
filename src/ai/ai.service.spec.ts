@@ -1,15 +1,18 @@
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { AiService } from './ai.service';
 import * as aiEnv from './llm/ai-env';
 import * as questionDraftLlm from './llm/question-draft-llm';
 import * as translateDraftLlm from './llm/question-draft-translate-llm';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import {
+  QuestionDraftContent,
+  QuestionDraftGenerate,
+} from './question-draft-content';
 import {
   collectRubricHumanReadableTexts,
   conceptAndRedFlagIdsAreLatinSnakeCase,
   draftRubricMatchesLocale,
   rubricTextsMatchLocale,
 } from './question-draft-rubric-locale';
-import { QuestionDraftContent, QuestionDraftGenerate } from './question-draft-content';
 
 function assertGenerateDraft(
   draft: QuestionDraftGenerate | QuestionDraftContent,
@@ -35,12 +38,17 @@ describe('draftRubricMatchesLocale', () => {
           description: 'should be explicitly covered',
         },
       ],
-      redFlags: [{ id: 'red_flag_1', label: 'Generic answer', severity: 'medium' }],
-      sampleGoodAnswer: 'A strong answer should explain the idea in simple terms.',
+      redFlags: [
+        { id: 'red_flag_1', label: 'Generic answer', severity: 'medium' },
+      ],
+      sampleGoodAnswer:
+        'A strong answer should explain the idea in simple terms.',
     });
 
     expect(rubricTextsMatchLocale('ru', rubricOnly)).toBe(false);
-    expect(rubricTextsMatchLocale('ru', ['замыкание', ...rubricOnly])).toBe(true);
+    expect(rubricTextsMatchLocale('ru', ['замыкание', ...rubricOnly])).toBe(
+      true,
+    );
   });
 
   it('requires Belarusian glyphs for be locale', () => {
@@ -60,9 +68,24 @@ describe('AiService.draftQuestion', () => {
     primaryLocale: 'ru' as const,
     followUpQuestions: ['Можете привести пример?', 'Какую ошибку избегаете?'],
     expectedConcepts: [
-      { id: 'dom_model', label: 'модель DOM', weight: 0.34, description: 'структура' },
-      { id: 'rendering', label: 'отрисовка', weight: 0.33, description: 'обновления' },
-      { id: 'practical_use', label: 'практика', weight: 0.33, description: 'пример' },
+      {
+        id: 'dom_model',
+        label: 'модель DOM',
+        weight: 0.34,
+        description: 'структура',
+      },
+      {
+        id: 'rendering',
+        label: 'отрисовка',
+        weight: 0.33,
+        description: 'обновления',
+      },
+      {
+        id: 'practical_use',
+        label: 'практика',
+        weight: 0.33,
+        description: 'пример',
+      },
     ],
     redFlags: [
       { id: 'confuses_dom', label: 'Путает DOM', severity: 'medium' as const },
@@ -78,8 +101,8 @@ describe('AiService.draftQuestion', () => {
   beforeEach(() => {
     delete process.env.AI_API_URL;
     delete process.env.AI_PROVIDER;
-    jest.restoreAllMocks();
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue(null);
+    vi.restoreAllMocks();
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue(null);
   });
 
   afterAll(() => {
@@ -118,12 +141,12 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('rejects English LLM rubric for locale ru and falls back to localized heuristic', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'openai',
       apiKey: 'test-key',
       model: 'gpt-4o-mini',
     });
-    const generate = jest
+    const generate = vi
       .spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm')
       .mockResolvedValue({
         externalId: 'javascript_closures_v1',
@@ -183,12 +206,15 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('generate mode returns identity fields from LLM when rubric locale matches', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'openai',
       apiKey: 'test-key',
       model: 'gpt-4o-mini',
     });
-    jest.spyOn(questionDraftLlm, 'generateQuestionDraftWithNativeLlm').mockResolvedValue({
+    vi.spyOn(
+      questionDraftLlm,
+      'generateQuestionDraftWithNativeLlm',
+    ).mockResolvedValue({
       externalId: 'javascript_closures_v1',
       role: 'junior engineer',
       focus: 'fundamentals',
@@ -220,7 +246,11 @@ describe('AiService.draftQuestion', () => {
         },
       ],
       redFlags: [
-        { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+        {
+          id: 'confuses_scope',
+          label: 'Путает область видимости',
+          severity: 'medium',
+        },
         { id: 'no_example', label: 'Нет примера', severity: 'high' },
       ],
       difficulty: 'easy',
@@ -246,20 +276,35 @@ describe('AiService.draftQuestion', () => {
   });
 
   it('translate mode uses native LLM for full content block', async () => {
-    jest.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
+    vi.spyOn(aiEnv, 'resolveNativeProvider').mockReturnValue({
       kind: 'google',
       apiKey: 'AQ.test-key',
       model: 'gemini-2.5-flash-lite',
     });
-    const translate = jest
+    const translate = vi
       .spyOn(translateDraftLlm, 'translateQuestionContentWithNativeLlm')
       .mockResolvedValue({
         questionText: 'Co to jest DOM?',
         followUpQuestions: ['Przykład?', 'Błąd?'],
         expectedConcepts: [
-          { id: 'dom_model', label: 'model DOM', weight: 0.34, description: 'struktura' },
-          { id: 'rendering', label: 'odświeżanie', weight: 0.33, description: 'aktualizacje' },
-          { id: 'practical_use', label: 'praktyka', weight: 0.33, description: 'przykład' },
+          {
+            id: 'dom_model',
+            label: 'model DOM',
+            weight: 0.34,
+            description: 'struktura',
+          },
+          {
+            id: 'rendering',
+            label: 'odświeżanie',
+            weight: 0.33,
+            description: 'aktualizacje',
+          },
+          {
+            id: 'practical_use',
+            label: 'praktyka',
+            weight: 0.33,
+            description: 'przykład',
+          },
         ],
         redFlags: [
           { id: 'confuses_dom', label: 'Myli DOM', severity: 'medium' },
@@ -282,7 +327,7 @@ describe('AiService.draftQuestion', () => {
 
   it('translate mode returns 503 when AI returns unusable content', async () => {
     process.env.AI_API_URL = 'http://fake-ai.local';
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ questionText: fullRuPrimary.questionText }),
     } as Response);

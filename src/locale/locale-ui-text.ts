@@ -34,9 +34,11 @@ const TEXT_BY_LOCALE: Record<Locale, LocaleUiText> = {
     noPerQuestionSummaries: 'Brak podsumowań dla poszczególnych pytań.',
     summaryQuestionLine: (n, summary) => `P${n}: ${summary}`,
     similarSameCategory: (category) => `Ta sama kategoria: ${category}`,
-    similarSameSubcategory: (subcategory) => `Ta sama podkategoria: ${subcategory}`,
+    similarSameSubcategory: (subcategory) =>
+      `Ta sama podkategoria: ${subcategory}`,
     similarSameRole: (role) => `Ta sama rola: ${role}`,
-    similarSameDifficulty: (difficulty) => `Ten sam poziom trudności: ${difficulty}`,
+    similarSameDifficulty: (difficulty) =>
+      `Ten sam poziom trudności: ${difficulty}`,
   },
   ru: {
     responseLanguageName: 'Russian',
@@ -46,9 +48,11 @@ const TEXT_BY_LOCALE: Record<Locale, LocaleUiText> = {
     noPerQuestionSummaries: 'Нет кратких выводов по отдельным вопросам.',
     summaryQuestionLine: (n, summary) => `В${n}: ${summary}`,
     similarSameCategory: (category) => `Та же категория: ${category}`,
-    similarSameSubcategory: (subcategory) => `Та же подкатегория: ${subcategory}`,
+    similarSameSubcategory: (subcategory) =>
+      `Та же подкатегория: ${subcategory}`,
     similarSameRole: (role) => `Та же роль: ${role}`,
-    similarSameDifficulty: (difficulty) => `Тот же уровень сложности: ${difficulty}`,
+    similarSameDifficulty: (difficulty) =>
+      `Тот же уровень сложности: ${difficulty}`,
   },
   be: {
     responseLanguageName: 'Belarusian',
@@ -58,9 +62,11 @@ const TEXT_BY_LOCALE: Record<Locale, LocaleUiText> = {
     noPerQuestionSummaries: 'Няма кароткіх вывадаў па асобных пытаннях.',
     summaryQuestionLine: (n, summary) => `П${n}: ${summary}`,
     similarSameCategory: (category) => `Тая ж катэгорыя: ${category}`,
-    similarSameSubcategory: (subcategory) => `Тая ж падкатэгорыя: ${subcategory}`,
+    similarSameSubcategory: (subcategory) =>
+      `Тая ж падкатэгорыя: ${subcategory}`,
     similarSameRole: (role) => `Тая ж роля: ${role}`,
-    similarSameDifficulty: (difficulty) => `Той ж узровень складанасці: ${difficulty}`,
+    similarSameDifficulty: (difficulty) =>
+      `Той ж узровень складанасці: ${difficulty}`,
   },
 };
 
