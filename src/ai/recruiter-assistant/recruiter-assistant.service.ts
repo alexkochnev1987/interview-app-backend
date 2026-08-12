@@ -1,14 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
+import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
 import { Locale } from '../../locale/locale.constants';
 import {
   RecruiterAssistantChatDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
-import {
-  isRecruiterAssistantEnabled,
-  isRecruiterAssistantEnabledForRole,
-} from './recruiter-assistant-env';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
@@ -35,6 +32,7 @@ export class RecruiterAssistantService {
     private readonly pendingActionStore: RecruiterPendingActionStore,
     private readonly conversationStore: RecruiterConversationStore,
     private readonly conversationFlow: RecruiterConversationFlowService,
+    private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
   ) {}
 
   async chat(
@@ -42,12 +40,16 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+    if (
+      !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+        user.role,
+      ))
+    ) {
+      const globallyEnabled =
+        await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(
-          !isRecruiterAssistantEnabled(),
-        ),
+        response: recruiterAssistantDisabledResponse(!globallyEnabled),
       };
     }
 
@@ -224,12 +226,16 @@ export class RecruiterAssistantService {
   }
 
   async newChat(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+    if (
+      !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+        user.role,
+      ))
+    ) {
+      const globallyEnabled =
+        await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(
-          !isRecruiterAssistantEnabled(),
-        ),
+        response: recruiterAssistantDisabledResponse(!globallyEnabled),
       };
     }
 

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/swagger';
 import { Throttle, minutes } from '@nestjs/throttler';
 
+import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiErrorResponseDto } from '../../common/dto/api-error.response.dto';
@@ -28,10 +29,6 @@ import {
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
-import {
-  isRecruiterAssistantEnabled,
-  isRecruiterAssistantEnabledForRole,
-} from './recruiter-assistant-env';
 import { recruiterAssistantDisabledResponse } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 
@@ -49,6 +46,7 @@ type ActingUser = Omit<User, 'passwordHash'>;
 export class RecruiterAssistantController {
   constructor(
     private readonly recruiterAssistantService: RecruiterAssistantService,
+    private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
   ) {}
 
   @Post('chat')
@@ -69,15 +67,21 @@ export class RecruiterAssistantController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
-  chat(
+  async chat(
     @Body() dto: RecruiterAssistantChatDto,
     @CurrentUser() user: ActingUser,
     @CurrentLocale() locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+    const globallyEnabled =
+      await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
+    if (
+      !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+        user.role,
+      ))
+    ) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,
-        recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+        recruiterAssistantDisabledResponse(!globallyEnabled),
       );
     }
     return this.recruiterAssistantService.chat(dto, user, locale);
@@ -95,13 +99,19 @@ export class RecruiterAssistantController {
   @ApiOkResponse({ type: RecruiterAssistantResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
-  resetChat(
+  async resetChat(
     @CurrentUser() user: ActingUser,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!isRecruiterAssistantEnabledForRole(user.role)) {
+    const globallyEnabled =
+      await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
+    if (
+      !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
+        user.role,
+      ))
+    ) {
       throw apiServiceUnavailable(
         ApiErrorCode.SERVICE_UNAVAILABLE,
-        recruiterAssistantDisabledResponse(!isRecruiterAssistantEnabled()),
+        recruiterAssistantDisabledResponse(!globallyEnabled),
       );
     }
     return this.recruiterAssistantService.newChat(user);

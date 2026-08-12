@@ -1437,6 +1437,11 @@ export interface components {
              * @example true
              */
             hasGoogleAvatar: boolean;
+            /**
+             * @description Whether Herman (recruiter AI assistant) is enabled for this user, based on org config and role.
+             * @example true
+             */
+            recruiterAssistantEnabled: boolean;
         };
         RegisterDto: {
             email: string;

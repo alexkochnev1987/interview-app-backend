@@ -59,4 +59,11 @@ export class AuthUserResponseDto {
       'Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source.',
   })
   hasGoogleAvatar: boolean;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Whether Herman (recruiter AI assistant) is enabled for this user, based on org config and role.',
+  })
+  recruiterAssistantEnabled: boolean;
 }

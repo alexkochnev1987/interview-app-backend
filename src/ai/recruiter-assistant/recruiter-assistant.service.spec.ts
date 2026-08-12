@@ -50,6 +50,11 @@ describe('RecruiterAssistantService', () => {
     }),
   };
 
+  const recruiterAssistantConfig = {
+    isRecruiterAssistantEnabled: vi.fn().mockResolvedValue(true),
+    isRecruiterAssistantEnabledForRole: vi.fn().mockResolvedValue(true),
+  };
+
   const service = new RecruiterAssistantService(
     intentRouter as never,
     tools as never,
@@ -57,6 +62,7 @@ describe('RecruiterAssistantService', () => {
     pendingActionStore as never,
     conversationStore as never,
     conversationFlow as never,
+    recruiterAssistantConfig as never,
   );
 
   beforeEach(() => {
