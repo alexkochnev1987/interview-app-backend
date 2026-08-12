@@ -12,6 +12,7 @@ import {
   canAccessChat,
   isCancellationMessage,
   isConfirmationMessage,
+  isConversationResetMessage,
   OUT_OF_SCOPE_RESPONSE,
   recruiterAssistantDisabledResponse,
 } from './recruiter-assistant.policy';
@@ -58,6 +59,10 @@ export class RecruiterAssistantService {
     }
 
     const message = dto.message.trim();
+    if (isConversationResetMessage(message)) {
+      return this.newChat(user);
+    }
+
     const intent = this.intentRouter.classify(message, user, locale);
     if (intent.kind === 'new_chat') {
       return this.newChat(user);

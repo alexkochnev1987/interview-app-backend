@@ -54,6 +54,12 @@ export function normalizeAssistantDecisionMessage(message: string): string {
     .trim();
 }
 
+/** Standalone cancel/abort — starts a fresh conversation. */
+export function isConversationResetMessage(message: string): boolean {
+  const normalized = normalizeAssistantDecisionMessage(message);
+  return normalized === 'cancel' || normalized === 'abort';
+}
+
 export function isConfirmationMessage(message: string): boolean {
   const normalized = normalizeAssistantDecisionMessage(message);
   return CONFIRMATION_KEYWORDS.includes(normalized);

@@ -1,6 +1,7 @@
 import {
   isCancellationMessage,
   isConfirmationMessage,
+  isConversationResetMessage,
   isSimilarQuestionOverrideCancellation,
   isSimilarQuestionOverrideConfirmation,
 } from './recruiter-assistant.policy';
@@ -40,5 +41,14 @@ describe('recruiter assistant confirmation messages', () => {
     expect(
       isSimilarQuestionOverrideCancellation('No, cancel creating the question'),
     ).toBe(true);
+  });
+
+  it('recognizes standalone cancel/abort as conversation reset', () => {
+    expect(isConversationResetMessage('cancel')).toBe(true);
+    expect(isConversationResetMessage('abort')).toBe(true);
+    expect(isConversationResetMessage('Cancel.')).toBe(true);
+    expect(isConversationResetMessage('no cancel creating the question')).toBe(
+      false,
+    );
   });
 });

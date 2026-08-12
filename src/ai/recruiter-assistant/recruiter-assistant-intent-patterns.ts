@@ -103,6 +103,8 @@ export const NEW_CHAT_PATTERNS = [
   /\bstart (?:a )?new conversation\b/i,
   /\breset (?:the )?conversation\b/i,
   /\bclear (?:the )?chat\b/i,
+  /^\s*cancel\s*$/i,
+  /^\s*abort\s*$/i,
   cyrillicLoosePattern('нов(?:ый|ая)\\s+чат'),
   cyrillicLoosePattern('начать\\s+заново'),
 ];

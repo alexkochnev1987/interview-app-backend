@@ -74,6 +74,12 @@ describe('RecruiterAssistantIntentService', () => {
     expect(service.classify('new chat', admin, 'en')).toEqual({
       kind: 'new_chat',
     });
+    expect(service.classify('cancel', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
+    expect(service.classify('abort', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
   });
 
   it('classifies list interview requests', () => {
