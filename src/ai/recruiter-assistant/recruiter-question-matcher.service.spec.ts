@@ -1,5 +1,5 @@
-import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { QuestionService } from '../../question/question.service';
+import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 
 describe('RecruiterQuestionMatcherService', () => {
   const user = {
@@ -14,8 +14,8 @@ describe('RecruiterQuestionMatcherService', () => {
   };
 
   const questionService = {
-    findSimilar: jest.fn(),
-    findAll: jest.fn(),
+    findSimilar: vi.fn(),
+    findAll: vi.fn(),
   };
 
   const service = new RecruiterQuestionMatcherService(
@@ -29,7 +29,7 @@ describe('RecruiterQuestionMatcherService', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     questionService.findAll.mockResolvedValue({ items: [] });
   });
 
@@ -52,7 +52,9 @@ describe('RecruiterQuestionMatcherService', () => {
     });
 
     it('returns empty when all scores are below 80%', async () => {
-      questionService.findSimilar.mockResolvedValue([match(0.79, 'q1', 'React hooks')]);
+      questionService.findSimilar.mockResolvedValue([
+        match(0.79, 'q1', 'React hooks'),
+      ]);
 
       const results = await service.findSimilarMatchesOverThreshold(
         'React hooks',
@@ -64,7 +66,9 @@ describe('RecruiterQuestionMatcherService', () => {
     });
 
     it('falls back to literal match when embeddings fail', async () => {
-      questionService.findSimilar.mockRejectedValue(new Error('embeddings down'));
+      questionService.findSimilar.mockRejectedValue(
+        new Error('embeddings down'),
+      );
       questionService.findAll.mockResolvedValue({
         items: [{ id: 'exact-1', questionText: 'React hooks' }],
       });
@@ -76,7 +80,10 @@ describe('RecruiterQuestionMatcherService', () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({ score: 1, question: { id: 'exact-1' } });
+      expect(results[0]).toMatchObject({
+        score: 1,
+        question: { id: 'exact-1' },
+      });
     });
 
     it('returns empty for blank input', async () => {
