@@ -160,6 +160,26 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies list team by role requests', () => {
+    expect(service.classify('show all hrs', admin, 'en')).toEqual({
+      kind: 'list_team',
+      role: 'hr',
+      includeSummary: false,
+    });
+    expect(service.classify('list all admins', admin, 'en')).toEqual({
+      kind: 'list_team',
+      role: 'admin',
+      includeSummary: false,
+    });
+    expect(
+      service.classify('team members with admin role', admin, 'en'),
+    ).toEqual({
+      kind: 'list_team',
+      role: 'admin',
+      includeSummary: false,
+    });
+  });
+
   it('classifies list team requests', () => {
     expect(service.classify('show my team', admin, 'en')).toEqual({
       kind: 'list_team',

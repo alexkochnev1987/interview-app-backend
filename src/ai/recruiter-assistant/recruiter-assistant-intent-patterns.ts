@@ -199,3 +199,9 @@ export const LIST_TEAM_PATTERNS = [
   /\b(show|list)\b.*\b(my )?team\b/i,
   /\bteam members?\b/i,
 ];
+
+export const LIST_TEAM_BY_ROLE_PATTERNS = [
+  /\b(show|list)\b.*\ball\b.*\b(super[_\s-]?admins?|admins?|hrs?|hr reviewers?|candidates?)\b/i,
+  /\b(show|list)\b.*\b(super[_\s-]?admins?|candidates?)\b/i,
+  /\bteam members?\b.*\b(with|having)\b.*\b(super[_\s-]?admin|admin|hr|candidate)\b/i,
+];

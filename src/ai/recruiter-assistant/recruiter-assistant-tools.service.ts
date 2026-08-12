@@ -19,8 +19,8 @@ import {
   TemplateService,
   TemplateSummary,
 } from '../../template/template.service';
-import { UserService } from '../../user/user.service';
 import { UserRole } from '../../user/interfaces/user.interface';
+import { UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
@@ -29,9 +29,9 @@ import {
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
-import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import {
   buildInterviewRedirect,
@@ -307,10 +307,11 @@ export class RecruiterAssistantToolsService {
     const summaryLine = teamSummary
       ? `${teamSummary.superAdmin} super_admin, ${teamSummary.admin} admin, ${teamSummary.hr} hr, ${teamSummary.candidate} candidate (${teamSummary.total} total). `
       : '';
+    const roleLabel = options.role ? ` ${options.role}` : '';
 
     return {
       status: 'answered',
-      response: `${summaryLine}Showing ${teamMembers.length} team member(s).`,
+      response: `${summaryLine}Showing ${teamMembers.length}${roleLabel} team member(s).`,
       teamSummary,
       teamMembers,
     };

@@ -101,4 +101,22 @@ describe('RecruiterAssistantToolsService list team', () => {
     expect(result.status).toBe('denied');
     expect(result.escalateTo).toBe('admin');
   });
+
+  it('lists team members filtered by role without summary', async () => {
+    userService.listAll.mockResolvedValue([member]);
+    const result = await service.listTeam(admin, 'en', {
+      role: 'hr',
+      includeSummary: false,
+    });
+
+    expect(userService.countUsersByRole).not.toHaveBeenCalled();
+    expect(userService.listAll).toHaveBeenCalledWith({
+      demo: false,
+      role: 'hr',
+      limit: 200,
+    });
+    expect(result.teamSummary).toBeUndefined();
+    expect(result.response).toContain(' hr team member(s)');
+    expect(result.teamMembers).toHaveLength(1);
+  });
 });
