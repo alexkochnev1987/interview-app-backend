@@ -1,9 +1,9 @@
+import { SimilarQuestionMatch } from '../../question/interfaces/question.interface';
 import {
   RecruiterAssistantCreatedQuestionDto,
   RecruiterAssistantRedirectDto,
   RecruiterAssistantSimilarQuestionDto,
 } from './dto/recruiter-assistant.dto';
-import { SimilarQuestionMatch } from '../../question/interfaces/question.interface';
 
 export function buildCreatedQuestionCard(input: {
   id: string;
