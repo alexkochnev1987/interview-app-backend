@@ -1,12 +1,12 @@
 import {
-  CandidateFeedback,
-  CandidateFeedbackQuestion,
-} from './interfaces/candidate-feedback.interface';
-import {
   CandidateFeedbackBlockDto,
   CandidateFeedbackQuestionBlockDto,
   CandidateFeedbackResponseDto,
 } from './dto/candidate-feedback.responses.dto';
+import {
+  CandidateFeedback,
+  CandidateFeedbackQuestion,
+} from './interfaces/candidate-feedback.interface';
 
 function presentBlock(
   recommendationText: string | undefined,

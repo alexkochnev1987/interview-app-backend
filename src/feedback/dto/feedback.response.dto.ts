@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { SUPPORTED_LOCALES } from '../../locale/locale.constants';
 import { Locale } from '../../locale/locale.constants';
 
@@ -42,16 +43,21 @@ export class FeedbackResponseDto {
   @ApiPropertyOptional()
   overallScore?: number;
 
-  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'number' } })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'number' },
+  })
   categoryScores?: Record<string, number>;
 
   @ApiPropertyOptional({
-    description: 'Overall AI summary in interviewLocale (stored at completion).',
+    description:
+      'Overall AI summary in interviewLocale (stored at completion).',
   })
   generalFeedback?: string;
 
   @ApiPropertyOptional({
-    description: 'Improvement notes in interviewLocale (aggregated from weak answers).',
+    description:
+      'Improvement notes in interviewLocale (aggregated from weak answers).',
   })
   improvements?: string;
 

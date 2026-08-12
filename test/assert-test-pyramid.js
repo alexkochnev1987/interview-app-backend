@@ -29,10 +29,11 @@ function countTests(filePath) {
   return matches ? matches.length : 0;
 }
 
-const unitFiles = walk(path.join(ROOT, 'src'), (file) => file.endsWith('.spec.ts'));
-const integrationFiles = walk(
-  path.join(ROOT, 'test', 'integration'),
-  (file) => file.endsWith('.integration.spec.ts'),
+const unitFiles = walk(path.join(ROOT, 'src'), (file) =>
+  file.endsWith('.spec.ts'),
+);
+const integrationFiles = walk(path.join(ROOT, 'test', 'integration'), (file) =>
+  file.endsWith('.integration.spec.ts'),
 );
 
 const unitCases = unitFiles.reduce((sum, file) => sum + countTests(file), 0);

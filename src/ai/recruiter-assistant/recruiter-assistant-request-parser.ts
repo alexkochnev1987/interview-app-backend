@@ -82,6 +82,8 @@ function extractPosition(message: string): string {
   return findExplicitPosition(message) ?? 'Software Developer';
 }
 
-export function extractPositionFromMessage(message: string): string | undefined {
+export function extractPositionFromMessage(
+  message: string,
+): string | undefined {
   return findExplicitPosition(message);
 }

@@ -1,4 +1,4 @@
-import supertest = require('supertest');
+import supertest from 'supertest';
 
 import { DatabaseService } from '../../src/database/database.service';
 import type { InterviewStatus } from '../../src/interview/interfaces/interview.interface';
@@ -85,15 +85,10 @@ describe('Interview HR assignment (integration)', () => {
     const { app, agent } = await getIntegrationApp();
     const adminSession = await loginAsSuperAdmin(agent);
 
-    const created = await createInterview(
-      agent,
-      adminSession,
-      seedQuestionId,
-      {
-        candidateName: 'Assigned Read Test',
-        assignedHrId: hrUserId,
-      },
-    ).expect(201);
+    const created = await createInterview(agent, adminSession, seedQuestionId, {
+      candidateName: 'Assigned Read Test',
+      assignedHrId: hrUserId,
+    }).expect(201);
 
     const hrAgent = supertest.agent(app.getHttpServer());
     const hrSession = await loginAsHr(hrAgent);
@@ -132,12 +127,9 @@ describe('Interview HR assignment (integration)', () => {
     const { agent } = await getIntegrationApp();
     const adminSession = await loginAsSuperAdmin(agent);
 
-    const created = await createInterview(
-      agent,
-      adminSession,
-      seedQuestionId,
-      { assignedHrId: hrUserId },
-    ).expect(201);
+    const created = await createInterview(agent, adminSession, seedQuestionId, {
+      assignedHrId: hrUserId,
+    }).expect(201);
 
     const response = await agent
       .patch(`/interviews/${created.body.id}`)
@@ -211,12 +203,9 @@ describe('Interview HR assignment (integration)', () => {
     const { app, agent } = await getIntegrationApp();
     const adminSession = await loginAsSuperAdmin(agent);
 
-    const created = await createInterview(
-      agent,
-      adminSession,
-      seedQuestionId,
-      { assignedHrId: hrUserId },
-    ).expect(201);
+    const created = await createInterview(agent, adminSession, seedQuestionId, {
+      assignedHrId: hrUserId,
+    }).expect(201);
 
     await updateInterviewStatus(
       app.get(DatabaseService),

@@ -46,12 +46,14 @@ export function toCreateQuestionDto(
 
 function toExpectedConcepts(labels: string[]): QuestionExpectedConcept[] {
   const weight = labels.length > 0 ? 1 / labels.length : 1;
-  return (labels.length > 0 ? labels : ['clear reasoning']).map((label, index) => ({
-    id: slugify(label, index),
-    label,
-    weight,
-    description: `Candidate should cover ${label}.`,
-  }));
+  return (labels.length > 0 ? labels : ['clear reasoning']).map(
+    (label, index) => ({
+      id: slugify(label, index),
+      label,
+      weight,
+      description: `Candidate should cover ${label}.`,
+    }),
+  );
 }
 
 function slugify(value: string, index: number): string {

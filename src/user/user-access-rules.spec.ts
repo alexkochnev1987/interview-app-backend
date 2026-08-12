@@ -1,5 +1,5 @@
-import { canReadUserProfile } from './user-access-rules';
 import { UserRole } from './interfaces/user.interface';
+import { canReadUserProfile } from './user-access-rules';
 
 describe('user-access-rules', () => {
   const superAdmin = { id: 'r2d2', role: 'super_admin' as UserRole };

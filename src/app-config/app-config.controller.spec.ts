@@ -1,30 +1,40 @@
 import { BadRequestException } from '@nestjs/common';
-import { AppConfigController, PublicConfigController } from './app-config.controller';
-import { AppConfigService } from './app-config.service';
+
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { User } from '../user/interfaces/user.interface';
+import {
+  AppConfigController,
+  PublicConfigController,
+} from './app-config.controller';
+import { AppConfigService } from './app-config.service';
 
 describe('AppConfigController & PublicConfigController', () => {
-  let appConfigService: jest.Mocked<AppConfigService>;
+  const getPublicVariables = vi.fn();
+  const getAllVariables = vi.fn();
+  const getVariableRecord = vi.fn();
+  const setVariable = vi.fn();
+  const deleteVariable = vi.fn();
+
+  const appConfigService = {
+    getPublicVariables,
+    getAllVariables,
+    getVariableRecord,
+    setVariable,
+    deleteVariable,
+  } as unknown as AppConfigService;
+
   let publicController: PublicConfigController;
   let adminController: AppConfigController;
 
   beforeEach(() => {
-    appConfigService = {
-      getPublicVariables: jest.fn(),
-      getAllVariables: jest.fn(),
-      getVariableRecord: jest.fn(),
-      setVariable: jest.fn(),
-      deleteVariable: jest.fn(),
-    } as unknown as jest.Mocked<AppConfigService>;
-
+    vi.clearAllMocks();
     publicController = new PublicConfigController(appConfigService);
     adminController = new AppConfigController(appConfigService);
   });
 
   describe('GET /api/config/public', () => {
     it('should return public variables', async () => {
-      appConfigService.getPublicVariables.mockResolvedValueOnce({
+      getPublicVariables.mockResolvedValueOnce({
         APP_THEME: 'innowise',
         DEFAULT_THEME_MODE: 'system',
         MAX_ANSWER_DURATION_SECONDS: 240,
@@ -41,7 +51,7 @@ describe('AppConfigController & PublicConfigController', () => {
 
   describe('GET /api/config', () => {
     it('should return list of all variables with masked secrets', async () => {
-      appConfigService.getAllVariables.mockResolvedValueOnce([
+      getAllVariables.mockResolvedValueOnce([
         {
           id: '1',
           key: 'SECRET_KEY',
@@ -64,8 +74,8 @@ describe('AppConfigController & PublicConfigController', () => {
 
   describe('PUT /api/config/:key', () => {
     it('should update configuration variable when allowed', async () => {
-      appConfigService.getVariableRecord.mockResolvedValueOnce(null);
-      appConfigService.setVariable.mockResolvedValueOnce({
+      getVariableRecord.mockResolvedValueOnce(null);
+      setVariable.mockResolvedValueOnce({
         id: '1',
         key: 'APP_THEME',
         value: 'purple',
@@ -87,7 +97,7 @@ describe('AppConfigController & PublicConfigController', () => {
       );
 
       expect(res.value).toBe('purple');
-      expect(appConfigService.setVariable).toHaveBeenCalledWith(
+      expect(setVariable).toHaveBeenCalledWith(
         'APP_THEME',
         'purple',
         expect.objectContaining({ updatedBy: 'admin@example.com' }),
@@ -95,7 +105,7 @@ describe('AppConfigController & PublicConfigController', () => {
     });
 
     it('should throw 400 INVALID_CONFIG_VALUE when value is not in allowed options', async () => {
-      appConfigService.getVariableRecord.mockResolvedValueOnce({
+      getVariableRecord.mockResolvedValueOnce({
         id: '1',
         key: 'APP_THEME',
         value: 'innowise',
@@ -111,12 +121,10 @@ describe('AppConfigController & PublicConfigController', () => {
       });
 
       try {
-        await adminController.upsert(
-          'APP_THEME',
-          { value: 'yellow' },
-          { email: 'admin@example.com' } as unknown as User,
-        );
-        fail('Should have thrown BadRequestException');
+        await adminController.upsert('APP_THEME', { value: 'yellow' }, {
+          email: 'admin@example.com',
+        } as unknown as User);
+        expect.unreachable('Should have thrown BadRequestException');
       } catch (err: unknown) {
         expect(err).toBeInstanceOf(BadRequestException);
         const response = (err as BadRequestException).getResponse() as {

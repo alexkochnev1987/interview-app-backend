@@ -11,28 +11,32 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
-import { Locale } from '../locale/locale.constants';
 import { Throttle, minutes } from '@nestjs/throttler';
-import { AiService } from './ai.service';
+
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { QuestionDraftGenerate, QuestionDraftContent } from './question-draft-content';
-import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
-import { CandidateAiThrottlerGuard } from './guards/candidate-ai-throttler.guard';
-import { StaffAiThrottlerGuard } from './guards/staff-ai-throttler.guard';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
+import {
+  QuestionDraftContentResponseDto,
+  QuestionDraftGenerateResponseDto,
+} from '../question/dto/question.responses.dto';
+import { AiService } from './ai.service';
 import {
   AiTextResponseDto,
   ChatDto,
   DraftQuestionDto,
   GreetDto,
 } from './dto/ai.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { CandidateAiThrottlerGuard } from './guards/candidate-ai-throttler.guard';
+import { StaffAiThrottlerGuard } from './guards/staff-ai-throttler.guard';
 import {
-  QuestionDraftContentResponseDto,
-  QuestionDraftGenerateResponseDto,
-} from '../question/dto/question.responses.dto';
+  QuestionDraftGenerate,
+  QuestionDraftContent,
+} from './question-draft-content';
 
 @ApiTags('ai')
 @Controller('ai')
@@ -170,7 +174,11 @@ export class AiController {
               },
             ],
             redFlags: [
-              { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+              {
+                id: 'confuses_scope',
+                label: 'Путает область видимости',
+                severity: 'medium',
+              },
               { id: 'no_example', label: 'Нет примера', severity: 'high' },
             ],
             sampleGoodAnswer:
@@ -252,7 +260,11 @@ export class AiController {
               },
             ],
             redFlags: [
-              { id: 'confuses_scope', label: 'Confuses scope', severity: 'medium' },
+              {
+                id: 'confuses_scope',
+                label: 'Confuses scope',
+                severity: 'medium',
+              },
               { id: 'no_example', label: 'No example', severity: 'high' },
             ],
             sampleGoodAnswer:
@@ -262,7 +274,10 @@ export class AiController {
       },
     },
   })
-  @ApiExtraModels(QuestionDraftGenerateResponseDto, QuestionDraftContentResponseDto)
+  @ApiExtraModels(
+    QuestionDraftGenerateResponseDto,
+    QuestionDraftContentResponseDto,
+  )
   @ApiOkResponse({
     description:
       'mode=generate: identity + rubric. mode=translate: content block only.',

@@ -1,4 +1,8 @@
-import { normalizeAiProvider, resolveNativeLlmTimeoutMs, resolveNativeProvider } from './ai-env';
+import {
+  normalizeAiProvider,
+  resolveNativeLlmTimeoutMs,
+  resolveNativeProvider,
+} from './ai-env';
 
 describe('ai-env', () => {
   const envSnapshot = { ...process.env };

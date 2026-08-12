@@ -1,8 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import type { QuestionDraft } from '../../question/interfaces/question.interface';
+
 import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
+import type { QuestionDraft } from '../../question/interfaces/question.interface';
 import { primaryLocaleToOutputLanguage } from '../../question/question-locale';
 import type { NativeProviderConfig } from './ai-env';
 import { completeJson } from './native-llm.adapter';

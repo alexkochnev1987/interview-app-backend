@@ -1,5 +1,5 @@
-import { CandidateFeedbackBlockState } from './interfaces/candidate-feedback.interface';
 import { isQuestionFeedbackEligibilitySkipReason } from './candidate-feedback-eligibility';
+import { CandidateFeedbackBlockState } from './interfaces/candidate-feedback.interface';
 
 export const PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES = [
   'accepted',
@@ -53,9 +53,9 @@ export function hasPublishableCandidateFeedbackText(texts: {
 export function isCandidateFeedbackBlockProtected(
   state: CandidateFeedbackBlockState,
 ): boolean {
-  return (PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES as readonly string[]).includes(
-    state,
-  );
+  return (
+    PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES as readonly string[]
+  ).includes(state);
 }
 
 export function canRegenerateCandidateFeedbackBlock(

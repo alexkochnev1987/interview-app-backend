@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import {
   CANDIDATE_FEEDBACK_BLOCK_STATES,
   CANDIDATE_FEEDBACK_OUTCOMES,

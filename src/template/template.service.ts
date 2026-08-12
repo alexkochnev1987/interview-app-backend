@@ -1,19 +1,20 @@
-import { Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { Injectable } from '@nestjs/common';
 import { PoolClient, QueryResult, QueryResultRow } from 'pg';
-import { DatabaseService } from '../database/database.service';
+
 import { demoScopeClause } from '../common/demo-scope';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest, apiNotFound } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { DatabaseService } from '../database/database.service';
 import { Locale } from '../locale/locale.constants';
-import { AppConfigService } from '../app-config/app-config.service';
 import {
   QuestionService,
   ResolvedQuestion,
 } from '../question/question.service';
-import { Template } from './interfaces/template.interface';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
+import { Template } from './interfaces/template.interface';
 
 // Stored ids expanded to live question rows for the request locale; omits raw questionIds.
 export interface TemplateWithQuestions extends Omit<Template, 'questionIds'> {
@@ -78,7 +79,6 @@ export class TemplateService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly questionService: QuestionService,
-    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async create(
@@ -91,15 +91,6 @@ export class TemplateService {
       throw apiBadRequest(
         ApiErrorCode.BAD_REQUEST,
         'At least one question must be selected',
-      );
-    }
-
-    const maxQuestions = await this.appConfig?.getNumber('MAX_TEMPLATE_QUESTIONS', 100) ?? 100;
-    if (questionIds.length > maxQuestions) {
-      throw apiBadRequest(
-        ApiErrorCode.BAD_REQUEST,
-        `Template cannot contain more than ${maxQuestions} questions`,
-        { maxQuestions, count: questionIds.length },
       );
     }
 
@@ -221,6 +212,7 @@ export class TemplateService {
             : existing.position;
 
         let questionIds = existing.question_ids_json ?? [];
+        // oxlint-disable-next-line no-shadow
         let resolvedQuestions: ResolvedQuestion[] | null = null;
         if (dto.questionIds !== undefined) {
           questionIds = this.normalizeIds(dto.questionIds);
@@ -251,13 +243,7 @@ export class TemplateService {
           WHERE id = $1
           ${TEMPLATE_RETURNING}
         `,
-          [
-            id,
-            name,
-            description,
-            position,
-            JSON.stringify(questionIds),
-          ],
+          [id, name, description, position, JSON.stringify(questionIds)],
         );
 
         return { updated: this.mapRow(result.rows[0]), resolvedQuestions };

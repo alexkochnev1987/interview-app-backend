@@ -24,6 +24,9 @@ permissions:
 
 jobs:
   test:
+    concurrency:
+      group: test-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -44,26 +47,55 @@ jobs:
       JWT_SECRET: ci-integration-test-jwt-secret
       FRONTEND_URL: http://localhost:3001
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: npm install
-      - run: npm run migrations:check
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check migrations
+        run: npm run migrations:check
+
       - if: github.event_name == 'pull_request'
+        name: Check PR migrations against base
         run: npm run migrations:check -- --base-ref "origin/${{ github.base_ref }}"
-      - run: npm run lint
-      - run: npm run build
-      - run: npm run openapi:check
-      - run: npm run test
-      - run: npm run test:integration
-      - run: npm run test:pyramid:check
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint & Format check
+        run: |
+          npm run lint
+          npm run fmt:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Check OpenAPI spec
+        run: npm run openapi:check
+
+      - name: Run Unit Tests
+        run: npm run test
+
+      - name: Run Integration Tests
+        run: npm run test:integration
+
+      - name: Verify Test Pyramid
+        run: npm run test:pyramid:check
 
   deploy-lightsail:
     needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    concurrency:
+      group: deploy-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     env:
@@ -75,7 +107,7 @@ jobs:
       COMPOSE_PROJECT_NAME: interview-app-backend
       GIT_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure SSH
         run: |

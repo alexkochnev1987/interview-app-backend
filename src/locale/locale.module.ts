@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+
 import { LocaleMiddleware } from './locale.middleware';
 
 @Module({})

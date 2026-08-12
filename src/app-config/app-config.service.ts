@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+
 import { DatabaseService } from '../database/database.service';
 import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
 
@@ -178,7 +179,8 @@ export class AppConfigService implements OnModuleInit {
         result.push({
           ...dbOverride,
           options: dbOverride.options ?? defaultEntry.options,
-          description: dbOverride.description ?? defaultEntry.description ?? null,
+          description:
+            dbOverride.description ?? defaultEntry.description ?? null,
           isOverridden: true,
         });
       } else {
@@ -381,19 +383,18 @@ function mapRow(row: AppVariableRow): AppVariableRecord {
   };
 }
 
-function parseTypedValue(
-  value: string,
-  valueType: VariableType,
-): unknown {
+function parseTypedValue(value: string, valueType: VariableType): unknown {
   switch (valueType) {
     case 'number': {
       const n = Number(value);
       return Number.isFinite(n) ? n : value;
     }
     case 'boolean':
-      return value.trim().toLowerCase() === 'true' ||
+      return (
+        value.trim().toLowerCase() === 'true' ||
         value.trim() === '1' ||
-        value.trim().toLowerCase() === 'yes';
+        value.trim().toLowerCase() === 'yes'
+      );
     case 'json':
       try {
         return JSON.parse(value);

@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -7,19 +9,11 @@ import {
   OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import bcrypt from 'bcrypt';
+
+import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
 import { apiBadRequest, apiConflict } from '../common/errors/api-error';
-import { AvatarSource, User } from './interfaces/user.interface';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { OnboardingStatus, UserRole } from './interfaces/user.interface';
-import {
-  computeAvatarPictureUrl,
-  resolveAvatarSourceOnGoogleLogin,
-} from './avatar/avatar-picture-url';
-import { AvatarService } from './avatar/avatar.service';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
 import {
   isDemoSeedAllowed,
@@ -30,7 +24,15 @@ import {
   seedOnboardingLitePack,
   shouldSeedOnboardingLitePack,
 } from '../database/onboarding-lite-seed';
-import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
+import {
+  computeAvatarPictureUrl,
+  resolveAvatarSourceOnGoogleLogin,
+} from './avatar/avatar-picture-url';
+import { AvatarService } from './avatar/avatar.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { AvatarSource, User } from './interfaces/user.interface';
+import { OnboardingStatus, UserRole } from './interfaces/user.interface';
 import { canReadUserProfile } from './user-access-rules';
 import { toUserProfileForActor, UserProfile } from './user-profile';
 
@@ -91,7 +93,9 @@ export class UserService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     return this.databaseService.withTransaction(async (client) => {
-      const avatarSource: AvatarSource = dto.googlePictureUrl ? 'google' : 'none';
+      const avatarSource: AvatarSource = dto.googlePictureUrl
+        ? 'google'
+        : 'none';
       const result = await client.query<UserRow>(
         `
           INSERT INTO users (
@@ -216,10 +220,7 @@ export class UserService implements OnModuleInit {
       throw new NotFoundException(`User ${targetId} not found`);
     }
 
-    return toUserProfileForActor(
-      { id: actor.id, role: actor.role },
-      target,
-    );
+    return toUserProfileForActor({ id: actor.id, role: actor.role }, target);
   }
 
   async listAll(
@@ -364,9 +365,7 @@ export class UserService implements OnModuleInit {
 
       const nextName = dto.name !== undefined ? dto.name : target.name;
       const nextEmail =
-        dto.email !== undefined
-          ? this.normalizeEmail(dto.email)
-          : target.email;
+        dto.email !== undefined ? this.normalizeEmail(dto.email) : target.email;
 
       if (nextName === target.name && nextEmail === target.email) {
         throw new BadRequestException('No changes to apply');

@@ -15,29 +15,35 @@ export function scorePersonNameMatch(actual: string, query: string): number {
   }
 
   if (
-    normalizedActual.startsWith(normalizedQuery)
-    || normalizedQuery.startsWith(normalizedActual)
+    normalizedActual.startsWith(normalizedQuery) ||
+    normalizedQuery.startsWith(normalizedActual)
   ) {
     return 80;
   }
 
   const actualTokens = normalizedActual.split(' ');
   const queryTokens = normalizedQuery.split(' ');
-  const queryInActual = queryTokens.every((token) => actualTokens.includes(token));
-  const actualInQuery = actualTokens.every((token) => queryTokens.includes(token));
+  const queryInActual = queryTokens.every((token) =>
+    actualTokens.includes(token),
+  );
+  const actualInQuery = actualTokens.every((token) =>
+    queryTokens.includes(token),
+  );
 
   if (queryInActual || actualInQuery) {
     return 70;
   }
 
   if (
-    normalizedActual.includes(normalizedQuery)
-    || normalizedQuery.includes(normalizedActual)
+    normalizedActual.includes(normalizedQuery) ||
+    normalizedQuery.includes(normalizedActual)
   ) {
     return 60;
   }
 
-  const overlap = queryTokens.filter((token) => actualTokens.includes(token)).length;
+  const overlap = queryTokens.filter((token) =>
+    actualTokens.includes(token),
+  ).length;
   if (overlap > 0) {
     return 40 + overlap * 10;
   }
