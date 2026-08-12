@@ -68,7 +68,7 @@ jobs:
         run: npm run migrations:check -- --base-ref "origin/${{ github.base_ref }}"
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Lint & Format check
         run: |
