@@ -44,6 +44,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
 
   const service = new RecruiterAssistantToolsService(
     {} as RecruiterQuestionMatcherService,
+    {} as never,
     { findAllPaginated: vi.fn() } as never,
     {} as never,
     {} as never,

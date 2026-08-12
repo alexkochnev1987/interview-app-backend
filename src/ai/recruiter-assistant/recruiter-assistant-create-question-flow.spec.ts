@@ -39,6 +39,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     aiService as unknown as AiService,
