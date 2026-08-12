@@ -102,6 +102,19 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies question count requests with filters', () => {
+    expect(
+      service.classify('how many hard questions do we have', admin, 'en'),
+    ).toEqual({
+      kind: 'count_questions',
+      filters: { difficulty: 'hard' },
+    });
+    expect(service.classify('how many react questions', admin, 'en')).toEqual({
+      kind: 'count_questions',
+      filters: { role: 'React Developer' },
+    });
+  });
+
   it('does not classify create question as count', () => {
     expect(
       service.classify('create a question about React', admin, 'en').kind,

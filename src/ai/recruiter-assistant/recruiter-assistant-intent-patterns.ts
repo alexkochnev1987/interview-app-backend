@@ -171,9 +171,9 @@ export function matchesCreateIntent(message: string): boolean {
 }
 
 export const COUNT_QUESTIONS_PATTERNS = [
-  /\bhow many questions?\b/i,
-  /\bcount (?:all )?questions?\b/i,
-  /\btotal questions?\b/i,
+  /\bhow many\b.*\bquestions?\b/i,
+  /\bcount\b.*\bquestions?\b/i,
+  /\btotal\b.*\bquestions?\b/i,
 ];
 
 export function matchesCountQuestionsIntent(message: string): boolean {

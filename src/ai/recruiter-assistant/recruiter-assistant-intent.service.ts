@@ -4,6 +4,7 @@ import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { INTERVIEW_STATUSES } from '../../interview/interfaces/interview.interface';
 import { Locale } from '../../locale/locale.constants';
 import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
+import { extractQuestionFilters } from './recruiter-assistant-question-filters-extract';
 import {
   ASSIGN_HR_PATTERNS,
   CANDIDATE_OWN_STATUS_PATTERNS,
@@ -57,7 +58,7 @@ export class RecruiterAssistantIntentService {
     if (matchesCountQuestionsIntent(normalized)) {
       return {
         kind: 'count_questions',
-        filters: {},
+        filters: extractQuestionFilters(message),
       };
     }
 
