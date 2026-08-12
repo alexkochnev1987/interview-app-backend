@@ -163,6 +163,33 @@ describe('AppConfigService', () => {
       const boolVal = await service.getBoolean('ENABLE_FEATURE', false);
       expect(boolVal).toBe(true);
     });
+
+    it('should parse getBoolean on/off the same as env helpers', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: '123',
+            key: 'ENABLE_FEATURE',
+            value: 'off',
+            value_type: 'boolean',
+            is_public: true,
+            is_secret: false,
+            description: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            updated_by: null,
+          },
+        ],
+        rowCount: 1,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      await expect(service.getBoolean('ENABLE_FEATURE', true)).resolves.toBe(
+        false,
+      );
+    });
   });
 
   describe('Public & Secret Filter (getPublicVariables)', () => {
