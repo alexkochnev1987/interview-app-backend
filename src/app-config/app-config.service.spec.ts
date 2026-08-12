@@ -20,6 +20,7 @@ describe('AppConfigService', () => {
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.TEST_CONFIG_KEY;
+    delete process.env.RECRUITER_ASSISTANT_ENABLED_ADMIN;
   });
 
   describe('Cascade Resolution (getString / getNumber / getBoolean)', () => {
@@ -77,6 +78,38 @@ describe('AppConfigService', () => {
 
       const result = await service.getString('TEST_CONFIG_KEY', 'code_default');
       expect(result).toBe('code_default');
+    });
+
+    it('should ignore system defaults in getExplicitString', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      const result = await service.getExplicitString(
+        'RECRUITER_ASSISTANT_ENABLED_ADMIN',
+      );
+      expect(result).toBeUndefined();
+    });
+
+    it('should return env value from getExplicitString when set', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+        command: 'SELECT',
+        oid: 0,
+        fields: [],
+      });
+
+      process.env.RECRUITER_ASSISTANT_ENABLED_ADMIN = 'false';
+
+      const result = await service.getExplicitString(
+        'RECRUITER_ASSISTANT_ENABLED_ADMIN',
+      );
+      expect(result).toBe('false');
     });
 
     it('should parse getNumber correctly from DB text value', async () => {

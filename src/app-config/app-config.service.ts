@@ -108,6 +108,24 @@ export class AppConfigService implements OnModuleInit {
     return defaultValue;
   }
 
+  /**
+   * DB override or process.env only — skips SYSTEM_CONFIG_DEFAULTS.
+   * Use when a code default must not count as an explicit configuration.
+   */
+  async getExplicitString(key: string): Promise<string | undefined> {
+    const dbRecord = await this.getFromCacheOrDb(key);
+    if (dbRecord) {
+      return dbRecord.value;
+    }
+
+    const envValue = process.env[key];
+    if (envValue !== undefined && envValue.trim() !== '') {
+      return envValue;
+    }
+
+    return undefined;
+  }
+
   async getNumber(key: string, defaultValue: number): Promise<number> {
     const raw = await this.getString(key);
     if (raw === undefined || raw === null) {
