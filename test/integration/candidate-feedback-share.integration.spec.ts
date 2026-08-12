@@ -1,13 +1,13 @@
 import { INestApplication } from '@nestjs/common';
 
 import { InterviewService } from '../../src/interview/interview.service';
+import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import {
   getIntegrationApp,
   parseCandidateToken,
   type IntegrationAgent,
 } from '../helpers/integration-app';
 import { authCookie, loginAsSuperAdmin } from '../helpers/integration-auth';
-import { buildCreateQuestionPayload } from '../helpers/create-question-payload';
 import { useIntegrationHarness } from '../helpers/integration-harness';
 import {
   buildSubmitAnswerPayload,
@@ -123,9 +123,12 @@ describe('Candidate feedback share links (integration)', () => {
       session,
       'Publishable question.',
     );
-    const { interviewId } = await createCompletedInterview(app, agent, session, [
-      questionId,
-    ]);
+    const { interviewId } = await createCompletedInterview(
+      app,
+      agent,
+      session,
+      [questionId],
+    );
 
     await agent
       .get(`/interviews/${interviewId}/candidate-feedback`)
@@ -160,7 +163,9 @@ describe('Candidate feedback share links (integration)', () => {
     expect(created.body.expiresAt).toBeDefined();
 
     const token = extractShareToken(created.body.url as string);
-    const publicPayload = await agent.get(`/feedback/share/${token}`).expect(200);
+    const publicPayload = await agent
+      .get(`/feedback/share/${token}`)
+      .expect(200);
 
     expect(publicPayload.body).toMatchObject({
       position: 'Integration CF Share Role',

@@ -1,5 +1,5 @@
-import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { apiBadRequest } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { CANDIDATE_FEEDBACK_TEXT_MAX_LENGTH } from './candidate-feedback-block-rules';
 import {
   CandidateFeedbackOutcome,
@@ -85,7 +85,10 @@ export function resolveCandidateFeedbackOutcomePatch(
   }
 
   // Message-only update.
-  if (existing.outcome == null || isCandidateFeedbackPresetOutcome(existing.outcome)) {
+  if (
+    existing.outcome == null ||
+    isCandidateFeedbackPresetOutcome(existing.outcome)
+  ) {
     throw apiBadRequest(
       ApiErrorCode.BAD_REQUEST,
       'outcomeMessage requires outcome to be set to custom',

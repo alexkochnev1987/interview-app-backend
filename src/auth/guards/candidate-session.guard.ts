@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { ApiErrorCode } from '../../common/errors/api-error.codes';
+
 import { apiUnauthorized } from '../../common/errors/api-error';
+import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { AuthService } from '../auth.service';
 import { CANDIDATE_SESSION_COOKIE } from '../candidate-session';
 

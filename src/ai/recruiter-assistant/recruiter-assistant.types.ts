@@ -1,5 +1,5 @@
-import { Locale } from '../../locale/locale.constants';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { Locale } from '../../locale/locale.constants';
 import { QueryQuestionsDto } from '../../question/dto/query-questions.dto';
 import { User, UserRole } from '../../user/interfaces/user.interface';
 
@@ -41,9 +41,18 @@ export interface HrRef {
 }
 
 export type RecruiterAssistantIntent =
-  | { kind: 'list_interviews'; filters: QueryInterviewsDto; readyForReview?: boolean }
+  | {
+      kind: 'list_interviews';
+      filters: QueryInterviewsDto;
+      readyForReview?: boolean;
+    }
   | { kind: 'list_unassigned' }
-  | { kind: 'interview_status'; ref: InterviewRef; ownInterviews?: boolean; scheduleInquiry?: boolean }
+  | {
+      kind: 'interview_status';
+      ref: InterviewRef;
+      ownInterviews?: boolean;
+      scheduleInquiry?: boolean;
+    }
   | { kind: 'review_state'; ref: InterviewRef }
   | {
       kind: 'assign_hr';
@@ -56,7 +65,10 @@ export type RecruiterAssistantIntent =
   | { kind: 'switch_locale'; requestedLocale: Locale | null; rawToken?: string }
   | { kind: 'new_chat' }
   | { kind: 'count_questions'; filters: QueryQuestionsDto }
-  | { kind: 'list_assessments'; filters: { position?: string; nameContains?: string } }
+  | {
+      kind: 'list_assessments';
+      filters: { position?: string; nameContains?: string };
+    }
   | { kind: 'interview_activity_summary' }
   | { kind: 'list_team'; role?: UserRole; includeSummary: boolean }
   | { kind: 'out_of_scope' };

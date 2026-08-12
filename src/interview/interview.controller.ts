@@ -28,21 +28,17 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
+import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { Locale } from '../locale/locale.constants';
-import { InterviewPresentation, presentInterview } from './present-interview';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { AuthService } from '../auth/auth.service';
+import { Locale } from '../locale/locale.constants';
 import { User } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
-import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
-import { QueryInterviewsDto } from './dto/query-interviews.dto';
-import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
 import {
   CreateInterviewResultDto,
   CandidateLinkResponseDto,
@@ -55,6 +51,9 @@ import {
   StartAnswerValidationResultDto,
   InterviewDeleteResponseDto,
 } from './dto/interview.responses.dto';
+import { MarkInterviewDemoResponseDto } from './dto/mark-interview-demo.response.dto';
+import { QueryInterviewsDto } from './dto/query-interviews.dto';
+import { UpdateInterviewDto } from './dto/update-interview.dto';
 import {
   Interview,
   InterviewCancelResult,
@@ -62,12 +61,14 @@ import {
   InterviewResult,
   INTERVIEW_STATUSES,
 } from './interfaces/interview.interface';
+import { toInterviewActor } from './interview-actor';
 import {
   InterviewFacets,
   InterviewService,
   PaginatedInterviews,
 } from './interview.service';
-import { toInterviewActor } from './interview-actor';
+import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
+import { InterviewPresentation, presentInterview } from './present-interview';
 
 type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -105,7 +106,12 @@ export class InterviewController {
   async create(
     @Body() dto: CreateInterviewDto,
     @CurrentUser() user: ActingUser,
-  ): Promise<InterviewPresentation & { candidateLink: string; localeWarnings: Array<{ questionId: string; availableLocales: Locale[] }> }> {
+  ): Promise<
+    InterviewPresentation & {
+      candidateLink: string;
+      localeWarnings: Array<{ questionId: string; availableLocales: Locale[] }>;
+    }
+  > {
     const created = await this.interviewService.create(dto, {
       createdById: user.id,
       demo: user.demo,
@@ -349,7 +355,11 @@ export class InterviewController {
 
   @Post(':id/mark-demo')
   @RequirePermissions('users:assign_role')
-  @ApiOperation({ summary: 'Mark an interview as the demo interview', description: 'Admin-only. Flips the interview to demo and reassigns it to the demo account, removes the fabricated placeholder demo interview and demotes any other completed demo interview so exactly the marked completed interview plus the seeded pending one remain. Re-running the demo provisioning afterwards will not recreate the placeholder. Refused on production unless ALLOW_DEMO_SEED=true is set.' })
+  @ApiOperation({
+    summary: 'Mark an interview as the demo interview',
+    description:
+      'Admin-only. Flips the interview to demo and reassigns it to the demo account, removes the fabricated placeholder demo interview and demotes any other completed demo interview so exactly the marked completed interview plus the seeded pending one remain. Re-running the demo provisioning afterwards will not recreate the placeholder. Refused on production unless ALLOW_DEMO_SEED=true is set.',
+  })
   @ApiParam({ name: 'id' })
   @ApiOkResponse({ type: MarkInterviewDemoResponseDto })
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })

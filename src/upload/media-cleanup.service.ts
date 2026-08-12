@@ -1,11 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
 import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { Injectable, Logger } from '@nestjs/common';
+
+import { AppConfigService } from '../app-config/app-config.service';
 import { apiServiceUnavailable } from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { getInterviewMediaPrefix } from './upload-key';
 
 @Injectable()
@@ -15,7 +17,7 @@ export class MediaCleanupService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor() {
+  constructor(private readonly appConfig: AppConfigService) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
     this.prefix = process.env.S3_PREFIX ?? 'uploads';
 
@@ -36,6 +38,17 @@ export class MediaCleanupService {
   }
 
   async deleteInterviewMedia(interviewId: string): Promise<void> {
+    const enabled = await this.appConfig.getBoolean(
+      'ENABLE_S3_MEDIA_CLEANUP',
+      true,
+    );
+    if (!enabled) {
+      this.logger.log(
+        `S3 media cleanup skipped for interview ${interviewId}: disabled via runtime config`,
+      );
+      return;
+    }
+
     const prefix = getInterviewMediaPrefix(this.prefix, interviewId);
 
     let continuationToken: string | undefined;

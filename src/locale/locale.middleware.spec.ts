@@ -1,16 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
+
 import { parseLocaleHeader } from './locale.constants';
 import { LocaleMiddleware } from './locale.middleware';
 
 describe('LocaleMiddleware', () => {
   let middleware: LocaleMiddleware;
   let req: Request;
-  let next: jest.Mock<void, [unknown?]>;
+  let next: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     middleware = new LocaleMiddleware();
     req = { headers: {} } as Request;
-    next = jest.fn();
+    next = vi.fn();
   });
 
   it('sets en when header is missing', () => {
@@ -49,7 +50,10 @@ describe('LocaleMiddleware', () => {
   });
 
   it('ignores invalid locale on /health', () => {
-    req = { headers: { 'x-locale': 'xx' }, path: '/health' } as unknown as Request;
+    req = {
+      headers: { 'x-locale': 'xx' },
+      path: '/health',
+    } as unknown as Request;
     middleware.use(req, {} as Response, next as NextFunction);
     expect(req.locale).toBeUndefined();
     expect(next).toHaveBeenCalledWith();

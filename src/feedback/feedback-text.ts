@@ -1,6 +1,6 @@
-import { Locale } from '../locale/locale.constants';
-import { localeUiText } from '../locale/locale-ui-text';
 import { InterviewQuestionResult } from '../interview/interfaces/interview.interface';
+import { localeUiText } from '../locale/locale-ui-text';
+import { Locale } from '../locale/locale.constants';
 
 export function buildFeedbackImprovements(
   questionResults: InterviewQuestionResult[],

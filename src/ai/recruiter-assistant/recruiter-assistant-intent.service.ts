@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Locale } from '../../locale/locale.constants';
+
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { INTERVIEW_STATUSES } from '../../interview/interfaces/interview.interface';
-import {
-  extractHrUserId,
-  extractHrUserName,
-  extractInterviewCandidateName,
-  extractInterviewId,
-} from './recruiter-assistant-name-extract';
+import { Locale } from '../../locale/locale.constants';
+import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
 import {
   ASSIGN_HR_PATTERNS,
   CANDIDATE_OWN_STATUS_PATTERNS,
@@ -27,10 +23,18 @@ import {
   matchesCountQuestionsIntent,
   LIST_ASSESSMENTS_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
+import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
 import {
   extractLocaleToken,
   extractRequestedLocale,
 } from './recruiter-assistant-locale-extract';
+import {
+  extractHrUserId,
+  extractHrUserName,
+  extractInterviewCandidateName,
+  extractInterviewId,
+} from './recruiter-assistant-name-extract';
+import { extractQuestionName } from './recruiter-assistant-question-name-extract';
 import { parseRecruiterRequest } from './recruiter-assistant-request-parser';
 import {
   ActingUser,
@@ -38,9 +42,6 @@ import {
   InterviewRef,
   RecruiterAssistantIntent,
 } from './recruiter-assistant.types';
-import { extractQuestionName } from './recruiter-assistant-question-name-extract';
-import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
-import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
 
 @Injectable()
 export class RecruiterAssistantIntentService {
@@ -130,14 +131,17 @@ export class RecruiterAssistantIntentService {
     }
 
     if (
-      user.role === 'candidate'
-      && matchesAnyPattern(normalized, CANDIDATE_OWN_STATUS_PATTERNS)
+      user.role === 'candidate' &&
+      matchesAnyPattern(normalized, CANDIDATE_OWN_STATUS_PATTERNS)
     ) {
       return {
         kind: 'interview_status',
         ref: {},
         ownInterviews: true,
-        scheduleInquiry: matchesAnyPattern(normalized, CANDIDATE_SCHEDULE_PATTERNS),
+        scheduleInquiry: matchesAnyPattern(
+          normalized,
+          CANDIDATE_SCHEDULE_PATTERNS,
+        ),
       };
     }
 

@@ -32,9 +32,7 @@ export async function runInterviewChat(
   history: readonly InterviewChatTurn[],
   candidateMessage: string,
 ): Promise<string> {
-  const historyText = history
-    .map((h) => `${h.role}: ${h.content}`)
-    .join('\n');
+  const historyText = history.map((h) => `${h.role}: ${h.content}`).join('\n');
   const user = `Candidate name: ${candidateName}
 Position: ${position}
 Current interview question: ${question}

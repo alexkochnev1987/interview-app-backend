@@ -1,11 +1,10 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
 import {
-  apiBadRequest,
-  apiConflict,
-  apiNotFound,
-  apiServiceUnavailable,
-} from '../common/errors/api-error';
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  Optional,
+} from '@nestjs/common';
+
 import { resolveNativeProvider } from '../ai/llm/ai-env';
 import type { NativeProviderConfig } from '../ai/llm/ai-env';
 import { generateCandidateFeedbackQuestionWithNativeLlm } from '../ai/llm/candidate-feedback-llm';
@@ -13,14 +12,22 @@ import {
   buildOverallQuestionTextsInput,
   generateCandidateFeedbackOverallWithNativeLlm,
 } from '../ai/llm/candidate-feedback-overall-llm';
+import { AppConfigService } from '../app-config/app-config.service';
+import {
+  apiBadRequest,
+  apiConflict,
+  apiNotFound,
+  apiServiceUnavailable,
+} from '../common/errors/api-error';
+import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
-import { prepareQuestionForEvaluation } from '../interview/prepare-evaluation-question';
-import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 import {
   Answer,
   AnswerBehaviorSignals,
   Interview,
 } from '../interview/interfaces/interview.interface';
+import { prepareQuestionForEvaluation } from '../interview/prepare-evaluation-question';
+import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 import {
   CandidateFeedbackRegenerationBlockReason,
   getRegenerationBlockReason,
@@ -32,8 +39,8 @@ import {
 } from './candidate-feedback-eligibility';
 import { resolveOverallFeedbackTone } from './candidate-feedback-overall-tone';
 import { buildSkipTemplateTexts } from './candidate-feedback-skip-templates';
-import { CandidateFeedbackService } from './candidate-feedback.service';
 import { collectCandidateFeedbackQuestionSourceTexts } from './candidate-feedback-source-text';
+import { CandidateFeedbackService } from './candidate-feedback.service';
 import { CandidateFeedbackQuestionBlockDto } from './dto/candidate-feedback.responses.dto';
 import type { CandidateFeedbackGenerateScope } from './dto/generate-candidate-feedback-query.dto';
 import {
@@ -48,7 +55,11 @@ export type QuestionGenerationSkipReason =
 export type QuestionGenerationBatchResult =
   | { status: 'queued'; questionIndex: number }
   | { status: 'generated'; questionIndex: number }
-  | { status: 'skipped'; questionIndex: number; reason: QuestionGenerationSkipReason }
+  | {
+      status: 'skipped';
+      questionIndex: number;
+      reason: QuestionGenerationSkipReason;
+    }
   | { status: 'failed'; questionIndex: number; errorMessage: string };
 
 export type OverallGenerationBatchResult =
@@ -56,9 +67,7 @@ export type OverallGenerationBatchResult =
   | { status: 'generated' }
   | {
       status: 'skipped';
-      reason:
-        | CandidateFeedbackRegenerationBlockReason
-        | 'no_question_texts';
+      reason: CandidateFeedbackRegenerationBlockReason | 'no_question_texts';
     }
   | { status: 'failed'; errorMessage: string };
 
@@ -70,7 +79,9 @@ export interface GenerateAllCandidateFeedbackResult {
 
 interface QuestionGenerationContext {
   questionIndex: number;
-  llmInput: Parameters<typeof generateCandidateFeedbackQuestionWithNativeLlm>[1];
+  llmInput: Parameters<
+    typeof generateCandidateFeedbackQuestionWithNativeLlm
+  >[1];
 }
 
 const CANDIDATE_FEEDBACK_STUCK_GENERATION_ERROR =
@@ -86,6 +97,7 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
   constructor(
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly databaseService: DatabaseService,
+    @Optional() private readonly appConfig?: AppConfigService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -108,11 +120,15 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
 
     for (const row of result.rows) {
       try {
-        const recovered = await this.candidateFeedbackService.failStuckGeneration(
-          row.interview_id,
-          CANDIDATE_FEEDBACK_STUCK_GENERATION_ERROR,
-        );
-        if (recovered.recoveredOverall || recovered.recoveredQuestionCount > 0) {
+        const recovered =
+          await this.candidateFeedbackService.failStuckGeneration(
+            row.interview_id,
+            CANDIDATE_FEEDBACK_STUCK_GENERATION_ERROR,
+          );
+        if (
+          recovered.recoveredOverall ||
+          recovered.recoveredQuestionCount > 0
+        ) {
           this.logger.log(
             `Marked stuck candidate feedback as failed: interview=${row.interview_id} overall=${recovered.recoveredOverall} questions=${recovered.recoveredQuestionCount}`,
           );
@@ -130,6 +146,15 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interview: Interview,
     questionIndex: number,
   ): Promise<CandidateFeedbackQuestionBlockDto> {
+    if (
+      (await this.appConfig?.getBoolean('AI_CANDIDATE_FEEDBACK', true)) ===
+      false
+    ) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'AI candidate feedback generation is currently disabled via runtime config.',
+      );
+    }
     const provider = this.requireProvider();
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
 
@@ -156,7 +181,9 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
           (item) => item.questionIndex === questionIndex,
         );
         if (!block) {
-          throw new Error('Prefilled candidate feedback question block is missing');
+          throw new Error(
+            'Prefilled candidate feedback question block is missing',
+          );
         }
         return presentCandidateFeedbackQuestionBlock(block);
       }
@@ -198,6 +225,15 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     await this.candidateFeedbackService.syncQuestionsFromInterview(interview);
 
     const feedback = await this.requireFeedback(interview.id);
+    if (
+      (await this.appConfig?.getBoolean('AI_CANDIDATE_FEEDBACK', true)) ===
+      false
+    ) {
+      throw apiServiceUnavailable(
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'AI candidate feedback generation is currently disabled via runtime config.',
+      );
+    }
     if (this.hasActiveGeneration(feedback)) {
       throw apiConflict(
         ApiErrorCode.CONFLICT,
@@ -220,14 +256,16 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
         overall.status === 'queued';
 
       if (willRun) {
-        void this.runGenerateAll(interview).catch((error) => {
-          this.logger.error(
-            `[generate-all] unhandled rejection interview=${interview.id}: ${this.formatError(error)}`,
-            error instanceof Error ? error.stack : undefined,
-          );
-        }).finally(() => {
-          this.generateAllInFlight.delete(interview.id);
-        });
+        void this.runGenerateAll(interview)
+          .catch((error) => {
+            this.logger.error(
+              `[generate-all] unhandled rejection interview=${interview.id}: ${this.formatError(error)}`,
+              error instanceof Error ? error.stack : undefined,
+            );
+          })
+          .finally(() => {
+            this.generateAllInFlight.delete(interview.id);
+          });
       } else {
         this.generateAllInFlight.delete(interview.id);
       }
@@ -244,12 +282,14 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     }
   }
 
-  private async runGenerateAll(
-    interview: Interview,
-  ): Promise<void> {
+  private async runGenerateAll(interview: Interview): Promise<void> {
     const provider = this.requireProvider();
 
-    for (let questionIndex = 0; questionIndex < interview.questions.length; questionIndex++) {
+    for (
+      let questionIndex = 0;
+      questionIndex < interview.questions.length;
+      questionIndex++
+    ) {
       await this.generateQuestionBlockBatch(interview, questionIndex, provider);
     }
 
@@ -260,7 +300,11 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interview: Interview,
   ): Promise<QuestionGenerationBatchResult[]> {
     const results: QuestionGenerationBatchResult[] = [];
-    for (let questionIndex = 0; questionIndex < interview.questions.length; questionIndex++) {
+    for (
+      let questionIndex = 0;
+      questionIndex < interview.questions.length;
+      questionIndex++
+    ) {
       results.push(await this.planQuestionGeneration(interview, questionIndex));
     }
     return results;
@@ -270,7 +314,10 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interview: Interview,
     questionIndex: number,
   ): Promise<QuestionGenerationBatchResult> {
-    const context = this.buildQuestionGenerationContext(interview, questionIndex);
+    const context = this.buildQuestionGenerationContext(
+      interview,
+      questionIndex,
+    );
     if ('reason' in context) {
       const prefillResult = await this.prefillEligibilitySkipTemplate(
         interview,
@@ -432,61 +479,67 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interview: Interview,
     provider: NativeProviderConfig,
   ): Promise<OverallGenerationBatchResult> {
-    const prepareResult = await this.withFeedbackLock(interview.id, async () => {
-      const feedback = await this.requireFeedback(interview.id);
-      const blockReason = getRegenerationBlockReason(feedback.overallState);
-      if (blockReason) {
-        return { kind: 'skip' as const, reason: blockReason };
-      }
+    const prepareResult = await this.withFeedbackLock(
+      interview.id,
+      async () => {
+        const feedback = await this.requireFeedback(interview.id);
+        const blockReason = getRegenerationBlockReason(feedback.overallState);
+        if (blockReason) {
+          return { kind: 'skip' as const, reason: blockReason };
+        }
 
-      const sourceTexts = collectCandidateFeedbackQuestionSourceTexts(
-        feedback.questions,
-      );
-      if (sourceTexts.length === 0) {
-        return { kind: 'skip' as const, reason: 'no_question_texts' as const };
-      }
-
-      const started =
-        await this.candidateFeedbackService.beginOverallBlockGeneration(
-          interview.id,
+        const sourceTexts = collectCandidateFeedbackQuestionSourceTexts(
+          feedback.questions,
         );
-      if (!started) {
-        const latest = await this.requireFeedback(interview.id);
+        if (sourceTexts.length === 0) {
+          return {
+            kind: 'skip' as const,
+            reason: 'no_question_texts' as const,
+          };
+        }
+
+        const started =
+          await this.candidateFeedbackService.beginOverallBlockGeneration(
+            interview.id,
+          );
+        if (!started) {
+          const latest = await this.requireFeedback(interview.id);
+          return {
+            kind: 'skip' as const,
+            reason:
+              getRegenerationBlockReason(latest.overallState) ?? 'in_progress',
+          };
+        }
+
+        const questionTextByIndex = new Map(
+          interview.questions.map((question, index) => [
+            index,
+            prepareQuestionForEvaluation(question, interview.interviewLocale)
+              .questionText,
+          ]),
+        );
+
+        const { toneMode, mixMetadata } = resolveOverallFeedbackTone(
+          interview,
+          feedback.questions,
+        );
+
         return {
-          kind: 'skip' as const,
-          reason:
-            getRegenerationBlockReason(latest.overallState) ?? 'in_progress',
+          kind: 'ready' as const,
+          llmInput: {
+            position: interview.position,
+            candidateName: interview.candidateName,
+            questionTexts: buildOverallQuestionTextsInput(
+              sourceTexts,
+              questionTextByIndex,
+            ),
+            interviewLocale: interview.interviewLocale,
+            toneMode,
+            mixMetadata,
+          },
         };
-      }
-
-      const questionTextByIndex = new Map(
-        interview.questions.map((question, index) => [
-          index,
-          prepareQuestionForEvaluation(question, interview.interviewLocale)
-            .questionText,
-        ]),
-      );
-
-      const { toneMode, mixMetadata } = resolveOverallFeedbackTone(
-        interview,
-        feedback.questions,
-      );
-
-      return {
-        kind: 'ready' as const,
-        llmInput: {
-          position: interview.position,
-          candidateName: interview.candidateName,
-          questionTexts: buildOverallQuestionTextsInput(
-            sourceTexts,
-            questionTextByIndex,
-          ),
-          interviewLocale: interview.interviewLocale,
-          toneMode,
-          mixMetadata,
-        },
-      };
-    });
+      },
+    );
 
     if (prepareResult.kind === 'skip') {
       if (prepareResult.reason === 'no_question_texts') {
@@ -550,8 +603,10 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
 
     const interviewQuestion = interview.questions[questionIndex];
     const questionText = interviewQuestion
-      ? prepareQuestionForEvaluation(interviewQuestion, interview.interviewLocale)
-          .questionText
+      ? prepareQuestionForEvaluation(
+          interviewQuestion,
+          interview.interviewLocale,
+        ).questionText
       : undefined;
     const template = buildSkipTemplateTexts(
       reason,
@@ -601,9 +656,7 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
   private buildQuestionGenerationContext(
     interview: Interview,
     questionIndex: number,
-  ):
-    | QuestionGenerationContext
-    | { reason: QuestionGenerationSkipReason } {
+  ): QuestionGenerationContext | { reason: QuestionGenerationSkipReason } {
     const answer = interview.answers.find(
       (item) => item.questionIndex === questionIndex,
     );
@@ -653,9 +706,8 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
     interviewId: string,
     questionIndex: number,
   ): Promise<CandidateFeedbackRegenerationBlockReason | null> {
-    const feedback = await this.candidateFeedbackService.findByInterviewId(
-      interviewId,
-    );
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
     const question = feedback?.questions.find(
       (item) => item.questionIndex === questionIndex,
     );
@@ -694,9 +746,8 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
   }
 
   private async requireFeedback(interviewId: string) {
-    const feedback = await this.candidateFeedbackService.findByInterviewId(
-      interviewId,
-    );
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
     if (!feedback) {
       throw apiNotFound(
         ApiErrorCode.FEEDBACK_NOT_FOUND,
@@ -733,7 +784,7 @@ export class CandidateFeedbackGenerationService implements OnApplicationBootstra
         ? `Question ${questionIndex} is not part of this interview`
         : reason === 'stale_validation'
           ? `Question ${questionIndex} must be re-validated for the currently selected answer version before candidate feedback can be generated`
-        : `Question ${questionIndex} is not eligible for AI feedback generation`,
+          : `Question ${questionIndex} is not eligible for AI feedback generation`,
       { interviewId, questionIndex, reason },
     );
   }

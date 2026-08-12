@@ -1,6 +1,7 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { Readable } from 'stream';
+
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 export interface WhisperTranscriptionResult {
   text: string;
@@ -150,9 +151,7 @@ export async function extractAudioFromVideo(
     ffmpeg.on('error', (err) => {
       finish(() => {
         reject(
-          new Error(
-            `Failed to run ffmpeg (is it installed?): ${err.message}`,
-          ),
+          new Error(`Failed to run ffmpeg (is it installed?): ${err.message}`),
         );
       });
     });
@@ -214,8 +213,9 @@ export async function transcribeInterviewMedia(
     throw new Error('OPENAI_API_KEY is not configured for Whisper.');
   }
 
-  const baseUrl = (process.env.OPENAI_BASE_URL?.trim() ??
-    'https://api.openai.com/v1').replace(/\/$/, '');
+  const baseUrl = (
+    process.env.OPENAI_BASE_URL?.trim() ?? 'https://api.openai.com/v1'
+  ).replace(/\/$/, '');
   const model = process.env.OPENAI_WHISPER_MODEL?.trim() ?? 'whisper-1';
 
   const videoBuffer = await downloadInterviewMedia(mediaKey);
@@ -238,9 +238,7 @@ export async function transcribeInterviewMedia(
   });
 
   if (!res.ok) {
-    throw new Error(
-      `Whisper error ${res.status}: ${await readErrorBody(res)}`,
-    );
+    throw new Error(`Whisper error ${res.status}: ${await readErrorBody(res)}`);
   }
 
   const data = (await res.json()) as {

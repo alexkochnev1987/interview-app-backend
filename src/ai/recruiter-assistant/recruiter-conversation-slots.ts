@@ -25,7 +25,9 @@ export function startConversationFlow(
   return { flow, slots: { ...initialSlots }, awaitingInput };
 }
 
-export function slotKeyFor(awaitingInput: RecruiterAssistantAwaitingInput): string {
+export function slotKeyFor(
+  awaitingInput: RecruiterAssistantAwaitingInput,
+): string {
   return SLOT_KEYS[awaitingInput];
 }
 

@@ -5,8 +5,7 @@ export const CANDIDATE_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 function isLocalFrontend(): boolean {
   return (
-    !process.env.FRONTEND_URL ||
-    process.env.FRONTEND_URL.includes('localhost')
+    !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost')
   );
 }
 

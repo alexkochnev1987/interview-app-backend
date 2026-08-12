@@ -2,7 +2,9 @@ import { extractQuestionName } from './recruiter-assistant-question-name-extract
 
 describe('recruiter-assistant-question-name-extract', () => {
   it('extracts quoted names', () => {
-    expect(extractQuestionName('create question "React hooks"')).toBe('React hooks');
+    expect(extractQuestionName('create question "React hooks"')).toBe(
+      'React hooks',
+    );
   });
 
   it('extracts names from create-question phrasing', () => {

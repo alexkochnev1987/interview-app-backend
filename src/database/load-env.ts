@@ -1,5 +1,6 @@
-import { config } from 'dotenv';
 import { resolve } from 'path';
+
+import { config } from 'dotenv';
 
 /**
  * Loaded before other database modules so standalone scripts (migrate) see DATABASE_URL.

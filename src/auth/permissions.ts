@@ -20,6 +20,7 @@ export const ALL_PERMISSIONS = [
   'templates:delete',
   'feedback:create_share_link',
   'feedback:revoke_share_link',
+  'config:manage',
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];

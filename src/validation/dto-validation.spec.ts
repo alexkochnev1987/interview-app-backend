@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
+
 import { DraftQuestionDto } from '../ai/dto/ai.dto';
 import { CreateInterviewDto } from '../interview/dto/create-interview.dto';
 import { UpdateInterviewDto } from '../interview/dto/update-interview.dto';
@@ -21,7 +22,9 @@ async function validateDtoWithWhitelist<T extends object>(
   Cls: new () => T,
   dto: object,
 ): Promise<T> {
-  const instance = plainToInstance(Cls, dto, { enableImplicitConversion: true });
+  const instance = plainToInstance(Cls, dto, {
+    enableImplicitConversion: true,
+  });
   const errors = await validate(instance, { whitelist: true });
   expect(errors).toHaveLength(0);
   return instance;
@@ -73,7 +76,9 @@ describe('DTO validation', () => {
       questionIds: ['question-1'],
       assignedHrId: 'not-a-uuid',
     });
-    expect(errors.some((error) => error.property === 'assignedHrId')).toBe(true);
+    expect(errors.some((error) => error.property === 'assignedHrId')).toBe(
+      true,
+    );
   });
 
   it('accepts UpdateInterviewDto with assignedHrId null to clear', async () => {
@@ -121,11 +126,29 @@ describe('DTO validation', () => {
       question: {
         primaryLocale: 'ru',
         questionText: 'Что такое DOM?',
-        followUpQuestions: ['Можете привести пример?', 'Какую ошибку избегаете?'],
+        followUpQuestions: [
+          'Можете привести пример?',
+          'Какую ошибку избегаете?',
+        ],
         expectedConcepts: [
-          { id: 'dom_model', label: 'модель DOM', weight: 0.34, description: 'структура' },
-          { id: 'rendering', label: 'отрисовка', weight: 0.33, description: 'обновления' },
-          { id: 'practical_use', label: 'практика', weight: 0.33, description: 'пример' },
+          {
+            id: 'dom_model',
+            label: 'модель DOM',
+            weight: 0.34,
+            description: 'структура',
+          },
+          {
+            id: 'rendering',
+            label: 'отрисовка',
+            weight: 0.33,
+            description: 'обновления',
+          },
+          {
+            id: 'practical_use',
+            label: 'практика',
+            weight: 0.33,
+            description: 'пример',
+          },
         ],
         redFlags: [
           { id: 'confuses_dom', label: 'Путает DOM', severity: 'medium' },

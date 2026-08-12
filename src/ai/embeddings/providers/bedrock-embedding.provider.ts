@@ -26,8 +26,7 @@ export class BedrockEmbeddingProvider extends EmbeddingProvider {
 
   constructor() {
     super();
-    this.model =
-      process.env.BEDROCK_EMBEDDING_MODEL?.trim() || DEFAULT_MODEL;
+    this.model = process.env.BEDROCK_EMBEDDING_MODEL?.trim() || DEFAULT_MODEL;
     this.client = new BedrockRuntimeClient({
       region: process.env.AWS_REGION?.trim() || DEFAULT_REGION,
     });

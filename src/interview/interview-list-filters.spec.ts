@@ -2,7 +2,11 @@ import type { InterviewActor } from './interfaces/interview.interface';
 import { buildInterviewFilterClauses } from './interview-list-filters';
 
 describe('buildInterviewFilterClauses', () => {
-  const adminActor: InterviewActor = { id: 'admin-id', role: 'admin', demo: false };
+  const adminActor: InterviewActor = {
+    id: 'admin-id',
+    role: 'admin',
+    demo: false,
+  };
   const hrActor: InterviewActor = { id: 'hr-id', role: 'hr', demo: false };
 
   it('scopes HR actors to interviews they created or are assigned to', () => {

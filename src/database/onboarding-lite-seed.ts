@@ -1,5 +1,9 @@
 import { createHash } from 'crypto';
 
+import {
+  ONBOARDING_STARTER_EMAIL_SUFFIX,
+  isOnboardingStarterEmail,
+} from '../common/onboarding-starter';
 import type {
   Answer,
   Interview,
@@ -8,10 +12,6 @@ import type {
 import type { Locale } from '../locale/locale.constants';
 import type { UserRole } from '../user/interfaces/user.interface';
 import type { DemoSeedExecutor } from './demo-seed-core';
-import {
-  ONBOARDING_STARTER_EMAIL_SUFFIX,
-  isOnboardingStarterEmail,
-} from '../common/onboarding-starter';
 
 export { ONBOARDING_STARTER_EMAIL_SUFFIX, isOnboardingStarterEmail };
 
@@ -30,7 +30,10 @@ export function shouldSeedOnboardingLitePack(
   return role === 'hr' || role === 'admin' || role === 'super_admin';
 }
 
-export function onboardingStarterStableId(userId: string, part: string): string {
+export function onboardingStarterStableId(
+  userId: string,
+  part: string,
+): string {
   const hex = createHash('sha256')
     .update(`onboarding-lite:${userId}:${part}`)
     .digest('hex');

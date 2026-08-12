@@ -18,7 +18,9 @@ async function loginAs(
   return extractSessionCookie(response.headers['set-cookie']);
 }
 
-export async function loginAsSuperAdmin(agent: IntegrationAgent): Promise<string> {
+export async function loginAsSuperAdmin(
+  agent: IntegrationAgent,
+): Promise<string> {
   return loginAs(agent, INTEGRATION_USERS.superAdmin);
 }
 
@@ -29,7 +31,9 @@ export async function loginAsIntegrationAdmin(
   return loginAsSuperAdmin(agent);
 }
 
-export async function loginAsStaffAdmin(agent: IntegrationAgent): Promise<string> {
+export async function loginAsStaffAdmin(
+  agent: IntegrationAgent,
+): Promise<string> {
   return loginAs(agent, INTEGRATION_USERS.admin);
 }
 

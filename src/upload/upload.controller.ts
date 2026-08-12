@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -14,8 +8,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
-import { UploadService } from './upload.service';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import {
   AbortMultipartUploadDto,
   CompleteMultipartUploadDto,
@@ -30,7 +25,7 @@ import {
   PresignedUrlResponseDto,
   StartMultipartUploadDto,
 } from './dto/upload.responses.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { UploadService } from './upload.service';
 
 interface CandidateRequest {
   candidatePayload: { interviewId: string };
@@ -59,6 +54,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 
@@ -77,6 +73,7 @@ export class UploadController {
       dto.questionIndex,
       dto.mediaKey,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 
@@ -96,6 +93,7 @@ export class UploadController {
       dto.contentType,
       dto.mediaType,
       dto.versionNumber,
+      { fileSizeBytes: dto.fileSizeBytes },
     );
   }
 

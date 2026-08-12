@@ -26,18 +26,38 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
+import { AiService } from '../ai/ai.service';
+import { DraftQuestionDto } from '../ai/dto/ai.dto';
+import {
+  QuestionDraftGenerate,
+  QuestionDraftContent,
+} from '../ai/question-draft-content';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
-import { Locale } from '../locale/locale.constants';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
+import { CurrentLocale } from '../locale/decorators/current-locale.decorator';
+import { Locale } from '../locale/locale.constants';
 import { User } from '../user/interfaces/user.interface';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { FindSimilarDto } from './dto/find-similar.dto';
 import { GetQuestionQueryDto } from './dto/get-question-query.dto';
 import { QueryQuestionsDto } from './dto/query-questions.dto';
+import { QuestionTranslationDto } from './dto/question-translation.dto';
+import {
+  BulkDeleteQuestionsResponseDto,
+  DeleteQuestionResponseDto,
+  FindSimilarResponseDto,
+  PaginatedQuestionsResponseDto,
+  QuestionFacetsResponseDto,
+  QuestionDraftContentResponseDto,
+  QuestionDraftGenerateResponseDto,
+  QuestionResponseDto,
+  ResolvedQuestionResponseDto,
+} from './dto/question.responses.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import {
   QuestionDeleteScheduledItem,
@@ -50,22 +70,6 @@ import {
   QuestionService,
   ResolvedQuestion,
 } from './question.service';
-import {
-  BulkDeleteQuestionsResponseDto,
-  DeleteQuestionResponseDto,
-  FindSimilarResponseDto,
-  PaginatedQuestionsResponseDto,
-  QuestionFacetsResponseDto,
-  QuestionDraftContentResponseDto,
-  QuestionDraftGenerateResponseDto,
-  QuestionResponseDto,
-  ResolvedQuestionResponseDto,
-} from './dto/question.responses.dto';
-import { QuestionTranslationDto } from './dto/question-translation.dto';
-import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { AiService } from '../ai/ai.service';
-import { QuestionDraftGenerate, QuestionDraftContent } from '../ai/question-draft-content';
-import { DraftQuestionDto } from '../ai/dto/ai.dto';
 
 const QUESTION_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,
@@ -141,11 +145,14 @@ export class QuestionController {
     @CurrentUser() user: Omit<User, 'passwordHash'>,
     @CurrentLocale() locale: Locale,
   ): Promise<PaginatedQuestions> {
-    return this.questionService.findAll(this.effectiveQuestionsQuery(user, query), {
-      forceActive: this.questionsForceActive(user, query),
-      resolveLocale: locale,
-      demo: user.demo,
-    });
+    return this.questionService.findAll(
+      this.effectiveQuestionsQuery(user, query),
+      {
+        forceActive: this.questionsForceActive(user, query),
+        resolveLocale: locale,
+        demo: user.demo,
+      },
+    );
   }
 
   @Post('ai/draft')
@@ -209,7 +216,11 @@ export class QuestionController {
               },
             ],
             redFlags: [
-              { id: 'confuses_scope', label: 'Путает область видимости', severity: 'medium' },
+              {
+                id: 'confuses_scope',
+                label: 'Путает область видимости',
+                severity: 'medium',
+              },
               { id: 'no_example', label: 'Нет примера', severity: 'high' },
             ],
             sampleGoodAnswer:
@@ -219,7 +230,10 @@ export class QuestionController {
       },
     },
   })
-  @ApiExtraModels(QuestionDraftGenerateResponseDto, QuestionDraftContentResponseDto)
+  @ApiExtraModels(
+    QuestionDraftGenerateResponseDto,
+    QuestionDraftContentResponseDto,
+  )
   @ApiOkResponse({
     description:
       'mode=generate: identity + rubric (QuestionDraftGenerateResponseDto). ' +
@@ -261,10 +275,13 @@ export class QuestionController {
     @Query(QUESTION_QUERY_VALIDATION_PIPE) query: QueryQuestionsDto,
     @CurrentUser() user: Omit<User, 'passwordHash'>,
   ): Promise<QuestionFacets> {
-    return this.questionService.getFacets(this.effectiveQuestionsQuery(user, query), {
-      forceActive: this.questionsForceActive(user, query),
-      demo: user.demo,
-    });
+    return this.questionService.getFacets(
+      this.effectiveQuestionsQuery(user, query),
+      {
+        forceActive: this.questionsForceActive(user, query),
+        demo: user.demo,
+      },
+    );
   }
 
   @Get(':id')

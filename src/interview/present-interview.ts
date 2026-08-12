@@ -10,9 +10,7 @@ export type InterviewPresentation = Omit<Interview, 'questions'> & {
   questions: ResolvedInterviewQuestion[];
 };
 
-export function presentInterview(
-  interview: Interview,
-): InterviewPresentation {
+export function presentInterview(interview: Interview): InterviewPresentation {
   return {
     ...interview,
     result: interview.result
@@ -22,6 +20,9 @@ export function presentInterview(
         }
       : undefined,
     questionsDisplayLocale: interview.interviewLocale,
-    questions: resolveInterviewQuestions(interview.questions, interview.interviewLocale),
+    questions: resolveInterviewQuestions(
+      interview.questions,
+      interview.interviewLocale,
+    ),
   };
 }

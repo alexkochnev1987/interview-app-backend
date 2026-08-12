@@ -1,4 +1,8 @@
-import { isLocale, Locale, parseLocaleHeader } from '../../locale/locale.constants';
+import {
+  isLocale,
+  Locale,
+  parseLocaleHeader,
+} from '../../locale/locale.constants';
 
 const LOCALE_ALIASES: Record<string, Locale> = {
   english: 'en',
@@ -47,8 +51,10 @@ export function isSupportedLocale(value: string): value is Locale {
 }
 
 export function extractLocaleToken(message: string): string | undefined {
-  const match = message.trim().match(
-    /\b(?:switch|change|set)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?:locale|language)\s+to\s+(\S+)/i,
-  );
+  const match = message
+    .trim()
+    .match(
+      /\b(?:switch|change|set)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?:locale|language)\s+to\s+(\S+)/i,
+    );
   return match?.[1]?.replace(/[.!?]+$/, '');
 }

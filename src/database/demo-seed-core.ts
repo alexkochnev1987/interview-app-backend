@@ -1,5 +1,7 @@
-import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
+
+import bcrypt from 'bcrypt';
+
 import { DatabaseService } from './database.service';
 import {
   DEMO_INTERVIEWS,
@@ -128,7 +130,9 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
   }
 }
 
-export async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> {
+export async function upsertDemoInterviews(
+  db: DemoSeedExecutor,
+): Promise<void> {
   for (const interview of DEMO_INTERVIEWS) {
     // Once a real recorded interview has been promoted to the demo, do not
     // recreate the fabricated placeholder on a later re-seed.
@@ -187,7 +191,9 @@ export async function upsertDemoTemplates(db: DemoSeedExecutor): Promise<void> {
   const demoQuestionIds = new Set(DEMO_QUESTIONS.map((q) => q.id));
   for (const template of DEMO_TEMPLATES) {
     // Fail fast on a mistyped reference so a broken template never seeds.
-    const unknown = template.questionIds.filter((id) => !demoQuestionIds.has(id));
+    const unknown = template.questionIds.filter(
+      (id) => !demoQuestionIds.has(id),
+    );
     if (unknown.length > 0) {
       throw new Error(
         `Demo template ${template.id} references unknown question(s): ${unknown.join(', ')}`,

@@ -1,3 +1,4 @@
+import { DEMO_USER_ID } from './demo-seed-data';
 import {
   BUILD_PRIMARY_TRANSLATION_BLOCK_SQL,
   INTERVIEWS_INTERVIEW_LOCALE_ROLLBACK_STATEMENTS,
@@ -602,7 +603,8 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   {
     version: '0030',
     name: 'questions_translations_primary_locale_check',
-    rollbackStatements: QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
+    rollbackStatements:
+      QUESTIONS_TRANSLATIONS_PRIMARY_BLOCK_ROLLBACK_STATEMENTS,
     statements: [
       `
         DO $$
@@ -1007,6 +1009,101 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     rollbackStatements: [
       `DROP INDEX IF EXISTS recruiter_pending_actions_expires_at_idx;`,
       `DROP TABLE IF EXISTS recruiter_pending_actions;`,
+    ],
+  },
+  {
+    version: '0049',
+    name: 'create_app_variables_table',
+    statements: [
+      `
+        CREATE TABLE IF NOT EXISTS app_variables (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          key VARCHAR(128) UNIQUE NOT NULL,
+          value TEXT NOT NULL,
+          value_type VARCHAR(32) NOT NULL DEFAULT 'string',
+          options TEXT[] NULL,
+          is_public BOOLEAN NOT NULL DEFAULT false,
+          is_secret BOOLEAN NOT NULL DEFAULT false,
+          description TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_by VARCHAR(128)
+        );
+      `,
+      `CREATE INDEX IF NOT EXISTS idx_app_variables_public ON app_variables (is_public) WHERE is_public = true;`,
+      `CREATE INDEX IF NOT EXISTS idx_app_variables_key ON app_variables (key);`,
+      `
+        INSERT INTO app_variables (key, value, value_type, is_public, is_secret, description) VALUES
+        ('MAX_TEMPLATE_QUESTIONS', '100', 'number', true, false, 'Maximum allowed number of questions per interview template or session'),
+        ('MAX_ANSWER_DURATION_SECONDS', '240', 'number', true, false, 'Maximum candidate video response recording limit in seconds per question'),
+        ('MAX_ANSWER_ATTEMPTS_PER_QUESTION', '3', 'number', true, false, 'Maximum allowed recording retry attempts per question for candidates'),
+        ('VALIDATION_MAX_CONCURRENCY', '3', 'number', false, false, 'Maximum number of concurrent AI answer evaluation background jobs'),
+        ('MAX_MEDIA_FILE_SIZE_MB', '100', 'number', true, false, 'Maximum allowed media payload file size in megabytes for AWS S3 upload'),
+        ('ENABLE_GOOGLE_OAUTH', 'true', 'boolean', true, false, 'Toggle Google OAuth Single Sign-On button visibility and backend guard execution'),
+        ('AI_CANDIDATE_FEEDBACK', 'true', 'boolean', true, false, 'Enable automated LLM feedback report generation for candidates upon interview completion'),
+        ('AI_QUESTION_DRAFT_V2', 'false', 'boolean', false, false, 'A/B testing switch to enable next-generation heuristic prompts for AI question generation'),
+        ('ENABLE_FEEDBACK_SHARE_LINKS', 'true', 'boolean', true, false, 'Toggle generation and resolving of external public candidate feedback share links'),
+        ('ENABLE_S3_MEDIA_CLEANUP', 'true', 'boolean', false, false, 'Master switch for background orphan media cleaning job in AWS S3 or MinIO'),
+        ('ENABLE_AI_ANSWER_VALIDATION', 'true', 'boolean', false, false, 'Master switch for Whisper media transcription and LLM answer grading workflow'),
+        ('DISABLE_USER_REGISTRATION', 'false', 'boolean', true, false, 'Emergency switch to halt new user account registration to prevent spam or DDoS attacks'),
+        ('DISABLE_AI_EMBEDDINGS_SYNC', 'false', 'boolean', false, false, 'Disable background vector embeddings synchronization during mass bulk question imports')
+        ON CONFLICT (key) DO NOTHING;
+      `,
+    ],
+    rollbackStatements: [
+      `DROP INDEX IF EXISTS idx_app_variables_key;`,
+      `DROP INDEX IF EXISTS idx_app_variables_public;`,
+      `DROP TABLE IF EXISTS app_variables;`,
+    ],
+  },
+  {
+    version: '0050',
+    name: 'add_app_variables_options',
+    statements: [
+      `ALTER TABLE app_variables ADD COLUMN IF NOT EXISTS options TEXT[] NULL;`,
+      `
+        INSERT INTO app_variables (key, value, value_type, options, description, is_public, is_secret)
+        VALUES
+          ('APP_THEME', 'innowise', 'enum', ARRAY['innowise', 'red', 'blue', 'purple'], 'Active UI theme color preset', true, false),
+          ('DEFAULT_THEME_MODE', 'system', 'enum', ARRAY['system', 'light', 'dark'], 'Default light/dark theme mode for new users', true, false)
+        ON CONFLICT (key) DO UPDATE SET
+          value_type = EXCLUDED.value_type,
+          options = EXCLUDED.options,
+          description = EXCLUDED.description,
+          is_public = EXCLUDED.is_public,
+          is_secret = EXCLUDED.is_secret;
+      `,
+    ],
+    rollbackStatements: [
+      `ALTER TABLE app_variables DROP COLUMN IF EXISTS options;`,
+    ],
+  },
+  {
+    version: '0051',
+    name: 'add_enable_ai_assistant_variable',
+    statements: [
+      `
+        INSERT INTO app_variables (key, value, value_type, description, is_public, is_secret)
+        VALUES
+          ('ENABLE_AI_ASSISTANT', 'true', 'boolean', 'Master switch to enable/disable AI Recruiter Assistant widget UI', true, false)
+        ON CONFLICT (key) DO UPDATE SET
+          value_type = EXCLUDED.value_type,
+          description = EXCLUDED.description,
+          is_public = EXCLUDED.is_public,
+          is_secret = EXCLUDED.is_secret;
+      `,
+    ],
+  },
+  {
+    version: '0052',
+    name: 'assign_demo_interviews_to_demo_hr',
+    statements: [
+      `
+      UPDATE interviews
+      SET assigned_hr_id = '${DEMO_USER_ID}'
+      WHERE demo = TRUE
+        AND assigned_hr_id IS NULL;
+    `,
     ],
   },
 ];

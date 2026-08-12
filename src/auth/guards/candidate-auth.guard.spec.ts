@@ -1,10 +1,11 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { CandidateAuthGuard } from './candidate-auth.guard';
-import { AuthService } from '../auth.service';
+
 import { mockExecutionContext } from '../../test/mock-execution-context';
+import { AuthService } from '../auth.service';
+import { CandidateAuthGuard } from './candidate-auth.guard';
 
 describe('CandidateAuthGuard', () => {
-  const validateCandidateToken = jest.fn();
+  const validateCandidateToken = vi.fn();
   const guard = new CandidateAuthGuard({
     validateCandidateToken,
   } as unknown as AuthService);

@@ -16,7 +16,9 @@ describe('interview-completion-rules', () => {
     expect(
       getSubmittedAnswerCount(
         interview({
-          questions: [{ id: 'q1', questionText: 'One' } as Interview['questions'][0]],
+          questions: [
+            { id: 'q1', questionText: 'One' } as Interview['questions'][0],
+          ],
           answers: [
             { status: 'recording' } as Interview['answers'][0],
             { status: 'submitted' } as Interview['answers'][0],
@@ -40,7 +42,9 @@ describe('interview-completion-rules', () => {
     );
 
     const complete = interview({
-      questions: [{ id: 'q1', questionText: 'One' } as Interview['questions'][0]],
+      questions: [
+        { id: 'q1', questionText: 'One' } as Interview['questions'][0],
+      ],
       answers: [{ status: 'submitted' } as Interview['answers'][0]],
     });
 

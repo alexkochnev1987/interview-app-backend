@@ -24,22 +24,22 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
-  ApiParam
+  ApiParam,
 } from '@nestjs/swagger';
+
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { AuthUserResponseDto } from '../auth/dto/auth-user.response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AssignRoleDto } from './dto/assign-role.dto';
-import { ListUsersQueryDto } from './dto/list-users-query.dto';
-import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './interfaces/user.interface';
-import { UserProfileResponseDto } from './dto/user-profile.response.dto';
-import { UserService } from './user.service';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-
-import { AuthUserResponseDto } from '../auth/dto/auth-user.response.dto';
+import { AssignRoleDto } from './dto/assign-role.dto';
+import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserProfileResponseDto } from './dto/user-profile.response.dto';
+import { User } from './interfaces/user.interface';
+import { UserService } from './user.service';
 
 @ApiTags('users')
 @ApiCookieAuth('sessionAuth')
@@ -53,7 +53,9 @@ export class UserController {
   @ApiOperation({ summary: 'List all users' })
   @ApiOkResponse({ type: [AuthUserResponseDto] })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  list(@Query() query: ListUsersQueryDto): Promise<Omit<User, 'passwordHash'>[]> {
+  list(
+    @Query() query: ListUsersQueryDto,
+  ): Promise<Omit<User, 'passwordHash'>[]> {
     return this.userService.listAll({
       limit: query.limit,
       offset: query.offset,
@@ -69,8 +71,8 @@ export class UserController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
   findOne(
-      @Param('id', ParseUUIDPipe) id: string,
-      @CurrentUser() actor: Omit<User, 'passwordHash'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: Omit<User, 'passwordHash'>,
   ): Promise<UserProfileResponseDto> {
     return this.userService.findOneForActor(actor, id);
   }

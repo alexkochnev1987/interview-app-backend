@@ -84,7 +84,9 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('classifies question count requests', () => {
-    expect(service.classify('how many questions do we have in total', admin, 'en')).toEqual({
+    expect(
+      service.classify('how many questions do we have in total', admin, 'en'),
+    ).toEqual({
       kind: 'count_questions',
       filters: {},
     });
@@ -95,9 +97,9 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('does not classify create question as count', () => {
-    expect(service.classify('create a question about React', admin, 'en').kind).toBe(
-      'create_question',
-    );
+    expect(
+      service.classify('create a question about React', admin, 'en').kind,
+    ).toBe('create_question');
   });
 
   it('classifies list assessments requests', () => {
@@ -112,9 +114,7 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('classifies list assessments requests with filters', () => {
-    expect(
-      service.classify('show react assessments', admin, 'en'),
-    ).toEqual({
+    expect(service.classify('show react assessments', admin, 'en')).toEqual({
       kind: 'list_assessments',
       filters: { position: 'React Developer' },
     });
@@ -143,6 +143,12 @@ describe('RecruiterAssistantIntentService', () => {
       kind: 'create_question',
       questionName: undefined,
     });
+    expect(
+      service.classify('Help me create a new interview question', admin, 'en'),
+    ).toEqual({
+      kind: 'create_question',
+      questionName: undefined,
+    });
   });
 
   it('classifies create interview requests', () => {
@@ -152,7 +158,11 @@ describe('RecruiterAssistantIntentService', () => {
       position: undefined,
     });
     expect(
-      service.classify('create interview for Alice for React developer', admin, 'en'),
+      service.classify(
+        'create interview for Alice for React developer',
+        admin,
+        'en',
+      ),
     ).toEqual({
       kind: 'create_interview',
       candidateName: 'Alice',
@@ -162,7 +172,11 @@ describe('RecruiterAssistantIntentService', () => {
 
   it('classifies bulk question prep requests', () => {
     expect(
-      service.classify('prepare 5 questions for a React developer', admin, 'en'),
+      service.classify(
+        'prepare 5 questions for a React developer',
+        admin,
+        'en',
+      ),
     ).toEqual({
       kind: 'create_questions_interview',
       parsed: expect.objectContaining({
@@ -184,9 +198,7 @@ describe('RecruiterAssistantIntentService', () => {
   });
 
   it('flags schedule inquiries for candidate when/where prompts', () => {
-    expect(
-      service.classify('when is my interview', candidate, 'en'),
-    ).toEqual({
+    expect(service.classify('when is my interview', candidate, 'en')).toEqual({
       kind: 'interview_status',
       ref: {},
       ownInterviews: true,
@@ -213,11 +225,8 @@ describe('RecruiterAssistantIntentService', () => {
 
   it('prefers create over list when both patterns match', () => {
     expect(
-      service.classify(
-        'generate questions for pending interviews',
-        admin,
-        'en',
-      ).kind,
+      service.classify('generate questions for pending interviews', admin, 'en')
+        .kind,
     ).toBe('create_questions_interview');
   });
 
@@ -236,8 +245,16 @@ describe('RecruiterAssistantIntentService', () => {
       ['ru', 'мой интервью статус', 'interview_status'],
       ['ru', 'назначь интервью для Alice на Jane', 'assign_hr'],
       ['ru', 'статус интервью Alice', 'interview_status'],
-      ['ru', 'создай 5 вопросов для React разработчик', 'create_questions_interview'],
-      ['en', 'set up an interview for an hr manager role', 'create_questions_interview'],
+      [
+        'ru',
+        'создай 5 вопросов для React разработчик',
+        'create_questions_interview',
+      ],
+      [
+        'en',
+        'set up an interview for an hr manager role',
+        'create_questions_interview',
+      ],
     ] as const)(
       'classifies %s message "%s" as %s',
       (locale, message, expectedKind) => {
@@ -256,12 +273,12 @@ describe('RecruiterAssistantIntentService', () => {
     });
 
     it('does not treat bare English nouns as create', () => {
-      expect(service.classify('show pending interviews', admin, 'en').kind).toBe(
-        'list_interviews',
-      );
-      expect(service.classify('what developer tools do we use', admin, 'en').kind).toBe(
-        'out_of_scope',
-      );
+      expect(
+        service.classify('show pending interviews', admin, 'en').kind,
+      ).toBe('list_interviews');
+      expect(
+        service.classify('what developer tools do we use', admin, 'en').kind,
+      ).toBe('out_of_scope');
     });
   });
 });

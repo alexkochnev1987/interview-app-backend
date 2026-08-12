@@ -14,7 +14,9 @@ export const ASSIGN_HR_PATTERNS = [
   /\bassign\b.*\b(to|hr|reviewer)\b/i,
   /\bassign\b.*\bhr\b/i,
   /\bassign\s+reviewer\b/i,
-  cyrillicPattern('назнач(?:ь|ить|и)?(?:\\s+\\S+){0,12}(?:\\s+на\\s+|\\s+hr\\b|\\s+рекрут|\\s+reviewer)'),
+  cyrillicPattern(
+    'назнач(?:ь|ить|и)?(?:\\s+\\S+){0,12}(?:\\s+на\\s+|\\s+hr\\b|\\s+рекрут|\\s+reviewer)',
+  ),
 ];
 
 export const UNASSIGNED_PATTERNS = [
@@ -84,7 +86,9 @@ export const LIST_INTERVIEWS_PATTERNS = [
 export const SWITCH_LOCALE_PATTERNS = [
   /\b(?:switch|change|set)\s+(?:the\s+)?(?:app(?:lication)?\s+)?(?:locale|language)\s+to\b/i,
   /\blocale\s+to\b/i,
-  cyrillicLoosePattern('(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)'),
+  cyrillicLoosePattern(
+    '(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)',
+  ),
 ];
 
 export const NEW_CHAT_PATTERNS = [
@@ -122,14 +126,19 @@ export const CREATE_INTENT_PATTERNS = [
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
   /\bmake interview\b/i,
   /\bgenerate questions\b/i,
-  cyrillicLoosePattern('(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)'),
-  cyrillicLoosePattern('(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)'),
+  cyrillicLoosePattern(
+    '(?:создай|создать|подготов(?:ь|ить|ьте)?)\\s+(?:\\d{1,2}\\s+)?(?:вопрос|вопросы|интерв)',
+  ),
+  cyrillicLoosePattern(
+    '(?:вопрос|вопросы)(?:\\s+\\S+){0,8}(?:создай|создать|подготов(?:ь|ить|ьте)?)',
+  ),
 ];
 
 export const CREATE_SINGLE_QUESTION_PATTERNS = [
-  /\bcreate (?:a )?question\b/i,
-  /\badd (?:a )?(?:new )?question\b/i,
-  /\bmake (?:a )?(?:new )?question\b/i,
+  /\bcreate (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\badd (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bmake (?:a )?(?:new )?(?:interview )?question\b/i,
+  /\bhelp(?: me)? (?:to )?create (?:a )?(?:new )?(?:interview )?question\b/i,
   cyrillicLoosePattern('создай(?:\\s+\\S+){0,4}\\s+вопрос'),
 ];
 
@@ -143,7 +152,10 @@ export function matchesCreateSingleQuestionIntent(message: string): boolean {
   return matchesAnyPattern(message, CREATE_SINGLE_QUESTION_PATTERNS);
 }
 
-export function matchesAnyPattern(message: string, patterns: RegExp[]): boolean {
+export function matchesAnyPattern(
+  message: string,
+  patterns: RegExp[],
+): boolean {
   return patterns.some((pattern) => pattern.test(message));
 }
 

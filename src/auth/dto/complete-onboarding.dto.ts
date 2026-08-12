@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
+
 import {
   ONBOARDING_STATUSES,
   type OnboardingStatus,
