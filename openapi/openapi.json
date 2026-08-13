@@ -7563,6 +7563,11 @@
             "type": "boolean",
             "example": true,
             "description": "Whether a Google photo is on file to restore, regardless of whether it is the currently active picture source."
+          },
+          "recruiterAssistantEnabled": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether Herman (recruiter AI assistant) is enabled for this user, based on org config and role."
           }
         },
         "required": [
@@ -7573,7 +7578,8 @@
           "demo",
           "createdAt",
           "avatarSource",
-          "hasGoogleAvatar"
+          "hasGoogleAvatar",
+          "recruiterAssistantEnabled"
         ]
       },
       "RegisterDto": {
@@ -11277,6 +11283,33 @@
           "message"
         ]
       },
+      "RecruiterAssistantSimilarQuestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "description": "Similarity score from 0 to 1 (e.g. 0.85 = 85% match).",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "href": {
+            "type": "string",
+            "description": "Frontend route when the similar question card is clicked."
+          }
+        },
+        "required": [
+          "id",
+          "questionText",
+          "score",
+          "href"
+        ]
+      },
       "RecruiterAssistantCreatedQuestionDto": {
         "type": "object",
         "properties": {
@@ -11402,6 +11435,13 @@
               "$ref": "#/components/schemas/RecruiterAssistantSuggestedQuestionDto"
             }
           },
+          "similarQuestions": {
+            "description": "Existing questions with high similarity during create_question flow (clickable cards).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecruiterAssistantSimilarQuestionDto"
+            }
+          },
           "pendingAction": {
             "oneOf": [
               {
@@ -11448,6 +11488,7 @@
               "hr",
               "interview",
               "questionName",
+              "confirmAddDespiteSimilar",
               "candidateName",
               "position",
               "templateChoice"
@@ -11468,6 +11509,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/InterviewListItemDto"
+            }
+          },
+          "hrs": {
+            "description": "HR reviewers returned for assign_hr picker steps or the list_hrs intent.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssignedHrDto"
             }
           },
           "interview": {

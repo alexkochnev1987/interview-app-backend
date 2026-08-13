@@ -74,12 +74,30 @@ describe('RecruiterAssistantIntentService', () => {
     expect(service.classify('new chat', admin, 'en')).toEqual({
       kind: 'new_chat',
     });
+    expect(service.classify('cancel', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
+    expect(service.classify('abort', admin, 'en')).toEqual({
+      kind: 'new_chat',
+    });
   });
 
   it('classifies list interview requests', () => {
     expect(service.classify('show pending interviews', admin, 'en')).toEqual({
       kind: 'list_interviews',
       filters: { limit: 20, status: 'pending' },
+    });
+  });
+
+  it('classifies show HR requests', () => {
+    expect(service.classify('show hrs', admin, 'en')).toEqual({
+      kind: 'list_hrs',
+    });
+    expect(service.classify('list hr reviewers', admin, 'en')).toEqual({
+      kind: 'list_hrs',
+    });
+    expect(service.classify('available hr reviewers', admin, 'en')).toEqual({
+      kind: 'list_hrs',
     });
   });
 
@@ -121,20 +139,21 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
-  it('classifies bulk question prep requests', () => {
+  it('does not classify English prepare/generate bulk phrasing as create', () => {
     expect(
       service.classify(
         'prepare 5 questions for a React developer',
         admin,
         'en',
       ),
-    ).toEqual({
-      kind: 'create_questions_interview',
-      parsed: expect.objectContaining({
-        position: 'React Developer',
-        count: 5,
-      }),
-    });
+    ).toEqual({ kind: 'out_of_scope' });
+    expect(
+      service.classify(
+        'generate 5 questions for a React developer',
+        admin,
+        'en',
+      ),
+    ).toEqual({ kind: 'out_of_scope' });
   });
 
   it('routes candidate self-status questions separately', () => {
@@ -174,11 +193,17 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
-  it('prefers create over list when both patterns match', () => {
+  it('prefers list over removed bulk create patterns when both could match', () => {
     expect(
-      service.classify('generate questions for pending interviews', admin, 'en')
-        .kind,
-    ).toBe('create_questions_interview');
+      service.classify(
+        'generate questions for pending interviews',
+        admin,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'list_interviews',
+      filters: { limit: 20, status: 'pending' },
+    });
   });
 
   it('does not set status from status substrings inside other words', () => {

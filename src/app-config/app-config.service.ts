@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
 import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
+import { parseRecruiterAssistantBoolean } from './recruiter-assistant-role-config';
 
 export type VariableType =
   | 'string'
@@ -108,6 +109,24 @@ export class AppConfigService implements OnModuleInit {
     return defaultValue;
   }
 
+  /**
+   * DB override or process.env only — skips SYSTEM_CONFIG_DEFAULTS.
+   * Use when a code default must not count as an explicit configuration.
+   */
+  async getExplicitString(key: string): Promise<string | undefined> {
+    const dbRecord = await this.getFromCacheOrDb(key);
+    if (dbRecord) {
+      return dbRecord.value;
+    }
+
+    const envValue = process.env[key];
+    if (envValue !== undefined && envValue.trim() !== '') {
+      return envValue;
+    }
+
+    return undefined;
+  }
+
   async getNumber(key: string, defaultValue: number): Promise<number> {
     const raw = await this.getString(key);
     if (raw === undefined || raw === null) {
@@ -119,17 +138,7 @@ export class AppConfigService implements OnModuleInit {
 
   async getBoolean(key: string, defaultValue: boolean): Promise<boolean> {
     const raw = await this.getString(key);
-    if (raw === undefined || raw === null) {
-      return defaultValue;
-    }
-    const lower = raw.trim().toLowerCase();
-    if (lower === 'true' || lower === '1' || lower === 'yes') {
-      return true;
-    }
-    if (lower === 'false' || lower === '0' || lower === 'no') {
-      return false;
-    }
-    return defaultValue;
+    return parseRecruiterAssistantBoolean(raw, defaultValue);
   }
 
   async getJson<T>(key: string, defaultValue: T): Promise<T> {
@@ -390,11 +399,7 @@ function parseTypedValue(value: string, valueType: VariableType): unknown {
       return Number.isFinite(n) ? n : value;
     }
     case 'boolean':
-      return (
-        value.trim().toLowerCase() === 'true' ||
-        value.trim() === '1' ||
-        value.trim().toLowerCase() === 'yes'
-      );
+      return parseRecruiterAssistantBoolean(value, false);
     case 'json':
       try {
         return JSON.parse(value);

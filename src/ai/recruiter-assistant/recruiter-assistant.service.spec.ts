@@ -50,6 +50,11 @@ describe('RecruiterAssistantService', () => {
     }),
   };
 
+  const recruiterAssistantConfig = {
+    isRecruiterAssistantEnabled: vi.fn().mockResolvedValue(true),
+    isRecruiterAssistantEnabledForRole: vi.fn().mockResolvedValue(true),
+  };
+
   const service = new RecruiterAssistantService(
     intentRouter as never,
     tools as never,
@@ -57,6 +62,7 @@ describe('RecruiterAssistantService', () => {
     pendingActionStore as never,
     conversationStore as never,
     conversationFlow as never,
+    recruiterAssistantConfig as never,
   );
 
   beforeEach(() => {
@@ -148,6 +154,40 @@ describe('RecruiterAssistantService', () => {
     expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
     expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
     expect(response.sessionId).toBe('session-3');
+  });
+
+  it('starts a new conversation when the user sends cancel or abort', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
+    conversationStore.issue.mockReturnValue('session-4');
+    pendingActionStore.revokeAllForUser.mockResolvedValue(undefined);
+
+    const response = await service.chat({ message: 'cancel' }, user, 'en');
+
+    expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
+    expect(pendingActionStore.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(response.sessionId).toBe('session-4');
+  });
+
+  it('resets an active flow when the user sends abort', async () => {
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
+    conversationStore.get.mockReturnValue({
+      flow: 'assign_hr',
+      awaitingInput: 'interview',
+      slots: {},
+    });
+    conversationFlow.resumeActiveFlow.mockResolvedValue(null);
+    conversationStore.issue.mockReturnValue('session-5');
+    pendingActionStore.revokeAllForUser.mockResolvedValue(undefined);
+
+    const response = await service.chat(
+      { message: 'abort', sessionId: 'session-1' },
+      user,
+      'en',
+    );
+
+    expect(conversationStore.clearAllForUser).toHaveBeenCalledWith('user-1');
+    expect(conversationFlow.resumeActiveFlow).not.toHaveBeenCalled();
+    expect(response.sessionId).toBe('session-5');
   });
 
   it('returns an active flow response before intent routing', async () => {
