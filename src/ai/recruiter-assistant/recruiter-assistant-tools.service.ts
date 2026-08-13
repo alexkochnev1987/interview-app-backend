@@ -28,7 +28,10 @@ import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
-import { buildInterviewRedirect } from './recruiter-assistant-response-builders';
+import {
+  buildInterviewRedirect,
+  buildSimilarQuestionMatchCards,
+} from './recruiter-assistant-response-builders';
 import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import {
   canAssignHr,
@@ -509,6 +512,110 @@ export class RecruiterAssistantToolsService {
     );
   }
 
+  async continueCreateQuestionDespiteSimilar(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateQuestions(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create questions.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const questionName = state.slots.questionName;
+    if (!questionName) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'questionName'),
+      );
+      return {
+        status: 'answered',
+        response: 'What should the question be called?',
+        awaitingInput: 'questionName',
+      };
+    }
+
+    const response = await this.progressCreateQuestionDraftAndConfirm(
+      questionName,
+      user,
+      locale,
+      sessionId,
+    );
+
+    if (response.status === 'refused') {
+      const matches =
+        await this.questionMatcher.findSimilarMatchesOverThreshold(
+          questionName,
+          user,
+          locale,
+        );
+      if (matches.length > 0) {
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+            questionName,
+          }),
+        );
+        return {
+          status: 'answered',
+          response: `${response.response} Reply yes to try again, or no/cancel to abort.`,
+          awaitingInput: 'confirmAddDespiteSimilar',
+          similarQuestions: buildSimilarQuestionMatchCards(matches),
+        };
+      }
+    }
+
+    return response;
+  }
+
+  async repromptSimilarQuestionConfirmation(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const questionName = state.slots.questionName;
+    if (!questionName) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'questionName'),
+      );
+      return {
+        status: 'answered',
+        response: 'What should the question be called?',
+        awaitingInput: 'questionName',
+      };
+    }
+
+    const matches = await this.questionMatcher.findSimilarMatchesOverThreshold(
+      questionName,
+      user,
+      locale,
+    );
+
+    this.conversationStore.update(
+      user.id,
+      sessionId,
+      startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+        questionName,
+      }),
+    );
+
+    return {
+      status: 'answered',
+      response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+      awaitingInput: 'confirmAddDespiteSimilar',
+      similarQuestions: buildSimilarQuestionMatchCards(matches),
+    };
+  }
+
   async prepareCreateInterview(
     candidateName: string | undefined,
     position: string | undefined,
@@ -805,6 +912,42 @@ export class RecruiterAssistantToolsService {
   }
 
   private async progressCreateQuestionFlow(
+    questionName: string,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const matches = await this.questionMatcher.findSimilarMatchesOverThreshold(
+      questionName,
+      user,
+      locale,
+    );
+
+    if (matches.length > 0) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+          questionName,
+        }),
+      );
+      return {
+        status: 'answered',
+        response: `Found ${matches.length} similar question(s) (≥80%). Still add "${questionName}"? Reply yes to continue or no to abort.`,
+        similarQuestions: buildSimilarQuestionMatchCards(matches),
+        awaitingInput: 'confirmAddDespiteSimilar',
+      };
+    }
+
+    return this.progressCreateQuestionDraftAndConfirm(
+      questionName,
+      user,
+      locale,
+      sessionId,
+    );
+  }
+
+  private async progressCreateQuestionDraftAndConfirm(
     questionName: string,
     user: ActingUser,
     locale: Locale,
