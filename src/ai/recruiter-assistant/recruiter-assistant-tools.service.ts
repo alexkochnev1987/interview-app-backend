@@ -4,12 +4,18 @@ import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
+import { AssignedHrDto } from '../../interview/dto/interview.responses.dto';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { toInterviewActor } from '../../interview/interview-actor';
-import { InterviewService } from '../../interview/interview.service';
+import {
+  InterviewService,
+  MAX_INTERVIEWS_LIMIT,
+} from '../../interview/interview.service';
 import { Locale } from '../../locale/locale.constants';
-import { TemplateService } from '../../template/template.service';
-import { TemplateSummary } from '../../template/template.service';
+import {
+  TemplateService,
+  TemplateSummary,
+} from '../../template/template.service';
 import { UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import {
@@ -52,6 +58,8 @@ import {
 } from './recruiter-question-draft.mapper';
 import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.service';
 import { buildQuestionSuggestions } from './recruiter-question-plan';
+
+const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -119,6 +127,35 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
+  }
+
+  async listHrs(
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canAssignHr(user)) {
+      return {
+        status: 'denied',
+        response: 'Only admins can list HR reviewers.',
+        escalateTo: 'admin',
+      };
+    }
+
+    const hrs = await this.fetchAvailableHrs(user);
+    if (hrs.length === 0) {
+      return {
+        status: 'answered',
+        response: 'No HR reviewers available.',
+        hrs: [],
+      };
+    }
+
+    return {
+      status: 'answered',
+      response: `Found ${hrs.length} HR reviewer(s).`,
+      hrs,
+    };
   }
 
   async getInterviewStatus(
@@ -860,7 +897,7 @@ export class RecruiterAssistantToolsService {
         'interview',
         this.hrSlotsFromUser(hrUser),
         options.persistFlowOnMissing,
-        'I could not find a unique interview. Provide a candidate name or interview id.',
+        true,
       );
     }
 
@@ -887,7 +924,7 @@ export class RecruiterAssistantToolsService {
           interviewRef: interview.candidateName,
         },
         options.persistFlowOnMissing,
-        'I could not find a unique HR user. Provide an HR name.',
+        true,
       );
     }
 
@@ -933,7 +970,10 @@ export class RecruiterAssistantToolsService {
       return { id: input.slots.assignedHrId };
     }
     const hrName = input.slots?.hrName;
-    return hrName ? { name: hrName } : {};
+    if (!hrName) {
+      return {};
+    }
+    return this.isUuid(hrName) ? { id: hrName } : { name: hrName };
   }
 
   private hrSlotsFromUser(
@@ -948,14 +988,38 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  private requestAssignHrSlot(
+  private async fetchAvailableHrs(user: ActingUser): Promise<AssignedHrDto[]> {
+    const hrUsers = await this.userService.listAll({
+      role: 'hr',
+      demo: user.demo,
+      limit: MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT,
+    });
+    return hrUsers.map((hrUser) => ({
+      id: hrUser.id,
+      name: hrUser.name,
+      email: hrUser.email,
+    }));
+  }
+
+  private async fetchUnassignedInterviews(user: ActingUser) {
+    const { items } = await this.interviewService.findAllPaginated(
+      {
+        assignedHrId: ASSIGNED_HR_FILTER_UNASSIGNED,
+        limit: MAX_INTERVIEWS_LIMIT,
+      },
+      toInterviewActor(user),
+    );
+    return items;
+  }
+
+  private async requestAssignHrSlot(
     user: ActingUser,
     sessionId: string,
     awaitingInput: 'hr' | 'interview',
     slots: Record<string, string>,
     persist: boolean,
-    response?: string,
-  ): RecruiterAssistantResponseDto {
+    ambiguous = false,
+  ): Promise<RecruiterAssistantResponseDto> {
     if (persist) {
       this.conversationStore.update(
         user.id,
@@ -964,14 +1028,52 @@ export class RecruiterAssistantToolsService {
       );
     }
 
+    if (awaitingInput === 'interview') {
+      const interviews = await this.fetchUnassignedInterviews(user);
+      if (interviews.length === 0) {
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          idleConversationState(),
+        );
+        return {
+          status: 'answered',
+          response: 'No unassigned interviews available.',
+          interviews: [],
+        };
+      }
+
+      return {
+        status: 'answered',
+        response: ambiguous
+          ? "Couldn't detect singular interview, please choose from the list"
+          : 'Which interview should I assign?',
+        awaitingInput,
+        interviews,
+      };
+    }
+
+    const hrs = await this.fetchAvailableHrs(user);
+    if (hrs.length === 0) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        idleConversationState(),
+      );
+      return {
+        status: 'answered',
+        response: 'No HR reviewers available.',
+        hrs: [],
+      };
+    }
+
     return {
       status: 'answered',
-      response:
-        response ??
-        (awaitingInput === 'interview'
-          ? 'Which interview should I assign? Provide a candidate name or interview id.'
-          : 'Which HR reviewer should I assign?'),
+      response: ambiguous
+        ? "Couldn't detect singular HR, please choose from the list"
+        : 'Which HR reviewer should I assign?',
       awaitingInput,
+      hrs,
     };
   }
 

@@ -11476,6 +11476,13 @@
               "$ref": "#/components/schemas/InterviewListItemDto"
             }
           },
+          "hrs": {
+            "description": "HR reviewers returned for assign_hr picker steps or the list_hrs intent.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssignedHrDto"
+            }
+          },
           "interview": {
             "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
           }

@@ -83,6 +83,18 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies show HR requests', () => {
+    expect(service.classify('show hrs', admin, 'en')).toEqual({
+      kind: 'list_hrs',
+    });
+    expect(service.classify('list hr reviewers', admin, 'en')).toEqual({
+      kind: 'list_hrs',
+    });
+    expect(service.classify('available hr reviewers', admin, 'en')).toEqual({
+      kind: 'list_hrs',
+    });
+  });
+
   it('classifies create question requests', () => {
     expect(
       service.classify('create a question about React hooks', admin, 'en'),
