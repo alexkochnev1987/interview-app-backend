@@ -2622,6 +2622,10 @@ export interface components {
             total: number;
             filters?: Record<string, never>;
         };
+        RecruiterAssistantAssessmentCountDto: {
+            total: number;
+            filters?: Record<string, never>;
+        };
         RecruiterAssistantInterviewActivityDto: {
             total: number;
             active: number;
@@ -2663,6 +2667,7 @@ export interface components {
             hrs?: components["schemas"]["AssignedHrDto"][];
             interview?: components["schemas"]["RecruiterAssistantInterviewSummaryDto"];
             questionCount?: components["schemas"]["RecruiterAssistantQuestionCountDto"];
+            assessmentCount?: components["schemas"]["RecruiterAssistantAssessmentCountDto"];
             assessments?: components["schemas"]["TemplateSummaryResponseDto"][];
             interviewActivity?: components["schemas"]["RecruiterAssistantInterviewActivityDto"];
             teamSummary?: components["schemas"]["RecruiterAssistantTeamSummaryDto"];
