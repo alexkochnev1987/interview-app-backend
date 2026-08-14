@@ -57,4 +57,28 @@ describe('extractQuestionFilters', () => {
   it('ignores invalid difficulty values', () => {
     expect(extractQuestionFilters('how many expert questions')).toEqual({});
   });
+
+  it('extracts category, type, and language', () => {
+    expect(
+      extractQuestionFilters(
+        'how many questions in category software-engineering',
+      ),
+    ).toEqual({ category: 'software-engineering' });
+
+    expect(
+      extractQuestionFilters('count questions with type api-design'),
+    ).toEqual({ subcategory: 'api-design' });
+
+    expect(extractQuestionFilters('show russian questions')).toEqual({
+      locale: 'ru',
+    });
+
+    expect(extractQuestionFilters('how many questions in language pl')).toEqual(
+      { locale: 'pl' },
+    );
+
+    expect(
+      extractQuestionFilters('list software-engineering questions'),
+    ).toEqual({ category: 'software-engineering' });
+  });
 });

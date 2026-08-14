@@ -174,6 +174,8 @@ export const COUNT_QUESTIONS_PATTERNS = [
   /\bhow many\b.*\bquestions?\b/i,
   /\bcount\b.*\bquestions?\b/i,
   /\btotal\b.*\bquestions?\b/i,
+  /\b(show|list|display|find|browse)\b.*\bquestions?\b/i,
+  /\bquestions?\b.*\b(with|where|filtered|matching)\b/i,
 ];
 
 export function matchesCountQuestionsIntent(message: string): boolean {

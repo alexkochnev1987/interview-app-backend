@@ -1,5 +1,6 @@
 import {
   extractLocaleToken,
+  extractQuestionLocaleFilter,
   extractRequestedLocale,
   matchesSwitchLocaleIntent,
 } from './recruiter-assistant-locale-extract';
@@ -22,5 +23,11 @@ describe('recruiter-assistant-locale-extract', () => {
 
   it('extracts raw token when locale is invalid', () => {
     expect(extractLocaleToken('switch locale to klingon')).toBe('klingon');
+  });
+
+  it('extracts locale from question filter phrasing', () => {
+    expect(extractQuestionLocaleFilter('show russian questions')).toBe('ru');
+    expect(extractQuestionLocaleFilter('questions in language pl')).toBe('pl');
+    expect(extractQuestionLocaleFilter('count questions in be')).toBe('be');
   });
 });

@@ -115,6 +115,23 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies show questions with filters', () => {
+    expect(
+      service.classify(
+        'show hard russian questions in category software-engineering',
+        admin,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'count_questions',
+      filters: {
+        difficulty: 'hard',
+        category: 'software-engineering',
+        locale: 'ru',
+      },
+    });
+  });
+
   it('does not classify create question as count', () => {
     expect(
       service.classify('create a question about React', admin, 'en').kind,
