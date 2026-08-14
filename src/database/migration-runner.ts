@@ -97,6 +97,37 @@ async function repairRenumberedAvatarMigration(
   );
 }
 
+/** Dev DBs that applied backfill_demo_interview_assigned_hr as 0049 before app_variables took that slot. */
+async function repairRenumberedBackfillDemoHrMigration(
+  databaseService: DatabaseService,
+  appliedMigrations: Map<string, string>,
+): Promise<void> {
+  const appliedAt0049 = appliedMigrations.get('0049');
+  const sourceAt0049 = DATABASE_MIGRATIONS.find(
+    (migration) => migration.version === '0049',
+  )?.name;
+
+  if (
+    appliedAt0049 !== 'backfill_demo_interview_assigned_hr' ||
+    sourceAt0049 !== 'create_app_variables_table'
+  ) {
+    return;
+  }
+
+  await databaseService.query(
+    `
+      DELETE FROM schema_migrations
+      WHERE version = '0049'
+        AND name = 'backfill_demo_interview_assigned_hr'
+    `,
+  );
+
+  appliedMigrations.delete('0049');
+  console.log(
+    'Repaired migration history: removed stale 0049_backfill_demo_interview_assigned_hr',
+  );
+}
+
 /** Dev DBs that applied assign_demo_interviews_to_demo_hr as 0048 before feature-flags renumbered it to 0052. */
 async function repairRenumberedDemoInterviewsMigration(
   databaseService: DatabaseService,
@@ -186,6 +217,10 @@ export async function runMigrations(
       appliedMigrations,
     );
     await repairRenumberedAvatarMigration(databaseService, appliedMigrations);
+    await repairRenumberedBackfillDemoHrMigration(
+      databaseService,
+      appliedMigrations,
+    );
   }
 
   for (const migration of DATABASE_MIGRATIONS) {

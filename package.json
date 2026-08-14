@@ -19,7 +19,7 @@
     "lint": "oxlint -f unix",
     "fmt": "oxfmt --write",
     "fmt:check": "oxfmt --check",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",

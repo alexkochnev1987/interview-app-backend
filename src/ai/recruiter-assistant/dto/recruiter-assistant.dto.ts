@@ -20,7 +20,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-import { InterviewListItemDto } from '../../../interview/dto/interview.responses.dto';
+import {
+  AssignedHrDto,
+  InterviewListItemDto,
+} from '../../../interview/dto/interview.responses.dto';
 import { SUPPORTED_LOCALES } from '../../../locale/locale.constants';
 import { Locale } from '../../../locale/locale.constants';
 import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
@@ -215,6 +218,26 @@ export class RecruiterAssistantCreatedQuestionDto {
   href: string;
 }
 
+export class RecruiterAssistantSimilarQuestionDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  questionText: string;
+
+  @ApiProperty({
+    description: 'Similarity score from 0 to 1 (e.g. 0.85 = 85% match).',
+    minimum: 0,
+    maximum: 1,
+  })
+  score: number;
+
+  @ApiProperty({
+    description: 'Frontend route when the similar question card is clicked.',
+  })
+  href: string;
+}
+
 export class RecruiterAssistantRedirectDto {
   @ApiProperty({ example: '/interviews/new' })
   path: string;
@@ -231,6 +254,7 @@ export type RecruiterAssistantAwaitingInput =
   | 'hr'
   | 'interview'
   | 'questionName'
+  | 'confirmAddDespiteSimilar'
   | 'candidateName'
   | 'position'
   | 'templateChoice';
@@ -285,6 +309,13 @@ export class RecruiterAssistantResponseDto {
   suggestedQuestions?: RecruiterAssistantSuggestedQuestionDto[];
 
   @ApiPropertyOptional({
+    type: [RecruiterAssistantSimilarQuestionDto],
+    description:
+      'Existing questions with high similarity during create_question flow (clickable cards).',
+  })
+  similarQuestions?: RecruiterAssistantSimilarQuestionDto[];
+
+  @ApiPropertyOptional({
     oneOf: [
       { $ref: getSchemaPath(RecruiterAssistantCreatePendingActionDto) },
       { $ref: getSchemaPath(RecruiterAssistantAssignHrPendingActionDto) },
@@ -320,6 +351,7 @@ export class RecruiterAssistantResponseDto {
       'hr',
       'interview',
       'questionName',
+      'confirmAddDespiteSimilar',
       'candidateName',
       'position',
       'templateChoice',
@@ -336,6 +368,13 @@ export class RecruiterAssistantResponseDto {
   @ApiPropertyOptional({ type: [InterviewListItemDto] })
   interviews?: InterviewListItemDto[];
 
+  @ApiPropertyOptional({
+    type: [AssignedHrDto],
+    description:
+      'HR reviewers returned for assign_hr picker steps or the list_hrs intent.',
+  })
+  hrs?: AssignedHrDto[];
+
   @ApiPropertyOptional({ type: RecruiterAssistantInterviewSummaryDto })
   interview?: RecruiterAssistantInterviewSummaryDto;
 }
@@ -348,9 +387,11 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
   RecruiterAssistantCreatedQuestionDto,
+  RecruiterAssistantSimilarQuestionDto,
   RecruiterAssistantRedirectDto,
   TemplateSummaryResponseDto,
   InterviewListItemDto,
+  AssignedHrDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
