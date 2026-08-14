@@ -7,6 +7,7 @@ import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-
 import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
 import { AssignedHrDto } from '../../interview/dto/interview.responses.dto';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { InterviewListItem } from '../../interview/interfaces/interview.interface';
 import { toInterviewActor } from '../../interview/interview-actor';
 import {
   InterviewService,
@@ -28,12 +29,19 @@ import {
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
+import type { QueryAssessmentsFilters } from './recruiter-assistant-assessment-filters-extract';
+import {
+  filterAssessmentsByReviewStatus,
+  matchesAssessmentQuery,
+  selectHrVisibleAssessmentListItems,
+} from './recruiter-assistant-assessment-status';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import {
+  buildAssessmentsListRedirect,
   buildInterviewRedirect,
   buildQuestionsListRedirect,
   buildSimilarQuestionMatchCards,
@@ -187,11 +195,12 @@ export class RecruiterAssistantToolsService {
   }
 
   async listAssessments(
-    filters: { position?: string; nameContains?: string },
+    filters: QueryAssessmentsFilters,
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
-    if (!canReadTemplates(user)) {
+    void locale;
+    if (!canListInterviews(user)) {
       return {
         status: 'denied',
         response: 'You do not have permission to read assessments.',
@@ -199,37 +208,29 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    let assessments = await this.templateService.findAll(locale, {
-      demo: user.demo,
-    });
-
-    if (filters.position) {
-      const needle = filters.position.trim().toLowerCase();
-      assessments = assessments.filter((template) =>
-        (template.position ?? '').trim().toLowerCase().includes(needle),
+    const listFilters = this.assessmentCountListFilters(filters);
+    const interviews = await this.fetchAllAssessmentInterviews(user);
+    let visible = selectHrVisibleAssessmentListItems(interviews);
+    visible = filterAssessmentsByReviewStatus(visible, listFilters.status);
+    if (listFilters.q) {
+      visible = visible.filter((item) =>
+        matchesAssessmentQuery(item, listFilters.q!),
       );
     }
 
-    if (filters.nameContains) {
-      const needle = filters.nameContains.trim().toLowerCase();
-      assessments = assessments.filter((template) =>
-        template.name.trim().toLowerCase().includes(needle),
-      );
-    }
-
-    const hasFilters = !!(filters.position || filters.nameContains);
+    const total = visible.length;
+    const hasFilters = Object.keys(listFilters).length > 0;
 
     return {
       status: 'answered',
-      response:
-        assessments.length === 0
-          ? hasFilters
-            ? 'No assessments match your filters.'
-            : 'No assessments match your request.'
-          : hasFilters
-            ? `Found ${assessments.length} assessment(s) matching your filters.`
-            : `Found ${assessments.length} assessment(s).`,
-      assessments,
+      response: hasFilters
+        ? `${total} assessment(s) match your filters. Open the assessments page to browse them.`
+        : `You have ${total} assessment(s) in total. Open the assessments page to browse them.`,
+      assessmentCount: {
+        total,
+        filters: hasFilters ? listFilters : undefined,
+      },
+      redirect: buildAssessmentsListRedirect(listFilters),
     };
   }
 
@@ -1444,6 +1445,48 @@ export class RecruiterAssistantToolsService {
     void page;
     void includeTranslations;
     return listFilters;
+  }
+
+  private assessmentCountListFilters(
+    filters: QueryAssessmentsFilters,
+  ): QueryAssessmentsFilters {
+    const listFilters: QueryAssessmentsFilters = {};
+    if (filters.status && filters.status !== 'all') {
+      listFilters.status = filters.status;
+    }
+    if (filters.q) {
+      listFilters.q = filters.q;
+    }
+    return listFilters;
+  }
+
+  private async fetchAllAssessmentInterviews(
+    user: ActingUser,
+  ): Promise<InterviewListItem[]> {
+    const actor = toInterviewActor(user);
+    const items: InterviewListItem[] = [];
+    let page = 1;
+    let total = 0;
+
+    do {
+      const response = await this.interviewService.findAllPaginated(
+        {
+          page,
+          limit: MAX_INTERVIEWS_LIMIT,
+          sortBy: 'updatedAt',
+          sortOrder: 'desc',
+        },
+        actor,
+      );
+      total = response.total;
+      items.push(...response.items);
+      if (response.items.length === 0) {
+        break;
+      }
+      page += 1;
+    } while (items.length < total);
+
+    return items;
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {

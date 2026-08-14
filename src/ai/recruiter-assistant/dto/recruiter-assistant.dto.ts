@@ -304,6 +304,15 @@ export class RecruiterAssistantQuestionCountDto {
   filters?: Partial<QueryQuestionsDto>;
 }
 
+export class RecruiterAssistantAssessmentCountDto {
+  @ApiProperty() total: number;
+  @ApiPropertyOptional()
+  filters?: {
+    status?: string;
+    q?: string;
+  };
+}
+
 export class RecruiterAssistantInterviewActivityDto {
   @ApiProperty() total: number;
   @ApiProperty() active: number;
@@ -407,6 +416,9 @@ export class RecruiterAssistantResponseDto {
   @ApiPropertyOptional({ type: RecruiterAssistantQuestionCountDto })
   questionCount?: RecruiterAssistantQuestionCountDto;
 
+  @ApiPropertyOptional({ type: RecruiterAssistantAssessmentCountDto })
+  assessmentCount?: RecruiterAssistantAssessmentCountDto;
+
   @ApiPropertyOptional({ type: [TemplateSummaryResponseDto] })
   assessments?: TemplateSummaryResponseDto[];
 
@@ -428,6 +440,7 @@ export class RecruiterAssistantResponseDto {
   RecruiterAssistantReviewStateDto,
   RecruiterAssistantInterviewSummaryDto,
   RecruiterAssistantQuestionCountDto,
+  RecruiterAssistantAssessmentCountDto,
   RecruiterAssistantInterviewActivityDto,
   RecruiterAssistantTeamSummaryDto,
   RecruiterAssistantCreatedQuestionDto,

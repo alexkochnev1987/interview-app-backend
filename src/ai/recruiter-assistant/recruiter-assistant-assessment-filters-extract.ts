@@ -1,53 +1,99 @@
-import { extractPositionFromMessage } from './recruiter-assistant-request-parser';
+import {
+  ASSESSMENT_REVIEW_STATUS_VALUES,
+  AssessmentReviewStatusFilter,
+} from './recruiter-assistant-assessment-status';
 
-const QUOTED_NAME = /[""](.+?)[""]/;
-const NAME_PATTERNS = [
-  /\b(?:assessments?|templates?)\s+(?:named|called|titled)\s+(.+?)(?:[.?!]|$)/i,
-  /\b(?:named|called|titled)\s+(.+?)\s+(?:assessments?|templates?)\b/i,
-  /\b(?:assessments?|templates?)\s+with\s+(?:name|title)\s+(.+?)(?:[.?!]|$)/i,
-];
-const POSITION_AFTER_FOR =
-  /\b(?:assessments?|templates?)\s+for\s+(?:a\s+)?(.+?)(?:[.?!]|$)/i;
+const QUOTED_TEXT = /[""](.+?)[""]/;
+const STATUS_PATTERN =
+  /\b(?:status\s+(?:is\s+)?|with\s+status\s+)(ready_to_score|ready|scoring|failed|all)\b/i;
+const STATUS_BEFORE_ASSESSMENTS =
+  /\b(ready_to_score|ready|scoring|failed)\s+(?:assessments?|assesments?|assignments?)\b/i;
+const CONTAINING_PATTERN = /\bcontaining\s+(.+?)(?:[.?!]|$)/i;
+const IMPLICIT_SEARCH_PATTERN =
+  /\b(?:show|list|find|count|display)\s+(.+?)\s+(?:assessments?|assesments?|assignments?)\b/i;
 
-function messageWithoutExtractedName(
-  message: string,
-  nameContains?: string,
-): string {
-  if (!nameContains) {
-    return message;
+const REVIEW_STATUSES = new Set<string>([
+  ...ASSESSMENT_REVIEW_STATUS_VALUES,
+  'all',
+]);
+
+function trimField(
+  value: string | undefined,
+  maxLength: number,
+): string | undefined {
+  if (!value) {
+    return undefined;
   }
-  return message.replace(nameContains, ' ');
+  const trimmed = value
+    .trim()
+    .replace(/[.?!]+$/, '')
+    .slice(0, maxLength);
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function extractAssessmentFilters(message: string): {
-  position?: string;
-  nameContains?: string;
-} {
-  const filters: { position?: string; nameContains?: string } = {};
+function extractReviewStatus(
+  message: string,
+): AssessmentReviewStatusFilter | undefined {
+  const explicit = message.match(STATUS_PATTERN)?.[1]?.toLowerCase();
+  if (explicit && REVIEW_STATUSES.has(explicit)) {
+    return explicit as AssessmentReviewStatusFilter;
+  }
 
-  const quoted = message.match(QUOTED_NAME)?.[1]?.trim();
-  if (quoted) {
-    filters.nameContains = quoted.slice(0, 200);
-  } else {
-    for (const pattern of NAME_PATTERNS) {
-      const match = message.match(pattern);
-      const value = match?.[1]?.trim();
-      if (value) {
-        filters.nameContains = value.replace(/[.?!]+$/, '').slice(0, 200);
-        break;
+  const before = message.match(STATUS_BEFORE_ASSESSMENTS)?.[1]?.toLowerCase();
+  if (before && REVIEW_STATUSES.has(before)) {
+    return before as AssessmentReviewStatusFilter;
+  }
+
+  return undefined;
+}
+
+export interface QueryAssessmentsFilters {
+  status?: AssessmentReviewStatusFilter;
+  q?: string;
+}
+
+export function extractAssessmentFilters(
+  message: string,
+): QueryAssessmentsFilters {
+  const filters: QueryAssessmentsFilters = {};
+
+  const status = extractReviewStatus(message);
+  if (status) {
+    filters.status = status;
+  }
+
+  const quoted = trimField(message.match(QUOTED_TEXT)?.[1], 200);
+  const containing = trimField(message.match(CONTAINING_PATTERN)?.[1], 200);
+  let implicitSearch = trimField(
+    message.match(IMPLICIT_SEARCH_PATTERN)?.[1],
+    200,
+  );
+
+  if (implicitSearch) {
+    const leadingStatus = implicitSearch.match(
+      /^(ready_to_score|ready|scoring|failed)\b\s*(.*)$/i,
+    );
+    if (leadingStatus) {
+      const parsedStatus = leadingStatus[1]?.toLowerCase();
+      if (
+        parsedStatus &&
+        REVIEW_STATUSES.has(parsedStatus) &&
+        parsedStatus !== 'all'
+      ) {
+        filters.status ??= parsedStatus as AssessmentReviewStatusFilter;
       }
+      implicitSearch = trimField(leadingStatus[2], 200);
     }
   }
 
-  const positionFromFor = message.match(POSITION_AFTER_FOR)?.[1]?.trim();
-  if (positionFromFor) {
-    filters.position = positionFromFor.replace(/[.?!]+$/, '').slice(0, 200);
-  } else {
-    const position = extractPositionFromMessage(
-      messageWithoutExtractedName(message, filters.nameContains),
-    );
-    if (position) {
-      filters.position = position;
+  const q = quoted ?? containing ?? implicitSearch;
+  if (q) {
+    const normalized = q.toLowerCase();
+    if (
+      !REVIEW_STATUSES.has(normalized) &&
+      !/^(assessments?|assesments?|assignments?)$/i.test(normalized)
+    ) {
+      filters.q = q;
     }
   }
 

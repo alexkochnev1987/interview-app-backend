@@ -1,4 +1,5 @@
 import {
+  buildAssessmentsListRedirect,
   buildCreatedQuestionCard,
   buildInterviewCardHref,
   buildInterviewRedirect,
@@ -71,6 +72,19 @@ describe('recruiter-assistant-response-builders', () => {
         difficulty: 'hard',
         role: 'React Developer',
         tags: 'hooks,state',
+      },
+    });
+  });
+
+  it('builds an assessments list redirect with filters', () => {
+    expect(buildAssessmentsListRedirect({})).toEqual({ path: '/assessments' });
+    expect(
+      buildAssessmentsListRedirect({ status: 'ready', q: 'react' }),
+    ).toEqual({
+      path: '/assessments',
+      query: {
+        status: 'ready',
+        q: 'react',
       },
     });
   });

@@ -114,3 +114,23 @@ export function buildQuestionsListRedirect(
     query: Object.keys(query).length > 0 ? query : undefined,
   };
 }
+
+/** Maps assistant assessment filters to frontend /assessments query params. */
+export function buildAssessmentsListRedirect(input: {
+  status?: string;
+  q?: string;
+}): RecruiterAssistantRedirectDto {
+  const query: Record<string, string> = {};
+
+  if (input.status && input.status !== 'all') {
+    query.status = input.status;
+  }
+  if (input.q) {
+    query.q = input.q;
+  }
+
+  return {
+    path: '/assessments',
+    query: Object.keys(query).length > 0 ? query : undefined,
+  };
+}

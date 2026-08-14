@@ -189,7 +189,8 @@ export function matchesCountQuestionsIntent(message: string): boolean {
 }
 
 export const LIST_ASSESSMENTS_PATTERNS = [
-  /\b(show|list|get|display)\b.*\b(assessments?|templates?)\b/i,
+  /\b(show|list|get|display|count|how many|total)\b.*\b(assessments?|assesments?|assignments?)\b/i,
+  /\b(assessments?|assesments?|assignments?)\b.*\b(with|where|filtered|matching)\b/i,
 ];
 
 export const INTERVIEW_ACTIVITY_SUMMARY_PATTERNS = [

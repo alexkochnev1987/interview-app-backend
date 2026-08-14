@@ -2,6 +2,7 @@ import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { Locale } from '../../locale/locale.constants';
 import { QueryQuestionsDto } from '../../question/dto/query-questions.dto';
 import { User, UserRole } from '../../user/interfaces/user.interface';
+import type { QueryAssessmentsFilters } from './recruiter-assistant-assessment-filters-extract';
 
 export type ActingUser = Omit<User, 'passwordHash'>;
 
@@ -69,7 +70,7 @@ export type RecruiterAssistantIntent =
   | { kind: 'count_questions'; filters: QueryQuestionsDto }
   | {
       kind: 'list_assessments';
-      filters: { position?: string; nameContains?: string };
+      filters: QueryAssessmentsFilters;
     }
   | { kind: 'interview_activity_summary' }
   | { kind: 'list_team'; role?: UserRole; includeSummary: boolean }

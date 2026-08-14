@@ -144,27 +144,30 @@ describe('RecruiterAssistantIntentService', () => {
       filters: {},
     });
     expect(service.classify('list templates', hr, 'en')).toEqual({
-      kind: 'list_assessments',
-      filters: {},
+      kind: 'out_of_scope',
     });
   });
 
   it('classifies list assessments requests with filters', () => {
     expect(service.classify('show react assessments', admin, 'en')).toEqual({
       kind: 'list_assessments',
-      filters: { position: 'React Developer' },
+      filters: { q: 'react' },
     });
     expect(
-      service.classify('list templates for Java engineer', admin, 'en'),
+      service.classify('list assessments with status ready', admin, 'en'),
     ).toEqual({
       kind: 'list_assessments',
-      filters: { position: 'Java engineer' },
+      filters: { status: 'ready' },
     });
     expect(
-      service.classify('show assessments named "Senior React"', admin, 'en'),
+      service.classify(
+        'show assessments containing "Senior React"',
+        admin,
+        'en',
+      ),
     ).toEqual({
       kind: 'list_assessments',
-      filters: { nameContains: 'Senior React' },
+      filters: { q: 'Senior React' },
     });
   });
 
