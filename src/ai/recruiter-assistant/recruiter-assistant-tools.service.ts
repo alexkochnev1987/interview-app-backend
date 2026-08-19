@@ -84,8 +84,8 @@ import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
 const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
-/** Log a warning once the assessment scan exceeds this many pages. */
-const ASSESSMENT_SCAN_WARN_PAGES = 10;
+/** Max paginated pages when scanning interviews for assessment counts. */
+const MAX_ASSESSMENT_SCAN_PAGES = 10;
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
@@ -213,7 +213,8 @@ export class RecruiterAssistantToolsService {
     }
 
     const listFilters = this.assessmentCountListFilters(filters);
-    const interviews = await this.fetchAllAssessmentInterviews(user);
+    const { items: interviews, truncated } =
+      await this.fetchAssessmentInterviews(user);
     let visible = selectHrVisibleAssessmentListItems(interviews);
     visible = filterAssessmentsByReviewStatus(visible, listFilters.status);
     if (listFilters.q) {
@@ -224,12 +225,16 @@ export class RecruiterAssistantToolsService {
 
     const total = visible.length;
     const hasFilters = Object.keys(listFilters).length > 0;
+    const scanLimit = MAX_ASSESSMENT_SCAN_PAGES * MAX_INTERVIEWS_LIMIT;
+    const truncatedNote = truncated
+      ? ` (count from the ${scanLimit} most recently updated interviews; open the assessments page for the full list)`
+      : '';
 
     return {
       status: 'answered',
       response: hasFilters
-        ? `${total} assessment(s) match your filters. Open the assessments page to browse them.`
-        : `You have ${total} assessment(s) in total. Open the assessments page to browse them.`,
+        ? `${total} assessment(s) match your filters.${truncatedNote} Open the assessments page to browse them.`
+        : `You have ${total} assessment(s) in total.${truncatedNote} Open the assessments page to browse them.`,
       assessmentCount: {
         total,
         filters: hasFilters ? listFilters : undefined,
@@ -1464,13 +1469,14 @@ export class RecruiterAssistantToolsService {
     return listFilters;
   }
 
-  private async fetchAllAssessmentInterviews(
+  private async fetchAssessmentInterviews(
     user: ActingUser,
-  ): Promise<InterviewListItem[]> {
+  ): Promise<{ items: InterviewListItem[]; truncated: boolean }> {
     const actor = toInterviewActor(user);
     const items: InterviewListItem[] = [];
     let page = 1;
     let total = 0;
+    let truncated = false;
 
     do {
       const response = await this.interviewService.findAllPaginated(
@@ -1488,15 +1494,17 @@ export class RecruiterAssistantToolsService {
         break;
       }
       page += 1;
-      if (page === ASSESSMENT_SCAN_WARN_PAGES + 1) {
+      if (page > MAX_ASSESSMENT_SCAN_PAGES && items.length < total) {
+        truncated = true;
         this.logger.warn(
-          `Assessment scan exceeded ${ASSESSMENT_SCAN_WARN_PAGES} pages (${items.length}/${total} interviews loaded so far). ` +
-            'Review-status filtering is in-memory; consider SQL-backed facets for large orgs.',
+          `Assessment scan capped at ${MAX_ASSESSMENT_SCAN_PAGES} pages (${items.length}/${total} interviews). ` +
+            'Review-status filtering is in-memory; add SQL-backed assessment facets for exact large-org counts.',
         );
+        break;
       }
     } while (items.length < total);
 
-    return items;
+    return { items, truncated };
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {
