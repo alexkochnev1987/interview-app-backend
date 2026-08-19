@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
@@ -84,10 +84,14 @@ import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
 const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
+/** Log a warning once the assessment scan exceeds this many pages. */
+const ASSESSMENT_SCAN_WARN_PAGES = 10;
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
+  private readonly logger = new Logger(RecruiterAssistantToolsService.name);
+
   constructor(
     private readonly questionMatcher: RecruiterQuestionMatcherService,
     private readonly questionService: QuestionService,
@@ -1484,6 +1488,12 @@ export class RecruiterAssistantToolsService {
         break;
       }
       page += 1;
+      if (page === ASSESSMENT_SCAN_WARN_PAGES + 1) {
+        this.logger.warn(
+          `Assessment scan exceeded ${ASSESSMENT_SCAN_WARN_PAGES} pages (${items.length}/${total} interviews loaded so far). ` +
+            'Review-status filtering is in-memory; consider SQL-backed facets for large orgs.',
+        );
+      }
     } while (items.length < total);
 
     return items;

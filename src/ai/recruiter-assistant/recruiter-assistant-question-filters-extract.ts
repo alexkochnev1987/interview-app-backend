@@ -8,6 +8,7 @@ import {
   resolveLocaleToken,
 } from './recruiter-assistant-locale-extract';
 import { extractPositionFromMessage } from './recruiter-assistant-request-parser';
+import { trimField } from './recruiter-assistant-string-utils';
 
 const QUOTED_TEXT = /[""](.+?)[""]/;
 const DIFFICULTY_PATTERN = /\b(easy|medium|hard)\b/i;
@@ -64,20 +65,6 @@ const NON_CATEGORY_ADJECTIVES = new Set([
   'senior',
   'junior',
 ]);
-
-function trimField(
-  value: string | undefined,
-  maxLength: number,
-): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const trimmed = value
-    .trim()
-    .replace(/[.?!]+$/, '')
-    .slice(0, maxLength);
-  return trimmed.length > 0 ? trimmed : undefined;
-}
 
 function parseTags(raw: string | undefined): string[] | undefined {
   if (!raw) {

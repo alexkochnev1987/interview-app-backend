@@ -2,6 +2,7 @@ import {
   ASSESSMENT_REVIEW_STATUS_VALUES,
   AssessmentReviewStatusFilter,
 } from './recruiter-assistant-assessment-status';
+import { trimField } from './recruiter-assistant-string-utils';
 
 const QUOTED_TEXT = /[""](.+?)[""]/;
 const STATUS_PATTERN =
@@ -16,20 +17,6 @@ const REVIEW_STATUSES = new Set<string>([
   ...ASSESSMENT_REVIEW_STATUS_VALUES,
   'all',
 ]);
-
-function trimField(
-  value: string | undefined,
-  maxLength: number,
-): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const trimmed = value
-    .trim()
-    .replace(/[.?!]+$/, '')
-    .slice(0, maxLength);
-  return trimmed.length > 0 ? trimmed : undefined;
-}
 
 function extractReviewStatus(
   message: string,

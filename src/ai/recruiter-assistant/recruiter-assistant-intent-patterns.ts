@@ -189,6 +189,7 @@ export function matchesCountQuestionsIntent(message: string): boolean {
 }
 
 export const LIST_ASSESSMENTS_PATTERNS = [
+  // assesments? — intentional misspelling to match common user typos
   /\b(show|list|get|display|count|how many|total)\b.*\b(assessments?|assesments?|assignments?)\b/i,
   /\b(assessments?|assesments?|assignments?)\b.*\b(with|where|filtered|matching)\b/i,
 ];
