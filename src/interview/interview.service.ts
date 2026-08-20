@@ -847,8 +847,8 @@ export class InterviewService {
 
     const [totalQuestionCount, positions, statuses] = await Promise.all([
       this.queryInterviewTotalQuestionCount(query, actor),
-      this.queryInterviewPositionFacet(query, actor),
-      this.queryInterviewStatusFacet(query, actor),
+      this.queryInterviewFacet('position', query, actor),
+      this.queryInterviewFacet('status', query, actor),
     ]);
 
     return { totalQuestionCount, positions, statuses };
@@ -875,54 +875,36 @@ export class InterviewService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
-  private async queryInterviewPositionFacet(
+  private async queryInterviewFacet(
+    field: 'position' | 'status',
     query: QueryInterviewFacetsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
     const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
-      excludeField: 'position',
+      excludeField: field,
     });
+
+    const isPosition = field === 'position';
+    const selectValue = isPosition ? 'MIN(i.position)' : 'i.status';
+    const filterNull = isPosition
+      ? "i.position IS NOT NULL AND trim(i.position) <> ''"
+      : 'i.status IS NOT NULL';
+    const groupBy = isPosition ? 'lower(i.position)' : 'i.status';
+    const orderBy = isPosition
+      ? 'COUNT(*) DESC, MIN(i.position) ASC'
+      : 'COUNT(*) DESC, i.status ASC';
 
     const result = await this.databaseService.query<{
       value: string;
       count: string;
     }>(
       `
-        SELECT MIN(i.position) AS value, COUNT(*)::text AS count
+        SELECT ${selectValue} AS value, COUNT(*)::text AS count
         FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} i.position IS NOT NULL AND trim(i.position) <> ''
-        GROUP BY lower(i.position)
-        ORDER BY COUNT(*) DESC, MIN(i.position) ASC
-      `,
-      params,
-    );
-
-    return result.rows.map((row) => ({
-      value: row.value,
-      count: Number(row.count),
-    }));
-  }
-
-  private async queryInterviewStatusFacet(
-    query: QueryInterviewFacetsDto,
-    actor: InterviewActor,
-  ): Promise<FacetCount[]> {
-    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
-      excludeField: 'status',
-    });
-
-    const result = await this.databaseService.query<{
-      value: string;
-      count: string;
-    }>(
-      `
-        SELECT i.status AS value, COUNT(*)::text AS count
-        FROM interviews i
-        ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} i.status IS NOT NULL
-        GROUP BY i.status
-        ORDER BY COUNT(*) DESC, i.status ASC
+        ${whereSql ? 'AND' : 'WHERE'} ${filterNull}
+        GROUP BY ${groupBy}
+        ORDER BY ${orderBy}
       `,
       params,
     );
@@ -1097,21 +1079,7 @@ export class InterviewService {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
 
-      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
-      if (questionIndex !== currentQuestionIndex) {
-        throw apiBadRequest(
-          ApiErrorCode.BAD_REQUEST,
-          'Invalid question index — must answer in order',
-          { interviewId: id, questionIndex, currentQuestionIndex },
-        );
-      }
-      if (questionIndex >= interview.questions.length) {
-        throw apiBadRequest(
-          ApiErrorCode.BAD_REQUEST,
-          'Question index is out of range',
-          { interviewId: id, questionIndex },
-        );
-      }
+      this.assertValidQuestionIndexForAnswer(interview, questionIndex);
 
       const question = interview.questions[questionIndex];
       const existingAnswer =
@@ -1189,24 +1157,13 @@ export class InterviewService {
         validation: existingAnswer?.validation,
       };
 
-      const nextAnswers = existingAnswer
-        ? interview.answers.map((answer) =>
-            answer.questionIndex === questionIndex ? nextAnswer : answer,
-          )
-        : [...interview.answers, nextAnswer].sort(
-            (left, right) => left.questionIndex - right.questionIndex,
-          );
-
-      const now = new Date();
-      const saved = await this.saveInterviewInTransaction(client, {
-        ...interview,
-        answers: nextAnswers,
-        status: 'in_progress',
-        workflow: this.buildWorkflow('idle', now, {
-          startedAt: interview.workflow?.startedAt,
-        }),
-        updatedAt: now,
-      });
+      const saved = await this.saveAnswerProgressInTransaction(
+        client,
+        interview,
+        questionIndex,
+        nextAnswer,
+        Boolean(existingAnswer),
+      );
 
       const savedAnswer = saved.answers.find(
         (answer) => answer.questionIndex === questionIndex,
@@ -1268,14 +1225,7 @@ export class InterviewService {
         };
       }
 
-      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
-      if (questionIndex !== currentQuestionIndex) {
-        throw apiBadRequest(
-          ApiErrorCode.BAD_REQUEST,
-          'Invalid question index — must answer in order',
-          { interviewId: id, questionIndex, currentQuestionIndex },
-        );
-      }
+      this.assertValidQuestionIndexForAnswer(interview, questionIndex);
 
       const finalizeVersionNumber = resolveFinalizeAnswerVersionNumber(
         existingAnswer,
@@ -1554,21 +1504,7 @@ export class InterviewService {
       const row = await this.lockInterviewForUpdate(client, id);
       const interview = this.mapRow(row);
 
-      const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
-      if (questionIndex !== currentQuestionIndex) {
-        throw apiBadRequest(
-          ApiErrorCode.BAD_REQUEST,
-          'Invalid question index — must answer in order',
-          { interviewId: id, questionIndex, currentQuestionIndex },
-        );
-      }
-      if (questionIndex >= interview.questions.length) {
-        throw apiBadRequest(
-          ApiErrorCode.BAD_REQUEST,
-          'Question index is out of range',
-          { interviewId: id, questionIndex },
-        );
-      }
+      this.assertValidQuestionIndexForAnswer(interview, questionIndex);
       if (
         !matchesInterviewMediaKey({
           mediaKey,
@@ -1819,24 +1755,13 @@ export class InterviewService {
         validation: existingAnswer?.validation,
       };
 
-      const nextAnswers = existingAnswer
-        ? interview.answers.map((answer) =>
-            answer.questionIndex === questionIndex ? nextAnswer : answer,
-          )
-        : [...interview.answers, nextAnswer].sort(
-            (left, right) => left.questionIndex - right.questionIndex,
-          );
-
-      const now = new Date();
-      return this.saveInterviewInTransaction(client, {
-        ...interview,
-        answers: nextAnswers,
-        status: 'in_progress',
-        workflow: this.buildWorkflow('idle', now, {
-          startedAt: interview.workflow?.startedAt,
-        }),
-        updatedAt: now,
-      });
+      return this.saveAnswerProgressInTransaction(
+        client,
+        interview,
+        questionIndex,
+        nextAnswer,
+        Boolean(existingAnswer),
+      );
     });
   }
 
@@ -2798,6 +2723,54 @@ export class InterviewService {
       default:
         return 'idle';
     }
+  }
+
+  private assertValidQuestionIndexForAnswer(
+    interview: Interview,
+    questionIndex: number,
+  ): void {
+    const currentQuestionIndex = this.getSubmittedAnswerCount(interview);
+    if (questionIndex !== currentQuestionIndex) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Invalid question index — must answer in order',
+        { interviewId: interview.id, questionIndex, currentQuestionIndex },
+      );
+    }
+    if (questionIndex >= interview.questions.length) {
+      throw apiBadRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Question index is out of range',
+        { interviewId: interview.id, questionIndex },
+      );
+    }
+  }
+
+  private async saveAnswerProgressInTransaction(
+    client: PoolClient,
+    interview: Interview,
+    questionIndex: number,
+    nextAnswer: Answer,
+    hasExistingAnswer: boolean,
+  ): Promise<Interview> {
+    const nextAnswers = hasExistingAnswer
+      ? interview.answers.map((answer) =>
+          answer.questionIndex === questionIndex ? nextAnswer : answer,
+        )
+      : [...interview.answers, nextAnswer].sort(
+          (left, right) => left.questionIndex - right.questionIndex,
+        );
+
+    const now = new Date();
+    return this.saveInterviewInTransaction(client, {
+      ...interview,
+      answers: nextAnswers,
+      status: 'in_progress',
+      workflow: this.buildWorkflow('idle', now, {
+        startedAt: interview.workflow?.startedAt,
+      }),
+      updatedAt: now,
+    });
   }
 
   private getSubmittedAnswerCount(interview: Interview): number {

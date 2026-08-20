@@ -5,13 +5,12 @@ import type { CandidateFeedbackQuestionSourceText } from '../../feedback/candida
 import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
-import { completeJson } from './native-llm.adapter';
-import { isPlainRecord, parseJsonFromModelOutput } from './parse-model-json';
+import {
+  executeCandidateFeedbackJsonLlm,
+  type RawCandidateFeedbackResult,
+} from './candidate-feedback-base-llm';
 
-export interface RawCandidateFeedbackOverall {
-  recommendationText: string;
-  improvementText: string;
-}
+export type RawCandidateFeedbackOverall = RawCandidateFeedbackResult;
 
 const SHARED_OVERALL_GUARDRAILS = `Synthesize only from the provided per-question snippets.
 Do not mention internal scores, HR decisions, hiring outcomes, reject/proceed labels, or that the text was assembled from multiple blocks.
@@ -100,44 +99,18 @@ Output a single JSON object with these camelCase keys:
 Use only the provided per-question snippets; do not invent detailed claims about answers that were not included.`;
 }
 
-function parseCandidateFeedbackOverallShape(
-  value: unknown,
-): RawCandidateFeedbackOverall | undefined {
-  if (!isPlainRecord(value)) {
-    return undefined;
-  }
-
-  const recommendationText = value.recommendationText;
-  const improvementText = value.improvementText;
-  if (
-    typeof recommendationText !== 'string' ||
-    !recommendationText.trim() ||
-    typeof improvementText !== 'string' ||
-    !improvementText.trim()
-  ) {
-    return undefined;
-  }
-
-  return {
-    recommendationText: recommendationText.trim(),
-    improvementText: improvementText.trim(),
-  };
-}
-
 export async function generateCandidateFeedbackOverallWithNativeLlm(
   config: NativeProviderConfig,
   input: CandidateFeedbackOverallLlmInput,
 ): Promise<RawCandidateFeedbackOverall> {
   const user = buildCandidateFeedbackOverallUserPrompt(input);
   const system = getCandidateFeedbackOverallSystemPrompt(input.toneMode);
-  const raw = await completeJson(config, system, user);
-  const parsed = parseCandidateFeedbackOverallShape(
-    parseJsonFromModelOutput(raw),
+  return executeCandidateFeedbackJsonLlm(
+    config,
+    system,
+    user,
+    'LLM returned invalid overall candidate feedback JSON.',
   );
-  if (!parsed) {
-    throw new Error('LLM returned invalid overall candidate feedback JSON.');
-  }
-  return parsed;
 }
 
 export function buildOverallQuestionTextsInput(

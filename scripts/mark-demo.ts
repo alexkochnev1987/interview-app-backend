@@ -11,25 +11,12 @@
  *   $env:INTERVIEW_ID   = "<your-completed-interview-uuid>"
  *   npx ts-node scripts/mark-demo.ts
  */
-export {};
+import { pickCookie } from './utils/cookies';
 
 const BASE = (process.env.PROD_BASE_URL ?? '').replace(/\/+$/, '');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '';
 const INTERVIEW_ID = process.env.INTERVIEW_ID ?? '';
-
-function pickCookie(res: Response, name: string): string | null {
-  const all = (
-    res.headers as unknown as { getSetCookie?: () => string[] }
-  ).getSetCookie?.() as string[] | undefined;
-  const list =
-    all ??
-    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
-  for (const entry of list) {
-    if (entry.startsWith(`${name}=`)) return entry.split(';')[0];
-  }
-  return null;
-}
 
 async function readBody(res: Response): Promise<string> {
   try {

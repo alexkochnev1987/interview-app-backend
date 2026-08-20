@@ -358,31 +358,7 @@ export class QuestionService {
           )
           ${QUESTION_RETURNING}
         `,
-        [
-          crypto.randomUUID(),
-          payload.externalId ?? null,
-          payload.role ?? null,
-          payload.focus ?? null,
-          payload.outputLanguage,
-          payload.primaryLocale,
-          JSON.stringify(payload.translations),
-          payload.category ?? null,
-          payload.subcategory ?? null,
-          payload.questionText,
-          payload.questionText,
-          payload.followUpQuestions,
-          payload.expectedConcepts.map((item) => item.label),
-          JSON.stringify(payload.expectedConcepts),
-          payload.redFlags.map((item) => item.label),
-          JSON.stringify(payload.redFlags),
-          payload.difficulty,
-          payload.weight,
-          payload.sampleGoodAnswer ?? null,
-          payload.minimumPassScore,
-          payload.tags,
-          JSON.stringify(payload.metadata),
-          buildQuestionSearchText(payload.questionText, payload.translations),
-        ],
+        [crypto.randomUUID(), ...this.buildQuestionSqlParams(payload)],
       ),
     );
 
@@ -431,35 +407,38 @@ export class QuestionService {
           WHERE id = $1
           ${QUESTION_RETURNING}
         `,
-        [
-          id,
-          payload.externalId ?? null,
-          payload.role ?? null,
-          payload.focus ?? null,
-          payload.outputLanguage,
-          payload.primaryLocale,
-          JSON.stringify(payload.translations),
-          payload.category ?? null,
-          payload.subcategory ?? null,
-          payload.questionText,
-          payload.questionText,
-          payload.followUpQuestions,
-          payload.expectedConcepts.map((item) => item.label),
-          JSON.stringify(payload.expectedConcepts),
-          payload.redFlags.map((item) => item.label),
-          JSON.stringify(payload.redFlags),
-          payload.difficulty,
-          payload.weight,
-          payload.sampleGoodAnswer ?? null,
-          payload.minimumPassScore,
-          payload.tags,
-          JSON.stringify(payload.metadata),
-          buildQuestionSearchText(payload.questionText, payload.translations),
-        ],
+        [id, ...this.buildQuestionSqlParams(payload)],
       ),
     );
 
     return this.mapRow(result.rows[0]);
+  }
+
+  private buildQuestionSqlParams(payload: QuestionDraft): unknown[] {
+    return [
+      payload.externalId ?? null,
+      payload.role ?? null,
+      payload.focus ?? null,
+      payload.outputLanguage,
+      payload.primaryLocale,
+      JSON.stringify(payload.translations),
+      payload.category ?? null,
+      payload.subcategory ?? null,
+      payload.questionText,
+      payload.questionText,
+      payload.followUpQuestions,
+      payload.expectedConcepts.map((item) => item.label),
+      JSON.stringify(payload.expectedConcepts),
+      payload.redFlags.map((item) => item.label),
+      JSON.stringify(payload.redFlags),
+      payload.difficulty,
+      payload.weight,
+      payload.sampleGoodAnswer ?? null,
+      payload.minimumPassScore,
+      payload.tags,
+      JSON.stringify(payload.metadata),
+      buildQuestionSearchText(payload.questionText, payload.translations),
+    ];
   }
 
   private async findExistingForUpsert(
@@ -834,7 +813,9 @@ export class QuestionService {
 
   async softDelete(id: string): Promise<SoftDeleteQuestionResult> {
     return this.databaseService.withTransaction(async (client) => {
-      const existing = await this.lockQuestionForDelete(client, id);
+      const existing = await this.lockQuestionForMutation(client, id, {
+        requireActive: true,
+      });
       const blockingInterviews = mapBlockingInterviews(
         await this.findActiveInterviewsUsingQuestion(client, existing.id),
       );
@@ -869,7 +850,9 @@ export class QuestionService {
     for (const id of uniqueIds) {
       try {
         await this.databaseService.withTransaction(async (client) => {
-          const existing = await this.lockQuestionForDelete(client, id);
+          const existing = await this.lockQuestionForMutation(client, id, {
+            requireActive: true,
+          });
           const blockingInterviews = mapBlockingInterviews(
             await this.findActiveInterviewsUsingQuestion(client, existing.id),
           );
@@ -1038,14 +1021,15 @@ export class QuestionService {
       );
   }
 
-  private async lockQuestionForDelete(
+  private async lockQuestionForMutation(
     client: PoolClient,
     id: string,
+    options: { requireActive?: boolean } = {},
   ): Promise<Question> {
     const result = await client.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1 AND deleted = FALSE
+        WHERE id = $1 ${options.requireActive ? 'AND deleted = FALSE' : ''}
         FOR UPDATE
       `,
       [id],
@@ -1170,7 +1154,7 @@ export class QuestionService {
 
   async restore(id: string): Promise<Question> {
     return this.databaseService.withTransaction(async (client) => {
-      const existing = await this.lockQuestionForRestore(client, id);
+      const existing = await this.lockQuestionForMutation(client, id);
       if (!existing.deleted) {
         throw apiBadRequest(
           ApiErrorCode.BAD_REQUEST,
@@ -1290,30 +1274,6 @@ export class QuestionService {
       }
       throw err;
     }
-  }
-
-  private async lockQuestionForRestore(
-    client: PoolClient,
-    id: string,
-  ): Promise<Question> {
-    const result = await client.query<QuestionRow>(
-      `
-        ${QUESTION_SELECT}
-        WHERE id = $1
-        FOR UPDATE
-      `,
-      [id],
-    );
-
-    if (!result.rows[0]) {
-      throw apiNotFound(
-        ApiErrorCode.QUESTION_NOT_FOUND,
-        `Question with id "${id}" not found`,
-        { id },
-      );
-    }
-
-    return this.mapRow(result.rows[0]);
   }
 
   private async assertNoActiveDuplicate(
@@ -1746,25 +1706,7 @@ export class QuestionService {
     }
 
     this.assertOptionalNumber(dto.minimumPassScore, 'minimumPassScore');
-    const weight = Number(dto.weight ?? 1);
-    if (!Number.isFinite(weight) || weight <= 0) {
-      throw apiBadRequest(
-        ApiErrorCode.VALIDATION_ERROR,
-        'Question weight must be greater than 0',
-      );
-    }
-
-    const minimumPassScore = Number(dto.minimumPassScore ?? 0);
-    if (
-      !Number.isFinite(minimumPassScore) ||
-      minimumPassScore < 0 ||
-      minimumPassScore > 5
-    ) {
-      throw apiBadRequest(
-        ApiErrorCode.VALIDATION_ERROR,
-        'Minimum pass score must be between 0 and 5',
-      );
-    }
+    const { weight, minimumPassScore } = this.normalizeScoringRules(dto);
 
     return {
       externalId: this.normalizeOptionalString(dto.externalId),
@@ -1891,25 +1833,7 @@ export class QuestionService {
       );
     }
 
-    const weight = Number(dto.weight ?? 1);
-    if (!Number.isFinite(weight) || weight <= 0) {
-      throw apiBadRequest(
-        ApiErrorCode.VALIDATION_ERROR,
-        'Question weight must be greater than 0',
-      );
-    }
-
-    const minimumPassScore = Number(dto.minimumPassScore ?? 0);
-    if (
-      !Number.isFinite(minimumPassScore) ||
-      minimumPassScore < 0 ||
-      minimumPassScore > 5
-    ) {
-      throw apiBadRequest(
-        ApiErrorCode.VALIDATION_ERROR,
-        'Minimum pass score must be between 0 and 5',
-      );
-    }
+    const { weight, minimumPassScore } = this.normalizeScoringRules(dto);
 
     const followUpQuestions = this.normalizeStringList(dto.followUpQuestions);
     const expectedConcepts = this.normalizeExpectedConcepts(
@@ -1956,6 +1880,33 @@ export class QuestionService {
       tags: this.normalizeStringList(dto.tags),
       metadata: this.normalizeMetadata(dto.metadata),
     };
+  }
+
+  private normalizeScoringRules(dto: {
+    weight?: number;
+    minimumPassScore?: number;
+  }): { weight: number; minimumPassScore: number } {
+    const weight = Number(dto.weight ?? 1);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Question weight must be greater than 0',
+      );
+    }
+
+    const minimumPassScore = Number(dto.minimumPassScore ?? 0);
+    if (
+      !Number.isFinite(minimumPassScore) ||
+      minimumPassScore < 0 ||
+      minimumPassScore > 5
+    ) {
+      throw apiBadRequest(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Minimum pass score must be between 0 and 5',
+      );
+    }
+
+    return { weight, minimumPassScore };
   }
 
   private normalizeStringList(items?: string[]): string[] {

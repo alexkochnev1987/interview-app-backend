@@ -37,10 +37,9 @@ import {
 import { CandidateAuthGuard } from '../auth/guards/candidate-auth.guard';
 import { CandidateSessionGuard } from '../auth/guards/candidate-session.guard';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
-import { apiBadRequest } from '../common/errors/api-error';
-import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { AnswerValidationWorkflowService } from '../interview/answer-validation-workflow.service';
 import { InterviewService } from '../interview/interview.service';
+import { assertMediaFileSizeBytesWithinLimit } from '../upload/media-file-size';
 import { getCandidateTokenMismatchReason } from './candidate-interview-access';
 import {
   FinalizeAnswerAttemptDto,
@@ -194,34 +193,7 @@ export class TakeController {
     @Body() body: SubmitAnswerDto,
     @Req() req: CandidateRequest,
   ) {
-    const tokenMismatch = getCandidateTokenMismatchReason(
-      id,
-      req.candidatePayload.interviewId,
-    );
-    if (tokenMismatch) {
-      throw new BadRequestException(tokenMismatch);
-    }
-
-    await this.assertMediaFileSizeBytes(body.cameraFileSizeBytes);
-    await this.assertMediaFileSizeBytes(body.screenFileSizeBytes);
-
-    if (typeof body.durationSeconds === 'number') {
-      if (body.durationSeconds <= 0) {
-        throw new BadRequestException(
-          'Answer recording duration must be greater than 0 seconds.',
-        );
-      }
-      const maxDuration = await this.appConfig.getNumber(
-        'MAX_ANSWER_DURATION_SECONDS',
-        240,
-      );
-      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
-      if (body.durationSeconds > maxAllowed) {
-        throw new BadRequestException(
-          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
-        );
-      }
-    }
+    await this.validateAnswerRequest(id, req, body);
 
     const updated = await this.interviewService.addAnswer(id, body);
 
@@ -295,34 +267,7 @@ export class TakeController {
     @Body() body: SaveAnswerProgressDto,
     @Req() req: CandidateRequest,
   ) {
-    const tokenMismatch = getCandidateTokenMismatchReason(
-      id,
-      req.candidatePayload.interviewId,
-    );
-    if (tokenMismatch) {
-      throw new BadRequestException(tokenMismatch);
-    }
-
-    await this.assertMediaFileSizeBytes(body.cameraFileSizeBytes);
-    await this.assertMediaFileSizeBytes(body.screenFileSizeBytes);
-
-    if (typeof body.durationSeconds === 'number') {
-      if (body.durationSeconds <= 0) {
-        throw new BadRequestException(
-          'Answer recording duration must be greater than 0 seconds.',
-        );
-      }
-      const maxDuration = await this.appConfig.getNumber(
-        'MAX_ANSWER_DURATION_SECONDS',
-        240,
-      );
-      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
-      if (body.durationSeconds > maxAllowed) {
-        throw new BadRequestException(
-          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
-        );
-      }
-    }
+    await this.validateAnswerRequest(id, req, body);
 
     const updated = await this.interviewService.saveAnswerProgress(id, body);
     const currentAnswer = updated.answers.find(
@@ -400,22 +345,48 @@ export class TakeController {
     };
   }
 
-  private async assertMediaFileSizeBytes(
-    fileSizeBytes?: number,
+  private async validateAnswerRequest(
+    id: string,
+    req: CandidateRequest,
+    body: {
+      cameraFileSizeBytes?: number;
+      screenFileSizeBytes?: number;
+      durationSeconds?: number;
+    },
   ): Promise<void> {
-    if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
-      const maxMb = await this.appConfig.getNumber(
-        'MAX_MEDIA_FILE_SIZE_MB',
-        100,
+    const tokenMismatch = getCandidateTokenMismatchReason(
+      id,
+      req.candidatePayload.interviewId,
+    );
+    if (tokenMismatch) {
+      throw new BadRequestException(tokenMismatch);
+    }
+
+    await this.assertMediaFileSizeBytes(body.cameraFileSizeBytes);
+    await this.assertMediaFileSizeBytes(body.screenFileSizeBytes);
+
+    if (typeof body.durationSeconds === 'number') {
+      if (body.durationSeconds <= 0) {
+        throw new BadRequestException(
+          'Answer recording duration must be greater than 0 seconds.',
+        );
+      }
+      const maxDuration = await this.appConfig.getNumber(
+        'MAX_ANSWER_DURATION_SECONDS',
+        240,
       );
-      const maxBytes = maxMb * 1024 * 1024;
-      if (fileSizeBytes > maxBytes) {
-        throw apiBadRequest(
-          ApiErrorCode.UPLOAD_NOT_ALLOWED,
-          `Media file size (${(fileSizeBytes / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of ${maxMb}MB.`,
-          { maxMb, fileSizeBytes },
+      const maxAllowed = maxDuration + 30; // 30-second loyalty grace window (Scenario A)
+      if (body.durationSeconds > maxAllowed) {
+        throw new BadRequestException(
+          `Answer recording duration (${body.durationSeconds}s) exceeds maximum allowed limit of ${maxDuration}s.`,
         );
       }
     }
+  }
+
+  private async assertMediaFileSizeBytes(
+    fileSizeBytes?: number,
+  ): Promise<void> {
+    await assertMediaFileSizeBytesWithinLimit(this.appConfig, fileSizeBytes);
   }
 }

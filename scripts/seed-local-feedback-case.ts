@@ -15,7 +15,7 @@
  *   STAFF_EMAIL=admin@test.local
  *   STAFF_PASSWORD=TestPass123!
  */
-export {};
+import { mergeCookies, pickCookie } from './utils/cookies';
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(
   /\/+$/,
@@ -26,44 +26,6 @@ const STAFF_PASSWORD = process.env.STAFF_PASSWORD ?? 'TestPass123!';
 const FRONTEND_URL = (
   process.env.FRONTEND_URL ?? 'http://localhost:3001'
 ).replace(/\/+$/, '');
-
-function pickCookie(res: Response, name: string): string | null {
-  const all = (
-    res.headers as unknown as { getSetCookie?: () => string[] }
-  ).getSetCookie?.() as string[] | undefined;
-  const list =
-    all ??
-    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
-  for (const entry of list) {
-    if (entry.startsWith(`${name}=`)) return entry.split(';')[0];
-  }
-  return null;
-}
-
-function mergeCookies(existing: string | null, res: Response): string {
-  const jar = new Map<string, string>();
-  for (const part of (existing ?? '')
-    .split(';')
-    .map((item) => item.trim())
-    .filter(Boolean)) {
-    const [name, ...rest] = part.split('=');
-    if (name) jar.set(name, rest.join('='));
-  }
-  const all = (
-    res.headers as unknown as { getSetCookie?: () => string[] }
-  ).getSetCookie?.() as string[] | undefined;
-  const list =
-    all ??
-    (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')!] : []);
-  for (const entry of list) {
-    const [pair] = entry.split(';');
-    const [name, ...rest] = pair.split('=');
-    if (name) jar.set(name, rest.join('='));
-  }
-  return [...jar.entries()]
-    .map(([name, value]) => `${name}=${value}`)
-    .join('; ');
-}
 
 async function readJson<T>(res: Response): Promise<T> {
   const text = await res.text();

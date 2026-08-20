@@ -1,7 +1,6 @@
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 
 import { Injectable, Optional } from '@nestjs/common';
-import { DatabaseError } from 'pg';
 
 import { AppConfigService } from '../app-config/app-config.service';
 import { apiConflict, apiNotFound } from '../common/errors/api-error';
@@ -12,6 +11,12 @@ import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
 import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feedback-eligibility';
 import { CandidateFeedbackService } from './candidate-feedback.service';
+import {
+  calculateFeedbackShareExpiry,
+  generateFeedbackShareToken,
+  hashFeedbackShareToken,
+  isPostgresUniqueViolation,
+} from './feedback-share-token';
 import { FEEDBACK_LINK_TTL_DAYS } from './feedback.service';
 import {
   CandidateFeedbackShareLink,
@@ -21,8 +26,6 @@ import {
   hasAnyPublishableCandidateFeedbackBlock,
   presentPublicCandidateFeedback,
 } from './present-public-candidate-feedback';
-
-const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 /** Same TTL as scoring feedback share links. */
 export const CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS = FEEDBACK_LINK_TTL_DAYS;
@@ -117,11 +120,10 @@ export class CandidateFeedbackShareService {
             );
 
             const linkId = randomUUID();
-            const token = this.generateToken();
-            const tokenHash = this.hashToken(token);
-            const expiresAt = new Date(
-              Date.now() +
-                CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
+            const token = generateFeedbackShareToken();
+            const tokenHash = hashFeedbackShareToken(token);
+            const expiresAt = calculateFeedbackShareExpiry(
+              CANDIDATE_FEEDBACK_SHARE_LINK_TTL_DAYS,
             );
 
             // Plaintext token is delivered once via the URL below; the DB only
@@ -155,7 +157,7 @@ export class CandidateFeedbackShareService {
         },
       );
     } catch (error) {
-      if (this.isUniqueViolation(error)) {
+      if (isPostgresUniqueViolation(error)) {
         throw apiConflict(
           ApiErrorCode.CONFLICT,
           'Another candidate-feedback share link was created concurrently. Try again.',
@@ -255,7 +257,7 @@ export class CandidateFeedbackShareService {
   async resolveByToken(
     token: string,
   ): Promise<PublicCandidateFeedbackResponse> {
-    const tokenHash = this.hashToken(token);
+    const tokenHash = hashFeedbackShareToken(token);
     const result =
       await this.databaseService.query<CandidateFeedbackShareLinkRow>(
         `
@@ -320,20 +322,6 @@ export class CandidateFeedbackShareService {
         status: interview.status,
       });
     }
-  }
-
-  private generateToken(): string {
-    return randomBytes(32).toString('base64url');
-  }
-
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    return (
-      error instanceof DatabaseError && error.code === POSTGRES_UNIQUE_VIOLATION
-    );
   }
 
   private mapRow(

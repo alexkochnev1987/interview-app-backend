@@ -1,7 +1,6 @@
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { DatabaseError } from 'pg';
 
 import {
   apiConflict,
@@ -16,6 +15,12 @@ import {
 } from '../interview/interfaces/interview.interface';
 import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
+import {
+  calculateFeedbackShareExpiry,
+  generateFeedbackShareToken,
+  hashFeedbackShareToken,
+  isPostgresUniqueViolation,
+} from './feedback-share-token';
 import { buildFeedbackImprovements } from './feedback-text';
 import {
   FeedbackLink,
@@ -23,8 +28,6 @@ import {
 } from './interfaces/feedback-link.interface';
 
 export const FEEDBACK_LINK_TTL_DAYS = 7;
-
-const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 interface FeedbackLinkRow {
   id: string;
@@ -76,11 +79,9 @@ export class FeedbackService {
         );
 
         const linkId = randomUUID();
-        const token = this.generateToken();
-        const tokenHash = this.hashToken(token);
-        const expiresAt = new Date(
-          Date.now() + FEEDBACK_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
-        );
+        const token = generateFeedbackShareToken();
+        const tokenHash = hashFeedbackShareToken(token);
+        const expiresAt = calculateFeedbackShareExpiry(FEEDBACK_LINK_TTL_DAYS);
 
         // Plaintext token is delivered once via the URL below; the DB only
         // stores its sha256 hash so a DB compromise does not yield usable
@@ -110,7 +111,7 @@ export class FeedbackService {
         };
       });
     } catch (error) {
-      if (this.isUniqueViolation(error)) {
+      if (isPostgresUniqueViolation(error)) {
         throw apiConflict(
           ApiErrorCode.CONFLICT,
           'Another feedback link was created concurrently. Try again.',
@@ -143,7 +144,7 @@ export class FeedbackService {
     interviewId: string,
     token: string,
   ): Promise<FeedbackResponse> {
-    const tokenHash = this.hashToken(token);
+    const tokenHash = hashFeedbackShareToken(token);
     const result = await this.databaseService.query<FeedbackLinkRow>(
       `
         SELECT id, interview_id, created_by_id, expires_at, revoked_at, created_at
@@ -179,20 +180,6 @@ export class FeedbackService {
     }
 
     return this.toFeedbackResponse(interview, linkRow);
-  }
-
-  private generateToken(): string {
-    return randomBytes(32).toString('base64url');
-  }
-
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    return (
-      error instanceof DatabaseError && error.code === POSTGRES_UNIQUE_VIOLATION
-    );
   }
 
   private toFeedbackResponse(

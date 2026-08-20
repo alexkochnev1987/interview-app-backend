@@ -37,6 +37,7 @@ import {
   PresignedUrlResponseDto,
 } from './dto/upload.responses.dto';
 import { MediaCleanupService } from './media-cleanup.service';
+import { assertMediaFileSizeBytesWithinLimit } from './media-file-size';
 import { createS3Storage } from './s3-storage.factory';
 import {
   buildInterviewMediaKey,
@@ -476,20 +477,7 @@ export class UploadService {
   }
 
   async assertFileSizeBytesWithinLimit(fileSizeBytes?: number): Promise<void> {
-    if (typeof fileSizeBytes === 'number' && fileSizeBytes > 0) {
-      const maxMb = await this.appConfig.getNumber(
-        'MAX_MEDIA_FILE_SIZE_MB',
-        100,
-      );
-      const maxBytes = maxMb * 1024 * 1024;
-      if (fileSizeBytes > maxBytes) {
-        throw apiBadRequest(
-          ApiErrorCode.UPLOAD_NOT_ALLOWED,
-          `Media file size (${(fileSizeBytes / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed limit of ${maxMb}MB.`,
-          { maxMb, fileSizeBytes },
-        );
-      }
-    }
+    await assertMediaFileSizeBytesWithinLimit(this.appConfig, fileSizeBytes);
   }
 
   private buildMediaKey(

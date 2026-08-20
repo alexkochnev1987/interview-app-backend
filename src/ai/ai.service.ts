@@ -21,7 +21,7 @@ import {
   primaryLocaleToOutputLanguage,
 } from '../question/question-locale';
 import { DraftQuestionMode } from './dto/ai.dto';
-import { resolveNativeProvider } from './llm/ai-env';
+import { NativeProviderConfig, resolveNativeProvider } from './llm/ai-env';
 import {
   runInterviewChat,
   runInterviewGreet,
@@ -78,6 +78,32 @@ export class AiService {
 
   constructor(@Optional() private readonly appConfig?: AppConfigService) {}
 
+  private async executeNativeInterviewAction(
+    actionName: string,
+    fallbackReason: 'template' | 'rules',
+    runner: (native: NativeProviderConfig) => Promise<string>,
+  ): Promise<string | null> {
+    const native = resolveNativeProvider();
+    if (native) {
+      try {
+        const text = await runner(native);
+        if (isAiDebugEnabled()) {
+          this.logger.log(
+            `${actionName}: model ${native.kind} (${native.model})`,
+          );
+        }
+        return text;
+      } catch (err) {
+        if (isAiDebugEnabled()) {
+          this.logger.warn(
+            `${actionName}: model failed, using ${fallbackReason} — ${this.formatAiError(err)}`,
+          );
+        }
+      }
+    }
+    return null;
+  }
+
   async rephrase(question: string): Promise<string> {
     const aiUrl = process.env.AI_API_URL?.trim();
 
@@ -97,21 +123,13 @@ export class AiService {
       return data.rephrased;
     }
 
-    const native = resolveNativeProvider();
-    if (native) {
-      try {
-        const text = await runInterviewRephrase(native, question);
-        if (isAiDebugEnabled()) {
-          this.logger.log(`rephrase: model ${native.kind} (${native.model})`);
-        }
-        return text;
-      } catch (err) {
-        if (isAiDebugEnabled()) {
-          this.logger.warn(
-            `rephrase: model failed, using template — ${this.formatAiError(err)}`,
-          );
-        }
-      }
+    const nativeResult = await this.executeNativeInterviewAction(
+      'rephrase',
+      'template',
+      (native) => runInterviewRephrase(native, question),
+    );
+    if (nativeResult) {
+      return nativeResult;
     }
 
     return `Let me put it differently: ${question} — In other words, could you share your experience or thoughts on this topic?`;
@@ -146,28 +164,21 @@ export class AiService {
       return data.response;
     }
 
-    const native = resolveNativeProvider();
-    if (native) {
-      try {
-        const text = await runInterviewChat(
+    const nativeResult = await this.executeNativeInterviewAction(
+      'chat',
+      'rules',
+      (native) =>
+        runInterviewChat(
           native,
           question,
           position,
           candidateName,
           history,
           candidateMessage,
-        );
-        if (isAiDebugEnabled()) {
-          this.logger.log(`chat: model ${native.kind} (${native.model})`);
-        }
-        return text;
-      } catch (err) {
-        if (isAiDebugEnabled()) {
-          this.logger.warn(
-            `chat: model failed, using rules — ${this.formatAiError(err)}`,
-          );
-        }
-      }
+        ),
+    );
+    if (nativeResult) {
+      return nativeResult;
     }
 
     const msg = candidateMessage.toLowerCase();
@@ -224,26 +235,14 @@ export class AiService {
       return data.response;
     }
 
-    const native = resolveNativeProvider();
-    if (native) {
-      try {
-        const text = await runInterviewGreet(
-          native,
-          candidateName,
-          position,
-          totalQuestions,
-        );
-        if (isAiDebugEnabled()) {
-          this.logger.log(`greet: model ${native.kind} (${native.model})`);
-        }
-        return text;
-      } catch (err) {
-        if (isAiDebugEnabled()) {
-          this.logger.warn(
-            `greet: model failed, using template — ${this.formatAiError(err)}`,
-          );
-        }
-      }
+    const nativeResult = await this.executeNativeInterviewAction(
+      'greet',
+      'template',
+      (native) =>
+        runInterviewGreet(native, candidateName, position, totalQuestions),
+    );
+    if (nativeResult) {
+      return nativeResult;
     }
 
     return `Hello, ${candidateName}! I'm your AI interviewer for the ${position} position. The interview has ${totalQuestions} questions, up to 4 minutes each. You can ask me to rephrase any question. Ready to begin?`;

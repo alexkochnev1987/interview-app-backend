@@ -7,13 +7,12 @@ import type {
 import { localeUiText } from '../../locale/locale-ui-text';
 import { Locale } from '../../locale/locale.constants';
 import type { NativeProviderConfig } from './ai-env';
-import { completeJson } from './native-llm.adapter';
-import { isPlainRecord, parseJsonFromModelOutput } from './parse-model-json';
+import {
+  executeCandidateFeedbackJsonLlm,
+  type RawCandidateFeedbackResult,
+} from './candidate-feedback-base-llm';
 
-export interface RawCandidateFeedbackQuestion {
-  recommendationText: string;
-  improvementText: string;
-}
+export type RawCandidateFeedbackQuestion = RawCandidateFeedbackResult;
 
 export interface CandidateFeedbackEvaluationContext {
   summary?: string;
@@ -139,42 +138,16 @@ Output a single JSON object with these camelCase keys:
 Base feedback on what was actually said in the transcript. Use internal evaluation only to calibrate tone, not to quote scores or hiring labels.`;
 }
 
-function parseCandidateFeedbackQuestionShape(
-  value: unknown,
-): RawCandidateFeedbackQuestion | undefined {
-  if (!isPlainRecord(value)) {
-    return undefined;
-  }
-
-  const recommendationText = value.recommendationText;
-  const improvementText = value.improvementText;
-  if (
-    typeof recommendationText !== 'string' ||
-    !recommendationText.trim() ||
-    typeof improvementText !== 'string' ||
-    !improvementText.trim()
-  ) {
-    return undefined;
-  }
-
-  return {
-    recommendationText: recommendationText.trim(),
-    improvementText: improvementText.trim(),
-  };
-}
-
 export async function generateCandidateFeedbackQuestionWithNativeLlm(
   config: NativeProviderConfig,
   input: CandidateFeedbackQuestionLlmInput,
 ): Promise<RawCandidateFeedbackQuestion> {
   const user = buildCandidateFeedbackQuestionUserPrompt(input);
   const system = getCandidateFeedbackQuestionSystemPrompt(input.toneMode);
-  const raw = await completeJson(config, system, user);
-  const parsed = parseCandidateFeedbackQuestionShape(
-    parseJsonFromModelOutput(raw),
+  return executeCandidateFeedbackJsonLlm(
+    config,
+    system,
+    user,
+    'LLM returned invalid candidate feedback JSON.',
   );
-  if (!parsed) {
-    throw new Error('LLM returned invalid candidate feedback JSON.');
-  }
-  return parsed;
 }
