@@ -3,11 +3,9 @@ import crypto from 'crypto';
 import {
   BadRequestException,
   ForbiddenException,
-  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
-  forwardRef,
 } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 
@@ -28,7 +26,7 @@ import {
   computeAvatarPictureUrl,
   resolveAvatarSourceOnGoogleLogin,
 } from './avatar/avatar-picture-url';
-import { AvatarService } from './avatar/avatar.service';
+import { AvatarStorageService } from './avatar/avatar-storage.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AvatarSource, User } from './interfaces/user.interface';
@@ -72,8 +70,7 @@ const USER_COLUMNS = `
 export class UserService implements OnModuleInit {
   constructor(
     private readonly databaseService: DatabaseService,
-    @Inject(forwardRef(() => AvatarService))
-    private readonly avatarService: AvatarService,
+    private readonly avatarStorageService: AvatarStorageService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -460,7 +457,7 @@ export class UserService implements OnModuleInit {
     );
 
     if (avatarKey) {
-      await this.avatarService.deleteObjectQuietly(avatarKey);
+      await this.avatarStorageService.deleteObjectQuietly(avatarKey);
     }
   }
 

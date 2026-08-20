@@ -1,23 +1,16 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
 
-import { AuthModule } from './auth.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 
 /**
- * Re-exports guards that only depend on `Reflector` so leaf modules
- * (e.g. `UserModule`) can import them without dragging in `AuthService` /
- * `UserService` directly.
- *
- * `JwtAuthGuard` relies on the `JwtStrategy` registered in `AuthModule`. The
- * `forwardRef(() => AuthModule)` makes that dependency explicit: Nest will
- * always boot `AuthModule` (and therefore the strategy) when this module is
- * loaded, instead of relying on the rest of the graph happening to import
- * `AuthModule` elsewhere. The forwardRef on both sides resolves the cycle
- * `AuthModule → AuthGuardsModule → AuthModule`.
+ * Re-exports guards that only depend on `PassportModule` and `Reflector` so leaf modules
+ * (e.g. `UserModule`, `QuestionModule`) can import them without dragging in `AuthModule` /
+ * `AuthService` / `UserService` directly.
  */
 @Module({
-  imports: [forwardRef(() => AuthModule)],
+  imports: [PassportModule],
   providers: [JwtAuthGuard, PermissionsGuard],
   exports: [JwtAuthGuard, PermissionsGuard],
 })

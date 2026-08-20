@@ -6,17 +6,19 @@ import {
 
 import { isLocale } from '../../../locale/locale.constants';
 import {
+  QuestionPrimaryLocaleHolder,
+  UpdateQuestionTranslationsContext,
+} from '../../interfaces/question-translation.interface';
+import {
   supportedLocaleListHint,
   validatePrimaryTranslationBlock,
   validateTranslationMapKeys,
 } from '../../question-translation.validation';
-import { CreateQuestionDto } from '../create-question.dto';
-import { UpdateQuestionDto } from '../update-question.dto';
 
 @ValidatorConstraint({ name: 'questionTranslationsMap', async: false })
 export class QuestionTranslationsMapConstraint implements ValidatorConstraintInterface {
   validate(translations: unknown, args: ValidationArguments): boolean {
-    const dto = args.object as CreateQuestionDto;
+    const dto = args.object as QuestionPrimaryLocaleHolder;
     if (!validateTranslationMapKeys(translations)) {
       return false;
     }
@@ -50,7 +52,7 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
       return false;
     }
 
-    const dto = args.object as UpdateQuestionDto;
+    const dto = args.object as UpdateQuestionTranslationsContext;
     const record = translations as Record<string, unknown>;
 
     if (dto.primaryLocale && isLocale(dto.primaryLocale)) {
@@ -61,7 +63,7 @@ export class QuestionTranslationsUpdateMapConstraint implements ValidatorConstra
   }
 
   defaultMessage(args: ValidationArguments): string {
-    const dto = args.object as UpdateQuestionDto;
+    const dto = args.object as UpdateQuestionTranslationsContext;
     if (dto.primaryLocale) {
       return (
         `when primaryLocale is set, translations must include a complete block for that locale. ` +

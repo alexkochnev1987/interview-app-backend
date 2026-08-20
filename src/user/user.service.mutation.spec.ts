@@ -2,7 +2,7 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
 import type { DatabaseService } from '../database/database.service';
-import type { AvatarService } from './avatar/avatar.service';
+import type { AvatarStorageService } from './avatar/avatar-storage.service';
 import type { UserRole } from './interfaces/user.interface';
 import { UserService } from './user.service';
 
@@ -35,13 +35,13 @@ function makeService() {
     query,
     withTransaction,
   } as unknown as DatabaseService;
-  const avatarService = {
+  const avatarStorageService = {
     deleteObjectQuietly: vi.fn().mockResolvedValue(undefined),
-  } as unknown as AvatarService;
+  } as unknown as AvatarStorageService;
   return {
-    service: new UserService(databaseService, avatarService),
+    service: new UserService(databaseService, avatarStorageService),
     query,
-    avatarService,
+    avatarStorageService,
   };
 }
 
@@ -235,7 +235,7 @@ describe('UserService.deleteUser', () => {
   });
 
   it('quietly deletes avatar storage after removing the user row', async () => {
-    const { service, query, avatarService } = makeService();
+    const { service, query, avatarStorageService } = makeService();
     query
       .mockResolvedValueOnce({
         rows: [
@@ -252,7 +252,7 @@ describe('UserService.deleteUser', () => {
 
     await service.deleteUser({ id: 'admin-1', role: 'admin' }, 'hr-1');
 
-    expect(avatarService.deleteObjectQuietly).toHaveBeenCalledWith(
+    expect(avatarStorageService.deleteObjectQuietly).toHaveBeenCalledWith(
       'uploads/avatars/hr-1.png',
     );
   });

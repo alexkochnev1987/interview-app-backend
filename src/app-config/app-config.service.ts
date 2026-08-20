@@ -1,16 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
-import { SYSTEM_CONFIG_DEFAULTS } from './app-config-defaults';
+import { SYSTEM_CONFIG_DEFAULTS, VariableType } from './app-config-defaults';
 import { parseRecruiterAssistantBoolean } from './recruiter-assistant-role-config';
 
-export type VariableType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'enum'
-  | 'json'
-  | 'secret';
+export { VariableType } from './app-config-defaults';
 
 export interface AppVariableRecord {
   id: string;

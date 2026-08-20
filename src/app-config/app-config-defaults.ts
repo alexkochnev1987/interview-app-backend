@@ -1,4 +1,10 @@
-import { VariableType } from './app-config.service';
+export type VariableType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'enum'
+  | 'json'
+  | 'secret';
 
 export interface SystemConfigDefaultEntry {
   key: string;
