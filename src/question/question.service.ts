@@ -1026,10 +1026,11 @@ export class QuestionService {
     id: string,
     options: { requireActive?: boolean } = {},
   ): Promise<Question> {
+    const requireActive = options.requireActive ?? true;
     const result = await client.query<QuestionRow>(
       `
         ${QUESTION_SELECT}
-        WHERE id = $1 ${options.requireActive ? 'AND deleted = FALSE' : ''}
+        WHERE id = $1 ${requireActive ? 'AND deleted = FALSE' : ''}
         FOR UPDATE
       `,
       [id],
@@ -1154,7 +1155,9 @@ export class QuestionService {
 
   async restore(id: string): Promise<Question> {
     return this.databaseService.withTransaction(async (client) => {
-      const existing = await this.lockQuestionForMutation(client, id);
+      const existing = await this.lockQuestionForMutation(client, id, {
+        requireActive: false,
+      });
       if (!existing.deleted) {
         throw apiBadRequest(
           ApiErrorCode.BAD_REQUEST,
