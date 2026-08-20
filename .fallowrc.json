@@ -74,7 +74,8 @@
   ],
   "usedClassMembers": ["defaultMessage", "name", "dimensions"],
   "duplicates": {
-    "minOccurrences": 3
+    "minOccurrences": 3,
+    "ignore": ["src/locale/locale-ui-text.ts", "**/*.dto.ts"]
   },
   "rules": {
     "unused-files": "error",
