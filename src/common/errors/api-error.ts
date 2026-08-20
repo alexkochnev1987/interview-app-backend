@@ -10,7 +10,7 @@ import {
 
 import { ApiErrorCode } from './api-error.codes';
 
-export interface ApiErrorPayload {
+interface ApiErrorPayload {
   code: ApiErrorCode;
   message: string;
   params?: Record<string, unknown>;

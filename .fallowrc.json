@@ -12,9 +12,21 @@
     "test/**/*.ts",
     "test/assert-test-pyramid.js"
   ],
-  "ignorePatterns": ["**/*.generated.ts", "openapi/generated/**", "dist/**"],
-  "ignoreDependencies": ["fallow", "swagger-ui-express", "reflect-metadata"],
-  "usedClassMembers": ["defaultMessage"],
+  "ignorePatterns": [
+    "**/*.generated.ts",
+    "openapi/generated/**",
+    "dist/**"
+  ],
+  "ignoreDependencies": [
+    "fallow",
+    "swagger-ui-express",
+    "reflect-metadata"
+  ],
+  "usedClassMembers": [
+    "defaultMessage",
+    "name",
+    "dimensions"
+  ],
   "duplicates": {
     "minOccurrences": 3
   },
@@ -28,7 +40,9 @@
   },
   "typeAware": {
     "enabled": true,
-    "projects": ["tsconfig.json"],
+    "projects": [
+      "tsconfig.json"
+    ],
     "require": "best-effort"
   }
 }

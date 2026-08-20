@@ -12,20 +12,6 @@ export interface ParsedRecruiterRequest {
   locale: Locale;
 }
 
-export type RecruiterAssistantIntentKind =
-  | 'list_interviews'
-  | 'list_unassigned'
-  | 'list_hrs'
-  | 'interview_status'
-  | 'review_state'
-  | 'assign_hr'
-  | 'create_questions_interview'
-  | 'create_question'
-  | 'create_interview'
-  | 'switch_locale'
-  | 'new_chat'
-  | 'out_of_scope';
-
 export interface InterviewRef {
   interviewId?: string;
   candidateName?: string;

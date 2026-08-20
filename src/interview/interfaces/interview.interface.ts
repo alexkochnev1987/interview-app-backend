@@ -24,8 +24,6 @@ export const TERMINAL_INTERVIEW_STATUSES = [
   'failed',
 ] as const satisfies readonly InterviewStatus[];
 
-export type ActiveInterviewStatus = (typeof ACTIVE_INTERVIEW_STATUSES)[number];
-
 export type InterviewQuestion = QuestionCore & {
   deleted?: boolean;
   pendingDeletion?: boolean;
