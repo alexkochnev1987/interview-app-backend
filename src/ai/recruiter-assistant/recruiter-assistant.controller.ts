@@ -20,7 +20,7 @@ import { apiServiceUnavailable } from '../../common/errors/api-error';
 import { ApiErrorCode } from '../../common/errors/api-error.codes';
 import { CurrentLocale } from '../../locale/decorators/current-locale.decorator';
 import { Locale } from '../../locale/locale.constants';
-import { User } from '../../user/interfaces/user.interface';
+import { ActingUser } from '../../user/interfaces/user.interface';
 import { StaffAiThrottlerGuard } from '../guards/staff-ai-throttler.guard';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
@@ -31,8 +31,6 @@ import {
 } from './dto/recruiter-assistant.dto';
 import { recruiterAssistantDisabledResponse } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
-
-type ActingUser = Omit<User, 'passwordHash'>;
 
 @ApiTags('ai')
 @ApiCookieAuth('sessionAuth')

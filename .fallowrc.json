@@ -12,21 +12,67 @@
     "test/**/*.ts",
     "test/assert-test-pyramid.js"
   ],
-  "ignorePatterns": [
-    "**/*.generated.ts",
-    "openapi/generated/**",
-    "dist/**"
+  "ignorePatterns": ["**/*.generated.ts", "openapi/generated/**", "dist/**"],
+  "ignoreDependencies": ["fallow", "swagger-ui-express", "reflect-metadata"],
+  "ignoreExports": [
+    {
+      "file": "**/*.responses.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/interview/dto/interview.responses.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/question/dto/question.responses.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/take/dto/take.responses.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/feedback/dto/generate-all-candidate-feedback.response.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/feedback/dto/candidate-feedback-share-link.responses.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/feedback/dto/patch-candidate-feedback.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/feedback/dto/feedback.response.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/user/dto/demo-provision.response.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/ai/dto/ai.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/ai/recruiter-assistant/dto/recruiter-assistant.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/interview/dto/list-interviews-query.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/question/dto/find-similar.dto.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/common/errors/api-error.registry.ts",
+      "exports": ["*"]
+    }
   ],
-  "ignoreDependencies": [
-    "fallow",
-    "swagger-ui-express",
-    "reflect-metadata"
-  ],
-  "usedClassMembers": [
-    "defaultMessage",
-    "name",
-    "dimensions"
-  ],
+  "usedClassMembers": ["defaultMessage", "name", "dimensions"],
   "duplicates": {
     "minOccurrences": 3
   },
@@ -40,9 +86,7 @@
   },
   "typeAware": {
     "enabled": true,
-    "projects": [
-      "tsconfig.json"
-    ],
+    "projects": ["tsconfig.json"],
     "require": "best-effort"
   }
 }

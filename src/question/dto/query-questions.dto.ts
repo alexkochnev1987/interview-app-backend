@@ -18,7 +18,7 @@ import { Locale } from '../../locale/locale.constants';
 import { QuestionDifficulty } from '../interfaces/question.interface';
 import { OUTPUT_LANGUAGE_OPENAPI_NOTE } from './openapi-deprecation';
 
-export const QUESTION_SORT_FIELDS = [
+const QUESTION_SORT_FIELDS = [
   'createdAt',
   'updatedAt',
   'difficulty',
@@ -28,10 +28,10 @@ export const QUESTION_SORT_FIELDS = [
 
 export type QuestionSortField = (typeof QUESTION_SORT_FIELDS)[number];
 
-export const QUESTION_SORT_ORDERS = ['asc', 'desc'] as const;
+const QUESTION_SORT_ORDERS = ['asc', 'desc'] as const;
 export type QuestionSortOrder = (typeof QUESTION_SORT_ORDERS)[number];
 
-export const QUESTION_STATUS_VALUES = [
+const QUESTION_STATUS_VALUES = [
   'active',
   'inactive',
   'all',

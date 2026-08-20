@@ -52,7 +52,7 @@ import {
 } from './question-draft-rubric-locale';
 import { resolveDraftLocale } from './resolve-draft-locale';
 
-interface ChatMessage {
+export interface ChatMessage {
   role: 'system' | 'assistant' | 'candidate';
   content: string;
 }

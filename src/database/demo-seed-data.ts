@@ -43,7 +43,7 @@ const redFlag = (
   severity: QuestionRedFlag['severity'],
 ): QuestionRedFlag => ({ id, label, severity });
 
-type DemoQuestion = QuestionCore & {
+export type DemoQuestion = QuestionCore & {
   deleted: boolean;
   usageCount: number;
 };

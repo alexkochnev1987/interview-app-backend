@@ -20,7 +20,7 @@ export const CANDIDATE_FEEDBACK_OUTCOMES = [
 export type CandidateFeedbackOutcome =
   (typeof CANDIDATE_FEEDBACK_OUTCOMES)[number];
 
-export const CANDIDATE_FEEDBACK_PRESET_OUTCOMES = [
+const CANDIDATE_FEEDBACK_PRESET_OUTCOMES = [
   'next_stage',
   'keep_in_touch',
 ] as const;

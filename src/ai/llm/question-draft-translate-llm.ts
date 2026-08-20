@@ -16,7 +16,7 @@ export interface QuestionTranslateFullInput {
 
 let cachedTranslateFullSystemPrompt: string | undefined;
 
-export function loadQuestionTranslateFullSystemPrompt(): string {
+function loadQuestionTranslateFullSystemPrompt(): string {
   if (!cachedTranslateFullSystemPrompt) {
     cachedTranslateFullSystemPrompt = readFileSync(
       join(__dirname, '..', 'prompts', 'translate-full.md'),
@@ -26,7 +26,7 @@ export function loadQuestionTranslateFullSystemPrompt(): string {
   return cachedTranslateFullSystemPrompt;
 }
 
-export function buildQuestionTranslateFullUserPrompt(
+function buildQuestionTranslateFullUserPrompt(
   input: QuestionTranslateFullInput,
   options: { strictLocale?: boolean } = {},
 ): string {

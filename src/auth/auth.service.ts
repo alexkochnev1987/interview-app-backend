@@ -17,7 +17,7 @@ import { UserService } from '../user/user.service';
 import { CANDIDATE_SESSION_TTL_MS } from './candidate-session';
 import { RegisterDto } from './dto/register.dto';
 
-interface CandidatePayload {
+export interface CandidatePayload {
   interviewId: string;
   role: 'candidate';
   exp: number;

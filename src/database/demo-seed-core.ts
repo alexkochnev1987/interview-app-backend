@@ -58,7 +58,7 @@ export async function upsertDemoUser(db: DemoSeedExecutor): Promise<void> {
   );
 }
 
-export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
+async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
   for (const q of DEMO_QUESTIONS) {
     await db.query(
       `
@@ -130,9 +130,7 @@ export async function upsertDemoQuestions(db: DemoSeedExecutor): Promise<void> {
   }
 }
 
-export async function upsertDemoInterviews(
-  db: DemoSeedExecutor,
-): Promise<void> {
+async function upsertDemoInterviews(db: DemoSeedExecutor): Promise<void> {
   for (const interview of DEMO_INTERVIEWS) {
     // Once a real recorded interview has been promoted to the demo, do not
     // recreate the fabricated placeholder on a later re-seed.
@@ -186,7 +184,7 @@ export async function upsertDemoInterviews(
   }
 }
 
-export async function upsertDemoTemplates(db: DemoSeedExecutor): Promise<void> {
+async function upsertDemoTemplates(db: DemoSeedExecutor): Promise<void> {
   const demoQuestionIds = new Set(DEMO_QUESTIONS.map((q) => q.id));
   for (const template of DEMO_TEMPLATES) {
     // Fail fast on a mistyped reference so a broken template never seeds.

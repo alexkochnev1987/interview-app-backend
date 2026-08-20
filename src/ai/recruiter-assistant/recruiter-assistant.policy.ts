@@ -4,10 +4,10 @@ import { ActingUser } from './recruiter-assistant.types';
 export const OUT_OF_SCOPE_RESPONSE =
   'I can help with your interviews, status, assignments, and question setup inside this app. Try asking about your interviews, an interview status, or preparing questions.';
 
-export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
+const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
   'Recruiter assistant is disabled in this environment.';
 
-export const RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE =
+const RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE =
   'Recruiter assistant is not available for your role in this environment.';
 
 export function recruiterAssistantDisabledResponse(globalOff: boolean): string {
@@ -45,7 +45,7 @@ const CANCELLATION_KEYWORDS = [
   'отменить',
 ];
 
-export function normalizeAssistantDecisionMessage(message: string): string {
+function normalizeAssistantDecisionMessage(message: string): string {
   return message
     .trim()
     .toLowerCase()

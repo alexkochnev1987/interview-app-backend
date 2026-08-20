@@ -6,7 +6,7 @@ import {
 export const INTERVIEW_PENDING_ONLY_MESSAGE =
   'Interview can only be modified while status is pending';
 
-export const INTERVIEW_PENDING_ONLY_UPDATE_FIELDS = [
+const INTERVIEW_PENDING_ONLY_UPDATE_FIELDS = [
   'candidateName',
   'candidateEmail',
   'position',

@@ -16,7 +16,7 @@ export interface QuestionGenerateLlmInput {
 
 let cachedGenerateSystemPrompt: string | undefined;
 
-export function loadQuestionGenerateSystemPrompt(): string {
+function loadQuestionGenerateSystemPrompt(): string {
   if (!cachedGenerateSystemPrompt) {
     cachedGenerateSystemPrompt = readFileSync(
       join(__dirname, '..', 'prompts', 'generate.md'),
@@ -57,7 +57,7 @@ ${noEnglishBoilerplate}
 ${strictLocaleLine}`.trim();
 }
 
-export function buildQuestionGenerateUserPrompt(
+function buildQuestionGenerateUserPrompt(
   base: QuestionGenerateLlmInput,
   draftLocale: Locale,
   options: { strictLocale?: boolean } = {},

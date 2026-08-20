@@ -36,7 +36,7 @@ interface CandidateFeedbackShareLinkRow {
   created_at: Date;
 }
 
-interface ShareLinkActor {
+export interface ShareLinkActor {
   id: string;
   role: UserRole;
   demo: boolean;

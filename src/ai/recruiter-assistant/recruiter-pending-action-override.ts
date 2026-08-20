@@ -21,7 +21,7 @@ function questionEquals(
   );
 }
 
-export function applyCreatePendingActionQuestionOverride(
+function applyCreatePendingActionQuestionOverride(
   stored: RecruiterAssistantCreatePendingActionDto,
   override: RecruiterAssistantCreatePendingActionDto,
 ): RecruiterAssistantCreatePendingActionDto | null {

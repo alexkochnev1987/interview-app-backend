@@ -27,7 +27,7 @@ import {
 } from './dto/upload.responses.dto';
 import { UploadService } from './upload.service';
 
-interface CandidateRequest {
+export interface CandidateRequest {
   candidatePayload: { interviewId: string };
 }
 

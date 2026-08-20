@@ -54,9 +54,7 @@ export function contentFallbackFromLocale(
   return resolvedLocale !== requestedLocale ? requestedLocale : undefined;
 }
 
-export function listAvailableLocales(
-  translations: QuestionTranslations,
-): Locale[] {
+function listAvailableLocales(translations: QuestionTranslations): Locale[] {
   return SUPPORTED_LOCALES.filter((locale) =>
     hasTranslation(translations, locale),
   );

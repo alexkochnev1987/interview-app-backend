@@ -8,7 +8,7 @@ export type ResolvedInterviewQuestion = InterviewQuestion & {
   availableLocales: Locale[];
 };
 
-export function resolveInterviewQuestion(
+function resolveInterviewQuestion(
   question: InterviewQuestion,
   locale: Locale,
 ): ResolvedInterviewQuestion {

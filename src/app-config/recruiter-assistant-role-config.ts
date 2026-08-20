@@ -1,6 +1,6 @@
 import { UserRole } from '../user/interfaces/user.interface';
 
-export const RECRUITER_ASSISTANT_CHAT_ROLES: readonly UserRole[] = [
+const RECRUITER_ASSISTANT_CHAT_ROLES: readonly UserRole[] = [
   'super_admin',
   'admin',
   'hr',

@@ -76,7 +76,7 @@ export interface CandidateFeedbackQuestionLlmInput {
   evaluationContext?: CandidateFeedbackEvaluationContext;
 }
 
-export function buildCandidateFeedbackQuestionUserPrompt(
+function buildCandidateFeedbackQuestionUserPrompt(
   input: CandidateFeedbackQuestionLlmInput,
 ): string {
   const { responseLanguageName } = localeUiText(input.interviewLocale);

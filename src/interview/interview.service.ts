@@ -244,7 +244,7 @@ interface InterviewRow {
   updated_at: Date;
 }
 
-interface AddAnswerInput {
+export interface AddAnswerInput {
   questionIndex: number;
   versionNumber: number;
   submitAnswer: boolean;
@@ -260,7 +260,7 @@ interface AddAnswerInput {
   clientTranscript?: AnswerTranscript;
 }
 
-interface SaveAnswerProgressInput {
+export interface SaveAnswerProgressInput {
   questionIndex: number;
   versionNumber: number;
   mediaKey: string;
@@ -275,7 +275,7 @@ interface SaveAnswerProgressInput {
   clientTranscript?: AnswerTranscript;
 }
 
-interface ReserveAnswerAttemptInput {
+export interface ReserveAnswerAttemptInput {
   questionIndex: number;
 }
 
@@ -287,7 +287,7 @@ export interface ReserveAnswerAttemptResult {
   maxAttempts: number;
 }
 
-interface FinalizeAnswerAttemptInput {
+export interface FinalizeAnswerAttemptInput {
   questionIndex: number;
 }
 
@@ -297,7 +297,7 @@ export interface FinalizeAnswerAttemptResult {
   alreadySubmitted: boolean;
 }
 
-interface QueueAnswerValidationInput {
+export interface QueueAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber: number;
   runId: string;
@@ -305,7 +305,7 @@ interface QueueAnswerValidationInput {
   requestedAt: Date;
 }
 
-interface CompleteAnswerValidationInput {
+export interface CompleteAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber: number;
   runId: string;
@@ -316,7 +316,7 @@ interface CompleteAnswerValidationInput {
   completedAt: Date;
 }
 
-interface FailAnswerValidationInput {
+export interface FailAnswerValidationInput {
   questionIndex: number;
   sourceVersionNumber?: number;
   runId?: string;

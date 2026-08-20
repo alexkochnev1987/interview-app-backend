@@ -18,7 +18,7 @@ const SLOT_KEYS: Record<SlotAwaitingInput, string> = {
   templateChoice: 'templateChoice',
 };
 
-export function isSlotAwaitingInput(
+function isSlotAwaitingInput(
   awaitingInput: RecruiterAssistantAwaitingInput,
 ): awaitingInput is SlotAwaitingInput {
   return awaitingInput !== 'confirmAddDespiteSimilar';
@@ -36,7 +36,7 @@ export function startConversationFlow(
   return { flow, slots: { ...initialSlots }, awaitingInput };
 }
 
-export function slotKeyFor(awaitingInput: SlotAwaitingInput): string {
+function slotKeyFor(awaitingInput: SlotAwaitingInput): string {
   return SLOT_KEYS[awaitingInput];
 }
 
@@ -53,8 +53,4 @@ export function captureAwaitingSlot(
     slots: { ...state.slots, [key]: message.trim() },
     awaitingInput: undefined,
   };
-}
-
-export function finishConversationFlow(): RecruiterConversationState {
-  return idleConversationState();
 }

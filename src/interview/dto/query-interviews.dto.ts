@@ -20,7 +20,7 @@ import {
 } from '../interfaces/interview.interface';
 import { parseBooleanQuery } from './list-interviews-query.dto';
 
-export const INTERVIEW_SORT_FIELDS = [
+const INTERVIEW_SORT_FIELDS = [
   'candidateName',
   'createdAt',
   'updatedAt',
@@ -28,7 +28,7 @@ export const INTERVIEW_SORT_FIELDS = [
 
 export type InterviewSortField = (typeof INTERVIEW_SORT_FIELDS)[number];
 
-export const INTERVIEW_SORT_ORDERS = ['asc', 'desc'] as const;
+const INTERVIEW_SORT_ORDERS = ['asc', 'desc'] as const;
 export type InterviewSortOrder = (typeof INTERVIEW_SORT_ORDERS)[number];
 
 function trimToUndefined(value: unknown): string | undefined {

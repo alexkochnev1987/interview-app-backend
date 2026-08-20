@@ -2,11 +2,11 @@ const CYRILLIC_LETTER = '\\p{Script=Cyrillic}';
 const CYRILLIC_START = `(?:^|[^${CYRILLIC_LETTER}\\p{N}_])`;
 const CYRILLIC_END = `(?=[^${CYRILLIC_LETTER}\\p{N}_]|$)`;
 
-export function cyrillicPattern(source: string, flags = 'iu'): RegExp {
+function cyrillicPattern(source: string, flags = 'iu'): RegExp {
   return new RegExp(`${CYRILLIC_START}${source}${CYRILLIC_END}`, flags);
 }
 
-export function cyrillicLoosePattern(source: string, flags = 'iu'): RegExp {
+function cyrillicLoosePattern(source: string, flags = 'iu'): RegExp {
   return new RegExp(`${CYRILLIC_START}${source}`, flags);
 }
 
@@ -109,7 +109,7 @@ export const NEW_CHAT_PATTERNS = [
   cyrillicLoosePattern('начать\\s+заново'),
 ];
 
-export const CREATE_INTERVIEW_PATTERNS = [
+const CREATE_INTERVIEW_PATTERNS = [
   /\bcreate (?:a )?new interview\b/i,
   /\bcreate (?:an )?interview for\b/i,
   /\bschedule (?:a )?new interview\b/i,
@@ -130,7 +130,7 @@ export function matchesCreateInterviewIntent(message: string): boolean {
   return matchesAnyPattern(message, CREATE_INTERVIEW_PATTERNS);
 }
 
-export const CREATE_INTENT_PATTERNS = [
+const CREATE_INTENT_PATTERNS = [
   /\bset up\s+(?:an?\s+)?(?:interview|questions?\b)/i,
   /\bmake interview\b/i,
   cyrillicLoosePattern(
@@ -141,7 +141,7 @@ export const CREATE_INTENT_PATTERNS = [
   ),
 ];
 
-export const CREATE_SINGLE_QUESTION_PATTERNS = [
+const CREATE_SINGLE_QUESTION_PATTERNS = [
   /\bcreate (?:a )?(?:new )?(?:interview )?question\b/i,
   /\badd (?:a )?(?:new )?(?:interview )?question\b/i,
   /\bmake (?:a )?(?:new )?(?:interview )?question\b/i,

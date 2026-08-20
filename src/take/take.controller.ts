@@ -58,7 +58,7 @@ import { buildCurrentAnswerMeta } from './take-answer-meta';
 import { resolveTakeContentLocale } from './take-locale';
 import { buildCandidateQuestionView } from './take-question-view';
 
-interface CandidateRequest {
+export interface CandidateRequest {
   candidatePayload: { interviewId: string };
   candidateTokenSource?: 'query' | 'cookie';
 }

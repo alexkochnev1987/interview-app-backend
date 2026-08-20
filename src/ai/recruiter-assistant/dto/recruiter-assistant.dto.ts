@@ -30,9 +30,9 @@ import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
 
-export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
-export const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
-export const MAX_RECRUITER_ASSISTANT_LABEL_LENGTH = 200;
+const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
+const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
+const MAX_RECRUITER_ASSISTANT_LABEL_LENGTH = 200;
 
 export class RecruiterAssistantSuggestedQuestionDto {
   @ApiProperty()

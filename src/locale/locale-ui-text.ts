@@ -73,6 +73,3 @@ const TEXT_BY_LOCALE: Record<Locale, LocaleUiText> = {
 export function localeUiText(locale: Locale): LocaleUiText {
   return TEXT_BY_LOCALE[locale];
 }
-
-/** @deprecated Use localeUiText */
-export const evaluationLocaleText = localeUiText;

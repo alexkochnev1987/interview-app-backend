@@ -1,10 +1,10 @@
-export const DEFAULT_MAX_ANSWER_ATTEMPTS_PER_QUESTION = 3;
+const DEFAULT_MAX_ANSWER_ATTEMPTS_PER_QUESTION = 3;
 
 export interface AnswerVersionRef {
   versionNumber: number;
 }
 
-export function resolveMaxAnswerAttemptsPerQuestion(): number {
+function resolveMaxAnswerAttemptsPerQuestion(): number {
   const raw = process.env.MAX_ANSWER_ATTEMPTS_PER_QUESTION?.trim();
   if (!raw) {
     return DEFAULT_MAX_ANSWER_ATTEMPTS_PER_QUESTION;

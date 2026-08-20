@@ -1,7 +1,7 @@
 import { isQuestionFeedbackEligibilitySkipReason } from './candidate-feedback-eligibility';
 import { CandidateFeedbackBlockState } from './interfaces/candidate-feedback.interface';
 
-export const PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES = [
+const PROTECTED_CANDIDATE_FEEDBACK_BLOCK_STATES = [
   'accepted',
   'edited',
 ] as const satisfies readonly CandidateFeedbackBlockState[];

@@ -1,8 +1,7 @@
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { Locale } from '../../locale/locale.constants';
-import { User } from '../../user/interfaces/user.interface';
 
-export type ActingUser = Omit<User, 'passwordHash'>;
+export type { ActingUser } from '../../user/interfaces/user.interface';
 
 export interface ParsedRecruiterRequest {
   position: string;

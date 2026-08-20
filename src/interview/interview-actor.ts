@@ -1,7 +1,5 @@
-import { User } from '../user/interfaces/user.interface';
+import { ActingUser } from '../user/interfaces/user.interface';
 import { InterviewActor } from './interfaces/interview.interface';
-
-type ActingUser = Omit<User, 'passwordHash'>;
 
 export function toInterviewActor(user: ActingUser): InterviewActor {
   return {

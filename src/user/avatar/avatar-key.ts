@@ -16,14 +16,14 @@ export function extensionForAvatarContentType(
   return EXTENSION_BY_CONTENT_TYPE[contentType];
 }
 
-interface BuildUserAvatarKeyParams {
+export interface BuildUserAvatarKeyParams {
   prefix: string;
   userId: string;
   ext: string;
   timestamp?: number;
 }
 
-interface MatchesUserAvatarKeyParams {
+export interface MatchesUserAvatarKeyParams {
   avatarKey: string;
   userId: string;
 }

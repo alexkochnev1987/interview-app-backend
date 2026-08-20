@@ -2,14 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { CandidateFeedbackResponseDto } from './candidate-feedback.responses.dto';
 
-export const CANDIDATE_FEEDBACK_GENERATION_RESULT_STATUSES = [
+const CANDIDATE_FEEDBACK_GENERATION_RESULT_STATUSES = [
   'queued',
   'generated',
   'skipped',
   'failed',
 ] as const;
 
-export const CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS = [
+const CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS = [
   'locked',
   'in_progress',
   'not_submitted',
@@ -20,7 +20,7 @@ export const CANDIDATE_FEEDBACK_QUESTION_SKIP_REASONS = [
   'missing_question',
 ] as const;
 
-export const CANDIDATE_FEEDBACK_OVERALL_SKIP_REASONS = [
+const CANDIDATE_FEEDBACK_OVERALL_SKIP_REASONS = [
   'locked',
   'in_progress',
   'no_question_texts',

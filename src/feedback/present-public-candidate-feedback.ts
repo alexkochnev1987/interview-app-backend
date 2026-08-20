@@ -34,7 +34,7 @@ function resolveSnapshotQuestionText(
   return fallbackText || undefined;
 }
 
-export function isPublishableCandidateFeedbackBlock(
+function isPublishableCandidateFeedbackBlock(
   state: CandidateFeedbackBlockState,
   texts: {
     recommendationText?: string;

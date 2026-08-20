@@ -68,7 +68,7 @@ const TEMPLATES: Record<Locale, LocaleSkipTemplates> = {
   },
 };
 
-export function buildQuestionSnippet(
+function buildQuestionSnippet(
   questionText: string | undefined,
   maxLength = QUESTION_SNIPPET_MAX_LENGTH,
 ): string {

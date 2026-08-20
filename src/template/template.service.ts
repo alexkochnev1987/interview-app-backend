@@ -62,7 +62,7 @@ interface TemplateRow {
   updated_at: Date;
 }
 
-interface TemplateContext {
+export interface TemplateContext {
   createdById?: string;
   demo?: boolean;
 }

@@ -5,7 +5,6 @@ import {
   QuestionRedFlagSeverity,
   QuestionTranslation,
   QuestionTranslations,
-  QuestionTranslationsMode,
 } from './question-translation.interface';
 
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard';
@@ -15,7 +14,6 @@ export {
   QuestionRedFlagSeverity,
   QuestionTranslation,
   QuestionTranslations,
-  QuestionTranslationsMode,
 };
 
 export interface QuestionCore {

@@ -64,7 +64,7 @@ function classifyContributingQuestionTone(
   }
 }
 
-export function buildOverallInterviewMixMetadata(
+function buildOverallInterviewMixMetadata(
   contributions: ContributingQuestionTone[],
 ): OverallInterviewMixMetadata {
   return {

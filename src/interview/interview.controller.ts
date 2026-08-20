@@ -36,7 +36,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { Locale } from '../locale/locale.constants';
-import { User } from '../user/interfaces/user.interface';
+import { ActingUser } from '../user/interfaces/user.interface';
 import { AnswerValidationWorkflowService } from './answer-validation-workflow.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import {
@@ -69,8 +69,6 @@ import {
 } from './interview.service';
 import { parseInterviewFacetsQuery } from './parse-interview-facets-query';
 import { InterviewPresentation, presentInterview } from './present-interview';
-
-type ActingUser = Omit<User, 'passwordHash'>;
 
 const INTERVIEW_QUERY_VALIDATION_PIPE = new ValidationPipe({
   whitelist: true,

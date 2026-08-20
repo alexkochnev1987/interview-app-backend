@@ -1,9 +1,6 @@
 import { createHash } from 'crypto';
 
-import {
-  ONBOARDING_STARTER_EMAIL_SUFFIX,
-  isOnboardingStarterEmail,
-} from '../common/onboarding-starter';
+import { ONBOARDING_STARTER_EMAIL_SUFFIX } from '../common/onboarding-starter';
 import type {
   Answer,
   Interview,
@@ -12,8 +9,6 @@ import type {
 import type { Locale } from '../locale/locale.constants';
 import type { UserRole } from '../user/interfaces/user.interface';
 import type { DemoSeedExecutor } from './demo-seed-core';
-
-export { ONBOARDING_STARTER_EMAIL_SUFFIX, isOnboardingStarterEmail };
 
 const LOCALE: Locale = 'en';
 const STARTED_AT = new Date('2026-06-15T10:00:00.000Z');

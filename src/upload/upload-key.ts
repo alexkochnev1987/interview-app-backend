@@ -1,6 +1,6 @@
 export type InterviewMediaType = 'camera' | 'screen';
 
-interface BuildInterviewMediaKeyParams {
+export interface BuildInterviewMediaKeyParams {
   prefix: string;
   interviewId: string;
   questionIndex: number;
@@ -8,7 +8,7 @@ interface BuildInterviewMediaKeyParams {
   timestamp?: number;
 }
 
-interface MatchInterviewMediaKeyParams {
+export interface MatchInterviewMediaKeyParams {
   mediaKey: string;
   interviewId: string;
   questionIndex: number;

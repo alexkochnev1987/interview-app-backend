@@ -148,7 +148,7 @@ async function completeAnthropic(
   return text;
 }
 
-export function buildGoogleGenerateContentRequest(
+function buildGoogleGenerateContentRequest(
   model: string,
   apiKey: string,
 ): { url: string; headers: Record<string, string> } {

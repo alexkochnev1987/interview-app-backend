@@ -4,13 +4,11 @@ import {
   SUPPORTED_LOCALES,
 } from '../locale/locale.constants';
 
-export function isPlainObject(
-  value: unknown,
-): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-export function isCompleteTranslationBlock(value: unknown): boolean {
+function isCompleteTranslationBlock(value: unknown): boolean {
   if (!isPlainObject(value)) {
     return false;
   }
@@ -38,7 +36,7 @@ export function isCompleteTranslationBlock(value: unknown): boolean {
   return true;
 }
 
-export function isPartialTranslationBlock(value: unknown): boolean {
+function isPartialTranslationBlock(value: unknown): boolean {
   if (!isPlainObject(value)) {
     return false;
   }

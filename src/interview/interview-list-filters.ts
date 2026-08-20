@@ -6,7 +6,7 @@ import type { InterviewActor } from './interfaces/interview.interface';
 
 export type InterviewFacetFields = 'position' | 'status';
 
-export function escapeLike(value: string): string {
+function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 

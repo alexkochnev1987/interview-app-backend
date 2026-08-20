@@ -23,3 +23,5 @@ export interface User {
   googlePictureUrl?: string;
   pictureUrl?: string;
 }
+
+export type ActingUser = Omit<User, 'passwordHash'>;

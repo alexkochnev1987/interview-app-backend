@@ -1,6 +1,6 @@
 import { AvatarSource } from '../interfaces/user.interface';
 
-interface ComputeAvatarPictureUrlParams {
+export interface ComputeAvatarPictureUrlParams {
   userId: string;
   avatarSource: AvatarSource;
   avatarKey?: string;
@@ -28,7 +28,7 @@ export function computeAvatarPictureUrl({
   return undefined;
 }
 
-interface CanRestoreGoogleAvatarParams {
+export interface CanRestoreGoogleAvatarParams {
   avatarSource: AvatarSource;
   hasGoogleAvatar: boolean;
 }
@@ -45,7 +45,7 @@ export function canRestoreGoogleAvatar({
   return hasGoogleAvatar && avatarSource !== 'google';
 }
 
-interface ResolveAvatarSourceOnGoogleLoginParams {
+export interface ResolveAvatarSourceOnGoogleLoginParams {
   currentAvatarSource: AvatarSource;
   hadGooglePictureBefore: boolean;
 }

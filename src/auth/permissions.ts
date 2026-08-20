@@ -25,7 +25,7 @@ export const ALL_PERMISSIONS = [
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
 
-export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
+const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   super_admin: ALL_PERMISSIONS,
   admin: [
     'users:read',

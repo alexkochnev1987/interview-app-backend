@@ -9,26 +9,23 @@ import {
 import { isTerminalInterviewStatus } from '../interview/interview-management-rules';
 import { resolveSelectedAnswerVersion } from '../interview/resolve-selected-answer-version';
 
-export const CANDIDATE_FEEDBACK_TERMINAL_INTERVIEW_MESSAGE =
+const CANDIDATE_FEEDBACK_TERMINAL_INTERVIEW_MESSAGE =
   'Candidate feedback is only available after the interview is completed or failed';
 
 /** Minimum trimmed transcript length (characters) to attempt feedback generation. */
-export const CANDIDATE_FEEDBACK_MIN_TRANSCRIPT_LENGTH = 12;
+const CANDIDATE_FEEDBACK_MIN_TRANSCRIPT_LENGTH = 12;
 
 /** Minimum count of Unicode letters required in a usable transcript. */
-export const CANDIDATE_FEEDBACK_MIN_LETTER_COUNT = 8;
+const CANDIDATE_FEEDBACK_MIN_LETTER_COUNT = 8;
 
 /** Minimum ratio of letters to non-whitespace characters in a usable transcript. */
-export const CANDIDATE_FEEDBACK_MIN_LETTER_RATIO = 0.35;
+const CANDIDATE_FEEDBACK_MIN_LETTER_RATIO = 0.35;
 
 /** overallScore / relevance at or above this → balanced when decisionHint is absent. */
-export const CANDIDATE_FEEDBACK_HIGH_SCORE_THRESHOLD = 75;
-
-/** Scores in [this, HIGH) with no fail hint → growth_focused. */
-export const CANDIDATE_FEEDBACK_MEDIUM_SCORE_THRESHOLD = 55;
+const CANDIDATE_FEEDBACK_HIGH_SCORE_THRESHOLD = 75;
 
 /** relevance / overallScore below this → honest_weak when decisionHint is absent. */
-export const CANDIDATE_FEEDBACK_LOW_SCORE_THRESHOLD = 40;
+const CANDIDATE_FEEDBACK_LOW_SCORE_THRESHOLD = 40;
 
 /** YouTube / video outro closings and similar non-answer boilerplate (multilingual). */
 const TRANSCRIPT_BOILERPLATE_PATTERNS: RegExp[] = [
@@ -134,11 +131,11 @@ export function getCandidateFeedbackInterviewStatusBlockReason(
     : CANDIDATE_FEEDBACK_TERMINAL_INTERVIEW_MESSAGE;
 }
 
-export function countTranscriptLetters(text: string): number {
+function countTranscriptLetters(text: string): number {
   return (text.match(/\p{L}/gu) ?? []).length;
 }
 
-export function transcriptLetterRatio(text: string): number {
+function transcriptLetterRatio(text: string): number {
   const compact = text.replace(/\s+/g, '');
   if (compact.length === 0) {
     return 0;
@@ -200,7 +197,7 @@ function stripBoilerplatePhrases(text: string): string {
   return result.replace(/\s+/g, ' ').trim();
 }
 
-export function isObviousTranscriptBoilerplate(text: string): boolean {
+function isObviousTranscriptBoilerplate(text: string): boolean {
   const trimmed = text.trim();
   if (/^\s*[\W\d_]+\s*$/.test(trimmed)) {
     return true;

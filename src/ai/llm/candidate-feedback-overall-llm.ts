@@ -44,7 +44,7 @@ const OVERALL_TONE_USER_INSTRUCTIONS: Record<OverallFeedbackToneMode, string> =
       'Overall tone: respectful development focus. No false praise or "strong interview" language.',
   };
 
-export function getCandidateFeedbackOverallSystemPrompt(
+function getCandidateFeedbackOverallSystemPrompt(
   toneMode: OverallFeedbackToneMode,
 ): string {
   return OVERALL_TONE_SYSTEM_PROMPTS[toneMode];
@@ -64,7 +64,7 @@ export interface CandidateFeedbackOverallLlmInput {
   mixMetadata?: OverallInterviewMixMetadata;
 }
 
-export function buildCandidateFeedbackOverallUserPrompt(
+function buildCandidateFeedbackOverallUserPrompt(
   input: CandidateFeedbackOverallLlmInput,
 ): string {
   const { responseLanguageName } = localeUiText(input.interviewLocale);

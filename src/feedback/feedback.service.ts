@@ -35,7 +35,7 @@ interface FeedbackLinkRow {
   created_at: Date;
 }
 
-interface FeedbackActor {
+export interface FeedbackActor {
   id: string;
   role: UserRole;
   demo: boolean;
