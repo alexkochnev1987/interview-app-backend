@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": [
+    "src/main.ts",
+    "src/openapi/generate-openapi.ts",
+    "src/openapi/validate-openapi.ts",
+    "src/database/migrate.ts",
+    "src/database/seed-demo.ts",
+    "src/question/import-questions.ts",
+    "src/question/backfill-embeddings.ts",
+    "scripts/**/*.{ts,js}",
+    "test/**/*.ts",
+    "test/assert-test-pyramid.js"
+  ],
+  "ignorePatterns": ["**/*.generated.ts", "openapi/generated/**", "dist/**"],
+  "ignoreDependencies": ["fallow", "swagger-ui-express", "reflect-metadata"],
+  "usedClassMembers": ["defaultMessage"],
+  "duplicates": {
+    "minOccurrences": 3
+  },
+  "rules": {
+    "unused-files": "error",
+    "unused-exports": "warn",
+    "unused-types": "warn",
+    "unresolved-imports": "error",
+    "test-only-dependencies": "off",
+    "dev-dependencies-in-production": "off"
+  },
+  "typeAware": {
+    "enabled": true,
+    "projects": ["tsconfig.json"],
+    "require": "best-effort"
+  }
+}

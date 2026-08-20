@@ -1,1 +1,2 @@
 npm run typecheck
+npx fallow dead-code

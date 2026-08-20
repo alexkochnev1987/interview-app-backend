@@ -19,3 +19,4 @@ infra/**/*.tfplan
 infra/**/placeholder.zip
 *.tfvars
 !infra/environments/*/terraform.tfvars
+.fallow/
