@@ -61,7 +61,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'feedback:create_share_link',
     'feedback:revoke_share_link',
   ],
-  candidate: ['users:read_profile'],
+  // `interviews:read_own` for a candidate means "interviews whose
+  // candidate_email is mine" (see candidate-portal-interview-access.ts),
+  // not "interviews I created" as it does for hr/admin.
+  candidate: ['users:read_profile', 'interviews:read_own'],
 };
 
 // Permissions a read-only demo account keeps; every other permission is denied.

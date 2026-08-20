@@ -29,6 +29,8 @@ import {
 } from './answer-attempt-rules';
 import { compareBehaviorRisk } from './answer-behavior-risk';
 import { buildInterviewSummary } from './build-interview-summary';
+import { getCandidatePortalRoleDenialReason } from './candidate-portal-interview-access';
+import { buildCandidatePortalFilterClauses } from './candidate-portal-interview-filters';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 import {
@@ -82,6 +84,7 @@ import {
   hasInterviewPendingOnlyFieldUpdates,
   isTerminalInterviewStatus,
 } from './interview-management-rules';
+import { sortInterviewsByCandidateRelevance } from './interview-portal-relevance';
 import { getInterviewResultsUnavailableMessage } from './interview-results-rules';
 import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-version';
 
@@ -837,6 +840,33 @@ export class InterviewService {
 
     const row = result.rows[0];
     return row ? fromInterviewListRow(row) : null;
+  }
+
+  /** Every non-demo interview tied to a candidate-portal actor's own email. */
+  async findAllForCandidateEmail(
+    email: string,
+    actor: InterviewActor,
+  ): Promise<InterviewListItem[]> {
+    const roleDenial = getCandidatePortalRoleDenialReason(actor.role);
+    if (roleDenial) {
+      throw apiForbidden(ApiErrorCode.INSUFFICIENT_PERMISSIONS, roleDenial);
+    }
+
+    const { whereSql, params } = buildCandidatePortalFilterClauses(email);
+
+    const result = await this.databaseService.query<InterviewListRow>(
+      `
+        SELECT ${INTERVIEW_LIST_SELECT_COLUMNS}
+        FROM interviews i
+        LEFT JOIN users ah ON ah.id = i.assigned_hr_id
+        ${whereSql}
+        ORDER BY i.updated_at DESC, i.id ASC
+      `,
+      params,
+    );
+
+    const items = result.rows.map((row) => fromInterviewListRow(row));
+    return sortInterviewsByCandidateRelevance(items);
   }
 
   async getFacets(

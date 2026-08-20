@@ -157,6 +157,100 @@ describe('InterviewService list query (findAllPaginated)', () => {
   });
 });
 
+describe('InterviewService candidate-portal query (findAllForCandidateEmail)', () => {
+  function makeService() {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const hydrateStoredQuestionCore = vi.fn();
+    const databaseService = { query } as unknown as DatabaseService;
+    const questionService = {
+      hydrateStoredQuestionCore,
+    } as unknown as QuestionService;
+    const mediaCleanupService = {
+      deleteInterviewMedia: vi.fn(),
+    } as unknown as MediaCleanupService;
+    return {
+      service: new InterviewService(
+        databaseService,
+        questionService,
+        mediaCleanupService,
+      ),
+      query,
+    };
+  }
+
+  it('rejects a non-candidate actor before querying', async () => {
+    const { service, query } = makeService();
+
+    await expect(
+      service.findAllForCandidateEmail('hr@test.local', {
+        id: 'hr-1',
+        role: 'hr',
+        demo: false,
+      }),
+    ).rejects.toThrow('You do not have access to interviews');
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('filters by normalized candidate email and excludes demo interviews', async () => {
+    const { service, query } = makeService();
+
+    await service.findAllForCandidateEmail('  Foo@Example.com  ', {
+      id: 'candidate-1',
+      role: 'candidate',
+      demo: false,
+    });
+
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain('lower(trim(i.candidate_email)) = $1');
+    expect(sql).toContain('i.demo = FALSE');
+    expect(sql).not.toContain('LIMIT');
+    expect(params[0]).toBe('foo@example.com');
+  });
+
+  it('maps rows and orders active interviews before terminal ones', async () => {
+    const { service, query } = makeService();
+    query.mockResolvedValue({
+      rows: [
+        {
+          id: 'completed-1',
+          candidate_name: 'Alice',
+          candidate_email: 'alice@test.local',
+          position: 'Engineer',
+          status: 'completed',
+          created_at: new Date('2026-01-01T00:00:00.000Z'),
+          updated_at: new Date('2026-01-03T00:00:00.000Z'),
+          question_count: 3,
+          submitted_answer_count: 3,
+          overall_score: 88,
+          decision: 'proceed',
+        },
+        {
+          id: 'pending-1',
+          candidate_name: 'Alice',
+          candidate_email: 'alice@test.local',
+          position: 'Engineer',
+          status: 'pending',
+          created_at: new Date('2026-01-02T00:00:00.000Z'),
+          updated_at: new Date('2026-01-02T00:00:00.000Z'),
+          question_count: 3,
+          submitted_answer_count: 0,
+          overall_score: null,
+          decision: null,
+        },
+      ],
+    });
+
+    const items = await service.findAllForCandidateEmail('alice@test.local', {
+      id: 'candidate-1',
+      role: 'candidate',
+      demo: false,
+    });
+
+    expect(items.map((item) => item.id)).toEqual(['pending-1', 'completed-1']);
+  });
+});
+
 describe('InterviewService facets query (getFacets)', () => {
   function makeService() {
     const query = vi.fn().mockResolvedValue({ rows: [] });

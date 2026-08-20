@@ -44,3 +44,20 @@ export async function loginAsHr(agent: IntegrationAgent): Promise<string> {
 export function authCookie(sessionCookie: string) {
   return { Cookie: sessionCookie };
 }
+
+/** Self-registration always lands as role `candidate` (see AuthService.register). */
+export async function registerAsCandidate(
+  agent: IntegrationAgent,
+  params: { email: string; name?: string; password?: string },
+): Promise<string> {
+  const response = await agent
+    .post('/auth/register')
+    .send({
+      email: params.email,
+      name: params.name ?? 'Integration Candidate',
+      password: params.password ?? 'TestPass123!',
+    })
+    .expect(201);
+
+  return extractSessionCookie(response.headers['set-cookie']);
+}

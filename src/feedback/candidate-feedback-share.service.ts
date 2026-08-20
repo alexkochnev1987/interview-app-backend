@@ -4,9 +4,17 @@ import { Injectable, Optional } from '@nestjs/common';
 import { DatabaseError } from 'pg';
 
 import { AppConfigService } from '../app-config/app-config.service';
-import { apiConflict, apiNotFound } from '../common/errors/api-error';
+import {
+  apiConflict,
+  apiForbidden,
+  apiNotFound,
+} from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
+import {
+  CandidatePortalActor,
+  getCandidatePortalAccessDenialReason,
+} from '../interview/candidate-portal-interview-access';
 import { Interview } from '../interview/interfaces/interview.interface';
 import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
@@ -15,6 +23,7 @@ import { CandidateFeedbackService } from './candidate-feedback.service';
 import { FEEDBACK_LINK_TTL_DAYS } from './feedback.service';
 import {
   CandidateFeedbackShareLink,
+  PortalCandidateFeedbackResponse,
   PublicCandidateFeedbackResponse,
 } from './interfaces/candidate-feedback-share-link.interface';
 import {
@@ -308,6 +317,76 @@ export class CandidateFeedbackShareService {
       overallScore: interview.result?.overallScore,
       interview,
     });
+  }
+
+  /**
+   * Authenticated equivalent of `resolveByToken` for a logged-in portal
+   * candidate: no share token/link involved, access is gated by
+   * `getCandidatePortalAccessDenialReason` (own email, non-demo interview)
+   * instead. Same "must be terminal + must have a publishable block"
+   * eligibility as the anonymous share flow.
+   */
+  async resolveForCandidateActor(
+    interviewId: string,
+    actor: CandidatePortalActor,
+  ): Promise<PortalCandidateFeedbackResponse> {
+    const interview = await this.interviewService.findOne(interviewId);
+
+    const accessDenial = getCandidatePortalAccessDenialReason(interview, actor);
+    if (accessDenial) {
+      throw apiForbidden(ApiErrorCode.INSUFFICIENT_PERMISSIONS, accessDenial);
+    }
+
+    if (getCandidateFeedbackInterviewStatusBlockReason(interview.status)) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'Candidate feedback is not available yet',
+        { interviewId },
+      );
+    }
+
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
+    if (!feedback || !hasAnyPublishableCandidateFeedbackBlock(feedback)) {
+      throw apiNotFound(
+        ApiErrorCode.FEEDBACK_NOT_FOUND,
+        'Candidate feedback is not available yet',
+        { interviewId },
+      );
+    }
+
+    const presented = presentPublicCandidateFeedback(feedback, {
+      interviewLocale: interview.interviewLocale,
+      position: interview.position,
+      // Not meaningful for an authenticated session; omitted below.
+      expiresAt: new Date(0),
+      overallScore: interview.result?.overallScore,
+      interview,
+    });
+
+    const portalResponse: PortalCandidateFeedbackResponse = {
+      interviewLocale: presented.interviewLocale,
+      position: presented.position,
+    };
+    if (presented.interviewDate !== undefined) {
+      portalResponse.interviewDate = presented.interviewDate;
+    }
+    if (presented.overallScore !== undefined) {
+      portalResponse.overallScore = presented.overallScore;
+    }
+    if (presented.outcome !== undefined) {
+      portalResponse.outcome = presented.outcome;
+    }
+    if (presented.outcomeMessage !== undefined) {
+      portalResponse.outcomeMessage = presented.outcomeMessage;
+    }
+    if (presented.overall !== undefined) {
+      portalResponse.overall = presented.overall;
+    }
+    if (presented.questions !== undefined) {
+      portalResponse.questions = presented.questions;
+    }
+    return portalResponse;
   }
 
   private assertInterviewReadyForShare(interview: Interview): void {
