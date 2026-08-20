@@ -14,6 +14,7 @@ import { QuestionModule } from './question/question.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { TakeModule } from './take/take.module';
 import { TemplateModule } from './template/template.module';
+import { S3StorageModule } from './upload/s3-storage.module';
 import { UploadModule } from './upload/upload.module';
 import { UserModule } from './user/user.module';
 
@@ -21,6 +22,7 @@ import { UserModule } from './user/user.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     AppConfigModule,
+    S3StorageModule,
     LocaleModule,
     RateLimitModule,
     DatabaseModule,

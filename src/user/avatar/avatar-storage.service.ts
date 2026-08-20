@@ -8,11 +8,12 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { apiBadRequest } from '../../common/errors/api-error';
 import { ApiErrorCode } from '../../common/errors/api-error.codes';
-import { createS3Storage } from '../../upload/s3-storage.factory';
+import type { S3StorageConfig } from '../../upload/s3-storage.factory';
+import { S3_STORAGE } from '../../upload/s3-storage.module';
 import {
   buildUserAvatarKey,
   extensionForAvatarContentType,
@@ -30,8 +31,7 @@ export class AvatarStorageService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor() {
-    const storage = createS3Storage();
+  constructor(@Inject(S3_STORAGE) storage: S3StorageConfig) {
     this.bucket = storage.bucket;
     this.prefix = storage.prefix;
     this.s3Client = storage.s3Client;

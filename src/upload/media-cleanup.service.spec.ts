@@ -1,13 +1,12 @@
+import { S3Client } from '@aws-sdk/client-s3';
 import { ServiceUnavailableException } from '@nestjs/common';
 
 import { AppConfigService } from '../app-config/app-config.service';
 import { MediaCleanupService } from './media-cleanup.service';
+import type { S3StorageConfig } from './s3-storage.factory';
 
 describe('MediaCleanupService', () => {
   it('retries failed S3 deletes and throws when cleanup is incomplete', async () => {
-    const service = new MediaCleanupService({
-      getBoolean: vi.fn().mockResolvedValue(true),
-    } as unknown as AppConfigService);
     const send = vi
       .fn()
       .mockResolvedValueOnce({
@@ -31,9 +30,18 @@ describe('MediaCleanupService', () => {
         ],
       });
 
-    (
-      service as unknown as { s3Client: { send: ReturnType<typeof vi.fn> } }
-    ).s3Client = { send };
+    const storage: S3StorageConfig = {
+      bucket: 'test-bucket',
+      prefix: 'uploads',
+      s3Client: { send } as unknown as S3Client,
+    };
+
+    const service = new MediaCleanupService(
+      {
+        getBoolean: vi.fn().mockResolvedValue(true),
+      } as unknown as AppConfigService,
+      storage,
+    );
 
     await expect(service.deleteInterviewMedia('i1')).rejects.toBeInstanceOf(
       ServiceUnavailableException,

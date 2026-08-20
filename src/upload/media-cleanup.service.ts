@@ -3,12 +3,13 @@ import {
   ListObjectsV2Command,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AppConfigService } from '../app-config/app-config.service';
 import { apiServiceUnavailable } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
-import { createS3Storage } from './s3-storage.factory';
+import type { S3StorageConfig } from './s3-storage.factory';
+import { S3_STORAGE } from './s3-storage.module';
 import { getInterviewMediaPrefix } from './upload-key';
 
 @Injectable()
@@ -18,8 +19,10 @@ export class MediaCleanupService {
   private readonly bucket: string;
   private readonly prefix: string;
 
-  constructor(private readonly appConfig: AppConfigService) {
-    const storage = createS3Storage();
+  constructor(
+    private readonly appConfig: AppConfigService,
+    @Inject(S3_STORAGE) storage: S3StorageConfig,
+  ) {
     this.bucket = storage.bucket;
     this.prefix = storage.prefix;
     this.s3Client = storage.s3Client;

@@ -38,7 +38,8 @@ import {
 } from './dto/upload.responses.dto';
 import { MediaCleanupService } from './media-cleanup.service';
 import { assertMediaFileSizeBytesWithinLimit } from './media-file-size';
-import { createS3Storage } from './s3-storage.factory';
+import type { S3StorageConfig } from './s3-storage.factory';
+import { S3_STORAGE } from './s3-storage.module';
 import {
   buildInterviewMediaKey,
   InterviewMediaType,
@@ -63,8 +64,8 @@ export class UploadService {
     private readonly interviewService: InterviewService,
     private readonly mediaCleanupService: MediaCleanupService,
     private readonly appConfig: AppConfigService,
+    @Inject(S3_STORAGE) storage: S3StorageConfig,
   ) {
-    const storage = createS3Storage();
     this.bucket = storage.bucket;
     this.prefix = storage.prefix;
     this.s3Client = storage.s3Client;
