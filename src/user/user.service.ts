@@ -512,9 +512,12 @@ export class UserService implements OnModuleInit {
    * avatar_key (if any) so the caller can clean up the now-orphaned S3
    * object after this DB update has committed.
    */
-  async setAvatarUpload(
+  private async executeAvatarChange(
     userId: string,
-    avatarKey: string,
+    onPreviousRow: (previousRow: UserRow) => {
+      updateSql: string;
+      params: unknown[];
+    },
   ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
     return this.databaseService.withTransaction(async (client) => {
       const previousResult = await client.query<UserRow>(
@@ -531,17 +534,9 @@ export class UserService implements OnModuleInit {
         throw new NotFoundException(`User ${userId} not found`);
       }
 
-      const updateResult = await client.query<UserRow>(
-        `
-          UPDATE users
-          SET avatar_key = $2,
-              avatar_source = 'upload',
-              updated_at = NOW()
-          WHERE id = $1
-          RETURNING ${USER_COLUMNS}
-        `,
-        [userId, avatarKey],
-      );
+      const { updateSql, params } = onPreviousRow(previousRow);
+
+      const updateResult = await client.query<UserRow>(updateSql, params);
       const updatedRow = updateResult.rows[0];
       if (!updatedRow) {
         throw new NotFoundException(`User ${userId} not found`);
@@ -552,6 +547,23 @@ export class UserService implements OnModuleInit {
         user: this.toPublicUser(this.mapRow(updatedRow)),
       };
     });
+  }
+
+  async setAvatarUpload(
+    userId: string,
+    avatarKey: string,
+  ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
+    return this.executeAvatarChange(userId, () => ({
+      updateSql: `
+        UPDATE users
+        SET avatar_key = $2,
+            avatar_source = 'upload',
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${USER_COLUMNS}
+      `,
+      params: [userId, avatarKey],
+    }));
   }
 
   /**
@@ -564,42 +576,17 @@ export class UserService implements OnModuleInit {
   async clearAvatar(
     userId: string,
   ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
-    return this.databaseService.withTransaction(async (client) => {
-      const previousResult = await client.query<UserRow>(
-        `
-          SELECT ${USER_COLUMNS}
-          FROM users
-          WHERE id = $1
-          FOR UPDATE
-        `,
-        [userId],
-      );
-      const previousRow = previousResult.rows[0];
-      if (!previousRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
-
-      const updateResult = await client.query<UserRow>(
-        `
-          UPDATE users
-          SET avatar_key = NULL,
-              avatar_source = 'none',
-              updated_at = NOW()
-          WHERE id = $1
-          RETURNING ${USER_COLUMNS}
-        `,
-        [userId],
-      );
-      const updatedRow = updateResult.rows[0];
-      if (!updatedRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
-
-      return {
-        previousAvatarKey: previousRow.avatar_key ?? undefined,
-        user: this.toPublicUser(this.mapRow(updatedRow)),
-      };
-    });
+    return this.executeAvatarChange(userId, () => ({
+      updateSql: `
+        UPDATE users
+        SET avatar_key = NULL,
+            avatar_source = 'none',
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${USER_COLUMNS}
+      `,
+      params: [userId],
+    }));
   }
 
   /**
@@ -612,29 +599,15 @@ export class UserService implements OnModuleInit {
   async restoreGoogleAvatar(
     userId: string,
   ): Promise<{ previousAvatarKey?: string; user: Omit<User, 'passwordHash'> }> {
-    return this.databaseService.withTransaction(async (client) => {
-      const previousResult = await client.query<UserRow>(
-        `
-          SELECT ${USER_COLUMNS}
-          FROM users
-          WHERE id = $1
-          FOR UPDATE
-        `,
-        [userId],
-      );
-      const previousRow = previousResult.rows[0];
-      if (!previousRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
+    return this.executeAvatarChange(userId, (previousRow) => {
       if (!previousRow.google_picture_url) {
         throw apiBadRequest(
           ApiErrorCode.AVATAR_NO_GOOGLE_PICTURE,
           'No Google picture is available to restore',
         );
       }
-
-      const updateResult = await client.query<UserRow>(
-        `
+      return {
+        updateSql: `
           UPDATE users
           SET avatar_key = NULL,
               avatar_source = 'google',
@@ -642,16 +615,7 @@ export class UserService implements OnModuleInit {
           WHERE id = $1
           RETURNING ${USER_COLUMNS}
         `,
-        [userId],
-      );
-      const updatedRow = updateResult.rows[0];
-      if (!updatedRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
-
-      return {
-        previousAvatarKey: previousRow.avatar_key ?? undefined,
-        user: this.toPublicUser(this.mapRow(updatedRow)),
+        params: [userId],
       };
     });
   }
@@ -669,28 +633,13 @@ export class UserService implements OnModuleInit {
     userId: string,
     googlePictureUrl: string,
   ): Promise<Omit<User, 'passwordHash'>> {
-    return this.databaseService.withTransaction(async (client) => {
-      const previousResult = await client.query<UserRow>(
-        `
-          SELECT ${USER_COLUMNS}
-          FROM users
-          WHERE id = $1
-          FOR UPDATE
-        `,
-        [userId],
-      );
-      const previousRow = previousResult.rows[0];
-      if (!previousRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
-
+    const result = await this.executeAvatarChange(userId, (previousRow) => {
       const avatarSource = resolveAvatarSourceOnGoogleLogin({
         currentAvatarSource: previousRow.avatar_source,
         hadGooglePictureBefore: previousRow.google_picture_url != null,
       });
-
-      const updateResult = await client.query<UserRow>(
-        `
+      return {
+        updateSql: `
           UPDATE users
           SET google_picture_url = $2,
               avatar_source = $3,
@@ -698,14 +647,10 @@ export class UserService implements OnModuleInit {
           WHERE id = $1
           RETURNING ${USER_COLUMNS}
         `,
-        [userId, googlePictureUrl, avatarSource],
-      );
-      const updatedRow = updateResult.rows[0];
-      if (!updatedRow) {
-        throw new NotFoundException(`User ${userId} not found`);
-      }
-      return this.toPublicUser(this.mapRow(updatedRow));
+        params: [userId, googlePictureUrl, avatarSource],
+      };
     });
+    return result.user;
   }
 
   private normalizeEmail(email: string): string {

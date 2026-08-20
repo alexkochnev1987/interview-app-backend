@@ -8,6 +8,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../app-config/app-config.service';
 import { apiServiceUnavailable } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
+import { createS3Storage } from './s3-storage.factory';
 import { getInterviewMediaPrefix } from './upload-key';
 
 @Injectable()
@@ -18,23 +19,10 @@ export class MediaCleanupService {
   private readonly prefix: string;
 
   constructor(private readonly appConfig: AppConfigService) {
-    this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
-    this.prefix = process.env.S3_PREFIX ?? 'uploads';
-
-    const s3Config: ConstructorParameters<typeof S3Client>[0] = {
-      region: process.env.AWS_REGION ?? 'us-east-1',
-    };
-
-    if (process.env.S3_ENDPOINT) {
-      s3Config.endpoint = process.env.S3_ENDPOINT;
-      s3Config.forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
-      s3Config.credentials = {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'minioadmin',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'minioadmin',
-      };
-    }
-
-    this.s3Client = new S3Client(s3Config);
+    const storage = createS3Storage();
+    this.bucket = storage.bucket;
+    this.prefix = storage.prefix;
+    this.s3Client = storage.s3Client;
   }
 
   async deleteInterviewMedia(interviewId: string): Promise<void> {
