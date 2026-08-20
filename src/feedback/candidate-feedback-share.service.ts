@@ -13,6 +13,7 @@ import { getCandidateFeedbackInterviewStatusBlockReason } from './candidate-feed
 import { CandidateFeedbackService } from './candidate-feedback.service';
 import {
   calculateFeedbackShareExpiry,
+  CANDIDATE_FEEDBACK_SHARE_LINKS_UNIQUE_CONSTRAINTS,
   generateFeedbackShareToken,
   hashFeedbackShareToken,
   isPostgresUniqueViolation,
@@ -157,7 +158,12 @@ export class CandidateFeedbackShareService {
         },
       );
     } catch (error) {
-      if (isPostgresUniqueViolation(error)) {
+      if (
+        isPostgresUniqueViolation(
+          error,
+          CANDIDATE_FEEDBACK_SHARE_LINKS_UNIQUE_CONSTRAINTS,
+        )
+      ) {
         throw apiConflict(
           ApiErrorCode.CONFLICT,
           'Another candidate-feedback share link was created concurrently. Try again.',

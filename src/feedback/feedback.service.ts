@@ -17,6 +17,7 @@ import { InterviewService } from '../interview/interview.service';
 import { UserRole } from '../user/interfaces/user.interface';
 import {
   calculateFeedbackShareExpiry,
+  FEEDBACK_LINKS_UNIQUE_CONSTRAINTS,
   generateFeedbackShareToken,
   hashFeedbackShareToken,
   isPostgresUniqueViolation,
@@ -111,7 +112,7 @@ export class FeedbackService {
         };
       });
     } catch (error) {
-      if (isPostgresUniqueViolation(error)) {
+      if (isPostgresUniqueViolation(error, FEEDBACK_LINKS_UNIQUE_CONSTRAINTS)) {
         throw apiConflict(
           ApiErrorCode.CONFLICT,
           'Another feedback link was created concurrently. Try again.',
