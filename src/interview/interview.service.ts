@@ -847,8 +847,8 @@ export class InterviewService {
 
     const [totalQuestionCount, positions, statuses] = await Promise.all([
       this.queryInterviewTotalQuestionCount(query, actor),
-      this.queryInterviewFacet('position', query, actor),
-      this.queryInterviewFacet('status', query, actor),
+      this.queryInterviewPositionFacet(query, actor),
+      this.queryInterviewStatusFacet(query, actor),
     ]);
 
     return { totalQuestionCount, positions, statuses };
@@ -875,36 +875,54 @@ export class InterviewService {
     return Number(result.rows[0]?.total ?? 0);
   }
 
-  private async queryInterviewFacet(
-    field: 'position' | 'status',
+  private async queryInterviewPositionFacet(
     query: QueryInterviewFacetsDto,
     actor: InterviewActor,
   ): Promise<FacetCount[]> {
     const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
-      excludeField: field,
+      excludeField: 'position',
     });
-
-    const isPosition = field === 'position';
-    const selectValue = isPosition ? 'MIN(i.position)' : 'i.status';
-    const filterNull = isPosition
-      ? "i.position IS NOT NULL AND trim(i.position) <> ''"
-      : 'i.status IS NOT NULL';
-    const groupBy = isPosition ? 'lower(i.position)' : 'i.status';
-    const orderBy = isPosition
-      ? 'COUNT(*) DESC, MIN(i.position) ASC'
-      : 'COUNT(*) DESC, i.status ASC';
 
     const result = await this.databaseService.query<{
       value: string;
       count: string;
     }>(
       `
-        SELECT ${selectValue} AS value, COUNT(*)::text AS count
+        SELECT MIN(i.position) AS value, COUNT(*)::text AS count
         FROM interviews i
         ${whereSql}
-        ${whereSql ? 'AND' : 'WHERE'} ${filterNull}
-        GROUP BY ${groupBy}
-        ORDER BY ${orderBy}
+        ${whereSql ? 'AND' : 'WHERE'} i.position IS NOT NULL AND trim(i.position) <> ''
+        GROUP BY lower(i.position)
+        ORDER BY COUNT(*) DESC, MIN(i.position) ASC
+      `,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      value: row.value,
+      count: Number(row.count),
+    }));
+  }
+
+  private async queryInterviewStatusFacet(
+    query: QueryInterviewFacetsDto,
+    actor: InterviewActor,
+  ): Promise<FacetCount[]> {
+    const { whereSql, params } = buildInterviewFilterClauses(query, actor, {
+      excludeField: 'status',
+    });
+
+    const result = await this.databaseService.query<{
+      value: string;
+      count: string;
+    }>(
+      `
+        SELECT i.status AS value, COUNT(*)::text AS count
+        FROM interviews i
+        ${whereSql}
+        ${whereSql ? 'AND' : 'WHERE'} i.status IS NOT NULL
+        GROUP BY i.status
+        ORDER BY COUNT(*) DESC, i.status ASC
       `,
       params,
     );
