@@ -41,3 +41,12 @@ export interface PublicCandidateFeedbackResponse {
   overall?: PublicCandidateFeedbackTextBlock;
   questions?: PublicCandidateFeedbackQuestionBlock[];
 }
+
+/**
+ * Same publishable payload as the anonymous share link, minus `expiresAt`
+ * (meaningless for an authenticated portal session — there is no token to expire).
+ */
+export type PortalCandidateFeedbackResponse = Omit<
+  PublicCandidateFeedbackResponse,
+  'expiresAt'
+>;

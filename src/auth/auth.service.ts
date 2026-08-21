@@ -143,6 +143,18 @@ export class AuthService {
     return this.jwtService.sign(payload, { expiresIn: '7d' });
   }
 
+  /**
+   * Short-lived variant for the candidate-portal "continue" link: the take
+   * flow only ever reads this token once, on the very first `GET /take/:id`
+   * call, before swapping it for the httpOnly candidate-session cookie — so
+   * a long-lived token here only adds needless exposure (logs, browser
+   * history, Referer headers) for a value that's consumed within seconds.
+   */
+  generateCandidatePortalContinueToken(interviewId: string): string {
+    const payload = { interviewId, role: 'candidate' };
+    return this.jwtService.sign(payload, { expiresIn: '15m' });
+  }
+
   generateCandidateSessionToken(interviewId: string): string {
     const payload = { interviewId, role: 'candidate' };
     return this.jwtService.sign(payload, {

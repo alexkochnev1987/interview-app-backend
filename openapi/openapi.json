@@ -720,6 +720,84 @@
         ]
       }
     },
+    "/users/candidates": {
+      "get": {
+        "operationId": "UserController_searchCandidates",
+        "summary": "Search registered candidates by name or email",
+        "description": "Minimal id/name/email lookup for the interview-creation candidate picker. Granted to anyone who can create interviews (HR included), not gated by users:read.",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Substring matched against candidate name or email (case-insensitive).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CandidateSummaryResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
     "/users/{id}": {
       "get": {
         "operationId": "UserController_findOne",
@@ -7259,6 +7337,212 @@
           }
         ]
       }
+    },
+    "/portal/interviews": {
+      "get": {
+        "operationId": "PortalController_listMyInterviews",
+        "summary": "List the authenticated candidate's own interviews",
+        "description": "Matched by candidate_email against the caller's account email. Excludes demo/internal data. Most relevant (active, then most recently updated) first.",
+        "parameters": [
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CandidatePortalInterviewListItemDto"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portal"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/portal/interviews/{id}": {
+      "get": {
+        "operationId": "PortalController_getMyInterview",
+        "summary": "Get one of the authenticated candidate's own interviews",
+        "description": "Same shape and scoping as the list endpoint, for the interview-detail page.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatePortalInterviewListItemDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portal"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
+    },
+    "/portal/interviews/{id}/results": {
+      "get": {
+        "operationId": "PortalController_getMyInterviewResults",
+        "summary": "Get the authenticated candidate's own published feedback for one interview",
+        "description": "Reuses the same publishable-block eligibility as the HR-generated share link, but scoped by the caller's own email instead of a share token.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Locale",
+            "in": "header",
+            "required": false,
+            "description": "Response language for localized content. Defaults to `en` when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "be",
+                "ru",
+                "pl"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatePortalInterviewResultsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portal"
+        ],
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -7625,6 +7909,26 @@
             "example": "completed"
           }
         }
+      },
+      "CandidateSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ]
       },
       "UserProfileResponseDto": {
         "type": "object",
@@ -12177,6 +12481,113 @@
         },
         "required": [
           "expiresAt"
+        ]
+      },
+      "CandidatePortalInterviewListItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "questionCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxAnswerAttempts": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Recording attempts allowed per question (server-configured, same for every interview)."
+          },
+          "resultsReady": {
+            "type": "boolean",
+            "description": "True once HR has published at least one candidate-feedback block for this interview."
+          },
+          "continueUrl": {
+            "type": "string",
+            "description": "Relative take-flow URL with a freshly minted candidate token; present only while the interview is not yet finished."
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "questionCount",
+          "maxAnswerAttempts",
+          "resultsReady"
+        ]
+      },
+      "CandidatePortalInterviewResultsResponseDto": {
+        "type": "object",
+        "properties": {
+          "interviewLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "be",
+              "ru",
+              "pl"
+            ]
+          },
+          "position": {
+            "type": "string"
+          },
+          "interviewDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "overallScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "next_stage",
+              "keep_in_touch",
+              "custom"
+            ]
+          },
+          "outcomeMessage": {
+            "type": "string"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/PublicCandidateFeedbackTextBlockDto"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCandidateFeedbackQuestionBlockDto"
+            }
+          }
+        },
+        "required": [
+          "interviewLocale",
+          "position"
         ]
       }
     }

@@ -34,12 +34,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { ApiErrorResponseDto } from '../common/dto/api-error.response.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { CandidateSummaryResponseDto } from './dto/candidate-summary.response.dto';
 import { DemoProvisionResponseDto } from './dto/demo-provision.response.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { SearchCandidatesQueryDto } from './dto/search-candidates-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileResponseDto } from './dto/user-profile.response.dto';
 import { User } from './interfaces/user.interface';
-import { UserService } from './user.service';
+import { CandidateSummary, UserService } from './user.service';
 
 @ApiTags('users')
 @ApiCookieAuth('sessionAuth')
@@ -61,6 +63,27 @@ export class UserController {
       offset: query.offset,
       role: query.role,
     });
+  }
+
+  @Get('candidates')
+  @RequirePermissions('interviews:create')
+  @ApiOperation({
+    summary: 'Search registered candidates by name or email',
+    description:
+      'Minimal id/name/email lookup for the interview-creation candidate picker. ' +
+      'Granted to anyone who can create interviews (HR included), not gated by users:read.',
+  })
+  @ApiOkResponse({ type: [CandidateSummaryResponseDto] })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  searchCandidates(
+    @Query() query: SearchCandidatesQueryDto,
+    @CurrentUser() actor: Omit<User, 'passwordHash'>,
+  ): Promise<CandidateSummary[]> {
+    return this.userService.searchCandidates(
+      { demo: actor.demo },
+      query.q,
+      query.limit,
+    );
   }
 
   @Get(':id')
