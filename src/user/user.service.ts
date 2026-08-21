@@ -12,6 +12,7 @@ import {
 import bcrypt from 'bcrypt';
 
 import { ASSIGNABLE_BY, outranks } from '../auth/role-policy';
+import { demoScopeClause } from '../common/demo-scope';
 import { apiBadRequest, apiConflict } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { DatabaseService } from '../database/database.service';
@@ -35,6 +36,16 @@ import { AvatarSource, User } from './interfaces/user.interface';
 import { OnboardingStatus, UserRole } from './interfaces/user.interface';
 import { canReadUserProfile } from './user-access-rules';
 import { toUserProfileForActor, UserProfile } from './user-profile';
+
+export interface CandidateSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
 
 interface UserRow {
   id: string;
@@ -251,6 +262,43 @@ export class UserService implements OnModuleInit {
       [limit, offset, role, demo, nameContains],
     );
     return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
+  }
+
+  /**
+   * Lightweight, name/email-only lookup used by the interview-creation
+   * candidate picker. Deliberately its own query (not `listAll`) so it can be
+   * granted to `interviews:create` holders (HR included) without widening the
+   * `users:read` permission, which intentionally excludes HR from browsing
+   * the full user roster.
+   */
+  async searchCandidates(
+    actor: { demo: boolean },
+    query?: string,
+    limit = 20,
+  ): Promise<CandidateSummary[]> {
+    const params: unknown[] = [];
+    const demoClause = demoScopeClause(params, actor.demo === true);
+
+    const trimmed = query?.trim();
+    params.push(trimmed ? `%${escapeLike(trimmed)}%` : null);
+    const searchParam = params.length;
+
+    params.push(Math.min(50, Math.max(1, limit)));
+    const limitParam = params.length;
+
+    const result = await this.databaseService.query<CandidateSummary>(
+      `
+        SELECT id, name, email
+        FROM users
+        WHERE role = 'candidate'
+          AND ${demoClause}
+          AND ($${searchParam}::text IS NULL OR name ILIKE $${searchParam} OR email ILIKE $${searchParam})
+        ORDER BY name ASC
+        LIMIT $${limitParam}
+      `,
+      params,
+    );
+    return result.rows;
   }
 
   async assignRole(

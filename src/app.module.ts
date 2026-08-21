@@ -10,6 +10,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { HealthModule } from './health/health.module';
 import { InterviewModule } from './interview/interview.module';
 import { LocaleModule } from './locale/locale.module';
+import { PortalModule } from './portal/portal.module';
 import { QuestionModule } from './question/question.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { TakeModule } from './take/take.module';
@@ -35,6 +36,7 @@ import { UserModule } from './user/user.module';
     AiModule,
     RecruiterAssistantModule,
     FeedbackModule,
+    PortalModule,
   ],
 })
 export class AppModule {}

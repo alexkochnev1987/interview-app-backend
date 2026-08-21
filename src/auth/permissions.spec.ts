@@ -42,9 +42,13 @@ describe('permissions', () => {
     expect(hasPermission('hr', 'users:assign_role')).toBe(false);
   });
 
-  it('grants candidate profile read only', () => {
-    expect(getPermissions('candidate')).toEqual(['users:read_profile']);
+  it('grants candidate profile read and their own portal interviews only', () => {
+    expect(getPermissions('candidate')).toEqual([
+      'users:read_profile',
+      'interviews:read_own',
+    ]);
     expect(hasPermission('candidate', 'users:read_profile')).toBe(true);
+    expect(hasPermission('candidate', 'interviews:read_own')).toBe(true);
     expect(hasPermission('candidate', 'questions:read')).toBe(false);
   });
 
