@@ -27,6 +27,7 @@ import {
   Interview,
   InterviewActor,
 } from '../interview/interfaces/interview.interface';
+import { isTerminalInterviewStatus } from '../interview/interview-management-rules';
 import { InterviewService } from '../interview/interview.service';
 import { User } from '../user/interfaces/user.interface';
 import {
@@ -79,8 +80,13 @@ export class PortalController {
       toInterviewActor(user),
     );
 
-    return Promise.all(
-      items.map((item) => this.toListItemDto(item, item.questionCount)),
+    const resultsReadyByInterviewId = await this.resolveResultsReadyMap(items);
+    return items.map((item) =>
+      this.toListItemDto(
+        item,
+        item.questionCount,
+        resultsReadyByInterviewId.get(item.id) ?? false,
+      ),
     );
   }
 
@@ -108,7 +114,14 @@ export class PortalController {
       throw apiForbidden(ApiErrorCode.INSUFFICIENT_PERMISSIONS, denial);
     }
 
-    return this.toListItemDto(interview, interview.questions.length);
+    const resultsReady = isTerminalInterviewStatus(interview.status)
+      ? await this.isResultsReady(interview.id)
+      : false;
+    return this.toListItemDto(
+      interview,
+      interview.questions.length,
+      resultsReady,
+    );
   }
 
   @Get('interviews/:id/results')
@@ -133,19 +146,16 @@ export class PortalController {
     });
   }
 
-  private async toListItemDto(
+  private toListItemDto(
     interview: Pick<
       Interview,
       'id' | 'position' | 'status' | 'createdAt' | 'updatedAt'
     >,
     questionCount: number,
-  ): Promise<CandidatePortalInterviewListItemDto> {
-    const resultsReady =
-      interview.status === 'completed'
-        ? await this.isResultsReady(interview.id)
-        : false;
+    resultsReady: boolean,
+  ): CandidatePortalInterviewListItemDto {
     const continueUrl = ACTIVE_STATUS_SET.has(interview.status)
-      ? `/take/${interview.id}?token=${this.authService.generateCandidateToken(interview.id)}`
+      ? `/take/${interview.id}?token=${this.authService.generateCandidatePortalContinueToken(interview.id)}&from=portal`
       : undefined;
 
     return {
@@ -165,5 +175,30 @@ export class PortalController {
     const feedback =
       await this.candidateFeedbackService.findByInterviewId(interviewId);
     return feedback ? hasAnyPublishableCandidateFeedbackBlock(feedback) : false;
+  }
+
+  /**
+   * Batched `isResultsReady` for the list endpoint: one query for every
+   * terminal interview's feedback instead of one round trip per row.
+   */
+  private async resolveResultsReadyMap(
+    interviews: Pick<Interview, 'id' | 'status'>[],
+  ): Promise<Map<string, boolean>> {
+    const terminalIds = interviews
+      .filter((interview) => isTerminalInterviewStatus(interview.status))
+      .map((interview) => interview.id);
+
+    const feedbackByInterviewId =
+      await this.candidateFeedbackService.findByInterviewIds(terminalIds);
+
+    const result = new Map<string, boolean>();
+    for (const id of terminalIds) {
+      const feedback = feedbackByInterviewId.get(id);
+      result.set(
+        id,
+        feedback ? hasAnyPublishableCandidateFeedbackBlock(feedback) : false,
+      );
+    }
+    return result;
   }
 }
