@@ -1,21 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
+import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
 import { ASSIGNED_HR_FILTER_UNASSIGNED } from '../../interview/assigned-hr-filter';
 import { AssignedHrDto } from '../../interview/dto/interview.responses.dto';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
+import { InterviewListItem } from '../../interview/interfaces/interview.interface';
 import { toInterviewActor } from '../../interview/interview-actor';
 import {
   InterviewService,
   MAX_INTERVIEWS_LIMIT,
 } from '../../interview/interview.service';
 import { Locale } from '../../locale/locale.constants';
+import { QueryQuestionsDto } from '../../question/dto/query-questions.dto';
+import { QuestionService } from '../../question/question.service';
 import {
   TemplateService,
   TemplateSummary,
 } from '../../template/template.service';
+import { UserRole } from '../../user/interfaces/user.interface';
 import { UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import {
@@ -24,21 +29,36 @@ import {
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
+import type { QueryAssessmentsFilters } from './recruiter-assistant-assessment-filters-extract';
+import {
+  filterAssessmentsByReviewStatus,
+  matchesAssessmentQuery,
+  selectHrVisibleAssessmentListItems,
+} from './recruiter-assistant-assessment-status';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
 import { buildQuestionPlanResponse } from './recruiter-assistant-response';
 import {
+  buildAssessmentsListRedirect,
   buildInterviewRedirect,
+  buildQuestionsListRedirect,
   buildSimilarQuestionMatchCards,
 } from './recruiter-assistant-response-builders';
+import {
+  buildTeamSummaryFromRoleCounts,
+  mapUsersToAuthUserResponseDtos,
+} from './recruiter-assistant-team';
 import { parseTemplateChoice } from './recruiter-assistant-template-choice-parse';
 import {
   canAssignHr,
   canCreateInterviews,
   canCreateQuestions,
   canReadQuestions,
+  canReadTemplates,
   canListInterviews,
+  canListTeam,
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import {
@@ -63,12 +83,18 @@ import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.se
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
+const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
+/** Max paginated pages when scanning interviews for assessment counts. */
+const MAX_ASSESSMENT_SCAN_PAGES = 10;
 
 /** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
+  private readonly logger = new Logger(RecruiterAssistantToolsService.name);
+
   constructor(
     private readonly questionMatcher: RecruiterQuestionMatcherService,
+    private readonly questionService: QuestionService,
     private readonly interviewService: InterviewService,
     private readonly candidateFeedbackService: CandidateFeedbackService,
     private readonly candidateFeedbackShareService: CandidateFeedbackShareService,
@@ -77,6 +103,7 @@ export class RecruiterAssistantToolsService {
     private readonly conversationStore: RecruiterConversationStore,
     private readonly aiService: AiService,
     private readonly templateService: TemplateService,
+    private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
   ) {}
 
   async listInterviews(
@@ -130,6 +157,174 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
+  }
+
+  async countQuestions(
+    filters: QueryQuestionsDto,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canReadQuestions(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to read the question bank.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const listFilters = this.questionCountListFilters(filters);
+    const hasFilters = Object.keys(listFilters).length > 0;
+    const countQuery: QueryQuestionsDto =
+      user.role === 'super_admin' && !listFilters.status
+        ? { ...listFilters, status: 'all', limit: 1 }
+        : { ...listFilters, limit: 1 };
+
+    const { total } = await this.questionService.findAll(countQuery, {
+      forceActive: user.role !== 'super_admin',
+      resolveLocale: locale,
+      demo: user.demo,
+    });
+
+    return {
+      status: 'answered',
+      response: hasFilters
+        ? `${total} question(s) match your filters. Open the question bank to browse them.`
+        : `You have ${total} question(s) in total. Open the question bank to browse them.`,
+      questionCount: {
+        total,
+        filters: hasFilters ? listFilters : undefined,
+      },
+      redirect: buildQuestionsListRedirect(listFilters),
+    };
+  }
+
+  async listAssessments(
+    filters: QueryAssessmentsFilters,
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canListInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to read assessments.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const listFilters = this.assessmentCountListFilters(filters);
+    const { items: interviews, truncated } =
+      await this.fetchAssessmentInterviews(user);
+    let visible = selectHrVisibleAssessmentListItems(interviews);
+    visible = filterAssessmentsByReviewStatus(visible, listFilters.status);
+    if (listFilters.q) {
+      visible = visible.filter((item) =>
+        matchesAssessmentQuery(item, listFilters.q!),
+      );
+    }
+
+    const total = visible.length;
+    const hasFilters = Object.keys(listFilters).length > 0;
+    const scanLimit = MAX_ASSESSMENT_SCAN_PAGES * MAX_INTERVIEWS_LIMIT;
+    const truncatedNote = truncated
+      ? ` (count from the ${scanLimit} most recently updated interviews; open the assessments page for the full list)`
+      : '';
+
+    return {
+      status: 'answered',
+      response: hasFilters
+        ? `${total} assessment(s) match your filters.${truncatedNote} Open the assessments page to browse them.`
+        : `You have ${total} assessment(s) in total.${truncatedNote} Open the assessments page to browse them.`,
+      assessmentCount: {
+        total,
+        filters: hasFilters ? listFilters : undefined,
+      },
+      redirect: buildAssessmentsListRedirect(listFilters),
+    };
+  }
+
+  async summarizeInterviewActivity(
+    user: ActingUser,
+    locale: Locale,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canListInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to summarize interview activity.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const { statuses } = await this.interviewService.getFacets(
+      {},
+      toInterviewActor(user),
+    );
+    const interviewActivity = buildInterviewActivityFromStatusFacets(statuses);
+
+    return {
+      status: 'answered',
+      response:
+        `Your org has ${interviewActivity.total} interview(s): ` +
+        `${interviewActivity.active} active, ` +
+        `${interviewActivity.completed} completed, ` +
+        `${interviewActivity.failed} failed.`,
+      interviewActivity,
+    };
+  }
+
+  async listTeam(
+    user: ActingUser,
+    locale: Locale,
+    options: { role?: UserRole; includeSummary: boolean },
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (!canListTeam(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to list team members.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const [teamSummary, members] = await Promise.all([
+      options.includeSummary
+        ? this.userService
+            .countUsersByRole({ demo: user.demo })
+            .then(buildTeamSummaryFromRoleCounts)
+        : Promise.resolve(undefined),
+      this.userService.listAll({
+        demo: user.demo,
+        role: options.role,
+        limit: MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT,
+      }),
+    ]);
+
+    const teamMembers = await mapUsersToAuthUserResponseDtos(
+      members,
+      this.recruiterAssistantConfig,
+    );
+
+    if (teamMembers.length === 0) {
+      return {
+        status: 'answered',
+        response: 'No team members found.',
+        teamSummary,
+        teamMembers: [],
+      };
+    }
+
+    const summaryLine = teamSummary
+      ? `${teamSummary.superAdmin} super_admin, ${teamSummary.admin} admin, ${teamSummary.hr} hr, ${teamSummary.candidate} candidate (${teamSummary.total} total). `
+      : '';
+    const roleLabel = options.role ? ` ${options.role}` : '';
+
+    return {
+      status: 'answered',
+      response: `${summaryLine}Showing ${teamMembers.length}${roleLabel} team member(s).`,
+      teamSummary,
+      teamMembers,
+    };
   }
 
   async listHrs(
@@ -1249,6 +1444,67 @@ export class RecruiterAssistantToolsService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
+  }
+
+  private questionCountListFilters(
+    filters: QueryQuestionsDto,
+  ): QueryQuestionsDto {
+    const { limit, page, includeTranslations, ...listFilters } = filters;
+    void limit;
+    void page;
+    void includeTranslations;
+    return listFilters;
+  }
+
+  private assessmentCountListFilters(
+    filters: QueryAssessmentsFilters,
+  ): QueryAssessmentsFilters {
+    const listFilters: QueryAssessmentsFilters = {};
+    if (filters.status && filters.status !== 'all') {
+      listFilters.status = filters.status;
+    }
+    if (filters.q) {
+      listFilters.q = filters.q;
+    }
+    return listFilters;
+  }
+
+  private async fetchAssessmentInterviews(
+    user: ActingUser,
+  ): Promise<{ items: InterviewListItem[]; truncated: boolean }> {
+    const actor = toInterviewActor(user);
+    const items: InterviewListItem[] = [];
+    let page = 1;
+    let total = 0;
+    let truncated = false;
+
+    do {
+      const response = await this.interviewService.findAllPaginated(
+        {
+          page,
+          limit: MAX_INTERVIEWS_LIMIT,
+          sortBy: 'updatedAt',
+          sortOrder: 'desc',
+        },
+        actor,
+      );
+      total = response.total;
+      items.push(...response.items);
+      if (response.items.length === 0) {
+        break;
+      }
+      page += 1;
+      if (page > MAX_ASSESSMENT_SCAN_PAGES && items.length < total) {
+        truncated = true;
+        this.logger.warn(
+          `Assessment scan capped at ${MAX_ASSESSMENT_SCAN_PAGES} pages (${items.length}/${total} interviews). ` +
+            'Review-status filtering is in-memory; add SQL-backed assessment facets for exact large-org counts.',
+        );
+        break;
+      }
+    } while (items.length < total);
+
+    return { items, truncated };
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {

@@ -11717,6 +11717,96 @@
           "status"
         ]
       },
+      "RecruiterAssistantQuestionCountDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "filters": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "total"
+        ]
+      },
+      "RecruiterAssistantAssessmentCountDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "filters": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "total"
+        ]
+      },
+      "RecruiterAssistantInterviewActivityDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "active": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "pending": {
+            "type": "number"
+          },
+          "inProgress": {
+            "type": "number"
+          },
+          "processing": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "active",
+          "completed",
+          "failed",
+          "pending",
+          "inProgress",
+          "processing"
+        ]
+      },
+      "RecruiterAssistantTeamSummaryDto": {
+        "type": "object",
+        "properties": {
+          "superAdmin": {
+            "type": "number"
+          },
+          "admin": {
+            "type": "number"
+          },
+          "hr": {
+            "type": "number"
+          },
+          "candidate": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "superAdmin",
+          "admin",
+          "hr",
+          "candidate",
+          "total"
+        ]
+      },
       "RecruiterAssistantResponseDto": {
         "type": "object",
         "properties": {
@@ -11824,6 +11914,30 @@
           },
           "interview": {
             "$ref": "#/components/schemas/RecruiterAssistantInterviewSummaryDto"
+          },
+          "questionCount": {
+            "$ref": "#/components/schemas/RecruiterAssistantQuestionCountDto"
+          },
+          "assessmentCount": {
+            "$ref": "#/components/schemas/RecruiterAssistantAssessmentCountDto"
+          },
+          "assessments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateSummaryResponseDto"
+            }
+          },
+          "interviewActivity": {
+            "$ref": "#/components/schemas/RecruiterAssistantInterviewActivityDto"
+          },
+          "teamSummary": {
+            "$ref": "#/components/schemas/RecruiterAssistantTeamSummaryDto"
+          },
+          "teamMembers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthUserResponseDto"
+            }
           }
         },
         "required": [
