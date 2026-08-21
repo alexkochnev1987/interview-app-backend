@@ -143,6 +143,64 @@ export class CandidateFeedbackService {
     return this.mapFeedbackRow(feedbackRow, questions);
   }
 
+  /**
+   * Batched form of `findByInterviewId` for list views — two queries total
+   * regardless of how many interview ids are passed, instead of one round
+   * trip per interview.
+   */
+  async findByInterviewIds(
+    interviewIds: string[],
+  ): Promise<Map<string, CandidateFeedback>> {
+    if (interviewIds.length === 0) {
+      return new Map();
+    }
+
+    const feedbackResult =
+      await this.databaseService.query<CandidateFeedbackRow>(
+        `
+          SELECT ${CANDIDATE_FEEDBACK_COLUMNS}
+          FROM candidate_feedback
+          WHERE interview_id = ANY($1)
+        `,
+        [interviewIds],
+      );
+
+    if (feedbackResult.rows.length === 0) {
+      return new Map();
+    }
+
+    const feedbackIds = feedbackResult.rows.map((row) => row.id);
+    const questionsResult =
+      await this.databaseService.query<CandidateFeedbackQuestionRow>(
+        `
+          SELECT ${CANDIDATE_FEEDBACK_QUESTION_COLUMNS}
+          FROM candidate_feedback_questions
+          WHERE candidate_feedback_id = ANY($1)
+          ORDER BY question_index ASC
+        `,
+        [feedbackIds],
+      );
+
+    const questionsByFeedbackId = new Map<
+      string,
+      CandidateFeedbackQuestion[]
+    >();
+    for (const row of questionsResult.rows) {
+      const mapped = this.mapQuestionRow(row);
+      const existing =
+        questionsByFeedbackId.get(row.candidate_feedback_id) ?? [];
+      existing.push(mapped);
+      questionsByFeedbackId.set(row.candidate_feedback_id, existing);
+    }
+
+    const result = new Map<string, CandidateFeedback>();
+    for (const row of feedbackResult.rows) {
+      const questions = questionsByFeedbackId.get(row.id) ?? [];
+      result.set(row.interview_id, this.mapFeedbackRow(row, questions));
+    }
+    return result;
+  }
+
   async getOrCreate(interviewId: string): Promise<CandidateFeedback> {
     return this.databaseService.withAdvisoryLock(
       `candidate-feedback:${interviewId}`,

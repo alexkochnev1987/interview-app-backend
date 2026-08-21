@@ -31,3 +31,14 @@ export async function updateInterviewStatus(
     [interviewId, status],
   );
 }
+
+export async function setInterviewDemo(
+  databaseService: DatabaseService,
+  interviewId: string,
+  demo: boolean,
+): Promise<void> {
+  await databaseService.query(
+    `UPDATE interviews SET demo = $2, updated_at = NOW() WHERE id = $1`,
+    [interviewId, demo],
+  );
+}
