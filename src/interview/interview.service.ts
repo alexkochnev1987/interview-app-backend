@@ -91,6 +91,8 @@ import { resolveFinalizeAnswerVersionNumber } from './resolve-finalize-answer-ve
 export const DEFAULT_INTERVIEWS_PAGE = 1;
 export const DEFAULT_INTERVIEWS_LIMIT = 20;
 export const MAX_INTERVIEWS_LIMIT = 100;
+/** Defensive cap for the candidate-portal list — not real pagination, just a backstop against unbounded growth for one email. */
+export const MAX_CANDIDATE_PORTAL_INTERVIEWS = 200;
 export const DEFAULT_INTERVIEWS_SORT_BY: InterviewSortField = 'updatedAt';
 export const DEFAULT_INTERVIEWS_SORT_ORDER: InterviewSortOrder = 'desc';
 
@@ -853,6 +855,8 @@ export class InterviewService {
     }
 
     const { whereSql, params } = buildCandidatePortalFilterClauses(email);
+    params.push(MAX_CANDIDATE_PORTAL_INTERVIEWS);
+    const limitParam = params.length;
 
     const result = await this.databaseService.query<InterviewListRow>(
       `
@@ -861,6 +865,7 @@ export class InterviewService {
         LEFT JOIN users ah ON ah.id = i.assigned_hr_id
         ${whereSql}
         ORDER BY i.updated_at DESC, i.id ASC
+        LIMIT $${limitParam}
       `,
       params,
     );

@@ -1,7 +1,10 @@
 import type { DatabaseService } from '../database/database.service';
 import type { QuestionService } from '../question/question.service';
 import type { MediaCleanupService } from '../upload/media-cleanup.service';
-import { InterviewService } from './interview.service';
+import {
+  InterviewService,
+  MAX_CANDIDATE_PORTAL_INTERVIEWS,
+} from './interview.service';
 
 describe('InterviewService list query (findAllPaginated)', () => {
   function makeService() {
@@ -204,8 +207,9 @@ describe('InterviewService candidate-portal query (findAllForCandidateEmail)', (
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain('lower(trim(i.candidate_email)) = $1');
     expect(sql).toContain('i.demo = FALSE');
-    expect(sql).not.toContain('LIMIT');
+    expect(sql).toContain('LIMIT $3');
     expect(params[0]).toBe('foo@example.com');
+    expect(params[2]).toBe(MAX_CANDIDATE_PORTAL_INTERVIEWS);
   });
 
   it('maps rows and orders active interviews before terminal ones', async () => {
