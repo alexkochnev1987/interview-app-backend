@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { INTERVIEW_STATUSES } from '../../interview/interfaces/interview.interface';
 import { Locale } from '../../locale/locale.constants';
+import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
 import {
   ASSIGN_HR_PATTERNS,
   CANDIDATE_OWN_STATUS_PATTERNS,
@@ -20,6 +21,11 @@ import {
   NEW_CHAT_PATTERNS,
   UNASSIGNED_PATTERNS,
   matchesCreateSingleQuestionIntent,
+  matchesCountQuestionsIntent,
+  LIST_ASSESSMENTS_PATTERNS,
+  INTERVIEW_ACTIVITY_SUMMARY_PATTERNS,
+  LIST_TEAM_PATTERNS,
+  LIST_TEAM_BY_ROLE_PATTERNS,
 } from './recruiter-assistant-intent-patterns';
 import { extractCreateInterviewFields } from './recruiter-assistant-interview-create-extract';
 import {
@@ -32,8 +38,10 @@ import {
   extractInterviewCandidateName,
   extractInterviewId,
 } from './recruiter-assistant-name-extract';
+import { extractQuestionFilters } from './recruiter-assistant-question-filters-extract';
 import { extractQuestionName } from './recruiter-assistant-question-name-extract';
 import { parseRecruiterRequest } from './recruiter-assistant-request-parser';
+import { extractTeamRoleFilter } from './recruiter-assistant-team-role-extract';
 import {
   ActingUser,
   HrRef,
@@ -50,6 +58,35 @@ export class RecruiterAssistantIntentService {
   ): RecruiterAssistantIntent {
     void locale;
     const normalized = message.toLowerCase().trim();
+
+    if (matchesCountQuestionsIntent(normalized)) {
+      return {
+        kind: 'count_questions',
+        filters: extractQuestionFilters(message),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_ASSESSMENTS_PATTERNS)) {
+      return {
+        kind: 'list_assessments',
+        filters: extractAssessmentFilters(message),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, INTERVIEW_ACTIVITY_SUMMARY_PATTERNS)) {
+      return { kind: 'interview_activity_summary' };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_TEAM_BY_ROLE_PATTERNS)) {
+      const role = extractTeamRoleFilter(message);
+      if (role) {
+        return { kind: 'list_team', role, includeSummary: false };
+      }
+    }
+
+    if (matchesAnyPattern(normalized, LIST_TEAM_PATTERNS)) {
+      return { kind: 'list_team', includeSummary: true };
+    }
 
     if (matchesCreateInterviewIntent(normalized)) {
       const fields = extractCreateInterviewFields(message);

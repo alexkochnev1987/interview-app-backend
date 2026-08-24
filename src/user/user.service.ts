@@ -264,6 +264,37 @@ export class UserService implements OnModuleInit {
     return result.rows.map((row) => this.toPublicUser(this.mapRow(row)));
   }
 
+  async countUsersByRole(
+    options: { demo?: boolean } = {},
+  ): Promise<Record<UserRole, number>> {
+    const demo = options.demo ?? null;
+    const result = await this.databaseService.query<{
+      role: UserRole;
+      count: string;
+    }>(
+      `
+        SELECT role, COUNT(*)::text AS count
+        FROM users
+        WHERE ($1::boolean IS NULL OR demo = $1)
+        GROUP BY role
+      `,
+      [demo],
+    );
+
+    const counts: Record<UserRole, number> = {
+      super_admin: 0,
+      admin: 0,
+      hr: 0,
+      candidate: 0,
+    };
+
+    for (const row of result.rows) {
+      counts[row.role] = Number(row.count);
+    }
+
+    return counts;
+  }
+
   /**
    * Lightweight, name/email-only lookup used by the interview-creation
    * candidate picker. Deliberately its own query (not `listAll`) so it can be

@@ -23,24 +23,49 @@ const SWITCH_LOCALE_PATTERNS = [
   /\b(?:переключ(?:и|ить)|смен(?:и|ить))\s+(?:язык|locale)\s+(?:на\s+)([\p{L}\p{N}-]+)/iu,
 ];
 
+const QUESTION_LOCALE_FILTER_PATTERNS = [
+  /\b(?:in|with)\s+(?:language|locale)\s+([\p{L}\p{N}-]+)/iu,
+  /\blanguage\s+(?:is\s+)?([\p{L}\p{N}-]+)/iu,
+  /\bquestions?\s+in\s+([\p{L}\p{N}-]+)\b/iu,
+  /\b(english|belarusian|russian|polish)\s+questions?\b/iu,
+];
+
+export function resolveLocaleToken(raw: string): Locale | null {
+  const normalized = raw.trim().toLowerCase();
+  const parsed = parseLocaleHeader(normalized);
+  if (parsed) {
+    return parsed;
+  }
+  return LOCALE_ALIASES[normalized] ?? null;
+}
+
 export function matchesSwitchLocaleIntent(message: string): boolean {
   return SWITCH_LOCALE_PATTERNS.some((pattern) => pattern.test(message.trim()));
 }
 
 export function extractRequestedLocale(message: string): Locale | null {
   for (const pattern of SWITCH_LOCALE_PATTERNS) {
-    const match = message.trim().match(pattern);
-    const raw = match?.[1]?.trim().toLowerCase();
+    const raw = message.trim().match(pattern)?.[1]?.trim();
     if (!raw) {
       continue;
     }
-    const parsed = parseLocaleHeader(raw);
-    if (parsed) {
-      return parsed;
+    const locale = resolveLocaleToken(raw);
+    if (locale) {
+      return locale;
     }
-    const alias = LOCALE_ALIASES[raw];
-    if (alias) {
-      return alias;
+  }
+  return null;
+}
+
+export function extractQuestionLocaleFilter(message: string): Locale | null {
+  for (const pattern of QUESTION_LOCALE_FILTER_PATTERNS) {
+    const raw = message.match(pattern)?.[1]?.trim();
+    if (!raw) {
+      continue;
+    }
+    const locale = resolveLocaleToken(raw);
+    if (locale) {
+      return locale;
     }
   }
   return null;
