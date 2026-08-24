@@ -1045,7 +1045,7 @@ export class InterviewService {
       await upsertDemoUser(client);
 
       const update = await client.query(
-        `UPDATE interviews SET demo = true, created_by_id = $2, updated_at = NOW() WHERE id = $1`,
+        `UPDATE interviews SET demo = true, created_by_id = $2, assigned_hr_id = $2, updated_at = NOW() WHERE id = $1`,
         [interviewId, DEMO_USER_ID],
       );
       if (update.rowCount === 0) {

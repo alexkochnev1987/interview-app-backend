@@ -169,3 +169,43 @@ export function matchesAnyPattern(
 export function matchesCreateIntent(message: string): boolean {
   return matchesAnyPattern(message, CREATE_INTENT_PATTERNS);
 }
+
+export const COUNT_QUESTIONS_PATTERNS = [
+  /\bhow many\b.*\bquestions?\b/i,
+  /\bcount\b.*\bquestions?\b/i,
+  /\btotal\b.*\bquestions?\b/i,
+  /\b(show|list|display|find|browse)\b.*\bquestions?\b/i,
+  /\bquestions?\b.*\b(with|where|filtered|matching)\b/i,
+];
+
+export function matchesCountQuestionsIntent(message: string): boolean {
+  if (matchesCreateSingleQuestionIntent(message)) {
+    return false;
+  }
+  if (matchesCreateIntent(message)) {
+    return false;
+  }
+  return matchesAnyPattern(message, COUNT_QUESTIONS_PATTERNS);
+}
+
+export const LIST_ASSESSMENTS_PATTERNS = [
+  // assesments? — intentional misspelling to match common user typos
+  /\b(show|list|get|display|count|how many|total)\b.*\b(assessments?|assesments?|assignments?)\b/i,
+  /\b(assessments?|assesments?|assignments?)\b.*\b(with|where|filtered|matching)\b/i,
+];
+
+export const INTERVIEW_ACTIVITY_SUMMARY_PATTERNS = [
+  /\b(summarize|summary of|overview of)\b.*\b(interview|activity)\b/i,
+  /\binterview activity\b/i,
+];
+
+export const LIST_TEAM_PATTERNS = [
+  /\b(show|list)\b.*\b(my )?team\b/i,
+  /\bteam members?\b/i,
+];
+
+export const LIST_TEAM_BY_ROLE_PATTERNS = [
+  /\b(show|list)\b.*\ball\b.*\b(super[_\s-]?admins?|admins?|hrs?|hr reviewers?|candidates?)\b/i,
+  /\b(show|list)\b.*\b(super[_\s-]?admins?|candidates?)\b/i,
+  /\bteam members?\b.*\b(with|having)\b.*\b(super[_\s-]?admin|admin|hr|candidate)\b/i,
+];

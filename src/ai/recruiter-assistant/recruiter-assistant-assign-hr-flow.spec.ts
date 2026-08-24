@@ -67,6 +67,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
 
   const service = new RecruiterAssistantToolsService(
     {} as RecruiterQuestionMatcherService,
+    {} as never,
     interviewService as never,
     {} as never,
     {} as never,
@@ -75,6 +76,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: vi.fn() } as never,
     { findAll: vi.fn() } as never,
+    {} as never,
   );
 
   beforeEach(() => {
