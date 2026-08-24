@@ -251,6 +251,8 @@ describe('AppConfigService', () => {
         DEFAULT_THEME_MODE: 'system',
         RECRUITER_ASSISTANT_ENABLED: true,
         ENABLE_AI_ASSISTANT: true,
+        ENABLE_LIVE_TRANSCRIPT: true,
+        LIVE_TRANSCRIPT_DEFAULT_EXPANDED: true,
       });
       expect(publicVars.PRIVATE_SETTING).toBeUndefined();
       expect(publicVars.PUBLIC_SECRET_KEY).toBeUndefined();
