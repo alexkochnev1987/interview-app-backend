@@ -222,6 +222,29 @@ export class RecruiterAssistantService {
           ),
           sessionId,
         );
+      case 'count_questions':
+        return this.withSession(
+          await this.tools.countQuestions(intent.filters, user, locale),
+          sessionId,
+        );
+      case 'list_assessments':
+        return this.withSession(
+          await this.tools.listAssessments(intent.filters, user, locale),
+          sessionId,
+        );
+      case 'interview_activity_summary':
+        return this.withSession(
+          await this.tools.summarizeInterviewActivity(user, locale),
+          sessionId,
+        );
+      case 'list_team':
+        return this.withSession(
+          await this.tools.listTeam(user, locale, {
+            role: intent.role,
+            includeSummary: intent.includeSummary,
+          }),
+          sessionId,
+        );
       case 'out_of_scope':
         return this.withSession(
           { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },

@@ -89,6 +89,128 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies question count requests', () => {
+    expect(
+      service.classify('how many questions do we have in total', admin, 'en'),
+    ).toEqual({
+      kind: 'count_questions',
+      filters: {},
+    });
+    expect(service.classify('total questions', hr, 'en')).toEqual({
+      kind: 'count_questions',
+      filters: {},
+    });
+  });
+
+  it('classifies question count requests with filters', () => {
+    expect(
+      service.classify('how many hard questions do we have', admin, 'en'),
+    ).toEqual({
+      kind: 'count_questions',
+      filters: { difficulty: 'hard' },
+    });
+    expect(service.classify('how many react questions', admin, 'en')).toEqual({
+      kind: 'count_questions',
+      filters: { role: 'React Developer' },
+    });
+  });
+
+  it('classifies show questions with filters', () => {
+    expect(
+      service.classify(
+        'show hard russian questions in category software-engineering',
+        admin,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'count_questions',
+      filters: {
+        difficulty: 'hard',
+        category: 'software-engineering',
+        locale: 'ru',
+      },
+    });
+  });
+
+  it('does not classify create question as count', () => {
+    expect(
+      service.classify('create a question about React', admin, 'en').kind,
+    ).toBe('create_question');
+  });
+
+  it('classifies list assessments requests', () => {
+    expect(service.classify('show assessments', admin, 'en')).toEqual({
+      kind: 'list_assessments',
+      filters: {},
+    });
+    expect(service.classify('list templates', hr, 'en')).toEqual({
+      kind: 'out_of_scope',
+    });
+  });
+
+  it('classifies list assessments requests with filters', () => {
+    expect(service.classify('show react assessments', admin, 'en')).toEqual({
+      kind: 'list_assessments',
+      filters: { q: 'react' },
+    });
+    expect(
+      service.classify('list assessments with status ready', admin, 'en'),
+    ).toEqual({
+      kind: 'list_assessments',
+      filters: { status: 'ready' },
+    });
+    expect(
+      service.classify(
+        'show assessments containing "Senior React"',
+        admin,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'list_assessments',
+      filters: { q: 'Senior React' },
+    });
+  });
+
+  it('classifies interview activity summary requests', () => {
+    expect(
+      service.classify('summarize interview activity in my org', admin, 'en'),
+    ).toEqual({ kind: 'interview_activity_summary' });
+    expect(service.classify('interview activity', hr, 'en')).toEqual({
+      kind: 'interview_activity_summary',
+    });
+  });
+
+  it('classifies list team by role requests', () => {
+    expect(service.classify('show all hrs', admin, 'en')).toEqual({
+      kind: 'list_team',
+      role: 'hr',
+      includeSummary: false,
+    });
+    expect(service.classify('list all admins', admin, 'en')).toEqual({
+      kind: 'list_team',
+      role: 'admin',
+      includeSummary: false,
+    });
+    expect(
+      service.classify('team members with admin role', admin, 'en'),
+    ).toEqual({
+      kind: 'list_team',
+      role: 'admin',
+      includeSummary: false,
+    });
+  });
+
+  it('classifies list team requests', () => {
+    expect(service.classify('show my team', admin, 'en')).toEqual({
+      kind: 'list_team',
+      includeSummary: true,
+    });
+    expect(service.classify('list team members', admin, 'en')).toEqual({
+      kind: 'list_team',
+      includeSummary: true,
+    });
+  });
+
   it('classifies show HR requests', () => {
     expect(service.classify('show hrs', admin, 'en')).toEqual({
       kind: 'list_hrs',
@@ -176,14 +298,14 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
-  it('returns out_of_scope for unsupported org summaries', () => {
+  it('classifies org activity summary phrasing', () => {
     expect(
       service.classify(
         'summarize interview activity across the org this month',
         admin,
         'en',
       ),
-    ).toEqual({ kind: 'out_of_scope' });
+    ).toEqual({ kind: 'interview_activity_summary' });
   });
 
   it('does not treat HR my-interview prompts as candidate self-status', () => {

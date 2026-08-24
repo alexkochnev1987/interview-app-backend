@@ -44,10 +44,12 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: vi.fn() } as unknown as AiService,
     templateService as unknown as TemplateService,
+    {} as never,
   );
 
   beforeEach(() => {
