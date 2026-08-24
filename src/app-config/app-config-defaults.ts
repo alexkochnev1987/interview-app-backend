@@ -131,7 +131,7 @@ export const SYSTEM_CONFIG_DEFAULTS: Record<string, SystemConfigDefaultEntry> =
     },
     LIVE_TRANSCRIPT_DEFAULT_EXPANDED: {
       key: 'LIVE_TRANSCRIPT_DEFAULT_EXPANDED',
-      value: 'true',
+      value: 'false',
       valueType: 'boolean',
       description:
         'Whether the live transcript panel starts expanded by default for candidates',
