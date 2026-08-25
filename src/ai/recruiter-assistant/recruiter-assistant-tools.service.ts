@@ -35,6 +35,10 @@ import {
   matchesAssessmentQuery,
   selectHrVisibleAssessmentListItems,
 } from './recruiter-assistant-assessment-status';
+import {
+  parseCandidateChoice,
+  parseRegisteredCandidateConfirmation,
+} from './recruiter-assistant-candidate-choice-parse';
 import { findMatchingCandidates as findMatchingCandidatesByName } from './recruiter-assistant-candidate-match';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
@@ -837,6 +841,82 @@ export class RecruiterAssistantToolsService {
     );
   }
 
+  async continueCreateInterviewRegisteredCandidateConfirm(
+    state: RecruiterConversationState,
+    message: string,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create interviews.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    const confirmation = parseRegisteredCandidateConfirmation(message);
+    if (!confirmation) {
+      return this.repromptRegisteredCandidateConfirm(state, user, sessionId);
+    }
+
+    const baseSlots = this.stripTransientCandidateSlots(state.slots);
+    const nextSlots =
+      confirmation === 'yes'
+        ? {
+            ...baseSlots,
+            ...this.registeredCandidateSlots({
+              id: state.slots.matchedCandidateId ?? '',
+              name: state.slots.matchedCandidateName ?? '',
+              email: state.slots.matchedCandidateEmail ?? '',
+            }),
+          }
+        : {
+            ...baseSlots,
+            candidateName: state.slots.candidateName ?? '',
+            candidateResolution: 'new',
+          };
+
+    this.conversationStore.update(user.id, sessionId, {
+      flow: 'create_interview',
+      slots: nextSlots,
+      awaitingInput: undefined,
+    });
+
+    return this.continueCreateInterviewFlow(
+      { flow: 'create_interview', slots: nextSlots },
+      user,
+      locale,
+      sessionId,
+    );
+  }
+
+  repromptRegisteredCandidateConfirm(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    sessionId: string,
+  ): RecruiterAssistantResponseDto {
+    const candidate = {
+      id: state.slots.matchedCandidateId ?? '',
+      name: state.slots.matchedCandidateName ?? '',
+      email: state.slots.matchedCandidateEmail ?? '',
+    };
+
+    this.conversationStore.update(user.id, sessionId, {
+      flow: 'create_interview',
+      slots: state.slots,
+      awaitingInput: 'confirmRegisteredCandidate',
+    });
+
+    return {
+      status: 'answered',
+      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      awaitingInput: 'confirmRegisteredCandidate',
+      candidates: [candidate],
+    };
+  }
+
   async continueCreateInterviewFlow(
     state: RecruiterConversationState,
     user: ActingUser,
@@ -957,6 +1037,7 @@ export class RecruiterAssistantToolsService {
       type: 'create_interview',
       position: position ?? template.position ?? '',
       candidateName,
+      candidateEmail: slots.candidateEmail,
       interviewLocale: locale,
       questions,
     };
@@ -986,25 +1067,60 @@ export class RecruiterAssistantToolsService {
     sessionId: string,
     options: { persistFlowOnMissing: boolean },
   ): Promise<RecruiterAssistantResponseDto> {
-    const candidateName = input.candidateName ?? input.slots?.candidateName;
-    const position = input.position ?? input.slots?.position;
+    const slots: Record<string, string> = { ...(input.slots ?? {}) };
+    if (input.candidateName && !slots.candidateName) {
+      slots.candidateName = input.candidateName;
+    }
+    if (input.position && !slots.position) {
+      slots.position = input.position;
+    }
 
-    if (!candidateName) {
-      return this.requestCreateInterviewSlot(
+    if (slots.candidateChoice && !this.isCandidateResolved(slots)) {
+      return this.resolveCandidateChoiceFromSlots(
+        slots,
         user,
+        locale,
         sessionId,
-        'candidateName',
-        { position: position ?? '' },
         options.persistFlowOnMissing,
       );
     }
 
-    if (!position) {
-      return this.requestCreateInterviewSlot(
+    if (!this.isCandidateResolved(slots)) {
+      if (slots.candidateName) {
+        return this.resolveProvidedCandidateName(
+          slots.candidateName,
+          slots,
+          user,
+          locale,
+          sessionId,
+          options.persistFlowOnMissing,
+        );
+      }
+
+      return this.requestCandidatePicker(
         user,
         sessionId,
-        'position',
-        { candidateName },
+        slots,
+        options.persistFlowOnMissing,
+      );
+    }
+
+    const candidateName = slots.candidateName;
+    if (!candidateName) {
+      return this.requestCandidatePicker(
+        user,
+        sessionId,
+        slots,
+        options.persistFlowOnMissing,
+      );
+    }
+
+    const position = slots.position;
+    if (!position) {
+      return this.requestCreateInterviewPosition(
+        user,
+        sessionId,
+        slots,
         options.persistFlowOnMissing,
       );
     }
@@ -1014,8 +1130,11 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
-    const slots = {
+    const templateFlowSlots = {
       candidateName,
+      candidateId: slots.candidateId,
+      candidateEmail: slots.candidateEmail,
+      candidateResolution: slots.candidateResolution,
       position,
       templateIds: templates.map((template) => template.id).join(','),
     };
@@ -1037,7 +1156,7 @@ export class RecruiterAssistantToolsService {
 
     this.conversationStore.update(user.id, sessionId, {
       flow: 'create_interview',
-      slots,
+      slots: templateFlowSlots,
       awaitingInput: 'templateChoice',
     });
 
@@ -1049,10 +1168,261 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  private requestCreateInterviewSlot(
+  private isCandidateResolved(slots: Record<string, string>): boolean {
+    return (
+      slots.candidateResolution === 'registered' ||
+      slots.candidateResolution === 'new'
+    );
+  }
+
+  private registeredCandidateSlots(
+    candidate: CandidateSummary,
+  ): Record<string, string> {
+    return {
+      candidateId: candidate.id,
+      candidateName: candidate.name,
+      candidateEmail: candidate.email,
+      candidateResolution: 'registered',
+    };
+  }
+
+  private stripTransientCandidateSlots(
+    slots: Record<string, string>,
+  ): Record<string, string> {
+    const {
+      candidateChoice: _candidateChoice,
+      matchedCandidateId: _matchedCandidateId,
+      matchedCandidateName: _matchedCandidateName,
+      matchedCandidateEmail: _matchedCandidateEmail,
+      ...rest
+    } = slots;
+    return rest;
+  }
+
+  private withCandidatePickerMetadata(
+    slots: Record<string, string>,
+    candidates: CandidateSummary[],
+    searchQuery?: string,
+  ): Record<string, string> {
+    return {
+      ...slots,
+      candidateIds: candidates.map((candidate) => candidate.id).join(','),
+      ...(searchQuery !== undefined
+        ? { candidateSearchQuery: searchQuery }
+        : {}),
+    };
+  }
+
+  private async loadPickerCandidates(
+    user: ActingUser,
+    slots: Record<string, string>,
+  ): Promise<CandidateSummary[]> {
+    const searchQuery = slots.candidateSearchQuery;
+    const candidates = await this.fetchCandidates(
+      user,
+      searchQuery || undefined,
+    );
+    const ids = new Set((slots.candidateIds ?? '').split(',').filter(Boolean));
+    if (ids.size === 0) {
+      return candidates;
+    }
+    return candidates.filter((candidate) => ids.has(candidate.id));
+  }
+
+  private async requestCandidatePicker(
     user: ActingUser,
     sessionId: string,
-    awaitingInput: 'candidateName' | 'position',
+    slots: Record<string, string>,
+    persist: boolean,
+    options?: { candidates?: CandidateSummary[]; message?: string },
+  ): Promise<RecruiterAssistantResponseDto> {
+    const searchQuery = slots.candidateSearchQuery ?? slots.candidateName ?? '';
+    const candidates =
+      options?.candidates ??
+      (await this.fetchCandidates(user, searchQuery || undefined));
+    const nextSlots = this.withCandidatePickerMetadata(
+      this.stripTransientCandidateSlots(slots),
+      candidates,
+      searchQuery,
+    );
+    const cleanedSlots = Object.fromEntries(
+      Object.entries(nextSlots).filter(([, value]) => value),
+    );
+
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow(
+          'create_interview',
+          'candidateChoice',
+          cleanedSlots,
+        ),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response:
+        options?.message ??
+        'Pick a registered candidate or type a new candidate name.',
+      awaitingInput: 'candidateChoice',
+      candidates,
+    };
+  }
+
+  private requestRegisteredCandidateConfirm(
+    user: ActingUser,
+    sessionId: string,
+    slots: Record<string, string>,
+    candidate: CandidateSummary,
+    persist: boolean,
+  ): RecruiterAssistantResponseDto {
+    const nextSlots = this.withCandidatePickerMetadata(
+      slots,
+      [candidate],
+      slots.candidateName,
+    );
+    const cleanedSlots = Object.fromEntries(
+      Object.entries(nextSlots).filter(([, value]) => value),
+    );
+
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow(
+          'create_interview',
+          'confirmRegisteredCandidate',
+          cleanedSlots,
+        ),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      awaitingInput: 'confirmRegisteredCandidate',
+      candidates: [candidate],
+    };
+  }
+
+  private async resolveProvidedCandidateName(
+    candidateName: string,
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    persist: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const candidates = await this.fetchCandidates(user, candidateName);
+    const matches = this.findMatchingCandidates(candidates, candidateName);
+
+    if (matches.length === 0) {
+      return this.progressCreateInterviewFlow(
+        {
+          slots: {
+            ...this.stripTransientCandidateSlots(slots),
+            candidateName,
+            candidateResolution: 'new',
+          },
+        },
+        user,
+        locale,
+        sessionId,
+        { persistFlowOnMissing: persist },
+      );
+    }
+
+    if (matches.length === 1) {
+      return this.requestRegisteredCandidateConfirm(
+        user,
+        sessionId,
+        {
+          ...this.stripTransientCandidateSlots(slots),
+          candidateName,
+          matchedCandidateId: matches[0].id,
+          matchedCandidateName: matches[0].name,
+          matchedCandidateEmail: matches[0].email,
+        },
+        matches[0],
+        persist,
+      );
+    }
+
+    return this.requestCandidatePicker(
+      user,
+      sessionId,
+      { ...this.stripTransientCandidateSlots(slots), candidateName },
+      persist,
+      {
+        candidates: matches,
+        message: `Found ${matches.length} registered candidates matching "${candidateName}". Pick one or type a new name.`,
+      },
+    );
+  }
+
+  private async resolveCandidateChoiceFromSlots(
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    persist: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const choice = parseCandidateChoice(slots.candidateChoice ?? '');
+    const baseSlots = this.stripTransientCandidateSlots(slots);
+
+    if (!choice) {
+      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
+        message:
+          'Pick a registered candidate from the list or type a new candidate name.',
+      });
+    }
+
+    if (choice.kind === 'new') {
+      return this.progressCreateInterviewFlow(
+        {
+          slots: {
+            ...baseSlots,
+            candidateName: choice.name,
+            candidateResolution: 'new',
+          },
+        },
+        user,
+        locale,
+        sessionId,
+        { persistFlowOnMissing: persist },
+      );
+    }
+
+    const pickerCandidates = await this.loadPickerCandidates(user, slots);
+    const selected = pickerCandidates.find(
+      (candidate) => candidate.id === choice.id,
+    );
+    if (!selected) {
+      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
+        message:
+          'That candidate is not in the list. Pick one from the list or type a new name.',
+      });
+    }
+
+    return this.progressCreateInterviewFlow(
+      {
+        slots: {
+          ...baseSlots,
+          ...this.registeredCandidateSlots(selected),
+        },
+      },
+      user,
+      locale,
+      sessionId,
+      { persistFlowOnMissing: persist },
+    );
+  }
+
+  private requestCreateInterviewPosition(
+    user: ActingUser,
+    sessionId: string,
     slots: Record<string, string>,
     persist: boolean,
   ): RecruiterAssistantResponseDto {
@@ -1064,17 +1434,14 @@ export class RecruiterAssistantToolsService {
       this.conversationStore.update(
         user.id,
         sessionId,
-        startConversationFlow('create_interview', awaitingInput, cleanedSlots),
+        startConversationFlow('create_interview', 'position', cleanedSlots),
       );
     }
 
     return {
       status: 'answered',
-      response:
-        awaitingInput === 'candidateName'
-          ? 'What is the candidate name?'
-          : 'What position is the interview for?',
-      awaitingInput,
+      response: 'What position is the interview for?',
+      awaitingInput: 'position',
     };
   }
 

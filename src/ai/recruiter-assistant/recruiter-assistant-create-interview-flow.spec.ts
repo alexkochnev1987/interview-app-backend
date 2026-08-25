@@ -1,4 +1,5 @@
 import { TemplateService } from '../../template/template.service';
+import { UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
@@ -15,6 +16,12 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     createdAt: new Date(),
     avatarSource: 'none' as const,
     hasGoogleAvatar: false,
+  };
+
+  const registeredAlice = {
+    id: 'candidate-1',
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
   };
 
   const conversationStore = { update: vi.fn() };
@@ -37,6 +44,9 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       questions: [{ id: 'q-1', questionText: 'Explain React hooks.' }],
     }),
   };
+  const userService = {
+    searchCandidates: vi.fn().mockResolvedValue([]),
+  };
 
   const service = new RecruiterAssistantToolsService(
     {} as RecruiterQuestionMatcherService,
@@ -44,7 +54,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
+    userService as unknown as UserService,
     pendingActionStore as unknown as RecruiterPendingActionStore,
     conversationStore as unknown as RecruiterConversationStore,
     { draftQuestion: vi.fn() } as unknown as AiService,
@@ -53,10 +63,23 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
   );
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    userService.searchCandidates.mockReset();
+    userService.searchCandidates.mockResolvedValue([]);
+    templateService.findAll.mockReset();
+    templateService.findAll.mockResolvedValue([templateSummary]);
+    templateService.findOne.mockReset();
+    templateService.findOne.mockResolvedValue({
+      ...templateSummary,
+      questions: [{ id: 'q-1', questionText: 'Explain React hooks.' }],
+    });
+    conversationStore.update.mockReset();
+    pendingActionStore.issue.mockReset();
+    pendingActionStore.issue.mockReturnValue('pending-1');
   });
 
-  it('asks for candidate name when missing', async () => {
+  it('lists registered candidates when no candidate is provided', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
     const response = await service.prepareCreateInterview(
       undefined,
       'React Developer',
@@ -67,11 +90,57 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
 
     expect(response).toMatchObject({
       status: 'answered',
-      awaitingInput: 'candidateName',
+      awaitingInput: 'candidateChoice',
     });
+    expect(response.candidates).toEqual([registeredAlice]);
   });
 
-  it('lists templates when candidate and position are known', async () => {
+  it('asks to confirm when a provided name matches one registered candidate', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
+    const response = await service.prepareCreateInterview(
+      'Alice',
+      'React Developer',
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmRegisteredCandidate',
+    });
+    expect(response.candidates).toEqual([registeredAlice]);
+  });
+
+  it('continues with a new candidate when the registered match is declined', async () => {
+    const response =
+      await service.continueCreateInterviewRegisteredCandidateConfirm(
+        {
+          flow: 'create_interview',
+          awaitingInput: 'confirmRegisteredCandidate',
+          slots: {
+            candidateName: 'Alice',
+            position: 'React Developer',
+            matchedCandidateId: registeredAlice.id,
+            matchedCandidateName: registeredAlice.name,
+            matchedCandidateEmail: registeredAlice.email,
+          },
+        },
+        'no',
+        user,
+        'en',
+        'session-1',
+      );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'templateChoice',
+    });
+    expect(response.pendingAction).toBeUndefined();
+  });
+
+  it('lists templates when a new candidate name has no registered match', async () => {
     const response = await service.prepareCreateInterview(
       'Alice',
       'React Developer',
@@ -87,8 +156,32 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     expect(response.templates).toHaveLength(1);
   });
 
+  it('assigns a registered candidate when the picker id is chosen', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          position: 'React Developer',
+          candidateIds: registeredAlice.id,
+          candidateSearchQuery: '',
+          candidateChoice: registeredAlice.id,
+        },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'templateChoice',
+    });
+  });
+
   it('redirects when no templates match the position', async () => {
-    templateService.findAll.mockResolvedValueOnce([]);
+    templateService.findAll.mockResolvedValue([]);
 
     const response = await service.prepareCreateInterview(
       'Alice',
@@ -98,11 +191,13 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'session-1',
     );
 
-    expect(response.redirect).toEqual({
-      path: '/interviews/new',
-      query: {
-        candidateName: 'Alice',
-        position: 'React Developer',
+    expect(response).toMatchObject({
+      redirect: {
+        path: '/interviews/new',
+        query: {
+          candidateName: 'Alice',
+          position: 'React Developer',
+        },
       },
     });
   });
@@ -113,6 +208,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         flow: 'create_interview',
         slots: {
           candidateName: 'Alice',
+          candidateResolution: 'new',
           position: 'React Developer',
           templateIds: 'template-1',
           templateChoice: '1',
@@ -143,6 +239,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         flow: 'create_interview',
         slots: {
           candidateName: 'Alice',
+          candidateResolution: 'new',
           position: 'React Developer',
           templateIds: 'template-1',
           templateChoice: 'create my own',
@@ -176,6 +273,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         flow: 'create_interview',
         slots: {
           candidateName: 'Alice',
+          candidateResolution: 'new',
           position: 'React Developer',
           templateIds: 'template-1',
           templateChoice: '99',

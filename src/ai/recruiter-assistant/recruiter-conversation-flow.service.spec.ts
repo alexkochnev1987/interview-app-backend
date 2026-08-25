@@ -7,6 +7,8 @@ describe('RecruiterConversationFlowService', () => {
     continueCreateQuestionFlow: vi.fn(),
     continueCreateQuestionDespiteSimilar: vi.fn(),
     continueCreateInterviewFlow: vi.fn(),
+    continueCreateInterviewRegisteredCandidateConfirm: vi.fn(),
+    repromptRegisteredCandidateConfirm: vi.fn(),
     repromptSimilarQuestionConfirmation: vi.fn(),
   };
   const conversationStore = {
@@ -125,6 +127,39 @@ describe('RecruiterConversationFlowService', () => {
     expect(response).toEqual({
       status: 'answered',
       response: 'Cancelled. No changes were made.',
+    });
+  });
+
+  it('continues create interview after confirming a registered candidate match', async () => {
+    tools.continueCreateInterviewRegisteredCandidateConfirm.mockResolvedValue({
+      status: 'answered',
+      response: 'What position is the interview for?',
+      awaitingInput: 'position',
+    });
+
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      message: 'yes',
+      state: startConversationFlow(
+        'create_interview',
+        'confirmRegisteredCandidate',
+        {
+          candidateName: 'Alice',
+          matchedCandidateId: 'candidate-1',
+          matchedCandidateName: 'Alice Johnson',
+          matchedCandidateEmail: 'alice@example.com',
+        },
+      ),
+    });
+
+    expect(
+      tools.continueCreateInterviewRegisteredCandidateConfirm,
+    ).toHaveBeenCalled();
+    expect(tools.continueCreateInterviewFlow).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      status: 'answered',
+      response: 'What position is the interview for?',
+      awaitingInput: 'position',
     });
   });
 
