@@ -4,6 +4,7 @@ import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { INTERVIEW_STATUSES } from '../../interview/interfaces/interview.interface';
 import { Locale } from '../../locale/locale.constants';
 import { extractAssessmentFilters } from './recruiter-assistant-assessment-filters-extract';
+import { extractCandidateInterviewPosition } from './recruiter-assistant-candidate-position-extract';
 import {
   ASSIGN_HR_PATTERNS,
   CANDIDATE_OWN_STATUS_PATTERNS,
@@ -12,6 +13,10 @@ import {
   LIST_HRS_PATTERNS,
   LIST_INTERVIEWS_PATTERNS,
   matchesAnyPattern,
+  matchesCandidateLatestStatusIntent,
+  matchesCandidateListActiveIntent,
+  matchesCandidateOwnReviewIntent,
+  matchesCandidateStatusByPositionIntent,
   matchesCreateIntent,
   matchesCreateInterviewIntent,
   MY_INTERVIEWS_PATTERNS,
@@ -148,25 +153,17 @@ export class RecruiterAssistantIntentService {
       };
     }
 
+    if (user.role === 'candidate') {
+      const candidateIntent = this.classifyCandidateIntent(message, normalized);
+      if (candidateIntent) {
+        return candidateIntent;
+      }
+    }
+
     if (matchesAnyPattern(normalized, MY_INTERVIEWS_PATTERNS)) {
       return {
         kind: 'list_interviews',
         filters: { limit: 20, assignedHrId: user.id },
-      };
-    }
-
-    if (
-      user.role === 'candidate' &&
-      matchesAnyPattern(normalized, CANDIDATE_OWN_STATUS_PATTERNS)
-    ) {
-      return {
-        kind: 'interview_status',
-        ref: {},
-        ownInterviews: true,
-        scheduleInquiry: matchesAnyPattern(
-          normalized,
-          CANDIDATE_SCHEDULE_PATTERNS,
-        ),
       };
     }
 
@@ -192,6 +189,59 @@ export class RecruiterAssistantIntentService {
     }
 
     return { kind: 'out_of_scope' };
+  }
+
+  private classifyCandidateIntent(
+    message: string,
+    normalized: string,
+  ): RecruiterAssistantIntent | null {
+    if (matchesCandidateListActiveIntent(normalized)) {
+      return { kind: 'list_own_interviews', activeOnly: true };
+    }
+
+    if (matchesCandidateLatestStatusIntent(normalized)) {
+      return {
+        kind: 'interview_status',
+        ref: {},
+        ownInterviews: true,
+        latest: true,
+      };
+    }
+
+    if (matchesCandidateOwnReviewIntent(normalized)) {
+      return {
+        kind: 'review_state',
+        ref: this.extractCandidateInterviewRef(message),
+      };
+    }
+
+    const position = extractCandidateInterviewPosition(message);
+    if (matchesCandidateStatusByPositionIntent(normalized, Boolean(position))) {
+      return {
+        kind: 'interview_status',
+        ref: { position: position! },
+        ownInterviews: true,
+      };
+    }
+
+    if (matchesAnyPattern(normalized, CANDIDATE_OWN_STATUS_PATTERNS)) {
+      return {
+        kind: 'interview_status',
+        ref: {},
+        ownInterviews: true,
+        scheduleInquiry: matchesAnyPattern(
+          normalized,
+          CANDIDATE_SCHEDULE_PATTERNS,
+        ),
+      };
+    }
+
+    return null;
+  }
+
+  private extractCandidateInterviewRef(message: string): InterviewRef {
+    const position = extractCandidateInterviewPosition(message);
+    return position ? { position } : {};
   }
 
   private extractInterviewRef(message: string): InterviewRef {

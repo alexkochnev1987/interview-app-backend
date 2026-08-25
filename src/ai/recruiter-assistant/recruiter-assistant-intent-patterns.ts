@@ -63,6 +63,35 @@ export const CANDIDATE_OWN_STATUS_PATTERNS = [
   cyrillicLoosePattern('мой\\s+интерв'),
 ];
 
+export const CANDIDATE_LATEST_STATUS_PATTERNS = [
+  /\b(?:what(?:'s| is)|how is)\s+the\s+status\s+of\s+my\s+(?:latest|most recent|newest|last)\b/i,
+  /\b(?:what(?:'s| is)|how is)\s+my\s+(?:latest|most recent|newest|last)\b.*\binterview\b/i,
+  /\b(?:status|state)\s+of\s+my\s+(?:latest|most recent|newest|last)\b.*\binterview\b/i,
+  /\bmy\s+(?:latest|most recent|newest|last)\b.*\binterview\b.*\bstatus\b/i,
+  cyrillicLoosePattern(
+    '(?:статус|как).{0,12}(?:моего\\s+)?(?:последн(?:его|ее|ий|ем)|самого\\s+нового)\\s+интерв',
+  ),
+];
+
+export const CANDIDATE_LIST_ACTIVE_PATTERNS = [
+  /\b(?:do i have|have i got|are there|any)\b.*\b(?:new|uncompleted|incomplete|unfinished|open|active|pending)\b.*\binterviews?\b/i,
+  /\b(?:new|uncompleted|incomplete|unfinished|open|active|pending)\b.*\binterviews?\b/i,
+  /\binterviews?\b.*\b(?:to complete|not (?:yet )?finished|not completed|still open|awaiting)\b/i,
+  /\b(?:show|list|get|display)\b.*\b(?:my )?(?:uncompleted|incomplete|unfinished|open|active|pending|new)\b.*\binterviews?\b/i,
+  cyrillicLoosePattern(
+    '(?:есть\\s+ли\\s+у\\s+меня|покажи).{0,24}(?:новые|незаверш|не\\s+заверш|активн).{0,16}интерв',
+  ),
+];
+
+export const CANDIDATE_OWN_REVIEW_PATTERNS = [
+  /\b(?:did|has)\s+my\b.*\b(?:been reviewed|get reviewed|reviewed)\b/i,
+  /\bmy\b.*\binterview\b.*\b(?:been reviewed|get reviewed|reviewed)\b/i,
+  /\b(?:been reviewed|review status|review state)\b.*\bmy\b.*\binterview\b/i,
+  cyrillicLoosePattern(
+    '(?:мо(?:й|его|ем)|моя).{0,24}интерв.{0,24}(?:ревью|просмотрен|проверен)',
+  ),
+];
+
 export const REVIEW_STATE_PATTERNS = [
   /\b(reviewed|been reviewed|review state|review status)\b/i,
   /\bhas .+ been reviewed\b/i,
@@ -157,6 +186,36 @@ export function matchesCreateSingleQuestionIntent(message: string): boolean {
     return false;
   }
   return matchesAnyPattern(message, CREATE_SINGLE_QUESTION_PATTERNS);
+}
+
+export function matchesCandidateLatestStatusIntent(message: string): boolean {
+  return matchesAnyPattern(message, CANDIDATE_LATEST_STATUS_PATTERNS);
+}
+
+export function matchesCandidateListActiveIntent(message: string): boolean {
+  return matchesAnyPattern(message, CANDIDATE_LIST_ACTIVE_PATTERNS);
+}
+
+export function matchesCandidateOwnReviewIntent(message: string): boolean {
+  return (
+    matchesAnyPattern(message, CANDIDATE_OWN_REVIEW_PATTERNS) ||
+    (/\bmy\b/i.test(message) &&
+      matchesAnyPattern(message, REVIEW_STATE_PATTERNS))
+  );
+}
+
+export function matchesCandidateStatusByPositionIntent(
+  message: string,
+  hasPosition: boolean,
+): boolean {
+  if (!hasPosition) {
+    return false;
+  }
+  return (
+    matchesAnyPattern(message, INTERVIEW_STATUS_PATTERNS) ||
+    matchesAnyPattern(message, CANDIDATE_OWN_STATUS_PATTERNS) ||
+    /\bmy\b.*\binterview\b/i.test(message)
+  );
 }
 
 export function matchesAnyPattern(

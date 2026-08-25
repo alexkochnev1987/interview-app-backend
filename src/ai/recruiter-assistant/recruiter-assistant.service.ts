@@ -156,6 +156,11 @@ export class RecruiterAssistantService {
           ),
           sessionId,
         );
+      case 'list_own_interviews':
+        return this.withSession(
+          await this.tools.listOwnInterviews(user, locale, intent.activeOnly),
+          sessionId,
+        );
       case 'list_unassigned':
         return this.withSession(
           await this.tools.listUnassigned(user, locale),

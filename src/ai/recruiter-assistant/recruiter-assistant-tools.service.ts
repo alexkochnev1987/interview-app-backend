@@ -368,6 +368,27 @@ export class RecruiterAssistantToolsService {
     };
   }
 
+  async listOwnInterviews(
+    user: ActingUser,
+    locale: Locale,
+    activeOnly?: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    void activeOnly;
+    if (user.role !== 'candidate') {
+      return {
+        status: 'refused',
+        response: 'That question is only for candidates.',
+      };
+    }
+
+    return {
+      status: 'refused',
+      response:
+        'Listing your interviews is not available yet. Ask about the status of a specific interview instead.',
+    };
+  }
+
   async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,
