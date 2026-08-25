@@ -207,8 +207,9 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       {
         flow: 'create_interview',
         slots: {
-          candidateName: 'Alice',
-          candidateResolution: 'new',
+          candidateName: 'Alice Johnson',
+          candidateEmail: 'alice@example.com',
+          candidateResolution: 'registered',
           position: 'React Developer',
           templateIds: 'template-1',
           templateChoice: '1',
@@ -225,12 +226,75 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     });
     expect(response.pendingAction).toMatchObject({
       type: 'create_interview',
-      candidateName: 'Alice',
+      candidateName: 'Alice Johnson',
+      candidateEmail: 'alice@example.com',
       position: 'React Developer',
     });
     expect(templateService.findOne).toHaveBeenCalledWith('template-1', 'en', {
       demo: false,
     });
+  });
+
+  it('resolves candidate choice before template choice when both are present', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          position: 'React Developer',
+          candidateIds: registeredAlice.id,
+          candidateSearchQuery: '',
+          candidateChoice: registeredAlice.id,
+          templateChoice: '1',
+        },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'templateChoice',
+    });
+    expect(response.pendingAction).toBeUndefined();
+  });
+
+  it('redirects with candidate email when the user chooses create my own', async () => {
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          candidateName: 'Alice Johnson',
+          candidateEmail: 'alice@example.com',
+          candidateResolution: 'registered',
+          position: 'React Developer',
+          templateIds: 'template-1',
+          templateChoice: 'create my own',
+        },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      redirect: {
+        path: '/interviews/new',
+        query: {
+          candidateName: 'Alice Johnson',
+          candidateEmail: 'alice@example.com',
+          position: 'React Developer',
+        },
+      },
+    });
+    expect(conversationStore.update).toHaveBeenCalledWith(
+      'admin-1',
+      'session-1',
+      { flow: 'idle', slots: {} },
+    );
   });
 
   it('redirects when the user chooses create my own', async () => {

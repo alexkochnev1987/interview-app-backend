@@ -130,32 +130,40 @@ describe('RecruiterConversationFlowService', () => {
     });
   });
 
-  it('continues create interview after confirming a registered candidate match', async () => {
-    tools.continueCreateInterviewRegisteredCandidateConfirm.mockResolvedValue({
+  it('delegates registered-candidate confirmation to create interview flow', async () => {
+    tools.continueCreateInterviewFlow.mockResolvedValue({
       status: 'answered',
       response: 'What position is the interview for?',
       awaitingInput: 'position',
     });
 
+    const confirmState = startConversationFlow(
+      'create_interview',
+      'confirmRegisteredCandidate',
+      {
+        candidateName: 'Alice',
+        matchedCandidateId: 'candidate-1',
+        matchedCandidateName: 'Alice Johnson',
+        matchedCandidateEmail: 'alice@example.com',
+      },
+    );
+
     const response = await service.resumeActiveFlow({
       ...ctx,
       message: 'yes',
-      state: startConversationFlow(
-        'create_interview',
-        'confirmRegisteredCandidate',
-        {
-          candidateName: 'Alice',
-          matchedCandidateId: 'candidate-1',
-          matchedCandidateName: 'Alice Johnson',
-          matchedCandidateEmail: 'alice@example.com',
-        },
-      ),
+      state: confirmState,
     });
 
+    expect(tools.continueCreateInterviewFlow).toHaveBeenCalledWith(
+      confirmState,
+      ctx.user,
+      ctx.locale,
+      ctx.sessionId,
+      'yes',
+    );
     expect(
       tools.continueCreateInterviewRegisteredCandidateConfirm,
-    ).toHaveBeenCalled();
-    expect(tools.continueCreateInterviewFlow).not.toHaveBeenCalled();
+    ).not.toHaveBeenCalled();
     expect(response).toEqual({
       status: 'answered',
       response: 'What position is the interview for?',

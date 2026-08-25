@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import { Locale } from '../../locale/locale.constants';
 import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
-import { parseRegisteredCandidateConfirmation } from './recruiter-assistant-candidate-choice-parse';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   isCancellationMessage,
@@ -72,32 +71,12 @@ export class RecruiterConversationFlowService {
     }
 
     if (ctx.state.awaitingInput === 'confirmRegisteredCandidate') {
-      if (isCancellationMessage(ctx.message)) {
-        this.conversationStore.update(
-          ctx.user.id,
-          ctx.sessionId,
-          idleConversationState(),
-        );
-        return {
-          status: 'answered',
-          response: 'Cancelled. No changes were made.',
-        };
-      }
-
-      if (parseRegisteredCandidateConfirmation(ctx.message)) {
-        return this.tools.continueCreateInterviewRegisteredCandidateConfirm(
-          ctx.state,
-          ctx.message,
-          ctx.user,
-          ctx.locale,
-          ctx.sessionId,
-        );
-      }
-
-      return this.tools.repromptRegisteredCandidateConfirm(
+      return this.tools.continueCreateInterviewFlow(
         ctx.state,
         ctx.user,
+        ctx.locale,
         ctx.sessionId,
+        ctx.message,
       );
     }
 
@@ -139,6 +118,7 @@ export class RecruiterConversationFlowService {
           ctx.user,
           ctx.locale,
           ctx.sessionId,
+          ctx.message,
         );
       default:
         return null;

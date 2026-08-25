@@ -24,9 +24,14 @@ import { UserRole } from '../../user/interfaces/user.interface';
 import { CandidateSummary, UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import {
+  loadAllCandidateInterviews,
+  resolveLatestInterview,
+} from './candidate-interview-resolver';
+import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
+  RecruiterAssistantRedirectDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import type { QueryAssessmentsFilters } from './recruiter-assistant-assessment-filters-extract';
@@ -64,6 +69,7 @@ import {
   canReadTemplates,
   canListInterviews,
   canListTeam,
+  isCancellationMessage,
   NEW_CHAT_WELCOME_RESPONSE,
 } from './recruiter-assistant.policy';
 import {
@@ -922,6 +928,7 @@ export class RecruiterAssistantToolsService {
     user: ActingUser,
     locale: Locale,
     sessionId: string,
+    message?: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateInterviews(user)) {
       return {
@@ -931,7 +938,38 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    if (state.slots.templateChoice) {
+    if (state.awaitingInput === 'confirmRegisteredCandidate' && message) {
+      if (isCancellationMessage(message)) {
+        this.conversationStore.update(
+          user.id,
+          sessionId,
+          idleConversationState(),
+        );
+        return {
+          status: 'answered',
+          response: 'Cancelled. No changes were made.',
+        };
+      }
+
+      return this.continueCreateInterviewRegisteredCandidateConfirm(
+        state,
+        message,
+        user,
+        locale,
+        sessionId,
+      );
+    }
+
+    if (state.slots.candidateChoice && !this.isCandidateResolved(state.slots)) {
+      return this.continueCreateInterviewCandidateChoice(
+        state,
+        user,
+        locale,
+        sessionId,
+      );
+    }
+
+    if (this.isCandidateResolved(state.slots) && state.slots.templateChoice) {
       return this.progressTemplateChoiceFlow(
         state.slots,
         user,
@@ -946,6 +984,21 @@ export class RecruiterAssistantToolsService {
       locale,
       sessionId,
       { persistFlowOnMissing: true },
+    );
+  }
+
+  private async continueCreateInterviewCandidateChoice(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    return this.resolveCandidateChoiceFromSlots(
+      state.slots,
+      user,
+      locale,
+      sessionId,
+      true,
     );
   }
 
@@ -986,7 +1039,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: 'Opening the interview form.',
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
@@ -1021,7 +1074,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'refused',
         response: `Template "${template.name}" has no available questions. Try another template or say "create my own".`,
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
@@ -1150,7 +1203,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: `No templates found for ${position}. Say "create my own" to open the interview form.`,
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
@@ -1166,6 +1219,16 @@ export class RecruiterAssistantToolsService {
       templates,
       awaitingInput: 'templateChoice',
     };
+  }
+
+  private buildCreateInterviewRedirect(
+    slots: Record<string, string>,
+  ): RecruiterAssistantRedirectDto {
+    return buildInterviewRedirect({
+      candidateName: slots.candidateName,
+      candidateEmail: slots.candidateEmail,
+      position: slots.position,
+    });
   }
 
   private isCandidateResolved(slots: Record<string, string>): boolean {
@@ -1895,10 +1958,12 @@ export class RecruiterAssistantToolsService {
   }
 
   private async findCandidateOwnInterview(user: ActingUser) {
-    return this.interviewService.findLatestByCandidateEmail(
-      user.email,
-      user.demo,
+    const interviews = await loadAllCandidateInterviews(
+      this.interviewService,
+      user,
     );
+    const resolved = resolveLatestInterview(interviews);
+    return resolved.kind === 'found' ? resolved.interview : null;
   }
 
   private async getCandidateReviewState(

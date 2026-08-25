@@ -35,6 +35,7 @@ export type RecruiterAssistantIntentKind =
 export interface InterviewRef {
   interviewId?: string;
   candidateName?: string;
+  position?: string;
 }
 
 export interface HrRef {
