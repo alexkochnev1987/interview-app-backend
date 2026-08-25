@@ -31,6 +31,7 @@ import { CreateQuestionDto } from '../../../question/dto/create-question.dto';
 import { QueryQuestionsDto } from '../../../question/dto/query-questions.dto';
 import { QuestionDifficulty } from '../../../question/interfaces/question.interface';
 import { TemplateSummaryResponseDto } from '../../../template/dto/template.responses.dto';
+import { CandidateSummaryResponseDto } from '../../../user/dto/candidate-summary.response.dto';
 
 export const MAX_RECRUITER_ASSISTANT_QUESTIONS = 12;
 export const MAX_RECRUITER_ASSISTANT_MESSAGE_LENGTH = 2000;
@@ -258,6 +259,8 @@ export type RecruiterAssistantAwaitingInput =
   | 'questionName'
   | 'confirmAddDespiteSimilar'
   | 'candidateName'
+  | 'candidateChoice'
+  | 'confirmRegisteredCandidate'
   | 'position'
   | 'templateChoice';
 
@@ -388,6 +391,8 @@ export class RecruiterAssistantResponseDto {
       'questionName',
       'confirmAddDespiteSimilar',
       'candidateName',
+      'candidateChoice',
+      'confirmRegisteredCandidate',
       'position',
       'templateChoice',
     ],
@@ -430,6 +435,13 @@ export class RecruiterAssistantResponseDto {
 
   @ApiPropertyOptional({ type: [AuthUserResponseDto] })
   teamMembers?: AuthUserResponseDto[];
+
+  @ApiPropertyOptional({
+    type: [CandidateSummaryResponseDto],
+    description:
+      'Registered candidates returned during create_interview picker steps.',
+  })
+  candidates?: CandidateSummaryResponseDto[];
 }
 
 @ApiExtraModels(
@@ -450,6 +462,7 @@ export class RecruiterAssistantResponseDto {
   InterviewListItemDto,
   AuthUserResponseDto,
   AssignedHrDto,
+  CandidateSummaryResponseDto,
 )
 export class RecruiterAssistantOpenApiModelsDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })

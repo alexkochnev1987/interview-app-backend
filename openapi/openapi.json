@@ -11884,6 +11884,8 @@
               "questionName",
               "confirmAddDespiteSimilar",
               "candidateName",
+              "candidateChoice",
+              "confirmRegisteredCandidate",
               "position",
               "templateChoice"
             ]
@@ -11937,6 +11939,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AuthUserResponseDto"
+            }
+          },
+          "candidates": {
+            "description": "Registered candidates returned during create_interview picker steps.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateSummaryResponseDto"
             }
           }
         },

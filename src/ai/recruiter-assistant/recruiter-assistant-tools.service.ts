@@ -21,7 +21,7 @@ import {
   TemplateSummary,
 } from '../../template/template.service';
 import { UserRole } from '../../user/interfaces/user.interface';
-import { UserService } from '../../user/user.service';
+import { CandidateSummary, UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
@@ -35,6 +35,7 @@ import {
   matchesAssessmentQuery,
   selectHrVisibleAssessmentListItems,
 } from './recruiter-assistant-assessment-status';
+import { findMatchingCandidates as findMatchingCandidatesByName } from './recruiter-assistant-candidate-match';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
@@ -83,6 +84,7 @@ import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.se
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
+const MAX_RECRUITER_ASSISTANT_CANDIDATE_LIST_LIMIT = 20;
 const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
 /** Max paginated pages when scanning interviews for assessment counts. */
 const MAX_ASSESSMENT_SCAN_PAGES = 10;
@@ -1444,6 +1446,24 @@ export class RecruiterAssistantToolsService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
+  }
+
+  private async fetchCandidates(
+    user: ActingUser,
+    query?: string,
+  ): Promise<CandidateSummary[]> {
+    return this.userService.searchCandidates(
+      { demo: user.demo },
+      query,
+      MAX_RECRUITER_ASSISTANT_CANDIDATE_LIST_LIMIT,
+    );
+  }
+
+  private findMatchingCandidates(
+    candidates: CandidateSummary[],
+    name: string,
+  ): CandidateSummary[] {
+    return findMatchingCandidatesByName(candidates, name);
   }
 
   private questionCountListFilters(
