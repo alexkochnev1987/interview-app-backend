@@ -127,7 +127,8 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
   it('returns review state for a position-specific candidate query', async () => {
     candidateFeedbackService.findByInterviewId.mockResolvedValue({
       outcome: 'proceed',
-      blocks: [],
+      questions: [],
+      overall: undefined,
     });
 
     const result = await service.getReviewState(

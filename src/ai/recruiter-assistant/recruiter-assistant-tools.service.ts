@@ -91,7 +91,7 @@ import {
   canListInterviews,
   canListTeam,
   isCancellationMessage,
-  NEW_CHAT_WELCOME_RESPONSE,
+  newChatWelcomeResponse,
 } from './recruiter-assistant.policy';
 import {
   ActingUser,
@@ -684,10 +684,10 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  startNewChat(): RecruiterAssistantResponseDto {
+  startNewChat(user: ActingUser): RecruiterAssistantResponseDto {
     return {
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user),
     };
   }
 
