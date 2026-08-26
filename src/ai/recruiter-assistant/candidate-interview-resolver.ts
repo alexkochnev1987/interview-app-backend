@@ -93,10 +93,15 @@ export function filterActiveInterviews(
 export function resolveCandidateOwnInterview(
   interviews: readonly InterviewListItem[],
   ref: InterviewRef,
+  latest?: boolean,
 ): CandidateInterviewResolveResult {
   if (ref.interviewId) {
     const match = interviews.find((item) => item.id === ref.interviewId);
     return match ? { kind: 'found', interview: match } : { kind: 'not_found' };
+  }
+
+  if (latest) {
+    return resolveLatestInterview(interviews);
   }
 
   if (ref.position) {

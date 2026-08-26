@@ -210,4 +210,30 @@ describe('resolveCandidateOwnInterview', () => {
       interview: expect.objectContaining({ id: 'pending' }),
     });
   });
+
+  it('prefers latest relevance over an explicit position when latest is requested', () => {
+    const interviews = [
+      listItem({
+        id: 'completed-backend',
+        position: 'Backend Developer',
+        status: 'completed',
+      }),
+      listItem({
+        id: 'pending-react',
+        position: 'React Developer',
+        status: 'pending',
+      }),
+    ];
+
+    expect(
+      resolveCandidateOwnInterview(
+        interviews,
+        { position: 'Backend Developer' },
+        true,
+      ),
+    ).toEqual({
+      kind: 'found',
+      interview: expect.objectContaining({ id: 'pending-react' }),
+    });
+  });
 });

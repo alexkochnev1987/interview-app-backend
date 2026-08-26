@@ -432,7 +432,6 @@ export class RecruiterAssistantToolsService {
     latest?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
-    void latest;
     if (ownInterviews) {
       if (user.role !== 'candidate') {
         return {
@@ -441,7 +440,12 @@ export class RecruiterAssistantToolsService {
         };
       }
 
-      return this.getCandidateInterviewStatus(user, ref, scheduleInquiry);
+      return this.getCandidateInterviewStatus(
+        user,
+        ref,
+        scheduleInquiry,
+        latest,
+      );
     }
 
     if (!canListInterviews(user)) {
@@ -1995,12 +1999,13 @@ export class RecruiterAssistantToolsService {
   private async findCandidateOwnInterview(
     user: ActingUser,
     ref: InterviewRef = {},
+    latest?: boolean,
   ) {
     const interviews = await loadAllCandidateInterviews(
       this.interviewService,
       user,
     );
-    const resolved = resolveCandidateOwnInterview(interviews, ref);
+    const resolved = resolveCandidateOwnInterview(interviews, ref, latest);
     return { resolved, interviews };
   }
 
@@ -2008,10 +2013,12 @@ export class RecruiterAssistantToolsService {
     user: ActingUser,
     ref: InterviewRef,
     scheduleInquiry?: boolean,
+    latest?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     const { resolved, interviews } = await this.findCandidateOwnInterview(
       user,
       ref,
+      latest,
     );
 
     if (interviews.length === 0) {
@@ -2032,7 +2039,7 @@ export class RecruiterAssistantToolsService {
     }
 
     if (resolved.kind === 'not_found') {
-      if (ref.position) {
+      if (ref.position && !latest) {
         return {
           status: 'answered',
           response: buildCandidateUnknownPositionResponseText(

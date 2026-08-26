@@ -96,6 +96,19 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
     );
   });
 
+  it('returns latest interview status when latest is explicitly requested', async () => {
+    const result = await service.getInterviewStatus(
+      { position: 'Backend Developer' },
+      candidate,
+      'en',
+      true,
+      false,
+      true,
+    );
+
+    expect(result.interview?.id).toBe(pendingInterview.id);
+  });
+
   it('returns status for a specific position', async () => {
     const result = await service.getInterviewStatus(
       { position: 'Backend Developer' },
