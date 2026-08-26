@@ -165,7 +165,7 @@ describe('MediaRemediationService', () => {
     );
   });
 
-  it('handles ffmpeg error and updates DB status to failed', async () => {
+  it('handles ffmpeg error and updates DB status to failed, then rethrows', async () => {
     mockS3Client.send.mockImplementation((command) => {
       if (command instanceof GetObjectCommand) {
         return Promise.resolve({
@@ -182,13 +182,15 @@ describe('MediaRemediationService', () => {
       }),
     );
 
-    await service.remediateWebm(mockS3Client as unknown as S3Client, {
-      interviewId: 'interview-1',
-      questionIndex: 1,
-      mediaType: 'screen',
-      mediaKey: 'uploads/interview-1/q1-screen.webm',
-      bucket: 'test-bucket',
-    });
+    await expect(
+      service.remediateWebm(mockS3Client as unknown as S3Client, {
+        interviewId: 'interview-1',
+        questionIndex: 1,
+        mediaType: 'screen',
+        mediaKey: 'uploads/interview-1/q1-screen.webm',
+        bucket: 'test-bucket',
+      }),
+    ).rejects.toThrow('ffmpeg exited with code 1');
 
     expect(
       mockInterviewService.updateAnswerMediaRemediation,
@@ -203,7 +205,7 @@ describe('MediaRemediationService', () => {
     );
   });
 
-  it('handles ffmpeg timeout, sends SIGKILL and updates DB status to failed', async () => {
+  it('handles ffmpeg timeout, sends SIGKILL and updates DB status to failed, then rethrows', async () => {
     let hangingProc: ReturnType<typeof createMockFfmpegProcess>;
 
     mockS3Client.send.mockImplementation((command) => {
@@ -220,14 +222,16 @@ describe('MediaRemediationService', () => {
       return hangingProc;
     });
 
-    await service.remediateWebm(mockS3Client as unknown as S3Client, {
-      interviewId: 'interview-1',
-      questionIndex: 0,
-      mediaType: 'camera',
-      mediaKey: 'uploads/interview-1/q0-camera.webm',
-      bucket: 'test-bucket',
-      timeoutMs: 50,
-    });
+    await expect(
+      service.remediateWebm(mockS3Client as unknown as S3Client, {
+        interviewId: 'interview-1',
+        questionIndex: 0,
+        mediaType: 'camera',
+        mediaKey: 'uploads/interview-1/q0-camera.webm',
+        bucket: 'test-bucket',
+        timeoutMs: 50,
+      }),
+    ).rejects.toThrow('timed out after 50ms');
 
     expect(hangingProc!.kill).toHaveBeenCalledWith('SIGKILL');
     expect(
@@ -239,5 +243,49 @@ describe('MediaRemediationService', () => {
         errorMessage: expect.stringContaining('timed out after 50ms'),
       }),
     );
+  });
+
+  it('deduplicates parallel remediation calls for the same mediaKey', async () => {
+    mockS3Client.send.mockImplementation((command) => {
+      if (command instanceof GetObjectCommand) {
+        return Promise.resolve({
+          Body: Readable.from([Buffer.from('fake-webm-data')]),
+        });
+      }
+      if (command instanceof PutObjectCommand) {
+        return new Promise<object>((resolve) => {
+          if (command.input.Body instanceof Readable) {
+            command.input.Body.resume();
+            command.input.Body.on('end', () => resolve({}));
+          } else {
+            resolve({});
+          }
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    mockSpawn.mockImplementation((_cmd, args) => {
+      const outputPath = args[args.length - 1] as string;
+      fs.writeFileSync(outputPath, Buffer.from('fixed-webm-data'));
+      return createMockFfmpegProcess({ exitCode: 0 });
+    });
+
+    const params: RemediationParams = {
+      interviewId: 'interview-1',
+      questionIndex: 0,
+      mediaType: 'camera',
+      mediaKey: 'uploads/interview-1/q0-camera.webm',
+      bucket: 'test-bucket',
+    };
+
+    // Run 2 parallel remediations for the same key
+    await Promise.all([
+      service.remediateWebm(mockS3Client as unknown as S3Client, params),
+      service.remediateWebm(mockS3Client as unknown as S3Client, params),
+    ]);
+
+    // mockSpawn should only be called once because the second call reused the in-flight Promise
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
   });
 });

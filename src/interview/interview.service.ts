@@ -1585,19 +1585,19 @@ export class InterviewService {
 
     const updateArtifact = (
       artifact?: MediaArtifact,
-    ): MediaArtifact | undefined => {
-      if (!artifact) return undefined;
-      return {
-        ...artifact,
-        fileSizeBytes: input.fileSizeBytes ?? artifact.fileSizeBytes,
-        remediation: {
-          status: input.status,
-          startedAt: input.startedAt ?? artifact.remediation?.startedAt,
-          completedAt: input.completedAt ?? artifact.remediation?.completedAt,
-          errorMessage: input.errorMessage,
-        },
-      };
-    };
+      defaultKey?: string,
+    ): MediaArtifact => ({
+      mediaKey: artifact?.mediaKey || defaultKey || '',
+      contentType: artifact?.contentType || 'video/webm',
+      uploadedAt: artifact?.uploadedAt || new Date(),
+      fileSizeBytes: input.fileSizeBytes ?? artifact?.fileSizeBytes,
+      remediation: {
+        status: input.status,
+        startedAt: input.startedAt ?? artifact?.remediation?.startedAt,
+        completedAt: input.completedAt ?? artifact?.remediation?.completedAt,
+        errorMessage: input.errorMessage,
+      },
+    });
 
     const nextVersions = existingAnswer.versions?.map((ver) => {
       if (input.versionNumber && ver.versionNumber !== input.versionNumber) {
@@ -1607,11 +1607,11 @@ export class InterviewService {
         ...ver,
         camera:
           input.mediaType === 'camera'
-            ? updateArtifact(ver.camera)
+            ? updateArtifact(ver.camera, ver.mediaKey)
             : ver.camera,
         screen:
           input.mediaType === 'screen'
-            ? updateArtifact(ver.screen)
+            ? updateArtifact(ver.screen, ver.screenMediaKey)
             : ver.screen,
       };
     });
@@ -1620,11 +1620,11 @@ export class InterviewService {
       ...existingAnswer,
       camera:
         input.mediaType === 'camera'
-          ? updateArtifact(existingAnswer.camera)
+          ? updateArtifact(existingAnswer.camera, existingAnswer.mediaKey)
           : existingAnswer.camera,
       screen:
         input.mediaType === 'screen'
-          ? updateArtifact(existingAnswer.screen)
+          ? updateArtifact(existingAnswer.screen, existingAnswer.screenMediaKey)
           : existingAnswer.screen,
       versions: nextVersions,
     };

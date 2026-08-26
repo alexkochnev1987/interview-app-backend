@@ -37,6 +37,7 @@ export interface RemediationParams {
 @Injectable()
 export class MediaRemediationService {
   private readonly logger = new Logger(MediaRemediationService.name);
+  private readonly inFlightRemediations = new Map<string, Promise<void>>();
 
   constructor(
     @Optional()
@@ -48,14 +49,7 @@ export class MediaRemediationService {
     s3Client: S3Client,
     params: RemediationParams,
   ): Promise<void> {
-    const {
-      interviewId,
-      questionIndex,
-      mediaType,
-      mediaKey,
-      bucket,
-      versionNumber,
-    } = params;
+    const { mediaKey } = params;
 
     if (
       !mediaKey.endsWith('.webm') &&
@@ -64,6 +58,34 @@ export class MediaRemediationService {
     ) {
       return;
     }
+
+    const existingPromise = this.inFlightRemediations.get(mediaKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    const remediationPromise = this.executeRemediation(s3Client, params);
+    this.inFlightRemediations.set(mediaKey, remediationPromise);
+
+    try {
+      await remediationPromise;
+    } finally {
+      this.inFlightRemediations.delete(mediaKey);
+    }
+  }
+
+  private async executeRemediation(
+    s3Client: S3Client,
+    params: RemediationParams,
+  ): Promise<void> {
+    const {
+      interviewId,
+      questionIndex,
+      mediaType,
+      mediaKey,
+      bucket,
+      versionNumber,
+    } = params;
 
     const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const tempDir = os.tmpdir();
@@ -156,6 +178,8 @@ export class MediaRemediationService {
         },
         versionNumber,
       );
+
+      throw error;
     } finally {
       // 6. Close read stream and clean up temp files
       fileStream?.destroy();

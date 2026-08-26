@@ -2045,12 +2045,22 @@ export interface components {
             name: string;
             email: string;
         };
+        MediaRemediationMetaDto: {
+            /** @enum {string} */
+            status: "idle" | "processing" | "completed" | "failed";
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            errorMessage?: string;
+        };
         MediaArtifactDto: {
             mediaKey: string;
             contentType: string;
             fileSizeBytes?: number;
             /** Format: date-time */
             uploadedAt: string;
+            remediation?: components["schemas"]["MediaRemediationMetaDto"];
         };
         AnswerBehaviorSignalsDto: {
             tabHiddenCount: number;

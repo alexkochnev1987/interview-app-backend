@@ -67,6 +67,22 @@ export class StartAllAnswerValidationsResponseDto {
   answers: StartAnswerValidationResultDto[];
 }
 
+export class MediaRemediationMetaDto {
+  @ApiProperty({
+    enum: ['idle', 'processing', 'completed', 'failed'],
+  })
+  status: string;
+
+  @ApiPropertyOptional()
+  startedAt?: Date;
+
+  @ApiPropertyOptional()
+  completedAt?: Date;
+
+  @ApiPropertyOptional()
+  errorMessage?: string;
+}
+
 export class MediaArtifactDto {
   @ApiProperty()
   mediaKey: string;
@@ -79,6 +95,9 @@ export class MediaArtifactDto {
 
   @ApiProperty()
   uploadedAt: Date;
+
+  @ApiPropertyOptional({ type: MediaRemediationMetaDto })
+  remediation?: MediaRemediationMetaDto;
 }
 
 export class AnswerBehaviorSignalsDto {
