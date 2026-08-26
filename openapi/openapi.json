@@ -11677,6 +11677,10 @@
           "reviewed": {
             "type": "boolean"
           },
+          "resultsReady": {
+            "type": "boolean",
+            "description": "True once HR has published at least one candidate-feedback block."
+          },
           "shareLinkActive": {
             "type": "boolean"
           },

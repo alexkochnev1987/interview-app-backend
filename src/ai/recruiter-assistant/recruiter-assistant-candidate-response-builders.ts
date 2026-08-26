@@ -24,8 +24,12 @@ export function formatCandidateInterviewStatusLabel(
         : 'submitted, waiting for feedback';
     case 'failed':
       return 'failed';
-    default:
-      return status.replaceAll('_', ' ');
+    default: {
+      const unexpectedStatus: never = status;
+      throw new Error(
+        `Unhandled interview status: ${String(unexpectedStatus)}`,
+      );
+    }
   }
 }
 
