@@ -120,4 +120,22 @@ export const SYSTEM_CONFIG_DEFAULTS: Record<string, SystemConfigDefaultEntry> =
       isPublic: true,
       isSecret: false,
     },
+    ENABLE_LIVE_TRANSCRIPT: {
+      key: 'ENABLE_LIVE_TRANSCRIPT',
+      value: 'true',
+      valueType: 'boolean',
+      description:
+        'Whether live speech-to-text transcript panel is enabled during candidate recording',
+      isPublic: true,
+      isSecret: false,
+    },
+    LIVE_TRANSCRIPT_DEFAULT_EXPANDED: {
+      key: 'LIVE_TRANSCRIPT_DEFAULT_EXPANDED',
+      value: 'false',
+      valueType: 'boolean',
+      description:
+        'Whether the live transcript panel starts expanded by default for candidates',
+      isPublic: true,
+      isSecret: false,
+    },
   };
