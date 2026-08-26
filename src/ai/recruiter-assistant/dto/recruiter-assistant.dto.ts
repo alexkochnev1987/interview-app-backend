@@ -266,6 +266,11 @@ export type RecruiterAssistantAwaitingInput =
 
 export class RecruiterAssistantReviewStateDto {
   @ApiProperty() reviewed: boolean;
+  @ApiPropertyOptional({
+    description:
+      'True once HR has published at least one candidate-feedback block.',
+  })
+  resultsReady?: boolean;
   @ApiPropertyOptional() shareLinkActive?: boolean;
   @ApiPropertyOptional() outcome?: string;
 }

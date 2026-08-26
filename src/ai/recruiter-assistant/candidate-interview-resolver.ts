@@ -5,7 +5,7 @@ import {
   sortInterviewsByCandidateRelevance,
 } from '../../interview/interview-portal-relevance';
 import { InterviewService } from '../../interview/interview.service';
-import { ActingUser } from './recruiter-assistant.types';
+import { InterviewRef, ActingUser } from './recruiter-assistant.types';
 
 export type CandidateInterviewResolveResult =
   | { kind: 'found'; interview: InterviewListItem }
@@ -88,4 +88,20 @@ export function filterActiveInterviews(
   return sortInterviewsByCandidateRelevance(
     interviews.filter((interview) => isActiveInterviewStatus(interview.status)),
   );
+}
+
+export function resolveCandidateOwnInterview(
+  interviews: readonly InterviewListItem[],
+  ref: InterviewRef,
+): CandidateInterviewResolveResult {
+  if (ref.interviewId) {
+    const match = interviews.find((item) => item.id === ref.interviewId);
+    return match ? { kind: 'found', interview: match } : { kind: 'not_found' };
+  }
+
+  if (ref.position) {
+    return resolveByPosition(interviews, ref.position);
+  }
+
+  return resolveLatestInterview(interviews);
 }

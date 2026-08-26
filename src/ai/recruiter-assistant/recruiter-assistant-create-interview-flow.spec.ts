@@ -60,6 +60,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     { draftQuestion: vi.fn() } as unknown as AiService,
     templateService as unknown as TemplateService,
     {} as never,
+    {} as never,
   );
 
   beforeEach(() => {

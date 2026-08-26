@@ -179,6 +179,7 @@ export class RecruiterAssistantService {
             locale,
             intent.ownInterviews,
             intent.scheduleInquiry,
+            intent.latest,
           ),
           sessionId,
         );

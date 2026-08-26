@@ -2,6 +2,7 @@ import type { InterviewListItem } from '../../interview/interfaces/interview.int
 import {
   filterActiveInterviews,
   resolveByPosition,
+  resolveCandidateOwnInterview,
   resolveLatestInterview,
 } from './candidate-interview-resolver';
 
@@ -166,5 +167,47 @@ describe('filterActiveInterviews', () => {
       'in-progress-new',
       'pending-old',
     ]);
+  });
+});
+
+describe('resolveCandidateOwnInterview', () => {
+  it('resolves by interview id when provided', () => {
+    const interviews = [
+      listItem({ id: 'a', position: 'Backend Developer' }),
+      listItem({ id: 'b', position: 'React Developer' }),
+    ];
+
+    expect(
+      resolveCandidateOwnInterview(interviews, { interviewId: 'b' }),
+    ).toEqual({
+      kind: 'found',
+      interview: expect.objectContaining({ id: 'b' }),
+    });
+  });
+
+  it('resolves by position when provided', () => {
+    const interviews = [
+      listItem({ id: 'a', position: 'Backend Developer' }),
+      listItem({ id: 'b', position: 'React Developer' }),
+    ];
+
+    expect(
+      resolveCandidateOwnInterview(interviews, { position: 'backend' }),
+    ).toEqual({
+      kind: 'found',
+      interview: expect.objectContaining({ id: 'a' }),
+    });
+  });
+
+  it('falls back to latest when no ref fields are provided', () => {
+    const interviews = [
+      listItem({ id: 'completed', status: 'completed' }),
+      listItem({ id: 'pending', status: 'pending' }),
+    ];
+
+    expect(resolveCandidateOwnInterview(interviews, {})).toEqual({
+      kind: 'found',
+      interview: expect.objectContaining({ id: 'pending' }),
+    });
   });
 });
