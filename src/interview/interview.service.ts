@@ -59,6 +59,8 @@ import {
   InterviewResult,
   InterviewWorkflow,
   MediaArtifact,
+  MediaRemediationMeta,
+  MediaRemediationStatus,
 } from './interfaces/interview.interface';
 import {
   getDemoScopeDenialReason,
@@ -1560,6 +1562,84 @@ export class InterviewService {
     return this.saveInterviewWithTerminalSideEffects(interview.status, next);
   }
 
+  async updateAnswerMediaRemediation(
+    id: string,
+    input: {
+      questionIndex: number;
+      mediaType: 'camera' | 'screen';
+      status: MediaRemediationStatus;
+      startedAt?: Date;
+      completedAt?: Date;
+      errorMessage?: string;
+      fileSizeBytes?: number;
+      versionNumber?: number;
+    },
+  ): Promise<Interview> {
+    const interview = await this.findOne(id);
+    const existingAnswer = interview.answers.find(
+      (a) => a.questionIndex === input.questionIndex,
+    );
+    if (!existingAnswer) {
+      return interview;
+    }
+
+    const updateArtifact = (
+      artifact?: MediaArtifact,
+    ): MediaArtifact | undefined => {
+      if (!artifact) return undefined;
+      return {
+        ...artifact,
+        fileSizeBytes: input.fileSizeBytes ?? artifact.fileSizeBytes,
+        remediation: {
+          status: input.status,
+          startedAt: input.startedAt ?? artifact.remediation?.startedAt,
+          completedAt: input.completedAt ?? artifact.remediation?.completedAt,
+          errorMessage: input.errorMessage,
+        },
+      };
+    };
+
+    const nextVersions = existingAnswer.versions?.map((ver) => {
+      if (input.versionNumber && ver.versionNumber !== input.versionNumber) {
+        return ver;
+      }
+      return {
+        ...ver,
+        camera:
+          input.mediaType === 'camera'
+            ? updateArtifact(ver.camera)
+            : ver.camera,
+        screen:
+          input.mediaType === 'screen'
+            ? updateArtifact(ver.screen)
+            : ver.screen,
+      };
+    });
+
+    const nextAnswer: Answer = {
+      ...existingAnswer,
+      camera:
+        input.mediaType === 'camera'
+          ? updateArtifact(existingAnswer.camera)
+          : existingAnswer.camera,
+      screen:
+        input.mediaType === 'screen'
+          ? updateArtifact(existingAnswer.screen)
+          : existingAnswer.screen,
+      versions: nextVersions,
+    };
+
+    const nextAnswers = interview.answers.map((ans) =>
+      ans.questionIndex === input.questionIndex ? nextAnswer : ans,
+    );
+
+    return this.saveInterview({
+      ...interview,
+      answers: nextAnswers,
+      updatedAt: new Date(),
+    });
+  }
+
   private async persistAnswerVersion(
     id: string,
     input: AddAnswerInput,
@@ -2414,6 +2494,23 @@ export class InterviewService {
     };
   }
 
+  private normalizeMediaRemediation(
+    value: unknown,
+  ): MediaRemediationMeta | undefined {
+    const raw = this.asRecord(value);
+    if (!raw) return undefined;
+    const status = this.asString(raw.status) as
+      | MediaRemediationStatus
+      | undefined;
+    if (!status) return undefined;
+    return {
+      status,
+      startedAt: this.asDate(raw.startedAt),
+      completedAt: this.asDate(raw.completedAt),
+      errorMessage: this.asString(raw.errorMessage),
+    };
+  }
+
   private normalizeMediaArtifact(
     value: unknown,
     fallbackMediaKey: string | undefined,
@@ -2434,6 +2531,7 @@ export class InterviewService {
       fileSizeBytes: this.asNumber(rawArtifact?.fileSizeBytes),
       uploadedAt:
         this.asDate(rawArtifact?.uploadedAt) ?? new Date(fallbackUploadedAt),
+      remediation: this.normalizeMediaRemediation(rawArtifact?.remediation),
     };
   }
 

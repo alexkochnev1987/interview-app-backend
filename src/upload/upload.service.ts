@@ -37,6 +37,7 @@ import {
   PresignedUrlResponseDto,
 } from './dto/upload.responses.dto';
 import { MediaCleanupService } from './media-cleanup.service';
+import { MediaRemediationService } from './media-remediation.service';
 import {
   buildInterviewMediaKey,
   InterviewMediaType,
@@ -60,6 +61,7 @@ export class UploadService {
     @Inject(forwardRef(() => InterviewService))
     private readonly interviewService: InterviewService,
     private readonly mediaCleanupService: MediaCleanupService,
+    private readonly mediaRemediationService: MediaRemediationService,
     private readonly appConfig: AppConfigService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET ?? 'interview-media';
@@ -274,6 +276,22 @@ export class UploadService {
       }),
     );
 
+    const mediaType: 'camera' | 'screen' = mediaKey.includes('screen')
+      ? 'screen'
+      : 'camera';
+    void this.mediaRemediationService
+      .remediateWebm(this.s3Client, {
+        interviewId,
+        questionIndex,
+        mediaType,
+        mediaKey,
+        bucket: this.bucket,
+        versionNumber,
+      })
+      .catch((err) =>
+        this.logger.error(`Remediation background error for ${mediaKey}`, err),
+      );
+
     return {
       mediaKey,
       uploadId: normalizedUploadId,
@@ -364,6 +382,22 @@ export class UploadService {
       }
     }
     await this.assertFileSizeBytesWithinLimit(actualSizeBytes);
+
+    const mediaType: 'camera' | 'screen' = mediaKey.includes('screen')
+      ? 'screen'
+      : 'camera';
+    void this.mediaRemediationService
+      .remediateWebm(this.s3Client, {
+        interviewId,
+        questionIndex,
+        mediaType,
+        mediaKey,
+        bucket: this.bucket,
+        versionNumber,
+      })
+      .catch((err) =>
+        this.logger.error(`Remediation background error for ${mediaKey}`, err),
+      );
 
     return { mediaKey, confirmed: true };
   }

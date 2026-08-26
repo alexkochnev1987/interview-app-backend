@@ -109,11 +109,25 @@ export interface InterviewListItem {
   updatedAt: Date;
 }
 
+export type MediaRemediationStatus =
+  | 'idle'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+
+export interface MediaRemediationMeta {
+  status: MediaRemediationStatus;
+  startedAt?: Date;
+  completedAt?: Date;
+  errorMessage?: string;
+}
+
 export interface MediaArtifact {
   mediaKey: string;
   contentType: string;
   fileSizeBytes?: number;
   uploadedAt: Date;
+  remediation?: MediaRemediationMeta;
 }
 
 export interface AnswerBehaviorSignals {
