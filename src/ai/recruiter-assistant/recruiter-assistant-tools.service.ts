@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { RecruiterAssistantConfigService } from '../../app-config/recruiter-assistant-config.service';
+import { AuthService } from '../../auth/auth.service';
 import { CandidateFeedbackShareService } from '../../feedback/candidate-feedback-share.service';
 import { CandidateFeedbackService } from '../../feedback/candidate-feedback.service';
 import { hasAnyPublishableCandidateFeedbackBlock } from '../../feedback/present-public-candidate-feedback';
@@ -9,6 +10,11 @@ import { AssignedHrDto } from '../../interview/dto/interview.responses.dto';
 import { QueryInterviewsDto } from '../../interview/dto/query-interviews.dto';
 import { InterviewListItem } from '../../interview/interfaces/interview.interface';
 import { toInterviewActor } from '../../interview/interview-actor';
+import { isTerminalInterviewStatus } from '../../interview/interview-management-rules';
+import {
+  isActiveInterviewStatus,
+  sortInterviewsByCandidateRelevance,
+} from '../../interview/interview-portal-relevance';
 import {
   InterviewService,
   MAX_INTERVIEWS_LIMIT,
@@ -21,12 +27,18 @@ import {
   TemplateSummary,
 } from '../../template/template.service';
 import { UserRole } from '../../user/interfaces/user.interface';
-import { UserService } from '../../user/user.service';
+import { CandidateSummary, UserService } from '../../user/user.service';
 import { AiService } from '../ai.service';
+import {
+  filterActiveInterviews,
+  loadAllCandidateInterviews,
+  resolveCandidateOwnInterview,
+} from './candidate-interview-resolver';
 import {
   RecruiterAssistantAssignHrPendingActionDto,
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantCreateSingleQuestionPendingActionDto,
+  RecruiterAssistantRedirectDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import type { QueryAssessmentsFilters } from './recruiter-assistant-assessment-filters-extract';
@@ -35,6 +47,25 @@ import {
   matchesAssessmentQuery,
   selectHrVisibleAssessmentListItems,
 } from './recruiter-assistant-assessment-status';
+import {
+  parseCandidateChoice,
+  parseRegisteredCandidateConfirmation,
+} from './recruiter-assistant-candidate-choice-parse';
+import { findMatchingCandidates as findMatchingCandidatesByName } from './recruiter-assistant-candidate-match';
+import {
+  buildCandidateActiveInterviewsResponseText,
+  buildCandidateAllInterviewsResponseText,
+  buildCandidateAmbiguousPositionResponseText,
+  buildCandidateContinueUrl,
+  buildCandidateInterviewSummary,
+  buildCandidateNoInterviewsResponseText,
+  buildCandidatePortalInterviewRedirect,
+  buildCandidatePortalRedirect,
+  buildCandidateReviewResponseText,
+  buildCandidateStatusResponseText,
+  buildCandidateUnknownPositionResponseText,
+  formatCandidateInterviewStatusLabel,
+} from './recruiter-assistant-candidate-response-builders';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
@@ -56,10 +87,9 @@ import {
   canCreateInterviews,
   canCreateQuestions,
   canReadQuestions,
-  canReadTemplates,
   canListInterviews,
   canListTeam,
-  NEW_CHAT_WELCOME_RESPONSE,
+  newChatWelcomeResponse,
 } from './recruiter-assistant.policy';
 import {
   ActingUser,
@@ -83,6 +113,7 @@ import { RecruiterQuestionMatcherService } from './recruiter-question-matcher.se
 import { buildQuestionSuggestions } from './recruiter-question-plan';
 
 const MAX_RECRUITER_ASSISTANT_HR_LIST_LIMIT = 100;
+const MAX_RECRUITER_ASSISTANT_CANDIDATE_LIST_LIMIT = 20;
 const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
 /** Max paginated pages when scanning interviews for assessment counts. */
 const MAX_ASSESSMENT_SCAN_PAGES = 10;
@@ -104,6 +135,7 @@ export class RecruiterAssistantToolsService {
     private readonly aiService: AiService,
     private readonly templateService: TemplateService,
     private readonly recruiterAssistantConfig: RecruiterAssistantConfigService,
+    private readonly authService: AuthService,
   ) {}
 
   async listInterviews(
@@ -356,12 +388,46 @@ export class RecruiterAssistantToolsService {
     };
   }
 
+  async listOwnInterviews(
+    user: ActingUser,
+    locale: Locale,
+    activeOnly?: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    void locale;
+    if (user.role !== 'candidate') {
+      return {
+        status: 'refused',
+        response: 'That question is only for candidates.',
+      };
+    }
+
+    const allInterviews = await loadAllCandidateInterviews(
+      this.interviewService,
+      user,
+    );
+    const listedInterviews = activeOnly
+      ? filterActiveInterviews(allInterviews)
+      : sortInterviewsByCandidateRelevance(allInterviews);
+
+    const response = activeOnly
+      ? buildCandidateActiveInterviewsResponseText(listedInterviews)
+      : buildCandidateAllInterviewsResponseText(listedInterviews);
+
+    return {
+      status: 'answered',
+      response,
+      interviews: listedInterviews,
+      redirect: buildCandidatePortalRedirect(),
+    };
+  }
+
   async getInterviewStatus(
     ref: InterviewRef,
     user: ActingUser,
     locale: Locale,
     ownInterviews?: boolean,
     scheduleInquiry?: boolean,
+    latest?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (ownInterviews) {
@@ -372,29 +438,12 @@ export class RecruiterAssistantToolsService {
         };
       }
 
-      const interview = await this.findCandidateOwnInterview(user);
-      if (!interview) {
-        return {
-          status: 'answered',
-          response: 'You do not have an interview yet.',
-        };
-      }
-
-      const statusText = interview.status.replace('_', ' ');
-      const response = scheduleInquiry
-        ? `Your interview for ${interview.position} is ${statusText}. It was created on ${interview.createdAt.toISOString().slice(0, 10)}. This app does not store a separate interview time or location yet — use your interview link when the status is pending or in progress.`
-        : `Your interview for ${interview.position} is ${statusText}.`;
-
-      return {
-        status: 'answered',
-        response,
-        interview: {
-          id: interview.id,
-          candidateName: interview.candidateName,
-          position: interview.position,
-          status: interview.status,
-        },
-      };
+      return this.getCandidateInterviewStatus(
+        user,
+        ref,
+        scheduleInquiry,
+        latest,
+      );
     }
 
     if (!canListInterviews(user)) {
@@ -637,10 +686,10 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  startNewChat(): RecruiterAssistantResponseDto {
+  startNewChat(user: ActingUser): RecruiterAssistantResponseDto {
     return {
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user),
     };
   }
 
@@ -835,8 +884,9 @@ export class RecruiterAssistantToolsService {
     );
   }
 
-  async continueCreateInterviewFlow(
+  async continueCreateInterviewRegisteredCandidateConfirm(
     state: RecruiterConversationState,
+    message: string,
     user: ActingUser,
     locale: Locale,
     sessionId: string,
@@ -849,7 +899,102 @@ export class RecruiterAssistantToolsService {
       };
     }
 
-    if (state.slots.templateChoice) {
+    const confirmation = parseRegisteredCandidateConfirmation(message);
+    if (!confirmation) {
+      return this.repromptRegisteredCandidateConfirm(state, user, sessionId);
+    }
+
+    const baseSlots = this.stripTransientCandidateSlots(state.slots);
+    const nextSlots =
+      confirmation === 'yes'
+        ? {
+            ...baseSlots,
+            ...this.registeredCandidateSlots({
+              id: state.slots.matchedCandidateId ?? '',
+              name: state.slots.matchedCandidateName ?? '',
+              email: state.slots.matchedCandidateEmail ?? '',
+            }),
+          }
+        : {
+            ...baseSlots,
+            candidateName: state.slots.candidateName ?? '',
+            candidateResolution: 'new',
+          };
+
+    this.conversationStore.update(user.id, sessionId, {
+      flow: 'create_interview',
+      slots: nextSlots,
+      awaitingInput: undefined,
+    });
+
+    return this.continueCreateInterviewFlow(
+      { flow: 'create_interview', slots: nextSlots },
+      user,
+      locale,
+      sessionId,
+    );
+  }
+
+  repromptRegisteredCandidateConfirm(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    sessionId: string,
+  ): RecruiterAssistantResponseDto {
+    const candidate = {
+      id: state.slots.matchedCandidateId ?? '',
+      name: state.slots.matchedCandidateName ?? '',
+      email: state.slots.matchedCandidateEmail ?? '',
+    };
+
+    this.conversationStore.update(user.id, sessionId, {
+      flow: 'create_interview',
+      slots: state.slots,
+      awaitingInput: 'confirmRegisteredCandidate',
+    });
+
+    return {
+      status: 'answered',
+      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      awaitingInput: 'confirmRegisteredCandidate',
+      candidates: [candidate],
+    };
+  }
+
+  async continueCreateInterviewFlow(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    message?: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    if (!canCreateInterviews(user)) {
+      return {
+        status: 'denied',
+        response: 'You do not have permission to create interviews.',
+        escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
+      };
+    }
+
+    if (state.awaitingInput === 'confirmRegisteredCandidate' && message) {
+      return this.continueCreateInterviewRegisteredCandidateConfirm(
+        state,
+        message,
+        user,
+        locale,
+        sessionId,
+      );
+    }
+
+    if (state.slots.candidateChoice && !this.isCandidateResolved(state.slots)) {
+      return this.continueCreateInterviewCandidateChoice(
+        state,
+        user,
+        locale,
+        sessionId,
+      );
+    }
+
+    if (this.isCandidateResolved(state.slots) && state.slots.templateChoice) {
       return this.progressTemplateChoiceFlow(
         state.slots,
         user,
@@ -864,6 +1009,21 @@ export class RecruiterAssistantToolsService {
       locale,
       sessionId,
       { persistFlowOnMissing: true },
+    );
+  }
+
+  private async continueCreateInterviewCandidateChoice(
+    state: RecruiterConversationState,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+  ): Promise<RecruiterAssistantResponseDto> {
+    return this.resolveCandidateChoiceFromSlots(
+      state.slots,
+      user,
+      locale,
+      sessionId,
+      true,
     );
   }
 
@@ -904,7 +1064,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: 'Opening the interview form.',
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
@@ -939,7 +1099,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'refused',
         response: `Template "${template.name}" has no available questions. Try another template or say "create my own".`,
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
@@ -955,6 +1115,7 @@ export class RecruiterAssistantToolsService {
       type: 'create_interview',
       position: position ?? template.position ?? '',
       candidateName,
+      candidateEmail: slots.candidateEmail,
       interviewLocale: locale,
       questions,
     };
@@ -984,25 +1145,60 @@ export class RecruiterAssistantToolsService {
     sessionId: string,
     options: { persistFlowOnMissing: boolean },
   ): Promise<RecruiterAssistantResponseDto> {
-    const candidateName = input.candidateName ?? input.slots?.candidateName;
-    const position = input.position ?? input.slots?.position;
+    const slots: Record<string, string> = { ...(input.slots ?? {}) };
+    if (input.candidateName && !slots.candidateName) {
+      slots.candidateName = input.candidateName;
+    }
+    if (input.position && !slots.position) {
+      slots.position = input.position;
+    }
 
-    if (!candidateName) {
-      return this.requestCreateInterviewSlot(
+    if (slots.candidateChoice && !this.isCandidateResolved(slots)) {
+      return this.resolveCandidateChoiceFromSlots(
+        slots,
         user,
+        locale,
         sessionId,
-        'candidateName',
-        { position: position ?? '' },
         options.persistFlowOnMissing,
       );
     }
 
-    if (!position) {
-      return this.requestCreateInterviewSlot(
+    if (!this.isCandidateResolved(slots)) {
+      if (slots.candidateName) {
+        return this.resolveProvidedCandidateName(
+          slots.candidateName,
+          slots,
+          user,
+          locale,
+          sessionId,
+          options.persistFlowOnMissing,
+        );
+      }
+
+      return this.requestCandidatePicker(
         user,
         sessionId,
-        'position',
-        { candidateName },
+        slots,
+        options.persistFlowOnMissing,
+      );
+    }
+
+    const candidateName = slots.candidateName;
+    if (!candidateName) {
+      return this.requestCandidatePicker(
+        user,
+        sessionId,
+        slots,
+        options.persistFlowOnMissing,
+      );
+    }
+
+    const position = slots.position;
+    if (!position) {
+      return this.requestCreateInterviewPosition(
+        user,
+        sessionId,
+        slots,
         options.persistFlowOnMissing,
       );
     }
@@ -1012,8 +1208,11 @@ export class RecruiterAssistantToolsService {
       user,
       locale,
     );
-    const slots = {
+    const templateFlowSlots = {
       candidateName,
+      candidateId: slots.candidateId,
+      candidateEmail: slots.candidateEmail,
+      candidateResolution: slots.candidateResolution,
       position,
       templateIds: templates.map((template) => template.id).join(','),
     };
@@ -1029,13 +1228,13 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: `No templates found for ${position}. Say "create my own" to open the interview form.`,
-        redirect: buildInterviewRedirect({ candidateName, position }),
+        redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
 
     this.conversationStore.update(user.id, sessionId, {
       flow: 'create_interview',
-      slots,
+      slots: templateFlowSlots,
       awaitingInput: 'templateChoice',
     });
 
@@ -1047,10 +1246,269 @@ export class RecruiterAssistantToolsService {
     };
   }
 
-  private requestCreateInterviewSlot(
+  private buildCreateInterviewRedirect(
+    slots: Record<string, string>,
+  ): RecruiterAssistantRedirectDto {
+    return buildInterviewRedirect({
+      candidateName: slots.candidateName,
+      candidateEmail: slots.candidateEmail,
+      position: slots.position,
+    });
+  }
+
+  private isCandidateResolved(slots: Record<string, string>): boolean {
+    return (
+      slots.candidateResolution === 'registered' ||
+      slots.candidateResolution === 'new'
+    );
+  }
+
+  private registeredCandidateSlots(
+    candidate: CandidateSummary,
+  ): Record<string, string> {
+    return {
+      candidateId: candidate.id,
+      candidateName: candidate.name,
+      candidateEmail: candidate.email,
+      candidateResolution: 'registered',
+    };
+  }
+
+  private stripTransientCandidateSlots(
+    slots: Record<string, string>,
+  ): Record<string, string> {
+    const rest = { ...slots };
+    delete rest.candidateChoice;
+    delete rest.matchedCandidateId;
+    delete rest.matchedCandidateName;
+    delete rest.matchedCandidateEmail;
+    return rest;
+  }
+
+  private withCandidatePickerMetadata(
+    slots: Record<string, string>,
+    candidates: CandidateSummary[],
+    searchQuery?: string,
+  ): Record<string, string> {
+    return {
+      ...slots,
+      candidateIds: candidates.map((candidate) => candidate.id).join(','),
+      ...(searchQuery !== undefined
+        ? { candidateSearchQuery: searchQuery }
+        : {}),
+    };
+  }
+
+  private async loadPickerCandidates(
+    user: ActingUser,
+    slots: Record<string, string>,
+  ): Promise<CandidateSummary[]> {
+    const searchQuery = slots.candidateSearchQuery;
+    const candidates = await this.fetchCandidates(
+      user,
+      searchQuery || undefined,
+    );
+    const ids = new Set((slots.candidateIds ?? '').split(',').filter(Boolean));
+    if (ids.size === 0) {
+      return candidates;
+    }
+    return candidates.filter((candidate) => ids.has(candidate.id));
+  }
+
+  private async requestCandidatePicker(
     user: ActingUser,
     sessionId: string,
-    awaitingInput: 'candidateName' | 'position',
+    slots: Record<string, string>,
+    persist: boolean,
+    options?: { candidates?: CandidateSummary[]; message?: string },
+  ): Promise<RecruiterAssistantResponseDto> {
+    const searchQuery = slots.candidateSearchQuery ?? slots.candidateName ?? '';
+    const candidates =
+      options?.candidates ??
+      (await this.fetchCandidates(user, searchQuery || undefined));
+    const nextSlots = this.withCandidatePickerMetadata(
+      this.stripTransientCandidateSlots(slots),
+      candidates,
+      searchQuery,
+    );
+    const cleanedSlots = Object.fromEntries(
+      Object.entries(nextSlots).filter(([, value]) => value),
+    );
+
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow(
+          'create_interview',
+          'candidateChoice',
+          cleanedSlots,
+        ),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response:
+        options?.message ??
+        'Pick a registered candidate or type a new candidate name.',
+      awaitingInput: 'candidateChoice',
+      candidates,
+    };
+  }
+
+  private requestRegisteredCandidateConfirm(
+    user: ActingUser,
+    sessionId: string,
+    slots: Record<string, string>,
+    candidate: CandidateSummary,
+    persist: boolean,
+  ): RecruiterAssistantResponseDto {
+    const nextSlots = this.withCandidatePickerMetadata(
+      slots,
+      [candidate],
+      slots.candidateName,
+    );
+    const cleanedSlots = Object.fromEntries(
+      Object.entries(nextSlots).filter(([, value]) => value),
+    );
+
+    if (persist) {
+      this.conversationStore.update(
+        user.id,
+        sessionId,
+        startConversationFlow(
+          'create_interview',
+          'confirmRegisteredCandidate',
+          cleanedSlots,
+        ),
+      );
+    }
+
+    return {
+      status: 'answered',
+      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      awaitingInput: 'confirmRegisteredCandidate',
+      candidates: [candidate],
+    };
+  }
+
+  private async resolveProvidedCandidateName(
+    candidateName: string,
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    persist: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const candidates = await this.fetchCandidates(user, candidateName);
+    const matches = this.findMatchingCandidates(candidates, candidateName);
+
+    if (matches.length === 0) {
+      return this.progressCreateInterviewFlow(
+        {
+          slots: {
+            ...this.stripTransientCandidateSlots(slots),
+            candidateName,
+            candidateResolution: 'new',
+          },
+        },
+        user,
+        locale,
+        sessionId,
+        { persistFlowOnMissing: persist },
+      );
+    }
+
+    if (matches.length === 1) {
+      return this.requestRegisteredCandidateConfirm(
+        user,
+        sessionId,
+        {
+          ...this.stripTransientCandidateSlots(slots),
+          candidateName,
+          matchedCandidateId: matches[0].id,
+          matchedCandidateName: matches[0].name,
+          matchedCandidateEmail: matches[0].email,
+        },
+        matches[0],
+        persist,
+      );
+    }
+
+    return this.requestCandidatePicker(
+      user,
+      sessionId,
+      { ...this.stripTransientCandidateSlots(slots), candidateName },
+      persist,
+      {
+        candidates: matches,
+        message: `Found ${matches.length} registered candidates matching "${candidateName}". Pick one or type a new name.`,
+      },
+    );
+  }
+
+  private async resolveCandidateChoiceFromSlots(
+    slots: Record<string, string>,
+    user: ActingUser,
+    locale: Locale,
+    sessionId: string,
+    persist: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const choice = parseCandidateChoice(slots.candidateChoice ?? '');
+    const baseSlots = this.stripTransientCandidateSlots(slots);
+
+    if (!choice) {
+      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
+        message:
+          'Pick a registered candidate from the list or type a new candidate name.',
+      });
+    }
+
+    if (choice.kind === 'new') {
+      return this.progressCreateInterviewFlow(
+        {
+          slots: {
+            ...baseSlots,
+            candidateName: choice.name,
+            candidateResolution: 'new',
+          },
+        },
+        user,
+        locale,
+        sessionId,
+        { persistFlowOnMissing: persist },
+      );
+    }
+
+    const pickerCandidates = await this.loadPickerCandidates(user, slots);
+    const selected = pickerCandidates.find(
+      (candidate) => candidate.id === choice.id,
+    );
+    if (!selected) {
+      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
+        message:
+          'That candidate is not in the list. Pick one from the list or type a new name.',
+      });
+    }
+
+    return this.progressCreateInterviewFlow(
+      {
+        slots: {
+          ...baseSlots,
+          ...this.registeredCandidateSlots(selected),
+        },
+      },
+      user,
+      locale,
+      sessionId,
+      { persistFlowOnMissing: persist },
+    );
+  }
+
+  private requestCreateInterviewPosition(
+    user: ActingUser,
+    sessionId: string,
     slots: Record<string, string>,
     persist: boolean,
   ): RecruiterAssistantResponseDto {
@@ -1062,17 +1520,14 @@ export class RecruiterAssistantToolsService {
       this.conversationStore.update(
         user.id,
         sessionId,
-        startConversationFlow('create_interview', awaitingInput, cleanedSlots),
+        startConversationFlow('create_interview', 'position', cleanedSlots),
       );
     }
 
     return {
       status: 'answered',
-      response:
-        awaitingInput === 'candidateName'
-          ? 'What is the candidate name?'
-          : 'What position is the interview for?',
-      awaitingInput,
+      response: 'What position is the interview for?',
+      awaitingInput: 'position',
     };
   }
 
@@ -1446,6 +1901,24 @@ export class RecruiterAssistantToolsService {
     );
   }
 
+  private async fetchCandidates(
+    user: ActingUser,
+    query?: string,
+  ): Promise<CandidateSummary[]> {
+    return this.userService.searchCandidates(
+      { demo: user.demo },
+      query,
+      MAX_RECRUITER_ASSISTANT_CANDIDATE_LIST_LIMIT,
+    );
+  }
+
+  private findMatchingCandidates(
+    candidates: CandidateSummary[],
+    name: string,
+  ): CandidateSummary[] {
+    return findMatchingCandidatesByName(candidates, name);
+  }
+
   private questionCountListFilters(
     filters: QueryQuestionsDto,
   ): QueryQuestionsDto {
@@ -1507,37 +1980,157 @@ export class RecruiterAssistantToolsService {
     return { items, truncated };
   }
 
-  private async findCandidateOwnInterview(user: ActingUser) {
-    return this.interviewService.findLatestByCandidateEmail(
-      user.email,
-      user.demo,
+  private async findCandidateOwnInterview(
+    user: ActingUser,
+    ref: InterviewRef = {},
+    latest?: boolean,
+  ) {
+    const interviews = await loadAllCandidateInterviews(
+      this.interviewService,
+      user,
     );
+    const resolved = resolveCandidateOwnInterview(interviews, ref, latest);
+    return { resolved, interviews };
+  }
+
+  private async getCandidateInterviewStatus(
+    user: ActingUser,
+    ref: InterviewRef,
+    scheduleInquiry?: boolean,
+    latest?: boolean,
+  ): Promise<RecruiterAssistantResponseDto> {
+    const { resolved, interviews } = await this.findCandidateOwnInterview(
+      user,
+      ref,
+      latest,
+    );
+
+    if (interviews.length === 0) {
+      return {
+        status: 'answered',
+        response: buildCandidateNoInterviewsResponseText(),
+      };
+    }
+
+    if (resolved.kind === 'ambiguous') {
+      return {
+        status: 'answered',
+        response: buildCandidateAmbiguousPositionResponseText(
+          resolved.interviews,
+        ),
+        interviews: resolved.interviews,
+      };
+    }
+
+    if (resolved.kind === 'not_found') {
+      if (ref.position && !latest) {
+        return {
+          status: 'answered',
+          response: buildCandidateUnknownPositionResponseText(
+            ref.position,
+            interviews,
+          ),
+          interviews,
+        };
+      }
+
+      return {
+        status: 'answered',
+        response: buildCandidateNoInterviewsResponseText(),
+      };
+    }
+
+    const interview = resolved.interview;
+    const resultsReady = isTerminalInterviewStatus(interview.status)
+      ? await this.isCandidateResultsReady(interview.id)
+      : false;
+    const statusLabel = formatCandidateInterviewStatusLabel(
+      interview.status,
+      resultsReady,
+    );
+    const continueUrl = this.buildCandidateContinueUrl(interview);
+
+    return {
+      status: 'answered',
+      response: buildCandidateStatusResponseText(
+        interview,
+        statusLabel,
+        scheduleInquiry,
+      ),
+      interview: buildCandidateInterviewSummary(interview, { continueUrl }),
+      redirect: buildCandidatePortalInterviewRedirect(interview.id),
+    };
   }
 
   private async getCandidateReviewState(
     user: ActingUser,
     ref: InterviewRef,
   ): Promise<RecruiterAssistantResponseDto> {
-    const interview = await this.findCandidateOwnInterview(user);
-    if (!interview) {
+    const { resolved, interviews } = await this.findCandidateOwnInterview(
+      user,
+      ref,
+    );
+
+    if (interviews.length === 0) {
       return {
         status: 'answered',
-        response: 'You do not have an interview yet.',
+        response: buildCandidateNoInterviewsResponseText(),
       };
     }
 
-    if (ref.interviewId || ref.candidateName) {
-      const idMismatch =
-        ref.interviewId != null && ref.interviewId !== interview.id;
-      const nameMismatch =
-        ref.candidateName != null &&
-        scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
+    if (resolved.kind === 'ambiguous') {
+      return {
+        status: 'answered',
+        response: buildCandidateAmbiguousPositionResponseText(
+          resolved.interviews,
+        ),
+        interviews: resolved.interviews,
+      };
+    }
 
-      if (idMismatch || nameMismatch) {
+    if (resolved.kind === 'not_found') {
+      if (ref.interviewId || ref.candidateName) {
         return {
           status: 'answered',
           response:
-            'You can only check the review state of your own interview.',
+            'You can only check the review state of your own interviews.',
+        };
+      }
+
+      if (ref.position) {
+        return {
+          status: 'answered',
+          response: buildCandidateUnknownPositionResponseText(
+            ref.position,
+            interviews,
+          ),
+          interviews,
+        };
+      }
+
+      return {
+        status: 'answered',
+        response: buildCandidateNoInterviewsResponseText(),
+      };
+    }
+
+    const interview = resolved.interview;
+
+    if (ref.interviewId && ref.interviewId !== interview.id) {
+      return {
+        status: 'answered',
+        response: 'You can only check the review state of your own interviews.',
+      };
+    }
+
+    if (ref.candidateName) {
+      const nameMismatch =
+        scorePersonNameMatch(interview.candidateName, ref.candidateName) < 60;
+      if (nameMismatch) {
+        return {
+          status: 'answered',
+          response:
+            'You can only check the review state of your own interviews.',
         };
       }
     }
@@ -1547,34 +2140,49 @@ export class RecruiterAssistantToolsService {
     );
     const shareLinkActive =
       await this.candidateFeedbackShareService.hasActiveShareLink(interview.id);
+    const resultsReady = feedback
+      ? hasAnyPublishableCandidateFeedbackBlock(feedback)
+      : false;
 
     const reviewed =
       interview.status === 'completed' &&
-      (!!interview.decision ||
-        !!feedback?.outcome ||
-        (feedback != null &&
-          hasAnyPublishableCandidateFeedbackBlock(feedback)));
+      (!!interview.decision || !!feedback?.outcome || resultsReady);
 
     const reviewState = {
       reviewed,
+      resultsReady,
       shareLinkActive,
       outcome: feedback?.outcome ?? interview.decision,
     };
 
-    const response = reviewed
-      ? `Your interview has been reviewed${reviewState.outcome ? ` (${reviewState.outcome})` : ''}.`
-      : 'Your interview has not been reviewed yet.';
-
     return {
       status: 'answered',
-      response,
-      interview: {
-        id: interview.id,
-        candidateName: interview.candidateName,
-        position: interview.position,
-        status: interview.status,
-        reviewState,
-      },
+      response: buildCandidateReviewResponseText(
+        interview,
+        reviewed,
+        reviewState.outcome,
+      ),
+      interview: buildCandidateInterviewSummary(interview, { reviewState }),
+      redirect: buildCandidatePortalInterviewRedirect(interview.id),
     };
+  }
+
+  private async isCandidateResultsReady(interviewId: string): Promise<boolean> {
+    const feedback =
+      await this.candidateFeedbackService.findByInterviewId(interviewId);
+    return feedback ? hasAnyPublishableCandidateFeedbackBlock(feedback) : false;
+  }
+
+  private buildCandidateContinueUrl(
+    interview: InterviewListItem,
+  ): string | undefined {
+    if (!isActiveInterviewStatus(interview.status)) {
+      return undefined;
+    }
+
+    const token = this.authService.generateCandidatePortalContinueToken(
+      interview.id,
+    );
+    return buildCandidateContinueUrl(interview.id, token);
   }
 }

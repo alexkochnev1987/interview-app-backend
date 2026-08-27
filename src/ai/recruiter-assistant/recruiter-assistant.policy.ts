@@ -4,6 +4,9 @@ import { ActingUser } from './recruiter-assistant.types';
 export const OUT_OF_SCOPE_RESPONSE =
   'I can help with interviews, question counts, assessments, team members, activity summaries, assignments, and question setup inside this app.';
 
+export const CANDIDATE_OUT_OF_SCOPE_RESPONSE =
+  'I can help with your interview status, review updates, and incomplete interviews.';
+
 export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
   'Recruiter assistant is disabled in this environment.';
 
@@ -18,6 +21,21 @@ export function recruiterAssistantDisabledResponse(globalOff: boolean): string {
 
 export const NEW_CHAT_WELCOME_RESPONSE =
   'Started a new conversation. How can I help with interviews, questions, or assignments?';
+
+export const CANDIDATE_NEW_CHAT_WELCOME_RESPONSE =
+  'Started a new conversation. Ask about your interview status, whether feedback is ready, or interviews you still need to complete.';
+
+export function outOfScopeResponse(user: ActingUser): string {
+  return user.role === 'candidate'
+    ? CANDIDATE_OUT_OF_SCOPE_RESPONSE
+    : OUT_OF_SCOPE_RESPONSE;
+}
+
+export function newChatWelcomeResponse(user: ActingUser): string {
+  return user.role === 'candidate'
+    ? CANDIDATE_NEW_CHAT_WELCOME_RESPONSE
+    : NEW_CHAT_WELCOME_RESPONSE;
+}
 
 const CONFIRMATION_KEYWORDS = [
   'yes',

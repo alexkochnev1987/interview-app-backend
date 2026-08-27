@@ -4,7 +4,10 @@ import {
   isConversationResetMessage,
   isSimilarQuestionOverrideCancellation,
   isSimilarQuestionOverrideConfirmation,
+  newChatWelcomeResponse,
+  outOfScopeResponse,
 } from './recruiter-assistant.policy';
+import { ActingUser } from './recruiter-assistant.types';
 
 describe('recruiter assistant confirmation messages', () => {
   it('recognizes exact confirmation replies only', () => {
@@ -50,5 +53,38 @@ describe('recruiter assistant confirmation messages', () => {
     expect(isConversationResetMessage('no cancel creating the question')).toBe(
       false,
     );
+  });
+});
+
+describe('role-aware assistant copy', () => {
+  const candidate: ActingUser = {
+    id: 'candidate-1',
+    role: 'candidate',
+    demo: false,
+    email: 'candidate@example.com',
+    name: 'Alice',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    avatarSource: 'none',
+    hasGoogleAvatar: false,
+  };
+  const admin: ActingUser = {
+    id: 'admin-1',
+    role: 'admin',
+    demo: false,
+    email: 'admin@example.com',
+    name: 'Admin',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    avatarSource: 'none',
+    hasGoogleAvatar: false,
+  };
+
+  it('returns candidate-specific out-of-scope guidance', () => {
+    expect(outOfScopeResponse(candidate)).toContain('interview status');
+    expect(outOfScopeResponse(admin)).toContain('question counts');
+  });
+
+  it('returns candidate-specific new chat welcome text', () => {
+    expect(newChatWelcomeResponse(candidate)).toContain('feedback is ready');
+    expect(newChatWelcomeResponse(admin)).toContain('assignments');
   });
 });

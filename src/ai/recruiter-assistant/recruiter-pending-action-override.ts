@@ -12,13 +12,18 @@ function isCreatePendingAction(
   );
 }
 
-function questionEquals(
-  left: RecruiterAssistantSuggestedQuestionDto,
-  right: RecruiterAssistantSuggestedQuestionDto,
+function optionalStringEquals(
+  left: string | undefined,
+  right: string | undefined,
 ): boolean {
-  return (
-    left.key === right.key && JSON.stringify(left) === JSON.stringify(right)
-  );
+  return (left ?? '') === (right ?? '');
+}
+
+function optionalLocaleEquals(
+  left: RecruiterAssistantCreatePendingActionDto['interviewLocale'],
+  right: RecruiterAssistantCreatePendingActionDto['interviewLocale'],
+): boolean {
+  return (left ?? undefined) === (right ?? undefined);
 }
 
 export function applyCreatePendingActionQuestionOverride(
@@ -30,10 +35,10 @@ export function applyCreatePendingActionQuestionOverride(
   }
 
   if (
-    stored.position !== override.position ||
-    stored.candidateName !== override.candidateName ||
-    stored.candidateEmail !== override.candidateEmail ||
-    stored.interviewLocale !== override.interviewLocale
+    !optionalStringEquals(stored.position, override.position) ||
+    !optionalStringEquals(stored.candidateName, override.candidateName) ||
+    !optionalStringEquals(stored.candidateEmail, override.candidateEmail) ||
+    !optionalLocaleEquals(stored.interviewLocale, override.interviewLocale)
   ) {
     return null;
   }
@@ -50,9 +55,16 @@ export function applyCreatePendingActionQuestionOverride(
   );
   const questions: RecruiterAssistantSuggestedQuestionDto[] = [];
 
+  const seenKeys = new Set<string>();
+
   for (const question of override.questions) {
+    if (seenKeys.has(question.key)) {
+      return null;
+    }
+    seenKeys.add(question.key);
+
     const original = storedByKey.get(question.key);
-    if (!original || !questionEquals(original, question)) {
+    if (!original) {
       return null;
     }
     questions.push(original);
