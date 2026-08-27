@@ -41,6 +41,7 @@ describe('RecruiterAssistantToolsService interview activity summary', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   beforeEach(() => {
