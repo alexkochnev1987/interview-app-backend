@@ -141,6 +141,32 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     expect(response.pendingAction).toBeUndefined();
   });
 
+  it('declines registered match via continueCreateInterviewFlow without cancelling', async () => {
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        awaitingInput: 'confirmRegisteredCandidate',
+        slots: {
+          candidateName: 'Alice',
+          position: 'React Developer',
+          matchedCandidateId: registeredAlice.id,
+          matchedCandidateName: registeredAlice.name,
+          matchedCandidateEmail: registeredAlice.email,
+        },
+      },
+      user,
+      'en',
+      'session-1',
+      'no',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'templateChoice',
+    });
+    expect(response.response).not.toBe('Cancelled. No changes were made.');
+  });
+
   it('lists templates when a new candidate name has no registered match', async () => {
     const response = await service.prepareCreateInterview(
       'Alice',

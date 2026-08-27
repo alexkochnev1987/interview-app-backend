@@ -89,7 +89,6 @@ import {
   canReadQuestions,
   canListInterviews,
   canListTeam,
-  isCancellationMessage,
   newChatWelcomeResponse,
 } from './recruiter-assistant.policy';
 import {
@@ -977,18 +976,6 @@ export class RecruiterAssistantToolsService {
     }
 
     if (state.awaitingInput === 'confirmRegisteredCandidate' && message) {
-      if (isCancellationMessage(message)) {
-        this.conversationStore.update(
-          user.id,
-          sessionId,
-          idleConversationState(),
-        );
-        return {
-          status: 'answered',
-          response: 'Cancelled. No changes were made.',
-        };
-      }
-
       return this.continueCreateInterviewRegisteredCandidateConfirm(
         state,
         message,
