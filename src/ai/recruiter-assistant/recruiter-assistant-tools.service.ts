@@ -87,7 +87,6 @@ import {
   canCreateInterviews,
   canCreateQuestions,
   canReadQuestions,
-  canReadTemplates,
   canListInterviews,
   canListTeam,
   isCancellationMessage,
@@ -1291,13 +1290,11 @@ export class RecruiterAssistantToolsService {
   private stripTransientCandidateSlots(
     slots: Record<string, string>,
   ): Record<string, string> {
-    const {
-      candidateChoice: _candidateChoice,
-      matchedCandidateId: _matchedCandidateId,
-      matchedCandidateName: _matchedCandidateName,
-      matchedCandidateEmail: _matchedCandidateEmail,
-      ...rest
-    } = slots;
+    const rest = { ...slots };
+    delete rest.candidateChoice;
+    delete rest.matchedCandidateId;
+    delete rest.matchedCandidateName;
+    delete rest.matchedCandidateEmail;
     return rest;
   }
 
