@@ -40,12 +40,14 @@ describe('recruiter-assistant-response-builders', () => {
     expect(
       buildInterviewRedirect({
         candidateName: 'Alice',
+        candidateEmail: 'alice@example.com',
         position: 'Dev',
       }),
     ).toEqual({
       path: '/interviews/new',
       query: {
         candidateName: 'Alice',
+        candidateEmail: 'alice@example.com',
         position: 'Dev',
       },
     });

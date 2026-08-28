@@ -55,6 +55,7 @@ describe('RecruiterAssistantToolsService list team', () => {
     {} as never,
     {} as never,
     recruiterAssistantConfig as never,
+    {} as never,
   );
 
   beforeEach(() => {

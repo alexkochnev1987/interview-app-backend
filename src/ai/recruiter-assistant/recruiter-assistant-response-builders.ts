@@ -44,11 +44,15 @@ export function buildSimilarQuestionMatchCards(
 
 export function buildInterviewRedirect(input: {
   candidateName?: string;
+  candidateEmail?: string;
   position?: string;
 }): RecruiterAssistantRedirectDto {
   const query: Record<string, string> = {};
   if (input.candidateName) {
     query.candidateName = input.candidateName;
+  }
+  if (input.candidateEmail) {
+    query.candidateEmail = input.candidateEmail;
   }
   if (input.position) {
     query.position = input.position;

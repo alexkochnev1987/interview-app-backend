@@ -77,6 +77,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     { draftQuestion: vi.fn() } as never,
     { findAll: vi.fn() } as never,
     {} as never,
+    {} as never,
   );
 
   beforeEach(() => {

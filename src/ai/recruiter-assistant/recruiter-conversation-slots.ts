@@ -6,7 +6,7 @@ import {
 
 type SlotAwaitingInput = Exclude<
   RecruiterAssistantAwaitingInput,
-  'confirmAddDespiteSimilar'
+  'confirmAddDespiteSimilar' | 'confirmRegisteredCandidate'
 >;
 
 const SLOT_KEYS: Record<SlotAwaitingInput, string> = {
@@ -14,6 +14,7 @@ const SLOT_KEYS: Record<SlotAwaitingInput, string> = {
   interview: 'interviewRef',
   questionName: 'questionName',
   candidateName: 'candidateName',
+  candidateChoice: 'candidateChoice',
   position: 'position',
   templateChoice: 'templateChoice',
 };
@@ -21,7 +22,10 @@ const SLOT_KEYS: Record<SlotAwaitingInput, string> = {
 export function isSlotAwaitingInput(
   awaitingInput: RecruiterAssistantAwaitingInput,
 ): awaitingInput is SlotAwaitingInput {
-  return awaitingInput !== 'confirmAddDespiteSimilar';
+  return (
+    awaitingInput !== 'confirmAddDespiteSimilar' &&
+    awaitingInput !== 'confirmRegisteredCandidate'
+  );
 }
 
 export function idleConversationState(): RecruiterConversationState {
