@@ -48,6 +48,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     aiService as unknown as AiService,
     { findAll: vi.fn() } as never,
     {} as never,
+    {} as never,
   );
 
   beforeEach(() => {

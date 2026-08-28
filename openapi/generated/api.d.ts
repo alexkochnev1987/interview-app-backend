@@ -2693,6 +2693,8 @@ export interface components {
         };
         RecruiterAssistantReviewStateDto: {
             reviewed: boolean;
+            /** @description True once HR has published at least one candidate-feedback block. */
+            resultsReady?: boolean;
             shareLinkActive?: boolean;
             outcome?: string;
         };
@@ -2744,7 +2746,7 @@ export interface components {
             redirect?: components["schemas"]["RecruiterAssistantRedirectDto"];
             templates?: components["schemas"]["TemplateSummaryResponseDto"][];
             /** @enum {string} */
-            awaitingInput?: "hr" | "interview" | "questionName" | "confirmAddDespiteSimilar" | "candidateName" | "position" | "templateChoice";
+            awaitingInput?: "hr" | "interview" | "questionName" | "confirmAddDespiteSimilar" | "candidateName" | "candidateChoice" | "confirmRegisteredCandidate" | "position" | "templateChoice";
             createdInterview?: components["schemas"]["RecruiterAssistantCreatedInterviewDto"];
             /** @enum {string} */
             escalateTo?: "hr" | "admin" | "super_admin";
@@ -2758,6 +2760,8 @@ export interface components {
             interviewActivity?: components["schemas"]["RecruiterAssistantInterviewActivityDto"];
             teamSummary?: components["schemas"]["RecruiterAssistantTeamSummaryDto"];
             teamMembers?: components["schemas"]["AuthUserResponseDto"][];
+            /** @description Registered candidates returned during create_interview picker steps. */
+            candidates?: components["schemas"]["CandidateSummaryResponseDto"][];
         };
         PublicCandidateFeedbackTextBlockDto: {
             /** @description Candidate-facing strengths / recommendations text. */

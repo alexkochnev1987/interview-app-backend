@@ -70,6 +70,16 @@ export class RecruiterConversationFlowService {
       );
     }
 
+    if (ctx.state.awaitingInput === 'confirmRegisteredCandidate') {
+      return this.tools.continueCreateInterviewFlow(
+        ctx.state,
+        ctx.user,
+        ctx.locale,
+        ctx.sessionId,
+        ctx.message,
+      );
+    }
+
     if (isCancellationMessage(ctx.message)) {
       this.conversationStore.update(
         ctx.user.id,
@@ -108,6 +118,7 @@ export class RecruiterConversationFlowService {
           ctx.user,
           ctx.locale,
           ctx.sessionId,
+          ctx.message,
         );
       default:
         return null;

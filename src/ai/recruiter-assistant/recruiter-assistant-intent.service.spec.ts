@@ -298,6 +298,76 @@ describe('RecruiterAssistantIntentService', () => {
     });
   });
 
+  it('classifies candidate latest interview status requests', () => {
+    expect(
+      service.classify(
+        'what is the status of my latest interview',
+        candidate,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'interview_status',
+      ref: {},
+      ownInterviews: true,
+      latest: true,
+    });
+  });
+
+  it('classifies candidate status by position requests', () => {
+    expect(
+      service.classify(
+        'what is the status of my React Developer interview',
+        candidate,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'interview_status',
+      ref: { position: 'React Developer' },
+      ownInterviews: true,
+    });
+  });
+
+  it('classifies candidate review-by-position requests', () => {
+    expect(
+      service.classify(
+        'did my React Developer interview get reviewed',
+        candidate,
+        'en',
+      ),
+    ).toEqual({
+      kind: 'review_state',
+      ref: { position: 'React Developer' },
+    });
+  });
+
+  it('classifies candidate new or uncompleted interview list requests', () => {
+    expect(
+      service.classify('do I have any new interviews', candidate, 'en'),
+    ).toEqual({
+      kind: 'list_own_interviews',
+      activeOnly: true,
+    });
+    expect(
+      service.classify('show my uncompleted interviews', candidate, 'en'),
+    ).toEqual({
+      kind: 'list_own_interviews',
+      activeOnly: true,
+    });
+  });
+
+  it('does not route candidate active-list prompts to HR list_interviews', () => {
+    expect(
+      service.classify('show pending interviews', candidate, 'en').kind,
+    ).toBe('list_own_interviews');
+  });
+
+  it('does not treat HR review prompts as candidate own-review routing', () => {
+    expect(service.classify('did Alice get reviewed', admin, 'en')).toEqual({
+      kind: 'review_state',
+      ref: {},
+    });
+  });
+
   it('classifies org activity summary phrasing', () => {
     expect(
       service.classify(

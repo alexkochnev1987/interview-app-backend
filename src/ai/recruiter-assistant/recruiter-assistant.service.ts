@@ -13,7 +13,7 @@ import {
   isCancellationMessage,
   isConfirmationMessage,
   isConversationResetMessage,
-  OUT_OF_SCOPE_RESPONSE,
+  outOfScopeResponse,
   recruiterAssistantDisabledResponse,
 } from './recruiter-assistant.policy';
 import { ActingUser } from './recruiter-assistant.types';
@@ -55,7 +55,7 @@ export class RecruiterAssistantService {
     }
 
     if (!canAccessChat(user)) {
-      return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+      return { status: 'refused', response: outOfScopeResponse(user) };
     }
 
     const message = dto.message.trim();
@@ -156,6 +156,11 @@ export class RecruiterAssistantService {
           ),
           sessionId,
         );
+      case 'list_own_interviews':
+        return this.withSession(
+          await this.tools.listOwnInterviews(user, locale, intent.activeOnly),
+          sessionId,
+        );
       case 'list_unassigned':
         return this.withSession(
           await this.tools.listUnassigned(user, locale),
@@ -174,6 +179,7 @@ export class RecruiterAssistantService {
             locale,
             intent.ownInterviews,
             intent.scheduleInquiry,
+            intent.latest,
           ),
           sessionId,
         );
@@ -247,7 +253,7 @@ export class RecruiterAssistantService {
         );
       case 'out_of_scope':
         return this.withSession(
-          { status: 'refused', response: OUT_OF_SCOPE_RESPONSE },
+          { status: 'refused', response: outOfScopeResponse(user) },
           sessionId,
         );
     }
@@ -268,7 +274,7 @@ export class RecruiterAssistantService {
     }
 
     if (!canAccessChat(user)) {
-      return { status: 'refused', response: OUT_OF_SCOPE_RESPONSE };
+      return { status: 'refused', response: outOfScopeResponse(user) };
     }
 
     return this.resetConversation(user);
@@ -280,7 +286,7 @@ export class RecruiterAssistantService {
     this.conversationStore.clearAllForUser(user.id);
     await this.pendingActionStore.revokeAllForUser(user.id);
     const sessionId = this.conversationStore.issue(user.id);
-    return this.withSession(this.tools.startNewChat(), sessionId);
+    return this.withSession(this.tools.startNewChat(user), sessionId);
   }
 
   private withSession(
