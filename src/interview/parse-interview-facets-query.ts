@@ -5,7 +5,13 @@ import { apiBadRequest } from '../common/errors/api-error';
 import { ApiErrorCode } from '../common/errors/api-error.codes';
 import { QueryInterviewFacetsDto } from './dto/query-interview-facets.dto';
 
-const FACETS_QUERY_KEYS = new Set(['q', 'position', 'status', 'assignedHrId']);
+const FACETS_QUERY_KEYS = new Set([
+  'q',
+  'position',
+  'status',
+  'assignedHrId',
+  'candidateEmail',
+]);
 
 function flattenValidationErrors(
   errors: ValidationError[],
