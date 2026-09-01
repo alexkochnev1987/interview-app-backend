@@ -183,6 +183,31 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     expect(response.templates).toHaveLength(1);
   });
 
+  it('runs registered-match search when a name is typed in the candidate picker', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          position: 'React Developer',
+          candidateIds: registeredAlice.id,
+          candidateSearchQuery: '',
+          candidateChoice: 'Alice Johnson',
+        },
+      },
+      user,
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmRegisteredCandidate',
+    });
+    expect(response.candidates).toEqual([registeredAlice]);
+  });
+
   it('assigns a registered candidate when the picker id is chosen', async () => {
     userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
 

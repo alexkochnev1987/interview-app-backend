@@ -1466,18 +1466,13 @@ export class RecruiterAssistantToolsService {
     }
 
     if (choice.kind === 'new') {
-      return this.progressCreateInterviewFlow(
-        {
-          slots: {
-            ...baseSlots,
-            candidateName: choice.name,
-            candidateResolution: 'new',
-          },
-        },
+      return this.resolveProvidedCandidateName(
+        choice.name,
+        baseSlots,
         user,
         locale,
         sessionId,
-        { persistFlowOnMissing: persist },
+        persist,
       );
     }
 
