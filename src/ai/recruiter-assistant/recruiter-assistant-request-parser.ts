@@ -7,8 +7,8 @@ const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const QUESTION_COUNT_PATTERNS = [
   /\b(\d{1,2})\s+questions?\b/i,
   /\bquestions?\s+(?:count\s+)?(?:of\s+)?(\d{1,2})\b/i,
-  /\b(?:generate|prepare|create|make|need|want)\s+(\d{1,2})\s+(?:questions?|вопрос)/i,
-  /\b(\d{1,2})\s+(?:вопрос(?:а|ов)?)\b/i,
+  /\b(?:generate|prepare|create|make|need|want)\s+(\d{1,2})\s+(?:questions?|вопрос|pytani|пытанн)/iu,
+  /\b(\d{1,2})\s+(?:вопрос(?:а|ов)?|pytani(?:a|e|ń)?|pyta[nń]|пытанн(?:е|і|я))\b/iu,
 ];
 
 const CANDIDATE_EMAIL_PATTERNS = [

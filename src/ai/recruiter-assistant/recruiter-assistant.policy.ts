@@ -1,4 +1,6 @@
 import { hasEffectivePermission } from '../../auth/permissions';
+import { Locale } from '../../locale/locale.constants';
+import { assistantMessage } from './recruiter-assistant-i18n';
 import { ActingUser } from './recruiter-assistant.types';
 
 export const OUT_OF_SCOPE_RESPONSE =
@@ -31,10 +33,14 @@ export function outOfScopeResponse(user: ActingUser): string {
     : OUT_OF_SCOPE_RESPONSE;
 }
 
-export function newChatWelcomeResponse(user: ActingUser): string {
-  return user.role === 'candidate'
-    ? CANDIDATE_NEW_CHAT_WELCOME_RESPONSE
-    : NEW_CHAT_WELCOME_RESPONSE;
+export function newChatWelcomeResponse(
+  user: ActingUser,
+  messageLocale: Locale,
+): string {
+  return assistantMessage(
+    messageLocale,
+    user.role === 'candidate' ? 'newChatWelcomeCandidate' : 'newChatWelcome',
+  );
 }
 
 const CONFIRMATION_KEYWORDS = [

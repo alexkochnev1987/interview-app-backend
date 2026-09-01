@@ -6,12 +6,13 @@ import { trimField } from './recruiter-assistant-string-utils';
 
 const QUOTED_TEXT = /[""](.+?)[""]/;
 const STATUS_PATTERN =
-  /\b(?:status\s+(?:is\s+)?|with\s+status\s+)(ready_to_score|ready|scoring|failed|all)\b/i;
+  /\b(?:status\s+(?:is\s+)?|with\s+status\s+|статус\s+(?:равен\s+)?|status\s+(?:to\s+)?|status\s+(?:jest\s+)?|статус\s+(?:гэта\s+)?)(ready_to_score|ready|scoring|failed|all)\b/iu;
 const STATUS_BEFORE_ASSESSMENTS =
   /\b(ready_to_score|ready|scoring|failed)\s+(?:assessments?|assesments?|assignments?)\b/i;
-const CONTAINING_PATTERN = /\bcontaining\s+(.+?)(?:[.?!]|$)/i;
+const CONTAINING_PATTERN =
+  /\b(?:containing|содержа(?:щ|)|змесцив|zawieraj[aą]c(?:e|y)?)\s+(.+?)(?:[.?!]|$)/iu;
 const IMPLICIT_SEARCH_PATTERN =
-  /\b(?:show|list|find|count|display)\s+(.+?)\s+(?:assessments?|assesments?|assignments?)\b/i;
+  /\b(?:show|list|find|count|display|покажи|список|сколько|пакажы|спіс|колькі|poka[żz]|lista|ile|znajd[źz]|wy[śs]wietl)\s+(.+?)\s+(?:assessments?|assesments?|assignments?)\b/iu;
 
 const REVIEW_STATUSES = new Set<string>([
   ...ASSESSMENT_REVIEW_STATUS_VALUES,

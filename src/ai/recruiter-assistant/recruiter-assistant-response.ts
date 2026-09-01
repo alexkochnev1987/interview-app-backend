@@ -1,7 +1,9 @@
+import { Locale } from '../../locale/locale.constants';
 import {
   RecruiterAssistantCreatePendingActionDto,
   RecruiterAssistantSuggestedQuestionDto,
 } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 
 export function buildQuestionPlanResponse(input: {
   existingCount: number;
@@ -9,6 +11,7 @@ export function buildQuestionPlanResponse(input: {
   canCreateQuestions: boolean;
   canCreateInterviews: boolean;
   candidateName?: string;
+  messageLocale: Locale;
 }): string {
   const {
     existingCount,
@@ -16,21 +19,30 @@ export function buildQuestionPlanResponse(input: {
     canCreateQuestions,
     canCreateInterviews,
     candidateName,
+    messageLocale,
   } = input;
 
   const creationNote =
     missingCount === 0
-      ? 'All suggested questions already have close matches in the question bank.'
+      ? msg(messageLocale, 'questionPlan.allMatched')
       : canCreateQuestions
-        ? `I found ${existingCount} close matches and ${missingCount} questions would need to be created.`
-        : `I found ${existingCount} close matches and ${missingCount} gaps, but your user cannot create questions.`;
+        ? msg(messageLocale, 'questionPlan.foundMatches', {
+            existingCount,
+            missingCount,
+          })
+        : msg(messageLocale, 'questionPlan.noCreatePermission', {
+            existingCount,
+            missingCount,
+          });
 
   const interviewNote =
     candidateName && canCreateInterviews
-      ? `Confirm and I will create the missing questions, then create the interview for ${candidateName}.`
+      ? msg(messageLocale, 'questionPlan.confirmWithInterview', {
+          candidateName,
+        })
       : candidateName
-        ? 'Your user cannot create interviews, so I can only prepare the question set.'
-        : 'Confirm and I will create the missing questions. Send the candidate name when you want me to create the interview.';
+        ? msg(messageLocale, 'questionPlan.noInterviewPermission')
+        : msg(messageLocale, 'questionPlan.confirmQuestionsOnly');
 
   return `${creationNote} ${interviewNote}`;
 }

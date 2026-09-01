@@ -101,6 +101,7 @@ export class RecruiterAssistantController {
   @ApiForbiddenResponse({ type: ApiErrorResponseDto })
   async resetChat(
     @CurrentUser() user: ActingUser,
+    @CurrentLocale() locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     const globallyEnabled =
       await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
@@ -114,6 +115,6 @@ export class RecruiterAssistantController {
         recruiterAssistantDisabledResponse(!globallyEnabled),
       );
     }
-    return this.recruiterAssistantService.newChat(user);
+    return this.recruiterAssistantService.newChat(user, locale);
   }
 }

@@ -32,6 +32,7 @@ describe('RecruiterConversationFlowService', () => {
       hasGoogleAvatar: false,
     },
     locale: 'en' as const,
+    messageLocale: 'en' as const,
     sessionId: 'session-1',
     message: 'Jane Doe',
     state: startConversationFlow('assign_hr', 'hr', { interviewRef: 'Alice' }),
@@ -59,6 +60,7 @@ describe('RecruiterConversationFlowService', () => {
       {
         flow: 'idle',
         slots: {},
+        messageLocale: 'en',
       },
     );
     expect(response).toEqual({
@@ -120,7 +122,7 @@ describe('RecruiterConversationFlowService', () => {
     expect(conversationStore.update).toHaveBeenCalledWith(
       'user-1',
       'session-1',
-      { flow: 'idle', slots: {} },
+      { flow: 'idle', slots: {}, messageLocale: 'en' },
     );
     expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();
     expect(tools.repromptSimilarQuestionConfirmation).not.toHaveBeenCalled();

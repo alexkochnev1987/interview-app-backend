@@ -67,6 +67,7 @@ import {
   formatCandidateInterviewStatusLabel,
 } from './recruiter-assistant-candidate-response-builders';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
@@ -118,7 +119,6 @@ const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
 /** Max paginated pages when scanning interviews for assessment counts. */
 const MAX_ASSESSMENT_SCAN_PAGES = 10;
 
-/** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
   private readonly logger = new Logger(RecruiterAssistantToolsService.name);

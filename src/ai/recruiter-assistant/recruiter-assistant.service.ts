@@ -7,6 +7,7 @@ import {
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
+import { resolveConversationLocale } from './recruiter-assistant-message-locale';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   canAccessChat,
@@ -20,6 +21,7 @@ import { ActingUser } from './recruiter-assistant.types';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { idleConversationState } from './recruiter-conversation-slots';
 import { RecruiterConversationStore } from './recruiter-conversation.store';
+import { RecruiterConversationState } from './recruiter-conversation.types';
 import { RecruiterPendingActionExecutorService } from './recruiter-pending-action-executor.service';
 import { applyPendingActionOverride } from './recruiter-pending-action-override';
 import { RecruiterPendingActionStore } from './recruiter-pending-action.store';
@@ -60,12 +62,12 @@ export class RecruiterAssistantService {
 
     const message = dto.message.trim();
     if (isConversationResetMessage(message)) {
-      return this.newChat(user);
+      return this.newChat(user, locale, message);
     }
 
     const intent = this.intentRouter.classify(message, user, locale);
     if (intent.kind === 'new_chat') {
-      return this.newChat(user);
+      return this.newChat(user, locale, message);
     }
 
     let sessionId = dto.sessionId;
@@ -75,6 +77,13 @@ export class RecruiterAssistantService {
 
     const conversationState =
       this.conversationStore.get(user.id, sessionId) ?? idleConversationState();
+    const { messageLocale, state: stateWithLocale } = this.applyMessageLocale(
+      user.id,
+      sessionId,
+      conversationState,
+      message,
+      locale,
+    );
 
     if (dto.pendingActionId) {
       if (isConfirmationMessage(message)) {
@@ -90,6 +99,7 @@ export class RecruiterAssistantService {
                 'That confirmation expired, was already used, or does not belong to your account.',
             },
             sessionId,
+            messageLocale,
           );
         }
 
@@ -107,6 +117,7 @@ export class RecruiterAssistantService {
                   'That confirmation could not be applied. Please review the question list and try again.',
               },
               sessionId,
+              messageLocale,
             );
           }
           confirmedAction = overridden;
@@ -119,6 +130,7 @@ export class RecruiterAssistantService {
             locale,
           ),
           sessionId,
+          messageLocale,
         );
       }
 
@@ -130,6 +142,7 @@ export class RecruiterAssistantService {
             response: 'Cancelled. No changes were made.',
           },
           sessionId,
+          messageLocale,
         );
       }
     }
@@ -137,12 +150,13 @@ export class RecruiterAssistantService {
     const activeFlowResponse = await this.conversationFlow.resumeActiveFlow({
       user,
       locale,
+      messageLocale,
       sessionId,
       message,
-      state: conversationState,
+      state: stateWithLocale,
     });
     if (activeFlowResponse) {
-      return this.withSession(activeFlowResponse, sessionId);
+      return this.withSession(activeFlowResponse, sessionId, messageLocale);
     }
 
     switch (intent.kind) {
@@ -155,21 +169,25 @@ export class RecruiterAssistantService {
             intent.readyForReview,
           ),
           sessionId,
+          messageLocale,
         );
       case 'list_own_interviews':
         return this.withSession(
           await this.tools.listOwnInterviews(user, locale, intent.activeOnly),
           sessionId,
+          messageLocale,
         );
       case 'list_unassigned':
         return this.withSession(
           await this.tools.listUnassigned(user, locale),
           sessionId,
+          messageLocale,
         );
       case 'list_hrs':
         return this.withSession(
           await this.tools.listHrs(user, locale),
           sessionId,
+          messageLocale,
         );
       case 'interview_status':
         return this.withSession(
@@ -182,16 +200,19 @@ export class RecruiterAssistantService {
             intent.latest,
           ),
           sessionId,
+          messageLocale,
         );
       case 'review_state':
         return this.withSession(
           await this.tools.getReviewState(intent.ref, user, locale),
           sessionId,
+          messageLocale,
         );
       case 'assign_hr':
         return this.withSession(
           await this.tools.prepareAssignHr(intent, user, locale, sessionId),
           sessionId,
+          messageLocale,
         );
       case 'create_question':
         return this.withSession(
@@ -202,6 +223,7 @@ export class RecruiterAssistantService {
             sessionId,
           ),
           sessionId,
+          messageLocale,
         );
       case 'create_interview':
         return this.withSession(
@@ -213,35 +235,46 @@ export class RecruiterAssistantService {
             sessionId,
           ),
           sessionId,
+          messageLocale,
         );
       case 'create_questions_interview':
         return this.withSession(
           await this.tools.prepareCreateQuestions(intent.parsed, user, locale),
           sessionId,
+          messageLocale,
         );
-      case 'switch_locale':
-        return this.withSession(
-          this.tools.switchLocale(
-            intent.requestedLocale,
-            intent.rawToken,
-            locale,
-          ),
-          sessionId,
+      case 'switch_locale': {
+        const switchResponse = this.tools.switchLocale(
+          intent.requestedLocale,
+          intent.rawToken,
+          locale,
         );
+        const switchedLocale = switchResponse.locale ?? messageLocale;
+        if (switchResponse.locale) {
+          this.conversationStore.update(user.id, sessionId, {
+            ...stateWithLocale,
+            messageLocale: switchedLocale,
+          });
+        }
+        return this.withSession(switchResponse, sessionId, switchedLocale);
+      }
       case 'count_questions':
         return this.withSession(
           await this.tools.countQuestions(intent.filters, user, locale),
           sessionId,
+          messageLocale,
         );
       case 'list_assessments':
         return this.withSession(
           await this.tools.listAssessments(intent.filters, user, locale),
           sessionId,
+          messageLocale,
         );
       case 'interview_activity_summary':
         return this.withSession(
           await this.tools.summarizeInterviewActivity(user, locale),
           sessionId,
+          messageLocale,
         );
       case 'list_team':
         return this.withSession(
@@ -250,16 +283,22 @@ export class RecruiterAssistantService {
             includeSummary: intent.includeSummary,
           }),
           sessionId,
+          messageLocale,
         );
       case 'out_of_scope':
         return this.withSession(
           { status: 'refused', response: outOfScopeResponse(user) },
           sessionId,
+          messageLocale,
         );
     }
   }
 
-  async newChat(user: ActingUser): Promise<RecruiterAssistantResponseDto> {
+  async newChat(
+    user: ActingUser,
+    headerLocale: Locale = 'en',
+    message?: string,
+  ): Promise<RecruiterAssistantResponseDto> {
     if (
       !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
         user.role,
@@ -277,22 +316,62 @@ export class RecruiterAssistantService {
       return { status: 'refused', response: outOfScopeResponse(user) };
     }
 
-    return this.resetConversation(user);
+    return this.resetConversation(user, headerLocale, message);
   }
 
   private async resetConversation(
     user: ActingUser,
+    headerLocale: Locale,
+    message?: string,
   ): Promise<RecruiterAssistantResponseDto> {
     this.conversationStore.clearAllForUser(user.id);
     await this.pendingActionStore.revokeAllForUser(user.id);
     const sessionId = this.conversationStore.issue(user.id);
-    return this.withSession(this.tools.startNewChat(user), sessionId);
+    const messageLocale = resolveConversationLocale(
+      message ?? '',
+      headerLocale,
+    );
+    this.conversationStore.update(user.id, sessionId, {
+      ...idleConversationState(),
+      messageLocale,
+    });
+    return this.withSession(
+      this.tools.startNewChat(user),
+      sessionId,
+      messageLocale,
+    );
+  }
+
+  private applyMessageLocale(
+    userId: string,
+    sessionId: string,
+    state: RecruiterConversationState,
+    message: string,
+    headerLocale: Locale,
+  ): { messageLocale: Locale; state: RecruiterConversationState } {
+    const messageLocale = resolveConversationLocale(
+      message,
+      headerLocale,
+      state.messageLocale,
+    );
+    if (state.messageLocale === messageLocale) {
+      return { messageLocale, state };
+    }
+
+    const nextState = { ...state, messageLocale };
+    this.conversationStore.update(userId, sessionId, nextState);
+    return { messageLocale, state: nextState };
   }
 
   private withSession(
     response: RecruiterAssistantResponseDto,
     sessionId: string,
+    messageLocale: Locale,
   ): RecruiterAssistantResponseDto {
-    return { ...response, sessionId };
+    return {
+      ...response,
+      sessionId,
+      locale: response.locale ?? messageLocale,
+    };
   }
 }

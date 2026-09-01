@@ -25,10 +25,7 @@ export function detectMessageLocale(
     return 'ru';
   }
 
-  if (/\p{Script=Latin}/u.test(trimmed)) {
-    return 'en';
-  }
-
+  // Latin without Polish diacritics is ambiguous (names, "yes", numbers).
   return null;
 }
 

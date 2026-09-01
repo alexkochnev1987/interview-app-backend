@@ -2,28 +2,31 @@ import {
   InterviewListItem,
   InterviewStatus,
 } from '../../interview/interfaces/interview.interface';
+import { Locale } from '../../locale/locale.constants';
 import {
   RecruiterAssistantInterviewSummaryDto,
   RecruiterAssistantRedirectDto,
 } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 
 export function formatCandidateInterviewStatusLabel(
+  messageLocale: Locale,
   status: InterviewStatus,
   resultsReady?: boolean,
 ): string {
   switch (status) {
     case 'pending':
-      return 'ready to start';
+      return msg(messageLocale, 'candidate.status.readyToStart');
     case 'in_progress':
-      return 'in progress';
+      return msg(messageLocale, 'candidate.status.inProgress');
     case 'processing':
-      return 'submitted and under review';
+      return msg(messageLocale, 'candidate.status.submittedReview');
     case 'completed':
       return resultsReady
-        ? 'review complete'
-        : 'submitted, waiting for feedback';
+        ? msg(messageLocale, 'candidate.status.reviewComplete')
+        : msg(messageLocale, 'candidate.status.submittedWaiting');
     case 'failed':
-      return 'failed';
+      return msg(messageLocale, 'candidate.status.failed');
     default: {
       const unexpectedStatus: never = status;
       throw new Error(
@@ -68,92 +71,118 @@ export function buildCandidateInterviewSummary(
 }
 
 export function buildCandidateStatusResponseText(
+  messageLocale: Locale,
   interview: InterviewListItem,
   statusLabel: string,
   scheduleInquiry?: boolean,
 ): string {
   if (scheduleInquiry) {
-    return (
-      `Your interview for ${interview.position} is ${statusLabel}. ` +
-      `It was created on ${interview.createdAt.toISOString().slice(0, 10)}. ` +
-      'This app does not store a separate interview time or location yet — ' +
-      'use your interview link when the status is pending or in progress.'
-    );
+    return msg(messageLocale, 'candidate.statusResponseSchedule', {
+      position: interview.position,
+      statusLabel,
+      createdDate: interview.createdAt.toISOString().slice(0, 10),
+    });
   }
 
-  return `Your interview for ${interview.position} is ${statusLabel}.`;
+  return msg(messageLocale, 'candidate.statusResponse', {
+    position: interview.position,
+    statusLabel,
+  });
 }
 
 export function buildCandidateReviewResponseText(
+  messageLocale: Locale,
   interview: InterviewListItem,
   reviewed: boolean,
   outcome?: string,
 ): string {
-  const positionLabel = interview.position;
+  const position = interview.position;
+  const outcomeSuffix = outcome ? ` (${outcome})` : '';
+
   if (reviewed) {
-    return `Your ${positionLabel} interview has been reviewed${outcome ? ` (${outcome})` : ''}.`;
+    return msg(messageLocale, 'candidate.reviewed', {
+      position,
+      outcome: outcomeSuffix,
+    });
   }
   if (interview.status === 'completed' || interview.status === 'processing') {
-    return `Your ${positionLabel} interview has been submitted but has not been reviewed yet.`;
+    return msg(messageLocale, 'candidate.submittedNotReviewed', { position });
   }
-  return `Your ${positionLabel} interview has not been reviewed yet.`;
+  return msg(messageLocale, 'candidate.notReviewed', { position });
 }
 
 export function buildCandidateAmbiguousPositionResponseText(
+  messageLocale: Locale,
   interviews: InterviewListItem[],
 ): string {
   const options = interviews
     .map(
       (item) =>
-        `${item.position} (${formatCandidateInterviewStatusLabel(item.status)})`,
+        `${item.position} (${formatCandidateInterviewStatusLabel(messageLocale, item.status)})`,
     )
     .join('; ');
-  return `I found multiple interviews matching that position: ${options}. Please specify the exact role name.`;
+  return msg(messageLocale, 'candidate.ambiguousPosition', { options });
 }
 
 export function buildCandidateUnknownPositionResponseText(
+  messageLocale: Locale,
   positionQuery: string,
   interviews: InterviewListItem[],
 ): string {
   const available = [...new Set(interviews.map((item) => item.position))].join(
     ', ',
   );
-  return `I couldn't find an interview for "${positionQuery}". Your interviews: ${available}.`;
+  return msg(messageLocale, 'candidate.unknownPosition', {
+    query: positionQuery,
+    available,
+  });
 }
 
-export function buildCandidateNoInterviewsResponseText(): string {
-  return 'You do not have any interviews yet.';
+export function buildCandidateNoInterviewsResponseText(
+  messageLocale: Locale,
+): string {
+  return msg(messageLocale, 'candidate.noInterviews');
 }
 
 export function buildCandidateActiveInterviewsResponseText(
+  messageLocale: Locale,
   interviews: InterviewListItem[],
 ): string {
   if (interviews.length === 0) {
-    return 'You have no interviews waiting to be completed.';
+    return msg(messageLocale, 'candidate.noActiveInterviews');
   }
 
   const describe = (item: InterviewListItem): string =>
-    `${item.position} (${formatCandidateInterviewStatusLabel(item.status)})`;
+    `${item.position} (${formatCandidateInterviewStatusLabel(messageLocale, item.status)})`;
 
   if (interviews.length === 1) {
-    return `You have 1 interview to complete: ${describe(interviews[0])}.`;
+    return msg(messageLocale, 'candidate.oneActiveInterview', {
+      description: describe(interviews[0]),
+    });
   }
 
-  return `You have ${interviews.length} interviews to complete: ${interviews.map(describe).join('; ')}.`;
+  return msg(messageLocale, 'candidate.multipleActiveInterviews', {
+    count: interviews.length,
+    descriptions: interviews.map(describe).join('; '),
+  });
 }
 
 export function buildCandidateAllInterviewsResponseText(
+  messageLocale: Locale,
   interviews: InterviewListItem[],
 ): string {
   if (interviews.length === 0) {
-    return buildCandidateNoInterviewsResponseText();
+    return buildCandidateNoInterviewsResponseText(messageLocale);
   }
 
   const summary = interviews
     .map(
       (item) =>
-        `${item.position} (${formatCandidateInterviewStatusLabel(item.status)})`,
+        `${item.position} (${formatCandidateInterviewStatusLabel(messageLocale, item.status)})`,
     )
     .join('; ');
-  return `You have ${interviews.length} interview(s): ${summary}.`;
+  return msg(messageLocale, 'candidate.allInterviews', {
+    count: interviews.length,
+    summary,
+  });
 }

@@ -19,6 +19,7 @@ import { RecruiterConversationState } from './recruiter-conversation.types';
 export interface ActiveFlowContext {
   user: ActingUser;
   locale: Locale;
+  messageLocale: Locale;
   sessionId: string;
   message: string;
   state: RecruiterConversationState;
@@ -43,7 +44,7 @@ export class RecruiterConversationFlowService {
         this.conversationStore.update(
           ctx.user.id,
           ctx.sessionId,
-          idleConversationState(),
+          this.idleState(ctx),
         );
         return {
           status: 'answered',
@@ -84,7 +85,7 @@ export class RecruiterConversationFlowService {
       this.conversationStore.update(
         ctx.user.id,
         ctx.sessionId,
-        idleConversationState(),
+        this.idleState(ctx),
       );
       return {
         status: 'answered',
@@ -95,7 +96,10 @@ export class RecruiterConversationFlowService {
     const state = ctx.state.awaitingInput
       ? captureAwaitingSlot(ctx.state, ctx.message)
       : ctx.state;
-    this.conversationStore.update(ctx.user.id, ctx.sessionId, state);
+    this.conversationStore.update(ctx.user.id, ctx.sessionId, {
+      ...state,
+      messageLocale: ctx.messageLocale,
+    });
 
     switch (state.flow) {
       case 'assign_hr':
@@ -123,5 +127,12 @@ export class RecruiterConversationFlowService {
       default:
         return null;
     }
+  }
+
+  private idleState(ctx: ActiveFlowContext): RecruiterConversationState {
+    return {
+      ...idleConversationState(),
+      messageLocale: ctx.messageLocale,
+    };
   }
 }
