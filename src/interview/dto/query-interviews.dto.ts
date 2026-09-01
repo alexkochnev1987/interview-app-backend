@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
   IsOptional,
@@ -75,6 +76,15 @@ export class InterviewListFiltersDto {
   @ValidateIf((o) => o.assignedHrId !== ASSIGNED_HR_FILTER_UNASSIGNED)
   @IsUUID()
   assignedHrId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by registered candidate account email (exact match, case-insensitive).',
+  })
+  @IsOptional()
+  @Transform(({ value }) => trimToUndefined(value)?.toLowerCase())
+  @IsEmail()
+  candidateEmail?: string;
 }
 
 export class QueryInterviewsDto extends InterviewListFiltersDto {

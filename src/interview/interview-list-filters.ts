@@ -1,6 +1,7 @@
 import { demoScopeClause } from '../common/demo-scope';
 import { excludeOnboardingStarterClause } from '../common/onboarding-starter';
 import { isAssignedHrFilterUnassigned } from './assigned-hr-filter';
+import { normalizeCandidateEmail } from './candidate-portal-interview-access';
 import { InterviewListFiltersDto } from './dto/query-interviews.dto';
 import type { InterviewActor } from './interfaces/interview.interface';
 
@@ -54,6 +55,11 @@ export function buildInterviewFilterClauses(
       params.push(query.assignedHrId);
       whereClauses.push(`i.assigned_hr_id = $${params.length}`);
     }
+  }
+
+  if (query.candidateEmail) {
+    params.push(normalizeCandidateEmail(query.candidateEmail));
+    whereClauses.push(`lower(trim(i.candidate_email)) = $${params.length}`);
   }
 
   const whereSql =
