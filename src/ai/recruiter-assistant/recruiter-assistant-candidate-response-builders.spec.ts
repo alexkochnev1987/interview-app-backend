@@ -25,35 +25,35 @@ function listItem(
 
 describe('recruiter-assistant-candidate-response-builders', () => {
   it('maps interview statuses to candidate-friendly labels', () => {
-    expect(formatCandidateInterviewStatusLabel('pending')).toBe(
+    expect(formatCandidateInterviewStatusLabel('en', 'pending')).toBe(
       'ready to start',
     );
-    expect(formatCandidateInterviewStatusLabel('processing')).toBe(
+    expect(formatCandidateInterviewStatusLabel('en', 'processing')).toBe(
       'submitted and under review',
     );
-    expect(formatCandidateInterviewStatusLabel('completed', true)).toBe(
+    expect(formatCandidateInterviewStatusLabel('en', 'completed', true)).toBe(
       'review complete',
     );
-    expect(formatCandidateInterviewStatusLabel('completed', false)).toBe(
+    expect(formatCandidateInterviewStatusLabel('en', 'completed', false)).toBe(
       'submitted, waiting for feedback',
     );
   });
 
   it('builds status text for a specific interview', () => {
-    expect(buildCandidateStatusResponseText(listItem(), 'ready to start')).toBe(
-      'Your interview for React Developer is ready to start.',
-    );
+    expect(
+      buildCandidateStatusResponseText('en', listItem(), 'ready to start'),
+    ).toBe('Your interview for React Developer is ready to start.');
   });
 
   it('builds review text with the position name', () => {
-    expect(buildCandidateReviewResponseText(listItem(), true, 'proceed')).toBe(
-      'Your React Developer interview has been reviewed (proceed).',
-    );
+    expect(
+      buildCandidateReviewResponseText('en', listItem(), true, 'proceed'),
+    ).toBe('Your React Developer interview has been reviewed (proceed).');
   });
 
   it('lists active interviews in plain language', () => {
     expect(
-      buildCandidateActiveInterviewsResponseText([
+      buildCandidateActiveInterviewsResponseText('en', [
         listItem({ position: 'React Developer', status: 'in_progress' }),
         listItem({
           id: 'id-2',
@@ -68,7 +68,7 @@ describe('recruiter-assistant-candidate-response-builders', () => {
 
   it('lists available positions when a position lookup fails', () => {
     expect(
-      buildCandidateUnknownPositionResponseText('QA Engineer', [
+      buildCandidateUnknownPositionResponseText('en', 'QA Engineer', [
         listItem({ position: 'React Developer' }),
         listItem({ id: 'id-2', position: 'Backend Developer' }),
       ]),

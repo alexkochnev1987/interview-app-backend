@@ -160,6 +160,7 @@ describe('RecruiterConversationFlowService', () => {
       confirmState,
       ctx.user,
       ctx.locale,
+      ctx.messageLocale,
       ctx.sessionId,
       'yes',
     );

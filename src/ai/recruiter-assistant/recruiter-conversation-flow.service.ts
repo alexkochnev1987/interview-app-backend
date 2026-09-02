@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Locale } from '../../locale/locale.constants';
 import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   isCancellationMessage,
@@ -48,7 +49,7 @@ export class RecruiterConversationFlowService {
         );
         return {
           status: 'answered',
-          response: 'Cancelled. No changes were made.',
+          response: msg(ctx.messageLocale, 'cancelled'),
         };
       }
 
@@ -59,6 +60,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       }
@@ -67,6 +69,7 @@ export class RecruiterConversationFlowService {
         ctx.state,
         ctx.user,
         ctx.locale,
+        ctx.messageLocale,
         ctx.sessionId,
       );
     }
@@ -76,6 +79,7 @@ export class RecruiterConversationFlowService {
         ctx.state,
         ctx.user,
         ctx.locale,
+        ctx.messageLocale,
         ctx.sessionId,
         ctx.message,
       );
@@ -89,7 +93,7 @@ export class RecruiterConversationFlowService {
       );
       return {
         status: 'answered',
-        response: 'Cancelled. No changes were made.',
+        response: msg(ctx.messageLocale, 'cancelled'),
       };
     }
 
@@ -107,6 +111,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       case 'create_question':
@@ -114,6 +119,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       case 'create_interview':
@@ -121,6 +127,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
           ctx.message,
         );

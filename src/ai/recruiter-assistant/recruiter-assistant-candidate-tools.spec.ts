@@ -80,7 +80,13 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
   });
 
   it('returns latest interview status for generic candidate status queries', async () => {
-    const result = await service.getInterviewStatus({}, candidate, 'en', true);
+    const result = await service.getInterviewStatus(
+      {},
+      candidate,
+      'en',
+      'en',
+      true,
+    );
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -101,6 +107,7 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
       { position: 'Backend Developer' },
       candidate,
       'en',
+      'en',
       true,
       false,
       true,
@@ -114,6 +121,7 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
       { position: 'Backend Developer' },
       candidate,
       'en',
+      'en',
       true,
     );
 
@@ -124,7 +132,7 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
   });
 
   it('lists uncompleted interviews for the candidate', async () => {
-    const result = await service.listOwnInterviews(candidate, 'en', true);
+    const result = await service.listOwnInterviews(candidate, 'en', 'en', true);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -147,6 +155,7 @@ describe('RecruiterAssistantToolsService candidate interview tools', () => {
     const result = await service.getReviewState(
       { position: 'Backend Developer' },
       candidate,
+      'en',
       'en',
     );
 

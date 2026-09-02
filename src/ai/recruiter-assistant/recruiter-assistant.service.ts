@@ -6,6 +6,7 @@ import {
   RecruiterAssistantChatDto,
   RecruiterAssistantResponseDto,
 } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { RecruiterAssistantIntentService } from './recruiter-assistant-intent.service';
 import { resolveConversationLocale } from './recruiter-assistant-message-locale';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
@@ -43,6 +44,9 @@ export class RecruiterAssistantService {
     user: ActingUser,
     locale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
+    const message = dto.message.trim();
+    const headerMessageLocale = resolveConversationLocale(message, locale);
+
     if (
       !(await this.recruiterAssistantConfig.isRecruiterAssistantEnabledForRole(
         user.role,
@@ -52,15 +56,22 @@ export class RecruiterAssistantService {
         await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(!globallyEnabled),
+        response: recruiterAssistantDisabledResponse(
+          !globallyEnabled,
+          headerMessageLocale,
+        ),
+        locale: headerMessageLocale,
       };
     }
 
     if (!canAccessChat(user)) {
-      return { status: 'refused', response: outOfScopeResponse(user) };
+      return {
+        status: 'refused',
+        response: outOfScopeResponse(user, headerMessageLocale),
+        locale: headerMessageLocale,
+      };
     }
 
-    const message = dto.message.trim();
     if (isConversationResetMessage(message)) {
       return this.newChat(user, locale, message);
     }
@@ -95,8 +106,7 @@ export class RecruiterAssistantService {
           return this.withSession(
             {
               status: 'refused',
-              response:
-                'That confirmation expired, was already used, or does not belong to your account.',
+              response: msg(messageLocale, 'confirmationExpired'),
             },
             sessionId,
             messageLocale,
@@ -113,8 +123,7 @@ export class RecruiterAssistantService {
             return this.withSession(
               {
                 status: 'refused',
-                response:
-                  'That confirmation could not be applied. Please review the question list and try again.',
+                response: msg(messageLocale, 'confirmationApplyFailed'),
               },
               sessionId,
               messageLocale,
@@ -128,6 +137,7 @@ export class RecruiterAssistantService {
             confirmedAction,
             user,
             locale,
+            messageLocale,
           ),
           sessionId,
           messageLocale,
@@ -139,7 +149,7 @@ export class RecruiterAssistantService {
         return this.withSession(
           {
             status: 'answered',
-            response: 'Cancelled. No changes were made.',
+            response: msg(messageLocale, 'cancelled'),
           },
           sessionId,
           messageLocale,
@@ -166,6 +176,7 @@ export class RecruiterAssistantService {
             intent.filters,
             user,
             locale,
+            messageLocale,
             intent.readyForReview,
           ),
           sessionId,
@@ -173,19 +184,24 @@ export class RecruiterAssistantService {
         );
       case 'list_own_interviews':
         return this.withSession(
-          await this.tools.listOwnInterviews(user, locale, intent.activeOnly),
+          await this.tools.listOwnInterviews(
+            user,
+            locale,
+            messageLocale,
+            intent.activeOnly,
+          ),
           sessionId,
           messageLocale,
         );
       case 'list_unassigned':
         return this.withSession(
-          await this.tools.listUnassigned(user, locale),
+          await this.tools.listUnassigned(user, locale, messageLocale),
           sessionId,
           messageLocale,
         );
       case 'list_hrs':
         return this.withSession(
-          await this.tools.listHrs(user, locale),
+          await this.tools.listHrs(user, locale, messageLocale),
           sessionId,
           messageLocale,
         );
@@ -195,6 +211,7 @@ export class RecruiterAssistantService {
             intent.ref,
             user,
             locale,
+            messageLocale,
             intent.ownInterviews,
             intent.scheduleInquiry,
             intent.latest,
@@ -204,13 +221,24 @@ export class RecruiterAssistantService {
         );
       case 'review_state':
         return this.withSession(
-          await this.tools.getReviewState(intent.ref, user, locale),
+          await this.tools.getReviewState(
+            intent.ref,
+            user,
+            locale,
+            messageLocale,
+          ),
           sessionId,
           messageLocale,
         );
       case 'assign_hr':
         return this.withSession(
-          await this.tools.prepareAssignHr(intent, user, locale, sessionId),
+          await this.tools.prepareAssignHr(
+            intent,
+            user,
+            locale,
+            messageLocale,
+            sessionId,
+          ),
           sessionId,
           messageLocale,
         );
@@ -220,6 +248,7 @@ export class RecruiterAssistantService {
             intent.questionName,
             user,
             locale,
+            messageLocale,
             sessionId,
           ),
           sessionId,
@@ -232,6 +261,7 @@ export class RecruiterAssistantService {
             intent.position,
             user,
             locale,
+            messageLocale,
             sessionId,
           ),
           sessionId,
@@ -239,7 +269,12 @@ export class RecruiterAssistantService {
         );
       case 'create_questions_interview':
         return this.withSession(
-          await this.tools.prepareCreateQuestions(intent.parsed, user, locale),
+          await this.tools.prepareCreateQuestions(
+            intent.parsed,
+            user,
+            locale,
+            messageLocale,
+          ),
           sessionId,
           messageLocale,
         );
@@ -248,6 +283,7 @@ export class RecruiterAssistantService {
           intent.requestedLocale,
           intent.rawToken,
           locale,
+          messageLocale,
         );
         const switchedLocale = switchResponse.locale ?? messageLocale;
         if (switchResponse.locale) {
@@ -260,25 +296,39 @@ export class RecruiterAssistantService {
       }
       case 'count_questions':
         return this.withSession(
-          await this.tools.countQuestions(intent.filters, user, locale),
+          await this.tools.countQuestions(
+            intent.filters,
+            user,
+            locale,
+            messageLocale,
+          ),
           sessionId,
           messageLocale,
         );
       case 'list_assessments':
         return this.withSession(
-          await this.tools.listAssessments(intent.filters, user, locale),
+          await this.tools.listAssessments(
+            intent.filters,
+            user,
+            locale,
+            messageLocale,
+          ),
           sessionId,
           messageLocale,
         );
       case 'interview_activity_summary':
         return this.withSession(
-          await this.tools.summarizeInterviewActivity(user, locale),
+          await this.tools.summarizeInterviewActivity(
+            user,
+            locale,
+            messageLocale,
+          ),
           sessionId,
           messageLocale,
         );
       case 'list_team':
         return this.withSession(
-          await this.tools.listTeam(user, locale, {
+          await this.tools.listTeam(user, locale, messageLocale, {
             role: intent.role,
             includeSummary: intent.includeSummary,
           }),
@@ -287,7 +337,10 @@ export class RecruiterAssistantService {
         );
       case 'out_of_scope':
         return this.withSession(
-          { status: 'refused', response: outOfScopeResponse(user) },
+          {
+            status: 'refused',
+            response: outOfScopeResponse(user, messageLocale),
+          },
           sessionId,
           messageLocale,
         );
@@ -308,12 +361,20 @@ export class RecruiterAssistantService {
         await this.recruiterAssistantConfig.isRecruiterAssistantEnabled();
       return {
         status: 'refused',
-        response: recruiterAssistantDisabledResponse(!globallyEnabled),
+        response: recruiterAssistantDisabledResponse(
+          !globallyEnabled,
+          headerLocale,
+        ),
+        locale: headerLocale,
       };
     }
 
     if (!canAccessChat(user)) {
-      return { status: 'refused', response: outOfScopeResponse(user) };
+      return {
+        status: 'refused',
+        response: outOfScopeResponse(user, headerLocale),
+        locale: headerLocale,
+      };
     }
 
     return this.resetConversation(user, headerLocale, message);
@@ -336,7 +397,7 @@ export class RecruiterAssistantService {
       messageLocale,
     });
     return this.withSession(
-      this.tools.startNewChat(user),
+      this.tools.startNewChat(user, messageLocale),
       sessionId,
       messageLocale,
     );

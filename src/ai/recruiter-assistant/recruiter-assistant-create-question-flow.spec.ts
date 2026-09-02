@@ -62,6 +62,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
       undefined,
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -75,6 +76,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     const response = await service.prepareCreateQuestion(
       'React hooks',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -94,6 +96,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -112,6 +115,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
     const response = await service.prepareCreateQuestion(
       'React hooks',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -139,6 +143,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -165,6 +170,7 @@ describe('RecruiterAssistantToolsService create question flow', () => {
         slots: { questionName: 'React hooks' },
       },
       user,
+      'en',
       'en',
       'session-1',
     );

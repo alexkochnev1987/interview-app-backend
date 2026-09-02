@@ -48,8 +48,9 @@ export const UNASSIGNED_PATTERNS = [
   cyrillicPattern(
     'не\\s+\\u043F\\u0440\\u044B\\u0437\\u043D\\u0430\\u0447\\u0430\\u043D',
   ),
+  cyrillicLoosePattern('не\\s+прызначан'),
   cyrillicPattern('без\\s+hr'),
-  latinPattern('nie\\s+przypisan'),
+  latinLoosePattern('nie\\s+przypisan'),
   latinPattern('bez\\s+hr'),
 ];
 
@@ -67,12 +68,12 @@ export const READY_FOR_REVIEW_PATTERNS = [
   /\bawaiting review\b/i,
   /\bneeds review\b/i,
   /\bwaiting for (my )?review\b/i,
-  cyrillicPattern('готов(?:\\S+\\s+){0,4}к\\s+review'),
+  cyrillicPattern('готов(?:\\s+\\S+){0,4}к\\s+review'),
   cyrillicPattern('на\\s+review'),
   cyrillicPattern(
-    '\\u0433\\u0430\\u0442\\u043E\\u0432(?:\\S+\\s+){0,4}\\u0434\\u0430\\s+review',
+    '\\u0433\\u0430\\u0442\\u043E\\u0432(?:\\s+\\S+){0,4}\\u0434\\u0430\\s+review',
   ),
-  latinLoosePattern('gotow(?:\\S+\\s+){0,4}do\\s+review'),
+  latinLoosePattern('gotow(?:\\s+\\S+){0,4}do\\s+review'),
 ];
 
 export const MY_INTERVIEWS_PATTERNS = [
@@ -87,12 +88,12 @@ export const MY_INTERVIEWS_PATTERNS = [
 export const CANDIDATE_SCHEDULE_PATTERNS = [
   /\bwhen is my interview\b/i,
   /\bwhere is my interview\b/i,
-  cyrillicLoosePattern('когда\\s+(?:\\S+\\s+){0,4}(?:мой\\s+)?интерв'),
-  cyrillicLoosePattern('калі\\s+(?:\\S+\\s+){0,4}(?:мой\\s+)?(?:інт|инт)'),
-  cyrillicLoosePattern('где\\s+(?:\\S+\\s+){0,4}(?:мой\\s+)?интерв'),
-  cyrillicLoosePattern('дзе\\s+(?:\\S+\\s+){0,4}(?:мой\\s+)?(?:інт|инт)'),
-  latinLoosePattern('kiedy\\s+(?:\\S+\\s+){0,4}(?:m[oó]j\\s+)?inter'),
-  latinLoosePattern('gdzie\\s+(?:\\S+\\s+){0,4}(?:m[oó]j\\s+)?inter'),
+  cyrillicLoosePattern('когда\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?интерв'),
+  cyrillicLoosePattern('калі\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?(?:інт|инт)'),
+  cyrillicLoosePattern('где\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?интерв'),
+  cyrillicLoosePattern('дзе\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?(?:інт|инт)'),
+  latinLoosePattern('kiedy\\s+(?:\\s+\\S+){0,4}(?:m[oó]j\\s+)?inter'),
+  latinLoosePattern('gdzie\\s+(?:\\s+\\S+){0,4}(?:m[oó]j\\s+)?inter'),
 ];
 
 export const CANDIDATE_OWN_STATUS_PATTERNS = [
@@ -119,6 +120,7 @@ export const REVIEW_STATE_PATTERNS = [
   cyrillicPattern('просмотрен'),
   cyrillicPattern('ревью'),
   cyrillicPattern('прагледжан'),
+  cyrillicLoosePattern('прагледжан'),
   cyrillicPattern('рэ\\u0456\\u0458\\u044E'),
   latinLoosePattern('przejrz'),
   latinLoosePattern('recenzj'),
@@ -131,12 +133,12 @@ export const INTERVIEW_STATUS_PATTERNS = [
   /\bis .+ (done|finished|complete)\b/i,
   /\binterview status\b/i,
   cyrillicPattern('статус'),
-  cyrillicLoosePattern('(?:какой|какая|какое|каков)(?:\\S+\\s+){0,6}статус'),
-  cyrillicLoosePattern('(?:як(?:і|ая|ое)|які)(?:\\S+\\s+){0,6}(?:статус|інт)'),
-  cyrillicLoosePattern('где\\s+(?:\\S+\\s+){0,6}интерв'),
-  cyrillicLoosePattern('дзе\\s+(?:\\S+\\s+){0,6}(?:інт|инт)'),
+  cyrillicLoosePattern('(?:какой|какая|какое|каков)(?:\\s+\\S+){0,6}статус'),
+  cyrillicLoosePattern('(?:як(?:і|ая|ое)|які)(?:\\s+\\S+){0,6}(?:статус|інт)'),
+  cyrillicLoosePattern('где\\s+(?:\\s+\\S+){0,6}интерв'),
+  cyrillicLoosePattern('дзе\\s+(?:\\s+\\S+){0,6}(?:інт|инт)'),
   latinLoosePattern('(?:jaki|jaki\\s+jest)(?:\\s+\\S+){0,6}status'),
-  latinLoosePattern('gdzie\\s+(?:\\S+\\s+){0,6}inter'),
+  latinLoosePattern('gdzie\\s+(?:\\s+\\S+){0,6}inter'),
   latinLoosePattern('status'),
 ];
 
@@ -159,7 +161,7 @@ export const SWITCH_LOCALE_PATTERNS = [
     '(?:переключ(?:и|ить)|смен(?:и|ить))\\s+(?:язык|locale)',
   ),
   cyrillicLoosePattern(
-    '(?:пераключ(?:ы|ыць)|змяні(?:\\s+\\S+){0,2})(?:\\s+(?:мова|locale))',
+    '(?:пераключ(?:і|ы|ыць|)|змяні(?:\\s+\\S+){0,2})(?:\\s+(?:мов(?:a|у|y|u)|locale))',
   ),
   latinLoosePattern(
     '(?:prze[łl]ącz|zmie[nń]|ustaw)(?:\\s+\\S+){0,2}(?:\\s+(?:j[ęe]zyk|locale))',
@@ -190,7 +192,7 @@ export const CREATE_INTERVIEW_PATTERNS = [
   /\bschedule (?:a )?new interview\b/i,
   /\bcreate (?:an )?interview\b/i,
   cyrillicLoosePattern('создай(?:\\s+\\S+){0,6}\\s+интерв'),
-  cyrillicLoosePattern('ствары(?:\\s+\\S+){0,6}\\s+инт'),
+  cyrillicLoosePattern('ствары(?:\\s+\\S+){0,6}\\s+(?:інтэрв|інт|интерв|инт)'),
   latinLoosePattern('(?:utw[oó]rz|stw[oó]rz)(?:\\s+\\S+){0,6}\\s+inter'),
 ];
 
@@ -244,12 +246,18 @@ export const CREATE_SINGLE_QUESTION_PATTERNS = [
   latinLoosePattern('(?:utw[oó]rz|stw[oó]rz)(?:\\s+\\S+){0,4}\\s+pytani'),
 ];
 
+export function matchesBulkQuestionCreateIntent(message: string): boolean {
+  return /(?:^|\s)\d{1,2}\s+(?:questions?|вопрос\w*|pytani\w*|pyta[nń]\w*|пытанн\w*)/iu.test(
+    message,
+  );
+}
+
 export function matchesCreateSingleQuestionIntent(message: string): boolean {
-  if (/\b\d{1,2}\s+questions?\b/i.test(message)) {
+  if (/(?:^|\s)\d{1,2}\s+questions?\b/i.test(message)) {
     return false;
   }
   if (
-    /\b\d{1,2}\s+(?:вопрос(?:а|ов)?|pytani(?:a|e|ń)?|pyta[nń]|пытанн(?:е|і|я))\b/iu.test(
+    /(?:^|\s)\d{1,2}\s+(?:вопрос\w*|pytani\w*|pyta[nń]\w*|пытанн\w*)/iu.test(
       message,
     )
   ) {
@@ -276,21 +284,25 @@ export const COUNT_QUESTIONS_PATTERNS = [
   /\b(show|list|display|find|browse)\b.*\bquestions?\b/i,
   /\bquestions?\b.*\b(with|where|filtered|matching)\b/i,
   cyrillicLoosePattern(
-    '(?:сколько|кол(?:\\S+\\s+){0,2})(?:\\S+\\s+){0,8}\\s*вопрос',
+    '(?:сколько|кол(?:\\s+\\S+){0,2})(?:\\s+\\S+){0,8}\\s*вопрос\\w*',
   ),
   cyrillicLoosePattern(
-    '(?:колькі|col(?:\\S+\\s+){0,2})(?:\\S+\\s+){0,8}(?:пытанн|пытан)',
+    '(?:колькі|col(?:\\s+\\S+){0,2})\\s+(?:пытанн|пытан)\\w*',
   ),
   cyrillicLoosePattern(
-    '(?:покажи|список|найди|всего|найти)(?:\\S+\\s+){0,8}\\s*вопрос',
+    '(?:колькі|col(?:\\s+\\S+){0,2})(?:\\s+\\S+){0,8}(?:пытанн|пытан)\\w*',
   ),
   cyrillicLoosePattern(
-    '(?:пакажы|спіс|знайдзі|усяго)(?:\\S+\\s+){0,8}(?:пытанн|пытан)',
+    '(?:покажи|список|найди|всего|найти)(?:\\s+\\S+){0,8}\\s*вопрос\\w*',
   ),
-  cyrillicLoosePattern('вопрос(?:\\S+\\s+){0,4}(?:с|где|фильтр|подход)'),
   cyrillicLoosePattern(
-    '(?:пытанн|пытан)(?:\\S+\\s+){0,4}(?:з|дзе|фільтр|падход)',
+    '(?:пакажы|спіс|знайдзі|усяго)(?:\\s+\\S+){0,8}(?:пытанн|пытан)\\w*',
   ),
+  cyrillicLoosePattern('вопрос(?:\\s+\\S+){0,4}(?:с|где|фильтр|подход)'),
+  cyrillicLoosePattern(
+    '(?:пытанн|пытан)(?:\\s+\\S+){0,4}(?:з|дзе|фільтр|падход)',
+  ),
+  latinLoosePattern('(?:ile|ilu)\\s+pyta[nń\\u0144]'),
   latinLoosePattern(
     '(?:ile|ilu|[łl]ącznie|razem|poka[żz]|lista|znajd[źz]|wy[śs]wietl)(?:\\s+\\S+){0,8}\\s*pytani',
   ),
@@ -312,22 +324,22 @@ export const LIST_ASSESSMENTS_PATTERNS = [
   /\b(show|list|get|display|count|how many|total)\b.*\b(assessments?|assesments?|assignments?)\b/i,
   /\b(assessments?|assesments?|assignments?)\b.*\b(with|where|filtered|matching)\b/i,
   cyrillicLoosePattern(
-    '(?:покажи|список|сколько|всего|найди)(?:\\S+\\s+){0,8}(?:assessment|assign)',
+    '(?:покажи|список|сколько|всего|найди)(?:\\s+\\S+){0,8}\\s*(?:assessment|assign)',
   ),
   cyrillicLoosePattern(
-    '(?:пакажы|спіс|колькі|усяго|знайдзі)(?:\\S+\\s+){0,8}(?:assessment|assign)',
+    '(?:пакажы|спіс|колькі|усяго|знайдзі)(?:\\s+\\S+){0,8}\\s*(?:assessment|assign)',
   ),
   cyrillicLoosePattern(
-    '(?:assessment|assign)(?:\\S+\\s+){0,4}(?:с|где|фильтр|подход)',
+    '(?:assessment|assign)(?:\\s+\\S+){0,4}(?:с|где|фильтр|подход)',
   ),
   cyrillicLoosePattern(
-    '(?:assessment|assign)(?:\\S+\\s+){0,4}(?:з|дзе|фільтр|падход)',
+    '(?:assessment|assign)(?:\\s+\\S+){0,4}(?:з|дзе|фільтр|падход)',
   ),
   latinLoosePattern(
-    '(?:poka[żz]|lista|ile|razem|[łl]ącznie|znajd[źz]|wy[śs]wietl)(?:\\s+\\S+){0,8}(?:assessment|assign)',
+    '(?:poka[żz]|lista|ile|razem|[łl]ącznie|znajd[źz]|wy[śs]wietl)(?:\\s+\\S+){0,8}\\s*(?:assessment|assign)',
   ),
   latinLoosePattern(
-    '(?:assessment|assign)(?:\\s+\\S+){0,4}(?:z|w|z\\s+filtr|pasuj)',
+    '(?:assessment|assign)(?:\\s+\\S+){0,4}(?:\\s+\\b(?:z|w)\\b|z\\s+filtr|pasuj)',
   ),
 ];
 
@@ -335,10 +347,10 @@ export const INTERVIEW_ACTIVITY_SUMMARY_PATTERNS = [
   /\b(summarize|summary of|overview of)\b.*\b(interview|activity)\b/i,
   /\binterview activity\b/i,
   cyrillicLoosePattern(
-    '(?:сводк|суммар|обзор|резюме)(?:\\S+\\s+){0,8}(?:интерв|активн)',
+    '(?:сводк|суммар|обзор|резюме)(?:\\s+\\S+){0,8}(?:интерв|активн)',
   ),
-  cyrillicLoosePattern('активност(?:\\S+\\s+){0,4}интерв'),
-  cyrillicLoosePattern('(?:агульн|агляд|актыўн)(?:\\S+\\s+){0,8}(?:інт|акт)'),
+  cyrillicLoosePattern('активност(?:\\s+\\S+){0,4}интерв'),
+  cyrillicLoosePattern('(?:агульн|агляд|актыўн)(?:\\s+\\S+){0,8}(?:інт|акт)'),
   latinLoosePattern(
     '(?:podsumow|przegl[aą]d|aktywn)(?:\\s+\\S+){0,8}(?:inter|aktyw)',
   ),
@@ -347,17 +359,19 @@ export const INTERVIEW_ACTIVITY_SUMMARY_PATTERNS = [
 export const LIST_TEAM_PATTERNS = [
   /\b(show|list)\b.*\b(my )?team\b/i,
   /\bteam members?\b/i,
+  cyrillicLoosePattern('(?:покажи|список|выведи)\\s+мою\\s+команд'),
+  cyrillicLoosePattern('(?:пакажы|спіс|вывядзі)\\s+маю\\s+каманд'),
   cyrillicLoosePattern(
-    '(?:покажи|список|выведи)(?:\\S+\\s+){0,8}(?:команд|team)',
+    '(?:покажи|список|выведи)(?:\\s+\\S+){0,8}(?:команд|team)',
   ),
   cyrillicLoosePattern(
-    '(?:пакажы|спіс|вывядзі)(?:\\S+\\s+){0,8}(?:каманд|team)',
+    '(?:пакажы|спіс|вывядзі)(?:\\s+\\S+){0,8}(?:каманд|team)',
   ),
   cyrillicLoosePattern(
-    '(?:член(?:ы|)|участник(?:и|))(?:\\S+\\s+){0,4}(?:команд|team)',
+    '(?:член(?:ы|)|участник(?:и|))(?:\\s+\\S+){0,4}(?:команд|team)',
   ),
   cyrillicLoosePattern(
-    '(?:член(?:ы|)|удзельнік(?:і|))(?:\\S+\\s+){0,4}(?:каманд|team)',
+    '(?:член(?:ы|)|удзельнік(?:і|))(?:\\s+\\S+){0,4}(?:каманд|team)',
   ),
   cyrillicLoosePattern('(?:моя|мой|мои)\\s+(?:команд|team)'),
   cyrillicLoosePattern('(?:мая|мой|мае)\\s+(?:каманд|team)'),
@@ -371,28 +385,95 @@ export const LIST_TEAM_PATTERNS = [
 ];
 
 const TEAM_ROLE_TERMS =
-  'super[_\\s-]?admins?|admins?|hrs?|hr reviewers?|candidates?|админ(?:ы|ов|ам)?|адмін(?:ы|оў|ам)?|кандидат(?:ы|ов|ам)?|kandydat(?:ów|ami|y)?';
+  'super[_\\s-]?admins?|admins?|admin(?:ów|ami|y|a)?|candidates?|админ(?:ы|ов|ам)?|адмін(?:ы|оў|ам)?|кандидат(?:ы|ов|ам)?|kandydat(?:ów|ami|y)?';
+
+const TEAM_ROLE_TERMS_WITH_HR = `${TEAM_ROLE_TERMS}|hrs?|hr reviewers?`;
 
 export const LIST_TEAM_BY_ROLE_PATTERNS = [
-  new RegExp(`\\b(show|list)\\b.*\\ball\\b.*\\b(${TEAM_ROLE_TERMS})\\b`, 'i'),
+  new RegExp(
+    `\\b(show|list)\\b.*\\ball\\b.*\\b(${TEAM_ROLE_TERMS_WITH_HR})\\b`,
+    'i',
+  ),
   new RegExp(`\\b(show|list)\\b.*\\b(${TEAM_ROLE_TERMS})\\b`, 'i'),
   /\bteam members?\b.*\b(with|having)\b.*\b(super[_\s-]?admin|admin|hr|candidate)\b/i,
+  cyrillicLoosePattern('(?:покажи|список)\\s+всех\\s+админ'),
+  cyrillicLoosePattern('(?:пакажы|спіс)\\s+ўсіх\\s+адмін'),
   cyrillicLoosePattern(
-    `(?:покажи|список)(?:\\S+\\s+){0,4}(?:все|всех|всю)(?:\\S+\\s+){0,4}(?:${TEAM_ROLE_TERMS})`,
+    `(?:покажи|список)(?:\\s+\\S+){0,4}(?:все|всех|всю)(?:\\s+\\S+){0,4}(?:${TEAM_ROLE_TERMS})`,
   ),
   cyrillicLoosePattern(
-    `(?:пакажы|спіс)(?:\\S+\\s+){0,4}(?:усе|усі|усіх)(?:\\S+\\s+){0,4}(?:${TEAM_ROLE_TERMS})`,
+    `(?:пакажы|спіс)(?:\\s+\\S+){0,4}(?:усе|усі|усіх)(?:\\s+\\S+){0,4}(?:${TEAM_ROLE_TERMS})`,
   ),
   cyrillicLoosePattern(
-    `(?:покажи|список|пакажы|спіс)(?:\\S+\\s+){0,8}(?:${TEAM_ROLE_TERMS})`,
+    `(?:покажи|список|пакажы|спіс)(?:\\s+\\S+){0,8}(?:${TEAM_ROLE_TERMS})`,
   ),
+  latinLoosePattern('(?:poka[żz]|lista|wy[śs]wietl)\\s+wszystkich\\s+admin'),
   latinLoosePattern(
     `(?:poka[żz]|lista|wy[śs]wietl)(?:\\s+\\S+){0,4}(?:wszyscy|wszystkich|wszyscy|cał[ąa])?(?:\\s+\\S+){0,4}(?:${TEAM_ROLE_TERMS})`,
   ),
   cyrillicLoosePattern(
-    `(?:команд|team|каманд)(?:\\S+\\s+){0,8}(?:с|маючы)(?:\\S+\\s+){0,8}(?:роль|role)(?:\\S+\\s+){0,4}(?:${TEAM_ROLE_TERMS})`,
+    `(?:команд|team|каманд)(?:\\s+\\S+){0,8}(?:с|маючы)(?:\\s+\\S+){0,8}(?:роль|role)(?:\\s+\\S+){0,4}(?:${TEAM_ROLE_TERMS})`,
   ),
   latinLoosePattern(
     `(?:zesp[oó][łl]|team)(?:\\s+\\S+){0,8}(?:z|mając)(?:\\s+\\S+){0,8}(?:rol[ęe]|role)(?:\\s+\\S+){0,4}(?:${TEAM_ROLE_TERMS})`,
   ),
 ];
+
+export const CANDIDATE_LATEST_STATUS_PATTERNS = [
+  /\b(?:what(?:'s| is)|how is)\s+the\s+status\s+of\s+my\s+(?:latest|most recent|newest|last)\b/i,
+  /\b(?:what(?:'s| is)|how is)\s+my\s+(?:latest|most recent|newest|last)\b.*\binterview\b/i,
+  /\b(?:status|state)\s+of\s+my\s+(?:latest|most recent|newest|last)\b.*\binterview\b/i,
+  /\bmy\s+(?:latest|most recent|newest|last)\b.*\binterview\b.*\bstatus\b/i,
+  cyrillicLoosePattern(
+    '(?:статус|как).{0,12}(?:моего\\s+)?(?:последн(?:его|ее|ий|ем)|самого\\s+нового)\\s+интерв',
+  ),
+];
+
+export const CANDIDATE_LIST_ACTIVE_PATTERNS = [
+  /\b(?:do i have|have i got|are there|any)\b.*\b(?:new|uncompleted|incomplete|unfinished|open|active|pending)\b.*\binterviews?\b/i,
+  /\b(?:new|uncompleted|incomplete|unfinished|open|active|pending)\b.*\binterviews?\b/i,
+  /\binterviews?\b.*\b(?:to complete|not (?:yet )?finished|not completed|still open|awaiting)\b/i,
+  /\b(?:show|list|get|display)\b.*\b(?:my )?(?:uncompleted|incomplete|unfinished|open|active|pending|new)\b.*\binterviews?\b/i,
+  cyrillicLoosePattern(
+    '(?:есть\\s+ли\\s+у\\s+меня|покажи).{0,24}(?:новые|незаверш|не\\s+заверш|активн).{0,16}интерв',
+  ),
+];
+
+export const CANDIDATE_OWN_REVIEW_PATTERNS = [
+  /\b(?:did|has)\s+my\b.*\b(?:been reviewed|get reviewed|reviewed)\b/i,
+  /\bmy\b.*\binterview\b.*\b(?:been reviewed|get reviewed|reviewed)\b/i,
+  /\b(?:been reviewed|review status|review state)\b.*\bmy\b.*\binterview\b/i,
+  cyrillicLoosePattern(
+    '(?:мо(?:й|его|ем)|моя).{0,24}интерв.{0,24}(?:ревью|просмотрен|проверен)',
+  ),
+];
+
+export function matchesCandidateLatestStatusIntent(message: string): boolean {
+  return matchesAnyPattern(message, CANDIDATE_LATEST_STATUS_PATTERNS);
+}
+
+export function matchesCandidateListActiveIntent(message: string): boolean {
+  return matchesAnyPattern(message, CANDIDATE_LIST_ACTIVE_PATTERNS);
+}
+
+export function matchesCandidateOwnReviewIntent(message: string): boolean {
+  return (
+    matchesAnyPattern(message, CANDIDATE_OWN_REVIEW_PATTERNS) ||
+    (/\bmy\b/i.test(message) &&
+      matchesAnyPattern(message, REVIEW_STATE_PATTERNS))
+  );
+}
+
+export function matchesCandidateStatusByPositionIntent(
+  message: string,
+  hasPosition: boolean,
+): boolean {
+  if (!hasPosition) {
+    return false;
+  }
+  return (
+    matchesAnyPattern(message, INTERVIEW_STATUS_PATTERNS) ||
+    matchesAnyPattern(message, CANDIDATE_OWN_STATUS_PATTERNS) ||
+    /\bmy\b.*\binterview\b/i.test(message)
+  );
+}

@@ -6,7 +6,9 @@ const ROLE_ALIASES: Array<[RegExp, UserRole]> = [
   [/\bhr reviewers?\b/i, 'hr'],
   [/\bhrs?\b/i, 'hr'],
   [/\badmins?\b/i, 'admin'],
-  [/\b(?:админ|адмін)s?\b/iu, 'admin'],
+  [/\badmin(?:ów|ami|y|a|s)?\b/i, 'admin'],
+  [/\b(?:админ|адмін)(?:ы|ов|ów|ам|ami|y|a|s)?\b/iu, 'admin'],
+  [/(?:админ|адмін)(?:ы|ов|ów|ам|ami|y|a|s)?/iu, 'admin'],
   [/\bcandidates?\b/i, 'candidate'],
   [/\b(?:кандидат|kandydat)(?:ы|ов|ów|ami|y)?\b/iu, 'candidate'],
 ];
@@ -29,8 +31,12 @@ function normalizeRoleToken(token: string): UserRole | undefined {
     normalized === 'admins' ||
     normalized === 'админ' ||
     normalized === 'админы' ||
+    normalized === 'админов' ||
     normalized === 'адмін' ||
-    normalized === 'адміны'
+    normalized === 'адміны' ||
+    normalized === 'адмінаў' ||
+    normalized === 'adminów' ||
+    normalized === 'adminow'
   ) {
     return 'admin';
   }

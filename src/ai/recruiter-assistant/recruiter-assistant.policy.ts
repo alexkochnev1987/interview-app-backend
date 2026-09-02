@@ -15,10 +15,14 @@ export const RECRUITER_ASSISTANT_DISABLED_RESPONSE =
 export const RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE =
   'Recruiter assistant is not available for your role in this environment.';
 
-export function recruiterAssistantDisabledResponse(globalOff: boolean): string {
-  return globalOff
-    ? RECRUITER_ASSISTANT_DISABLED_RESPONSE
-    : RECRUITER_ASSISTANT_DISABLED_FOR_ROLE_RESPONSE;
+export function recruiterAssistantDisabledResponse(
+  globalOff: boolean,
+  messageLocale: Locale = 'en',
+): string {
+  return assistantMessage(
+    messageLocale,
+    globalOff ? 'disabledGlobal' : 'disabledForRole',
+  );
 }
 
 export const NEW_CHAT_WELCOME_RESPONSE =
@@ -27,10 +31,14 @@ export const NEW_CHAT_WELCOME_RESPONSE =
 export const CANDIDATE_NEW_CHAT_WELCOME_RESPONSE =
   'Started a new conversation. Ask about your interview status, whether feedback is ready, or interviews you still need to complete.';
 
-export function outOfScopeResponse(user: ActingUser): string {
-  return user.role === 'candidate'
-    ? CANDIDATE_OUT_OF_SCOPE_RESPONSE
-    : OUT_OF_SCOPE_RESPONSE;
+export function outOfScopeResponse(
+  user: ActingUser,
+  messageLocale: Locale = 'en',
+): string {
+  return assistantMessage(
+    messageLocale,
+    user.role === 'candidate' ? 'outOfScopeCandidate' : 'outOfScope',
+  );
 }
 
 export function newChatWelcomeResponse(

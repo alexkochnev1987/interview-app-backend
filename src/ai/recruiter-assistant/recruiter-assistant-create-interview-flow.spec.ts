@@ -86,6 +86,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'React Developer',
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -103,6 +104,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'Alice',
       'React Developer',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -131,6 +133,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         'no',
         user,
         'en',
+        'en',
         'session-1',
       );
 
@@ -156,6 +159,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
       'no',
     );
@@ -172,6 +176,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'Alice',
       'React Developer',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -198,6 +203,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -223,6 +229,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -239,6 +246,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'Alice',
       'React Developer',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -268,6 +276,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -303,6 +312,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -327,6 +337,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -363,6 +374,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -396,6 +408,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );

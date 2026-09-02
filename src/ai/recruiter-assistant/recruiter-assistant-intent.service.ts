@@ -27,6 +27,7 @@ import {
   UNASSIGNED_PATTERNS,
   matchesCreateSingleQuestionIntent,
   matchesCountQuestionsIntent,
+  matchesBulkQuestionCreateIntent,
   LIST_ASSESSMENTS_PATTERNS,
   INTERVIEW_ACTIVITY_SUMMARY_PATTERNS,
   LIST_TEAM_PATTERNS,
@@ -71,6 +72,25 @@ export class RecruiterAssistantIntentService {
       };
     }
 
+    if (matchesAnyPattern(normalized, ASSIGN_HR_PATTERNS)) {
+      return {
+        kind: 'assign_hr',
+        interviewRef: this.extractInterviewRef(message),
+        hrRef: this.extractHrRef(message),
+      };
+    }
+
+    if (matchesAnyPattern(normalized, LIST_TEAM_BY_ROLE_PATTERNS)) {
+      const role = extractTeamRoleFilter(message);
+      if (role) {
+        return { kind: 'list_team', role, includeSummary: false };
+      }
+    }
+
+    if (matchesAnyPattern(normalized, LIST_HRS_PATTERNS)) {
+      return { kind: 'list_hrs' };
+    }
+
     if (matchesAnyPattern(normalized, LIST_ASSESSMENTS_PATTERNS)) {
       return {
         kind: 'list_assessments',
@@ -80,13 +100,6 @@ export class RecruiterAssistantIntentService {
 
     if (matchesAnyPattern(normalized, INTERVIEW_ACTIVITY_SUMMARY_PATTERNS)) {
       return { kind: 'interview_activity_summary' };
-    }
-
-    if (matchesAnyPattern(normalized, LIST_TEAM_BY_ROLE_PATTERNS)) {
-      const role = extractTeamRoleFilter(message);
-      if (role) {
-        return { kind: 'list_team', role, includeSummary: false };
-      }
     }
 
     if (matchesAnyPattern(normalized, LIST_TEAM_PATTERNS)) {
@@ -102,7 +115,10 @@ export class RecruiterAssistantIntentService {
       };
     }
 
-    if (matchesCreateIntent(normalized)) {
+    if (
+      matchesCreateIntent(normalized) &&
+      matchesBulkQuestionCreateIntent(normalized)
+    ) {
       return {
         kind: 'create_questions_interview',
         parsed: parseRecruiterRequest(message, locale),
@@ -113,6 +129,13 @@ export class RecruiterAssistantIntentService {
       return {
         kind: 'create_question',
         questionName: extractQuestionName(message),
+      };
+    }
+
+    if (matchesCreateIntent(normalized)) {
+      return {
+        kind: 'create_questions_interview',
+        parsed: parseRecruiterRequest(message, locale),
       };
     }
 
@@ -129,20 +152,8 @@ export class RecruiterAssistantIntentService {
       return { kind: 'new_chat' };
     }
 
-    if (matchesAnyPattern(normalized, ASSIGN_HR_PATTERNS)) {
-      return {
-        kind: 'assign_hr',
-        interviewRef: this.extractInterviewRef(message),
-        hrRef: this.extractHrRef(message),
-      };
-    }
-
     if (matchesAnyPattern(normalized, UNASSIGNED_PATTERNS)) {
       return { kind: 'list_unassigned' };
-    }
-
-    if (matchesAnyPattern(normalized, LIST_HRS_PATTERNS)) {
-      return { kind: 'list_hrs' };
     }
 
     if (matchesAnyPattern(normalized, READY_FOR_REVIEW_PATTERNS)) {
