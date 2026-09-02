@@ -1,6 +1,28 @@
 export type TemplateChoice = { kind: 'own' } | { kind: 'index'; index: number };
 
-const CREATE_OWN_PATTERN = /\b(?:create\s+)?my\s+own\b/i;
+const CREATE_OWN_PATTERNS = [
+  /^(?:create\s+)?my\s+own$/i,
+  /^own$/i,
+  /^(?:созда(?:ть|й|йте)\s+)?(?:сво[йё]|своё|свой)$/iu,
+  /^(?:ствары(?:ць\s+)?)?(?:сво[йё]|свой)$/iu,
+  /^(?:utw[oó]rz\s+)?(?:m[oó]j\s+)?w[łl]asny$/iu,
+];
+
+const TEMPLATE_INDEX_PATTERN = /^(?:(?:template|шаблон|szablon)\s*)?(\d+)$/iu;
+
+function normalizeChoiceMessage(message: string): string {
+  return message
+    .trim()
+    .toLowerCase()
+    .replace(/[,.!?;:«»"'""]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isCreateOwnChoice(message: string): boolean {
+  const normalized = normalizeChoiceMessage(message);
+  return CREATE_OWN_PATTERNS.some((pattern) => pattern.test(normalized));
+}
 
 export function parseTemplateChoice(message: string): TemplateChoice | null {
   const trimmed = message.trim();
@@ -8,11 +30,13 @@ export function parseTemplateChoice(message: string): TemplateChoice | null {
     return null;
   }
 
-  if (CREATE_OWN_PATTERN.test(trimmed) || /^own$/i.test(trimmed)) {
+  if (isCreateOwnChoice(trimmed)) {
     return { kind: 'own' };
   }
 
-  const indexMatch = trimmed.match(/^(?:template\s*)?(\d+)$/i);
+  const indexMatch = normalizeChoiceMessage(trimmed).match(
+    TEMPLATE_INDEX_PATTERN,
+  );
   if (indexMatch) {
     return { kind: 'index', index: Number.parseInt(indexMatch[1], 10) };
   }

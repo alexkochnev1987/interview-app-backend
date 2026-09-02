@@ -61,6 +61,8 @@ const CONFIRMATION_KEYWORDS = [
   'да',
   'ага',
   'подтверждаю',
+  'tak',
+  'так',
 ];
 
 const CANCELLATION_KEYWORDS = [
@@ -73,8 +75,11 @@ const CANCELLATION_KEYWORDS = [
   'abort',
   'stop',
   'нет',
+  'не',
   'отмена',
   'отменить',
+  'nie',
+  'anuluj',
 ];
 
 export function normalizeAssistantDecisionMessage(message: string): string {

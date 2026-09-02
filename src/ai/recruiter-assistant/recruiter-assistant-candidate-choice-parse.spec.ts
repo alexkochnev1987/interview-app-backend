@@ -23,13 +23,19 @@ describe('parseCandidateChoice', () => {
   it('returns null for empty or new-candidate phrasing', () => {
     expect(parseCandidateChoice('')).toBeNull();
     expect(parseCandidateChoice('new candidate')).toBeNull();
+    expect(parseCandidateChoice('новый кандидат')).toBeNull();
+    expect(parseCandidateChoice('новы кандидат')).toBeNull();
+    expect(parseCandidateChoice('nowy kandydat')).toBeNull();
   });
 });
 
 describe('parseRegisteredCandidateConfirmation', () => {
-  it('parses yes/no replies', () => {
+  it('parses yes/no replies in English and localized keywords', () => {
     expect(parseRegisteredCandidateConfirmation('yes')).toBe('yes');
     expect(parseRegisteredCandidateConfirmation('no')).toBe('no');
+    expect(parseRegisteredCandidateConfirmation('да')).toBe('yes');
+    expect(parseRegisteredCandidateConfirmation('tak')).toBe('yes');
+    expect(parseRegisteredCandidateConfirmation('nie')).toBe('no');
     expect(parseRegisteredCandidateConfirmation('maybe')).toBeNull();
   });
 });
