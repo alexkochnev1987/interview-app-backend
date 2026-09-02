@@ -1,3 +1,4 @@
+import { assistantMessage } from './recruiter-assistant-i18n';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { startConversationFlow } from './recruiter-conversation-slots';
 
@@ -65,7 +66,20 @@ describe('RecruiterConversationFlowService', () => {
     );
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
+    });
+  });
+
+  it('returns cancelled message in the user message locale', async () => {
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      messageLocale: 'ru',
+      message: 'cancel',
+    });
+
+    expect(response).toEqual({
+      status: 'answered',
+      response: assistantMessage('ru', 'cancelled'),
     });
   });
 
@@ -128,7 +142,7 @@ describe('RecruiterConversationFlowService', () => {
     expect(tools.repromptSimilarQuestionConfirmation).not.toHaveBeenCalled();
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
     });
   });
 
