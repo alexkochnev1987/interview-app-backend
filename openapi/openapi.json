@@ -3857,6 +3857,15 @@
             }
           },
           {
+            "name": "candidateEmail",
+            "required": false,
+            "in": "query",
+            "description": "Filter by registered candidate account email (exact match, case-insensitive).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "paginated",
             "required": false,
             "in": "query",
