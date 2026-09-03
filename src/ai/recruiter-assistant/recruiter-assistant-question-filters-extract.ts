@@ -13,14 +13,17 @@ import { trimField } from './recruiter-assistant-string-utils';
 const QUOTED_TEXT = /[""](.+?)[""]/;
 const DIFFICULTY_PATTERN = /\b(easy|medium|hard)\b/i;
 const STATUS_PATTERN = /\b(active|inactive|scheduled|all)\b/i;
-const ROLE_FOR_PATTERN = /\bquestions?\s+for\s+(?:a\s+)?(.+?)(?:[.?!]|$)/i;
+const ROLE_FOR_PATTERN =
+  /\bquestions?\s+for\s+(?:a\s+)?(.+?)(?:[.?!]|$)|(?:вопрос(?:ы|)?|pytani(?:a|e|ń)?|pyta[nń]|пытанн(?:е|і|я)?)\s+(?:for|для|dla)\s+(?:a\s+)?(.+?)(?:[.?!]|$)/iu;
 const CATEGORY_PATTERN =
-  /\b(?:in\s+)?categor(?:y|ies)\s+(?:is\s+)?(.+?)(?:[.?!]|$)/i;
+  /\b(?:in\s+)?categor(?:y|ies)\s+(?:is\s+)?(.+?)(?:[.?!]|$)|(?:категори(?:я|и)|kategori(?:a|i))\s+(?:is\s+|равна\s+|to\s+)?(.+?)(?:[.?!]|$)/iu;
 const SUBCATEGORY_PATTERN =
-  /\b(?:subcategory|sub-category|type)\s+(?:is\s+)?(.+?)(?:[.?!]|$)/i;
+  /\b(?:subcategory|sub-category|type)\s+(?:is\s+)?(.+?)(?:[.?!]|$)|(?:подкатегори(?:я|и)|typ(?:u)?)\s+(?:is\s+|равна\s+|to\s+)?(.+?)(?:[.?!]|$)/iu;
 const TAGS_PATTERN = /\btags?(?:ged)?\s+([a-z0-9,_-]+)/i;
-const CONTAINING_PATTERN = /\bcontaining\s+(.+?)(?:[.?!]|$)/i;
-const IMPLICIT_CATEGORY_PATTERN = /\b([a-z0-9_-]+)\s+questions?\b/gi;
+const CONTAINING_PATTERN =
+  /\b(?:containing|содержа(?:щ|)|змесцив|zawieraj[aą]c(?:e|y)?)\s+(.+?)(?:[.?!]|$)/iu;
+const IMPLICIT_CATEGORY_PATTERN =
+  /\b([a-z0-9_-]+)\s+(?:questions?|вопрос(?:ы|)?|pytani(?:a|e|ń)?|pyta[nń]|пытанн(?:е|і|я)?)\b/giu;
 
 const DIFFICULTIES = new Set<QuestionDifficulty>(['easy', 'medium', 'hard']);
 const STATUSES = new Set<string>(QUESTION_STATUS_VALUES);
@@ -56,6 +59,14 @@ const IMPLICIT_CATEGORY_STOP_WORDS = new Set([
   'type',
   'category',
   'subcategory',
+  'pytania',
+  'pytan',
+  'pytań',
+  'вопрос',
+  'вопросы',
+  'пытанне',
+  'пытанні',
+  'пытання',
 ]);
 const NON_CATEGORY_ADJECTIVES = new Set([
   'expert',
@@ -76,6 +87,22 @@ function parseTags(raw: string | undefined): string[] | undefined {
     .filter((tag) => tag.length > 0)
     .slice(0, 20);
   return tags.length > 0 ? tags : undefined;
+}
+
+function matchFirstCaptureGroup(
+  pattern: RegExp,
+  message: string,
+): string | undefined {
+  const match = message.match(pattern);
+  if (!match) {
+    return undefined;
+  }
+  for (let index = 1; index < match.length; index += 1) {
+    if (match[index]) {
+      return match[index];
+    }
+  }
+  return undefined;
 }
 
 function extractImplicitCategory(message: string): string | undefined {
@@ -112,14 +139,20 @@ export function extractQuestionFilters(message: string): QueryQuestionsDto {
     filters.status = status as QueryQuestionsDto['status'];
   }
 
-  const roleFor = trimField(message.match(ROLE_FOR_PATTERN)?.[1], 120);
+  const roleFor = trimField(
+    matchFirstCaptureGroup(ROLE_FOR_PATTERN, message),
+    120,
+  );
   const roleKeyword = extractPositionFromMessage(message);
   const role = roleFor ?? roleKeyword;
   if (role) {
     filters.role = role;
   }
 
-  const category = trimField(message.match(CATEGORY_PATTERN)?.[1], 120);
+  const category = trimField(
+    matchFirstCaptureGroup(CATEGORY_PATTERN, message),
+    120,
+  );
   if (category) {
     filters.category = category;
   } else if (!role) {
@@ -129,7 +162,10 @@ export function extractQuestionFilters(message: string): QueryQuestionsDto {
     }
   }
 
-  const subcategory = trimField(message.match(SUBCATEGORY_PATTERN)?.[1], 120);
+  const subcategory = trimField(
+    matchFirstCaptureGroup(SUBCATEGORY_PATTERN, message),
+    120,
+  );
   if (subcategory) {
     filters.subcategory = subcategory;
   }

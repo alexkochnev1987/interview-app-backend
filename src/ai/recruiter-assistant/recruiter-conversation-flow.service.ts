@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Locale } from '../../locale/locale.constants';
 import { RecruiterAssistantResponseDto } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { RecruiterAssistantToolsService } from './recruiter-assistant-tools.service';
 import {
   isCancellationMessage,
@@ -19,6 +20,7 @@ import { RecruiterConversationState } from './recruiter-conversation.types';
 export interface ActiveFlowContext {
   user: ActingUser;
   locale: Locale;
+  messageLocale: Locale;
   sessionId: string;
   message: string;
   state: RecruiterConversationState;
@@ -43,11 +45,11 @@ export class RecruiterConversationFlowService {
         this.conversationStore.update(
           ctx.user.id,
           ctx.sessionId,
-          idleConversationState(),
+          this.idleState(ctx),
         );
         return {
           status: 'answered',
-          response: 'Cancelled. No changes were made.',
+          response: msg(ctx.messageLocale, 'cancelled'),
         };
       }
 
@@ -58,6 +60,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       }
@@ -66,6 +69,7 @@ export class RecruiterConversationFlowService {
         ctx.state,
         ctx.user,
         ctx.locale,
+        ctx.messageLocale,
         ctx.sessionId,
       );
     }
@@ -75,6 +79,7 @@ export class RecruiterConversationFlowService {
         ctx.state,
         ctx.user,
         ctx.locale,
+        ctx.messageLocale,
         ctx.sessionId,
         ctx.message,
       );
@@ -84,18 +89,21 @@ export class RecruiterConversationFlowService {
       this.conversationStore.update(
         ctx.user.id,
         ctx.sessionId,
-        idleConversationState(),
+        this.idleState(ctx),
       );
       return {
         status: 'answered',
-        response: 'Cancelled. No changes were made.',
+        response: msg(ctx.messageLocale, 'cancelled'),
       };
     }
 
     const state = ctx.state.awaitingInput
       ? captureAwaitingSlot(ctx.state, ctx.message)
       : ctx.state;
-    this.conversationStore.update(ctx.user.id, ctx.sessionId, state);
+    this.conversationStore.update(ctx.user.id, ctx.sessionId, {
+      ...state,
+      messageLocale: ctx.messageLocale,
+    });
 
     switch (state.flow) {
       case 'assign_hr':
@@ -103,6 +111,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       case 'create_question':
@@ -110,6 +119,7 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
         );
       case 'create_interview':
@@ -117,11 +127,19 @@ export class RecruiterConversationFlowService {
           state,
           ctx.user,
           ctx.locale,
+          ctx.messageLocale,
           ctx.sessionId,
           ctx.message,
         );
       default:
         return null;
     }
+  }
+
+  private idleState(ctx: ActiveFlowContext): RecruiterConversationState {
+    return {
+      ...idleConversationState(),
+      messageLocale: ctx.messageLocale,
+    };
   }
 }

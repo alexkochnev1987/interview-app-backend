@@ -1,3 +1,4 @@
+import { assistantMessage } from './recruiter-assistant-i18n';
 import { RecruiterConversationFlowService } from './recruiter-conversation-flow.service';
 import { startConversationFlow } from './recruiter-conversation-slots';
 
@@ -32,6 +33,7 @@ describe('RecruiterConversationFlowService', () => {
       hasGoogleAvatar: false,
     },
     locale: 'en' as const,
+    messageLocale: 'en' as const,
     sessionId: 'session-1',
     message: 'Jane Doe',
     state: startConversationFlow('assign_hr', 'hr', { interviewRef: 'Alice' }),
@@ -59,11 +61,25 @@ describe('RecruiterConversationFlowService', () => {
       {
         flow: 'idle',
         slots: {},
+        messageLocale: 'en',
       },
     );
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
+    });
+  });
+
+  it('returns cancelled message in the user message locale', async () => {
+    const response = await service.resumeActiveFlow({
+      ...ctx,
+      messageLocale: 'ru',
+      message: 'cancel',
+    });
+
+    expect(response).toEqual({
+      status: 'answered',
+      response: assistantMessage('ru', 'cancelled'),
     });
   });
 
@@ -120,13 +136,13 @@ describe('RecruiterConversationFlowService', () => {
     expect(conversationStore.update).toHaveBeenCalledWith(
       'user-1',
       'session-1',
-      { flow: 'idle', slots: {} },
+      { flow: 'idle', slots: {}, messageLocale: 'en' },
     );
     expect(tools.continueCreateQuestionDespiteSimilar).not.toHaveBeenCalled();
     expect(tools.repromptSimilarQuestionConfirmation).not.toHaveBeenCalled();
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
     });
   });
 
@@ -158,6 +174,7 @@ describe('RecruiterConversationFlowService', () => {
       confirmState,
       ctx.user,
       ctx.locale,
+      ctx.messageLocale,
       ctx.sessionId,
       'yes',
     );

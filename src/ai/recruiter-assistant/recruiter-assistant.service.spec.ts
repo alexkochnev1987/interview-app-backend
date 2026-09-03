@@ -1,4 +1,5 @@
-import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
+import { assistantMessage } from './recruiter-assistant-i18n';
+import { newChatWelcomeResponse } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { ActingUser } from './recruiter-assistant.types';
 
@@ -46,7 +47,7 @@ describe('RecruiterAssistantService', () => {
     switchLocale: vi.fn(),
     startNewChat: vi.fn().mockReturnValue({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
     }),
   };
 
@@ -72,7 +73,7 @@ describe('RecruiterAssistantService', () => {
     conversationFlow.resumeActiveFlow.mockResolvedValue(null);
     tools.startNewChat.mockReturnValue({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
     });
   });
 
@@ -123,9 +124,70 @@ describe('RecruiterAssistantService', () => {
     );
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
       sessionId: 'session-1',
+      locale: 'en',
     });
+  });
+
+  it('detects Russian from the message and returns locale on the response', async () => {
+    intentRouter.classify.mockReturnValue({
+      kind: 'list_interviews',
+      filters: { limit: 20 },
+    });
+    tools.listInterviews.mockResolvedValue({
+      status: 'answered',
+      response: 'Found 1 interview(s). Showing 1.',
+      interviews: [],
+    });
+
+    const response = await service.chat(
+      { message: 'покажи все интервью' },
+      user,
+      'en',
+    );
+
+    expect(conversationStore.update).toHaveBeenCalledWith(
+      'user-1',
+      'session-1',
+      {
+        flow: 'idle',
+        slots: {},
+        messageLocale: 'ru',
+      },
+    );
+    expect(response.locale).toBe('ru');
+  });
+
+  it('keeps stored locale for short confirmation replies', async () => {
+    conversationStore.get.mockReturnValue({
+      flow: 'idle',
+      slots: {},
+      messageLocale: 'ru',
+    });
+    intentRouter.classify.mockReturnValue({ kind: 'out_of_scope' });
+    pendingActionStore.consume.mockResolvedValue({
+      type: 'assign_hr',
+      interviewId: '11111111-1111-4111-8111-111111111111',
+      assignedHrId: '22222222-2222-4222-8222-222222222222',
+      assignedHrName: 'Jane Doe',
+      interviewLabel: 'Alice Smith (React Developer)',
+    });
+    executor.execute.mockResolvedValue({
+      status: 'executed',
+      response: 'done',
+    });
+
+    const response = await service.chat(
+      {
+        message: 'yes',
+        pendingActionId: '33333333-3333-4333-8333-333333333333',
+      },
+      user,
+      'en',
+    );
+
+    expect(response.locale).toBe('ru');
   });
 
   it('starts a new chat with a fresh session', async () => {
@@ -139,8 +201,9 @@ describe('RecruiterAssistantService', () => {
     expect(conversationStore.issue).toHaveBeenCalledWith('user-1');
     expect(response).toEqual({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
       sessionId: 'session-2',
+      locale: 'en',
     });
   });
 
@@ -207,6 +270,7 @@ describe('RecruiterAssistantService', () => {
       response: 'Which HR reviewer?',
       awaitingInput: 'hr',
       sessionId: 'session-1',
+      locale: 'en',
     });
   });
 });

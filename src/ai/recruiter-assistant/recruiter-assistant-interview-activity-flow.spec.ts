@@ -59,7 +59,7 @@ describe('RecruiterAssistantToolsService interview activity summary', () => {
   });
 
   it('returns interview activity summary for admins', async () => {
-    const result = await service.summarizeInterviewActivity(admin, 'en');
+    const result = await service.summarizeInterviewActivity(admin, 'en', 'en');
 
     expect(interviewService.getFacets).toHaveBeenCalledWith(
       {},
@@ -81,7 +81,11 @@ describe('RecruiterAssistantToolsService interview activity summary', () => {
   });
 
   it('denies candidates', async () => {
-    const result = await service.summarizeInterviewActivity(candidate, 'en');
+    const result = await service.summarizeInterviewActivity(
+      candidate,
+      'en',
+      'en',
+    );
 
     expect(interviewService.getFacets).not.toHaveBeenCalled();
     expect(result.status).toBe('denied');

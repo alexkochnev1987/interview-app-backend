@@ -70,7 +70,7 @@ describe('RecruiterAssistantToolsService list team', () => {
   });
 
   it('returns team summary and members for admins', async () => {
-    const result = await service.listTeam(admin, 'en', {
+    const result = await service.listTeam(admin, 'en', 'en', {
       includeSummary: true,
     });
 
@@ -96,7 +96,9 @@ describe('RecruiterAssistantToolsService list team', () => {
   });
 
   it('denies hr users', async () => {
-    const result = await service.listTeam(hr, 'en', { includeSummary: true });
+    const result = await service.listTeam(hr, 'en', 'en', {
+      includeSummary: true,
+    });
 
     expect(userService.countUsersByRole).not.toHaveBeenCalled();
     expect(result.status).toBe('denied');
@@ -105,7 +107,7 @@ describe('RecruiterAssistantToolsService list team', () => {
 
   it('lists team members filtered by role without summary', async () => {
     userService.listAll.mockResolvedValue([member]);
-    const result = await service.listTeam(admin, 'en', {
+    const result = await service.listTeam(admin, 'en', 'en', {
       role: 'hr',
       includeSummary: false,
     });

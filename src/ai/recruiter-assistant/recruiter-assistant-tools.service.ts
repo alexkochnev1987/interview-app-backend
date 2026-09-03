@@ -67,6 +67,7 @@ import {
   formatCandidateInterviewStatusLabel,
 } from './recruiter-assistant-candidate-response-builders';
 import { resolveHrRef } from './recruiter-assistant-hr-ref';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { buildInterviewActivityFromStatusFacets } from './recruiter-assistant-interview-activity';
 import { resolveInterviewRef } from './recruiter-assistant-interview-ref';
 import { scorePersonNameMatch } from './recruiter-assistant-name-match';
@@ -118,7 +119,6 @@ const MAX_RECRUITER_ASSISTANT_TEAM_LIST_LIMIT = 200;
 /** Max paginated pages when scanning interviews for assessment counts. */
 const MAX_ASSESSMENT_SCAN_PAGES = 10;
 
-/** User-facing assistant strings are English-only (see module known limitations). */
 @Injectable()
 export class RecruiterAssistantToolsService {
   private readonly logger = new Logger(RecruiterAssistantToolsService.name);
@@ -142,13 +142,14 @@ export class RecruiterAssistantToolsService {
     filters: QueryInterviewsDto,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     readyForReview?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to list interviews.',
+        response: msg(messageLocale, 'denied.listInterviews'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -167,15 +168,18 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: readyForReview
-          ? 'No completed interviews are ready for your review.'
-          : 'No interviews matched your request.',
+          ? msg(messageLocale, 'answered.noInterviewsReadyForReview')
+          : msg(messageLocale, 'answered.noInterviewsMatched'),
         interviews: [],
       };
     }
 
     return {
       status: 'answered',
-      response: `Found ${total} interview(s). Showing ${items.length}.`,
+      response: msg(messageLocale, 'answered.interviewsFound', {
+        total,
+        count: items.length,
+      }),
       interviews: items,
     };
   }
@@ -183,11 +187,13 @@ export class RecruiterAssistantToolsService {
   listUnassigned(
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     return this.listInterviews(
       { assignedHrId: ASSIGNED_HR_FILTER_UNASSIGNED, limit: 20 },
       user,
       locale,
+      messageLocale,
     );
   }
 
@@ -195,11 +201,12 @@ export class RecruiterAssistantToolsService {
     filters: QueryQuestionsDto,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canReadQuestions(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to read the question bank.',
+        response: msg(messageLocale, 'denied.readQuestions'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -220,8 +227,8 @@ export class RecruiterAssistantToolsService {
     return {
       status: 'answered',
       response: hasFilters
-        ? `${total} question(s) match your filters. Open the question bank to browse them.`
-        : `You have ${total} question(s) in total. Open the question bank to browse them.`,
+        ? msg(messageLocale, 'answered.questionsCountFiltered', { total })
+        : msg(messageLocale, 'answered.questionsCountTotal', { total }),
       questionCount: {
         total,
         filters: hasFilters ? listFilters : undefined,
@@ -234,12 +241,13 @@ export class RecruiterAssistantToolsService {
     filters: QueryAssessmentsFilters,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to read assessments.',
+        response: msg(messageLocale, 'denied.readAssessments'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -259,14 +267,20 @@ export class RecruiterAssistantToolsService {
     const hasFilters = Object.keys(listFilters).length > 0;
     const scanLimit = MAX_ASSESSMENT_SCAN_PAGES * MAX_INTERVIEWS_LIMIT;
     const truncatedNote = truncated
-      ? ` (count from the ${scanLimit} most recently updated interviews; open the assessments page for the full list)`
+      ? msg(messageLocale, 'answered.assessmentsTruncatedNote', { scanLimit })
       : '';
 
     return {
       status: 'answered',
       response: hasFilters
-        ? `${total} assessment(s) match your filters.${truncatedNote} Open the assessments page to browse them.`
-        : `You have ${total} assessment(s) in total.${truncatedNote} Open the assessments page to browse them.`,
+        ? msg(messageLocale, 'answered.assessmentsCountFiltered', {
+            total,
+            truncatedNote,
+          })
+        : msg(messageLocale, 'answered.assessmentsCountTotal', {
+            total,
+            truncatedNote,
+          }),
       assessmentCount: {
         total,
         filters: hasFilters ? listFilters : undefined,
@@ -278,12 +292,13 @@ export class RecruiterAssistantToolsService {
   async summarizeInterviewActivity(
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to summarize interview activity.',
+        response: msg(messageLocale, 'denied.summarizeActivity'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -296,11 +311,12 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'answered',
-      response:
-        `Your org has ${interviewActivity.total} interview(s): ` +
-        `${interviewActivity.active} active, ` +
-        `${interviewActivity.completed} completed, ` +
-        `${interviewActivity.failed} failed.`,
+      response: msg(messageLocale, 'answered.activitySummary', {
+        total: interviewActivity.total,
+        active: interviewActivity.active,
+        completed: interviewActivity.completed,
+        failed: interviewActivity.failed,
+      }),
       interviewActivity,
     };
   }
@@ -308,13 +324,14 @@ export class RecruiterAssistantToolsService {
   async listTeam(
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     options: { role?: UserRole; includeSummary: boolean },
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canListTeam(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to list team members.',
+        response: msg(messageLocale, 'denied.listTeam'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -340,7 +357,7 @@ export class RecruiterAssistantToolsService {
     if (teamMembers.length === 0) {
       return {
         status: 'answered',
-        response: 'No team members found.',
+        response: msg(messageLocale, 'answered.noTeamMembers'),
         teamSummary,
         teamMembers: [],
       };
@@ -353,7 +370,11 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'answered',
-      response: `${summaryLine}Showing ${teamMembers.length}${roleLabel} team member(s).`,
+      response: msg(messageLocale, 'answered.teamMembersListed', {
+        summaryLine,
+        count: teamMembers.length,
+        roleLabel,
+      }),
       teamSummary,
       teamMembers,
     };
@@ -362,12 +383,13 @@ export class RecruiterAssistantToolsService {
   async listHrs(
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canAssignHr(user)) {
       return {
         status: 'denied',
-        response: 'Only admins can list HR reviewers.',
+        response: msg(messageLocale, 'denied.listHrs'),
         escalateTo: 'admin',
       };
     }
@@ -376,14 +398,14 @@ export class RecruiterAssistantToolsService {
     if (hrs.length === 0) {
       return {
         status: 'answered',
-        response: 'No HR reviewers available.',
+        response: msg(messageLocale, 'answered.noHrs'),
         hrs: [],
       };
     }
 
     return {
       status: 'answered',
-      response: `Found ${hrs.length} HR reviewer(s).`,
+      response: msg(messageLocale, 'answered.hrsFound', { count: hrs.length }),
       hrs,
     };
   }
@@ -391,13 +413,14 @@ export class RecruiterAssistantToolsService {
   async listOwnInterviews(
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     activeOnly?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (user.role !== 'candidate') {
       return {
         status: 'refused',
-        response: 'That question is only for candidates.',
+        response: msg(messageLocale, 'denied.candidatesOnly'),
       };
     }
 
@@ -410,8 +433,14 @@ export class RecruiterAssistantToolsService {
       : sortInterviewsByCandidateRelevance(allInterviews);
 
     const response = activeOnly
-      ? buildCandidateActiveInterviewsResponseText(listedInterviews)
-      : buildCandidateAllInterviewsResponseText(listedInterviews);
+      ? buildCandidateActiveInterviewsResponseText(
+          messageLocale,
+          listedInterviews,
+        )
+      : buildCandidateAllInterviewsResponseText(
+          messageLocale,
+          listedInterviews,
+        );
 
     return {
       status: 'answered',
@@ -425,6 +454,7 @@ export class RecruiterAssistantToolsService {
     ref: InterviewRef,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     ownInterviews?: boolean,
     scheduleInquiry?: boolean,
     latest?: boolean,
@@ -434,13 +464,14 @@ export class RecruiterAssistantToolsService {
       if (user.role !== 'candidate') {
         return {
           status: 'refused',
-          response: 'That question is only for candidates.',
+          response: msg(messageLocale, 'denied.candidatesOnly'),
         };
       }
 
       return this.getCandidateInterviewStatus(
         user,
         ref,
+        messageLocale,
         scheduleInquiry,
         latest,
       );
@@ -449,7 +480,7 @@ export class RecruiterAssistantToolsService {
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to look up interview status.',
+        response: msg(messageLocale, 'denied.lookupStatus'),
         escalateTo: 'admin',
       };
     }
@@ -462,14 +493,17 @@ export class RecruiterAssistantToolsService {
     if (!interview) {
       return {
         status: 'answered',
-        response:
-          'I could not find a unique interview. Provide an interview id or candidate name.',
+        response: msg(messageLocale, 'answered.interviewNotFound'),
       };
     }
 
     return {
       status: 'answered',
-      response: `${interview.candidateName}'s interview for ${interview.position} is ${interview.status.replace('_', ' ')}.`,
+      response: msg(messageLocale, 'answered.interviewStatus', {
+        candidateName: interview.candidateName,
+        position: interview.position,
+        status: interview.status.replace('_', ' '),
+      }),
       interview: {
         id: interview.id,
         candidateName: interview.candidateName,
@@ -483,17 +517,18 @@ export class RecruiterAssistantToolsService {
     ref: InterviewRef,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
 
     if (user.role === 'candidate') {
-      return this.getCandidateReviewState(user, ref);
+      return this.getCandidateReviewState(user, ref, messageLocale);
     }
 
     if (!canListInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to check review state.',
+        response: msg(messageLocale, 'denied.checkReview'),
         escalateTo: 'admin',
       };
     }
@@ -506,8 +541,7 @@ export class RecruiterAssistantToolsService {
     if (!interview) {
       return {
         status: 'answered',
-        response:
-          'I could not find a unique interview. Provide an interview id or candidate name.',
+        response: msg(messageLocale, 'answered.interviewNotFound'),
       };
     }
 
@@ -530,9 +564,15 @@ export class RecruiterAssistantToolsService {
       outcome: feedback?.outcome ?? interview.result?.decision,
     };
 
+    const outcome = reviewState.outcome ? ` (${reviewState.outcome})` : '';
     const response = reviewed
-      ? `${interview.candidateName}'s interview has been reviewed${reviewState.outcome ? ` (${reviewState.outcome})` : ''}.`
-      : `${interview.candidateName}'s interview has not been reviewed yet.`;
+      ? msg(messageLocale, 'answered.interviewReviewed', {
+          candidateName: interview.candidateName,
+          outcome,
+        })
+      : msg(messageLocale, 'answered.interviewNotReviewed', {
+          candidateName: interview.candidateName,
+        });
 
     return {
       status: 'answered',
@@ -551,13 +591,14 @@ export class RecruiterAssistantToolsService {
     intent: Extract<RecruiterAssistantIntent, { kind: 'assign_hr' }>,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canAssignHr(user)) {
       return {
         status: 'denied',
-        response: 'Only admins can assign HR reviewers.',
+        response: msg(messageLocale, 'denied.assignHr'),
         escalateTo: 'admin',
       };
     }
@@ -569,6 +610,7 @@ export class RecruiterAssistantToolsService {
       },
       user,
       sessionId,
+      messageLocale,
       { persistFlowOnMissing: true },
     );
   }
@@ -577,25 +619,25 @@ export class RecruiterAssistantToolsService {
     questionName: string | undefined,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateQuestions(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create questions.',
+        response: msg(messageLocale, 'denied.createQuestions'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
 
     if (!questionName) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_question', 'questionName'),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('create_question', 'questionName'),
+        messageLocale,
+      });
       return {
         status: 'answered',
-        response: 'What should the question be called?',
+        response: msg(messageLocale, 'flow.askQuestionName'),
         awaitingInput: 'questionName',
       };
     }
@@ -604,6 +646,7 @@ export class RecruiterAssistantToolsService {
       questionName,
       user,
       locale,
+      messageLocale,
       sessionId,
     );
   }
@@ -612,12 +655,12 @@ export class RecruiterAssistantToolsService {
     parsed: ParsedRecruiterRequest,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canReadQuestions(user)) {
       return {
         status: 'denied',
-        response:
-          'You do not have permission to read the question bank for interview preparation.',
+        response: msg(messageLocale, 'denied.readQuestionsForPrep'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -654,6 +697,7 @@ export class RecruiterAssistantToolsService {
         canCreateQuestions: userCanCreateQuestions,
         canCreateInterviews: userCanCreateInterviews,
         candidateName: parsed.candidateName,
+        messageLocale,
       }),
       suggestedQuestions: resolved,
       pendingAction,
@@ -668,28 +712,34 @@ export class RecruiterAssistantToolsService {
     requestedLocale: Locale | null,
     rawToken: string | undefined,
     locale: Locale,
+    messageLocale: Locale,
   ): RecruiterAssistantResponseDto {
     void locale;
     if (!requestedLocale) {
       return {
         status: 'refused',
         response: rawToken
-          ? `"${rawToken}" is not a supported locale. Supported: en, be, ru, pl.`
-          : 'Say "switch locale to ru" (supported: en, be, ru, pl).',
+          ? msg(messageLocale, 'locale.unsupported', { token: rawToken })
+          : msg(messageLocale, 'locale.switchHint'),
       };
     }
 
     return {
       status: 'answered',
-      response: `Application language switched to ${requestedLocale}.`,
+      response: msg(messageLocale, 'locale.switched', {
+        locale: requestedLocale,
+      }),
       locale: requestedLocale,
     };
   }
 
-  startNewChat(user: ActingUser): RecruiterAssistantResponseDto {
+  startNewChat(
+    user: ActingUser,
+    messageLocale: Locale,
+  ): RecruiterAssistantResponseDto {
     return {
       status: 'answered',
-      response: newChatWelcomeResponse(user),
+      response: newChatWelcomeResponse(user, messageLocale),
     };
   }
 
@@ -697,13 +747,14 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     void locale;
     if (!canAssignHr(user)) {
       return {
         status: 'denied',
-        response: 'Only admins can assign HR reviewers.',
+        response: msg(messageLocale, 'denied.assignHr'),
         escalateTo: 'admin',
       };
     }
@@ -716,6 +767,7 @@ export class RecruiterAssistantToolsService {
       },
       user,
       sessionId,
+      messageLocale ?? state.messageLocale ?? locale,
       { persistFlowOnMissing: true },
     );
   }
@@ -724,26 +776,26 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateQuestions(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create questions.',
+        response: msg(messageLocale, 'denied.createQuestions'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
 
     const questionName = state.slots.questionName;
     if (!questionName) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_question', 'questionName'),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('create_question', 'questionName'),
+        messageLocale: messageLocale ?? state.messageLocale ?? locale,
+      });
       return {
         status: 'answered',
-        response: 'What should the question be called?',
+        response: msg(messageLocale, 'flow.askQuestionName'),
         awaitingInput: 'questionName',
       };
     }
@@ -752,6 +804,7 @@ export class RecruiterAssistantToolsService {
       questionName,
       user,
       locale,
+      messageLocale,
       sessionId,
     );
   }
@@ -760,26 +813,26 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateQuestions(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create questions.',
+        response: msg(messageLocale, 'denied.createQuestions'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
 
     const questionName = state.slots.questionName;
     if (!questionName) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_question', 'questionName'),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('create_question', 'questionName'),
+        messageLocale: messageLocale ?? state.messageLocale ?? locale,
+      });
       return {
         status: 'answered',
-        response: 'What should the question be called?',
+        response: msg(messageLocale, 'flow.askQuestionName'),
         awaitingInput: 'questionName',
       };
     }
@@ -788,6 +841,7 @@ export class RecruiterAssistantToolsService {
       questionName,
       user,
       locale,
+      messageLocale,
       sessionId,
     );
 
@@ -799,16 +853,21 @@ export class RecruiterAssistantToolsService {
           locale,
         );
       if (matches.length > 0) {
-        this.conversationStore.update(
-          user.id,
-          sessionId,
-          startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
-            questionName,
-          }),
-        );
+        this.conversationStore.update(user.id, sessionId, {
+          ...startConversationFlow(
+            'create_question',
+            'confirmAddDespiteSimilar',
+            {
+              questionName,
+            },
+          ),
+          messageLocale: messageLocale ?? state.messageLocale ?? locale,
+        });
         return {
           status: 'answered',
-          response: `${response.response} Reply yes to try again, or no/cancel to abort.`,
+          response: msg(messageLocale, 'flow.similarQuestionsRetry', {
+            previousMessage: response.response,
+          }),
           awaitingInput: 'confirmAddDespiteSimilar',
           similarQuestions: buildSimilarQuestionMatchCards(matches),
         };
@@ -822,18 +881,18 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     const questionName = state.slots.questionName;
     if (!questionName) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_question', 'questionName'),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('create_question', 'questionName'),
+        messageLocale: messageLocale ?? state.messageLocale ?? locale,
+      });
       return {
         status: 'answered',
-        response: 'What should the question be called?',
+        response: msg(messageLocale, 'flow.askQuestionName'),
         awaitingInput: 'questionName',
       };
     }
@@ -844,17 +903,16 @@ export class RecruiterAssistantToolsService {
       locale,
     );
 
-    this.conversationStore.update(
-      user.id,
-      sessionId,
-      startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
+    this.conversationStore.update(user.id, sessionId, {
+      ...startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
         questionName,
       }),
-    );
+      messageLocale: messageLocale ?? state.messageLocale ?? locale,
+    });
 
     return {
       status: 'answered',
-      response: 'Reply yes to add the question anyway, or no/cancel to abort.',
+      response: msg(messageLocale, 'flow.similarQuestionsReprompt'),
       awaitingInput: 'confirmAddDespiteSimilar',
       similarQuestions: buildSimilarQuestionMatchCards(matches),
     };
@@ -865,12 +923,13 @@ export class RecruiterAssistantToolsService {
     position: string | undefined,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create interviews.',
+        response: msg(messageLocale, 'denied.createInterviews'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -879,6 +938,7 @@ export class RecruiterAssistantToolsService {
       { candidateName, position },
       user,
       locale,
+      messageLocale,
       sessionId,
       { persistFlowOnMissing: true },
     );
@@ -889,19 +949,25 @@ export class RecruiterAssistantToolsService {
     message: string,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create interviews.',
+        response: msg(messageLocale, 'denied.createInterviews'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
 
     const confirmation = parseRegisteredCandidateConfirmation(message);
     if (!confirmation) {
-      return this.repromptRegisteredCandidateConfirm(state, user, sessionId);
+      return this.repromptRegisteredCandidateConfirm(
+        state,
+        user,
+        messageLocale,
+        sessionId,
+      );
     }
 
     const baseSlots = this.stripTransientCandidateSlots(state.slots);
@@ -931,6 +997,7 @@ export class RecruiterAssistantToolsService {
       { flow: 'create_interview', slots: nextSlots },
       user,
       locale,
+      messageLocale,
       sessionId,
     );
   }
@@ -938,6 +1005,7 @@ export class RecruiterAssistantToolsService {
   repromptRegisteredCandidateConfirm(
     state: RecruiterConversationState,
     user: ActingUser,
+    messageLocale: Locale,
     sessionId: string,
   ): RecruiterAssistantResponseDto {
     const candidate = {
@@ -954,7 +1022,10 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'answered',
-      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      response: msg(messageLocale, 'flow.confirmRegisteredCandidate', {
+        name: candidate.name,
+        email: candidate.email,
+      }),
       awaitingInput: 'confirmRegisteredCandidate',
       candidates: [candidate],
     };
@@ -964,13 +1035,17 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
     message?: string,
   ): Promise<RecruiterAssistantResponseDto> {
+    const resolvedMessageLocale =
+      messageLocale ?? state.messageLocale ?? locale;
+
     if (!canCreateInterviews(user)) {
       return {
         status: 'denied',
-        response: 'You do not have permission to create interviews.',
+        response: msg(resolvedMessageLocale, 'denied.createInterviews'),
         escalateTo: user.role === 'candidate' ? 'hr' : 'admin',
       };
     }
@@ -981,6 +1056,7 @@ export class RecruiterAssistantToolsService {
         message,
         user,
         locale,
+        resolvedMessageLocale,
         sessionId,
       );
     }
@@ -990,6 +1066,7 @@ export class RecruiterAssistantToolsService {
         state,
         user,
         locale,
+        resolvedMessageLocale,
         sessionId,
       );
     }
@@ -999,6 +1076,7 @@ export class RecruiterAssistantToolsService {
         state.slots,
         user,
         locale,
+        resolvedMessageLocale,
         sessionId,
       );
     }
@@ -1007,6 +1085,7 @@ export class RecruiterAssistantToolsService {
       { slots: state.slots },
       user,
       locale,
+      resolvedMessageLocale,
       sessionId,
       { persistFlowOnMissing: true },
     );
@@ -1016,12 +1095,14 @@ export class RecruiterAssistantToolsService {
     state: RecruiterConversationState,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     return this.resolveCandidateChoiceFromSlots(
       state.slots,
       user,
       locale,
+      messageLocale,
       sessionId,
       true,
     );
@@ -1031,6 +1112,7 @@ export class RecruiterAssistantToolsService {
     slots: Record<string, string>,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     const candidateName = slots.candidateName;
@@ -1049,7 +1131,7 @@ export class RecruiterAssistantToolsService {
       });
       return {
         status: 'answered',
-        response: 'Pick a number from the list or say "create my own".',
+        response: msg(messageLocale, 'flow.pickTemplate'),
         awaitingInput: 'templateChoice',
         templates,
       };
@@ -1063,7 +1145,7 @@ export class RecruiterAssistantToolsService {
       );
       return {
         status: 'answered',
-        response: 'Opening the interview form.',
+        response: msg(messageLocale, 'flow.openInterviewForm'),
         redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
@@ -1080,7 +1162,10 @@ export class RecruiterAssistantToolsService {
       });
       return {
         status: 'answered',
-        response: `Template ${choice.index} is not in the list. Pick a number from 1 to ${templates.length} or say "create my own".`,
+        response: msg(messageLocale, 'flow.templateOutOfRange', {
+          index: choice.index,
+          max: templates.length,
+        }),
         awaitingInput: 'templateChoice',
         templates,
       };
@@ -1098,7 +1183,9 @@ export class RecruiterAssistantToolsService {
       );
       return {
         status: 'refused',
-        response: `Template "${template.name}" has no available questions. Try another template or say "create my own".`,
+        response: msg(messageLocale, 'flow.templateNoQuestions', {
+          templateName: template.name,
+        }),
         redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
@@ -1124,7 +1211,11 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'needs_confirmation',
-      response: `Create interview for ${candidateName} using "${template.name}" (${questions.length} questions)? Reply yes to confirm.`,
+      response: msg(messageLocale, 'flow.createInterviewConfirm', {
+        candidateName,
+        templateName: template.name,
+        questionCount: questions.length,
+      }),
       suggestedQuestions: questions,
       pendingAction,
       pendingActionId: await this.pendingActionStore.issue(
@@ -1142,6 +1233,7 @@ export class RecruiterAssistantToolsService {
     },
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
     options: { persistFlowOnMissing: boolean },
   ): Promise<RecruiterAssistantResponseDto> {
@@ -1158,6 +1250,7 @@ export class RecruiterAssistantToolsService {
         slots,
         user,
         locale,
+        messageLocale,
         sessionId,
         options.persistFlowOnMissing,
       );
@@ -1170,6 +1263,7 @@ export class RecruiterAssistantToolsService {
           slots,
           user,
           locale,
+          messageLocale,
           sessionId,
           options.persistFlowOnMissing,
         );
@@ -1179,6 +1273,7 @@ export class RecruiterAssistantToolsService {
         user,
         sessionId,
         slots,
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
@@ -1189,6 +1284,7 @@ export class RecruiterAssistantToolsService {
         user,
         sessionId,
         slots,
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
@@ -1199,6 +1295,7 @@ export class RecruiterAssistantToolsService {
         user,
         sessionId,
         slots,
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
@@ -1227,7 +1324,7 @@ export class RecruiterAssistantToolsService {
       }
       return {
         status: 'answered',
-        response: `No templates found for ${position}. Say "create my own" to open the interview form.`,
+        response: msg(messageLocale, 'flow.noTemplates', { position }),
         redirect: this.buildCreateInterviewRedirect(slots),
       };
     }
@@ -1240,7 +1337,10 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'answered',
-      response: `Found ${templates.length} template(s) for ${position}. Choose a number or say "create my own".`,
+      response: msg(messageLocale, 'flow.templatesFound', {
+        count: templates.length,
+        position,
+      }),
       templates,
       awaitingInput: 'templateChoice',
     };
@@ -1319,6 +1419,7 @@ export class RecruiterAssistantToolsService {
     user: ActingUser,
     sessionId: string,
     slots: Record<string, string>,
+    messageLocale: Locale,
     persist: boolean,
     options?: { candidates?: CandidateSummary[]; message?: string },
   ): Promise<RecruiterAssistantResponseDto> {
@@ -1336,22 +1437,19 @@ export class RecruiterAssistantToolsService {
     );
 
     if (persist) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow(
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow(
           'create_interview',
           'candidateChoice',
           cleanedSlots,
         ),
-      );
+        messageLocale,
+      });
     }
 
     return {
       status: 'answered',
-      response:
-        options?.message ??
-        'Pick a registered candidate or type a new candidate name.',
+      response: options?.message ?? msg(messageLocale, 'flow.pickCandidate'),
       awaitingInput: 'candidateChoice',
       candidates,
     };
@@ -1362,6 +1460,7 @@ export class RecruiterAssistantToolsService {
     sessionId: string,
     slots: Record<string, string>,
     candidate: CandidateSummary,
+    messageLocale: Locale,
     persist: boolean,
   ): RecruiterAssistantResponseDto {
     const nextSlots = this.withCandidatePickerMetadata(
@@ -1374,20 +1473,22 @@ export class RecruiterAssistantToolsService {
     );
 
     if (persist) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow(
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow(
           'create_interview',
           'confirmRegisteredCandidate',
           cleanedSlots,
         ),
-      );
+        messageLocale,
+      });
     }
 
     return {
       status: 'answered',
-      response: `Use registered candidate ${candidate.name} (${candidate.email})? Reply yes or no.`,
+      response: msg(messageLocale, 'flow.confirmRegisteredCandidate', {
+        name: candidate.name,
+        email: candidate.email,
+      }),
       awaitingInput: 'confirmRegisteredCandidate',
       candidates: [candidate],
     };
@@ -1398,6 +1499,7 @@ export class RecruiterAssistantToolsService {
     slots: Record<string, string>,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
     persist: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
@@ -1415,6 +1517,7 @@ export class RecruiterAssistantToolsService {
         },
         user,
         locale,
+        messageLocale,
         sessionId,
         { persistFlowOnMissing: persist },
       );
@@ -1432,6 +1535,7 @@ export class RecruiterAssistantToolsService {
           matchedCandidateEmail: matches[0].email,
         },
         matches[0],
+        messageLocale,
         persist,
       );
     }
@@ -1440,10 +1544,14 @@ export class RecruiterAssistantToolsService {
       user,
       sessionId,
       { ...this.stripTransientCandidateSlots(slots), candidateName },
+      messageLocale,
       persist,
       {
         candidates: matches,
-        message: `Found ${matches.length} registered candidates matching "${candidateName}". Pick one or type a new name.`,
+        message: msg(messageLocale, 'flow.candidatesMatching', {
+          count: matches.length,
+          name: candidateName,
+        }),
       },
     );
   }
@@ -1452,6 +1560,7 @@ export class RecruiterAssistantToolsService {
     slots: Record<string, string>,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
     persist: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
@@ -1459,25 +1568,27 @@ export class RecruiterAssistantToolsService {
     const baseSlots = this.stripTransientCandidateSlots(slots);
 
     if (!choice) {
-      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
-        message:
-          'Pick a registered candidate from the list or type a new candidate name.',
-      });
+      return this.requestCandidatePicker(
+        user,
+        sessionId,
+        baseSlots,
+        messageLocale,
+        persist,
+        {
+          message: msg(messageLocale, 'flow.pickCandidateFromList'),
+        },
+      );
     }
 
     if (choice.kind === 'new') {
-      return this.progressCreateInterviewFlow(
-        {
-          slots: {
-            ...baseSlots,
-            candidateName: choice.name,
-            candidateResolution: 'new',
-          },
-        },
+      return this.resolveProvidedCandidateName(
+        choice.name,
+        baseSlots,
         user,
         locale,
+        messageLocale,
         sessionId,
-        { persistFlowOnMissing: persist },
+        persist,
       );
     }
 
@@ -1486,10 +1597,16 @@ export class RecruiterAssistantToolsService {
       (candidate) => candidate.id === choice.id,
     );
     if (!selected) {
-      return this.requestCandidatePicker(user, sessionId, baseSlots, persist, {
-        message:
-          'That candidate is not in the list. Pick one from the list or type a new name.',
-      });
+      return this.requestCandidatePicker(
+        user,
+        sessionId,
+        baseSlots,
+        messageLocale,
+        persist,
+        {
+          message: msg(messageLocale, 'flow.candidateNotInList'),
+        },
+      );
     }
 
     return this.progressCreateInterviewFlow(
@@ -1501,6 +1618,7 @@ export class RecruiterAssistantToolsService {
       },
       user,
       locale,
+      messageLocale,
       sessionId,
       { persistFlowOnMissing: persist },
     );
@@ -1510,6 +1628,7 @@ export class RecruiterAssistantToolsService {
     user: ActingUser,
     sessionId: string,
     slots: Record<string, string>,
+    messageLocale: Locale,
     persist: boolean,
   ): RecruiterAssistantResponseDto {
     const cleanedSlots = Object.fromEntries(
@@ -1517,16 +1636,15 @@ export class RecruiterAssistantToolsService {
     );
 
     if (persist) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_interview', 'position', cleanedSlots),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('create_interview', 'position', cleanedSlots),
+        messageLocale,
+      });
     }
 
     return {
       status: 'answered',
-      response: 'What position is the interview for?',
+      response: msg(messageLocale, 'flow.askPosition'),
       awaitingInput: 'position',
     };
   }
@@ -1565,6 +1683,7 @@ export class RecruiterAssistantToolsService {
     questionName: string,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     const matches = await this.questionMatcher.findSimilarMatchesOverThreshold(
@@ -1574,16 +1693,22 @@ export class RecruiterAssistantToolsService {
     );
 
     if (matches.length > 0) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('create_question', 'confirmAddDespiteSimilar', {
-          questionName,
-        }),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow(
+          'create_question',
+          'confirmAddDespiteSimilar',
+          {
+            questionName,
+          },
+        ),
+        messageLocale,
+      });
       return {
         status: 'answered',
-        response: `Found ${matches.length} similar question(s) (≥80%). Still add "${questionName}"? Reply yes to continue or no to abort.`,
+        response: msg(messageLocale, 'flow.similarQuestions', {
+          count: matches.length,
+          questionName,
+        }),
         similarQuestions: buildSimilarQuestionMatchCards(matches),
         awaitingInput: 'confirmAddDespiteSimilar',
       };
@@ -1593,6 +1718,7 @@ export class RecruiterAssistantToolsService {
       questionName,
       user,
       locale,
+      messageLocale,
       sessionId,
     );
   }
@@ -1601,6 +1727,7 @@ export class RecruiterAssistantToolsService {
     questionName: string,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
     sessionId: string,
   ): Promise<RecruiterAssistantResponseDto> {
     try {
@@ -1612,7 +1739,7 @@ export class RecruiterAssistantToolsService {
       if (!isQuestionDraftGenerate(draft)) {
         return {
           status: 'refused',
-          response: 'I could not generate AI suggestions for that question.',
+          response: msg(messageLocale, 'flow.questionDraftFailed'),
         };
       }
 
@@ -1632,7 +1759,9 @@ export class RecruiterAssistantToolsService {
 
       return {
         status: 'needs_confirmation',
-        response: `Create question "${questionName}" with AI suggestions? Reply yes to confirm.`,
+        response: msg(messageLocale, 'flow.createQuestionConfirm', {
+          questionName,
+        }),
         pendingAction,
         pendingActionId: await this.pendingActionStore.issue(
           user.id,
@@ -1642,8 +1771,7 @@ export class RecruiterAssistantToolsService {
     } catch {
       return {
         status: 'refused',
-        response:
-          'Question draft generation failed. Try again or create the question manually.',
+        response: msg(messageLocale, 'flow.questionDraftGenerationFailed'),
       };
     }
   }
@@ -1656,6 +1784,7 @@ export class RecruiterAssistantToolsService {
     },
     user: ActingUser,
     sessionId: string,
+    messageLocale: Locale,
     options: { persistFlowOnMissing: boolean },
   ): Promise<RecruiterAssistantResponseDto> {
     const actor = toInterviewActor(user);
@@ -1679,6 +1808,7 @@ export class RecruiterAssistantToolsService {
         sessionId,
         'interview',
         {},
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
@@ -1689,6 +1819,7 @@ export class RecruiterAssistantToolsService {
         sessionId,
         'interview',
         this.hrSlotsFromUser(hrUser),
+        messageLocale,
         options.persistFlowOnMissing,
         true,
       );
@@ -1703,6 +1834,7 @@ export class RecruiterAssistantToolsService {
           interviewId: interview.id,
           interviewRef: interview.candidateName,
         },
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
@@ -1716,6 +1848,7 @@ export class RecruiterAssistantToolsService {
           interviewId: interview.id,
           interviewRef: interview.candidateName,
         },
+        messageLocale,
         options.persistFlowOnMissing,
         true,
       );
@@ -1727,12 +1860,18 @@ export class RecruiterAssistantToolsService {
         sessionId,
         'interview',
         this.hrSlotsFromUser(hrUser),
+        messageLocale,
         options.persistFlowOnMissing,
       );
     }
 
     this.conversationStore.update(user.id, sessionId, idleConversationState());
-    return this.buildAssignHrConfirmation(interview, hrUser, user);
+    return this.buildAssignHrConfirmation(
+      interview,
+      hrUser,
+      user,
+      messageLocale,
+    );
   }
 
   private interviewRefFromAssignInput(input: {
@@ -1810,15 +1949,15 @@ export class RecruiterAssistantToolsService {
     sessionId: string,
     awaitingInput: 'hr' | 'interview',
     slots: Record<string, string>,
+    messageLocale: Locale,
     persist: boolean,
     ambiguous = false,
   ): Promise<RecruiterAssistantResponseDto> {
     if (persist) {
-      this.conversationStore.update(
-        user.id,
-        sessionId,
-        startConversationFlow('assign_hr', awaitingInput, slots),
-      );
+      this.conversationStore.update(user.id, sessionId, {
+        ...startConversationFlow('assign_hr', awaitingInput, slots),
+        messageLocale,
+      });
     }
 
     if (awaitingInput === 'interview') {
@@ -1831,7 +1970,7 @@ export class RecruiterAssistantToolsService {
         );
         return {
           status: 'answered',
-          response: 'No unassigned interviews available.',
+          response: msg(messageLocale, 'flow.noUnassignedInterviews'),
           interviews: [],
         };
       }
@@ -1839,8 +1978,8 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: ambiguous
-          ? "Couldn't detect singular interview, please choose from the list"
-          : 'Which interview should I assign?',
+          ? msg(messageLocale, 'flow.assignInterviewAmbiguous')
+          : msg(messageLocale, 'flow.assignInterviewPrompt'),
         awaitingInput,
         interviews,
       };
@@ -1855,7 +1994,7 @@ export class RecruiterAssistantToolsService {
       );
       return {
         status: 'answered',
-        response: 'No HR reviewers available.',
+        response: msg(messageLocale, 'answered.noHrs'),
         hrs: [],
       };
     }
@@ -1863,8 +2002,8 @@ export class RecruiterAssistantToolsService {
     return {
       status: 'answered',
       response: ambiguous
-        ? "Couldn't detect singular HR, please choose from the list"
-        : 'Which HR reviewer should I assign?',
+        ? msg(messageLocale, 'flow.assignHrAmbiguous')
+        : msg(messageLocale, 'flow.assignHrPrompt'),
       awaitingInput,
       hrs,
     };
@@ -1874,6 +2013,7 @@ export class RecruiterAssistantToolsService {
     interview: { id: string; candidateName: string; position: string },
     hrUser: { id: string; name: string },
     user: ActingUser,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     const interviewLabel = `${interview.candidateName} (${interview.position})`;
     const pendingAction: RecruiterAssistantAssignHrPendingActionDto = {
@@ -1886,7 +2026,10 @@ export class RecruiterAssistantToolsService {
 
     return {
       status: 'needs_confirmation',
-      response: `Assign ${interviewLabel} to ${hrUser.name}? Reply yes to confirm.`,
+      response: msg(messageLocale, 'flow.assignHrConfirm', {
+        interviewLabel,
+        hrName: hrUser.name,
+      }),
       pendingAction,
       pendingActionId: await this.pendingActionStore.issue(
         user.id,
@@ -1996,6 +2139,7 @@ export class RecruiterAssistantToolsService {
   private async getCandidateInterviewStatus(
     user: ActingUser,
     ref: InterviewRef,
+    messageLocale: Locale,
     scheduleInquiry?: boolean,
     latest?: boolean,
   ): Promise<RecruiterAssistantResponseDto> {
@@ -2008,7 +2152,7 @@ export class RecruiterAssistantToolsService {
     if (interviews.length === 0) {
       return {
         status: 'answered',
-        response: buildCandidateNoInterviewsResponseText(),
+        response: buildCandidateNoInterviewsResponseText(messageLocale),
       };
     }
 
@@ -2016,6 +2160,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: buildCandidateAmbiguousPositionResponseText(
+          messageLocale,
           resolved.interviews,
         ),
         interviews: resolved.interviews,
@@ -2027,6 +2172,7 @@ export class RecruiterAssistantToolsService {
         return {
           status: 'answered',
           response: buildCandidateUnknownPositionResponseText(
+            messageLocale,
             ref.position,
             interviews,
           ),
@@ -2036,7 +2182,7 @@ export class RecruiterAssistantToolsService {
 
       return {
         status: 'answered',
-        response: buildCandidateNoInterviewsResponseText(),
+        response: buildCandidateNoInterviewsResponseText(messageLocale),
       };
     }
 
@@ -2045,6 +2191,7 @@ export class RecruiterAssistantToolsService {
       ? await this.isCandidateResultsReady(interview.id)
       : false;
     const statusLabel = formatCandidateInterviewStatusLabel(
+      messageLocale,
       interview.status,
       resultsReady,
     );
@@ -2053,6 +2200,7 @@ export class RecruiterAssistantToolsService {
     return {
       status: 'answered',
       response: buildCandidateStatusResponseText(
+        messageLocale,
         interview,
         statusLabel,
         scheduleInquiry,
@@ -2065,6 +2213,7 @@ export class RecruiterAssistantToolsService {
   private async getCandidateReviewState(
     user: ActingUser,
     ref: InterviewRef,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     const { resolved, interviews } = await this.findCandidateOwnInterview(
       user,
@@ -2074,7 +2223,7 @@ export class RecruiterAssistantToolsService {
     if (interviews.length === 0) {
       return {
         status: 'answered',
-        response: buildCandidateNoInterviewsResponseText(),
+        response: buildCandidateNoInterviewsResponseText(messageLocale),
       };
     }
 
@@ -2082,6 +2231,7 @@ export class RecruiterAssistantToolsService {
       return {
         status: 'answered',
         response: buildCandidateAmbiguousPositionResponseText(
+          messageLocale,
           resolved.interviews,
         ),
         interviews: resolved.interviews,
@@ -2092,8 +2242,7 @@ export class RecruiterAssistantToolsService {
       if (ref.interviewId || ref.candidateName) {
         return {
           status: 'answered',
-          response:
-            'You can only check the review state of your own interviews.',
+          response: msg(messageLocale, 'candidate.onlyOwnReview'),
         };
       }
 
@@ -2101,6 +2250,7 @@ export class RecruiterAssistantToolsService {
         return {
           status: 'answered',
           response: buildCandidateUnknownPositionResponseText(
+            messageLocale,
             ref.position,
             interviews,
           ),
@@ -2110,7 +2260,7 @@ export class RecruiterAssistantToolsService {
 
       return {
         status: 'answered',
-        response: buildCandidateNoInterviewsResponseText(),
+        response: buildCandidateNoInterviewsResponseText(messageLocale),
       };
     }
 
@@ -2119,7 +2269,7 @@ export class RecruiterAssistantToolsService {
     if (ref.interviewId && ref.interviewId !== interview.id) {
       return {
         status: 'answered',
-        response: 'You can only check the review state of your own interviews.',
+        response: msg(messageLocale, 'candidate.onlyOwnReview'),
       };
     }
 
@@ -2129,8 +2279,7 @@ export class RecruiterAssistantToolsService {
       if (nameMismatch) {
         return {
           status: 'answered',
-          response:
-            'You can only check the review state of your own interviews.',
+          response: msg(messageLocale, 'candidate.onlyOwnReview'),
         };
       }
     }
@@ -2158,6 +2307,7 @@ export class RecruiterAssistantToolsService {
     return {
       status: 'answered',
       response: buildCandidateReviewResponseText(
+        messageLocale,
         interview,
         reviewed,
         reviewState.outcome,

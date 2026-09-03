@@ -86,6 +86,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'React Developer',
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -103,6 +104,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'Alice',
       'React Developer',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -131,6 +133,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         'no',
         user,
         'en',
+        'en',
         'session-1',
       );
 
@@ -156,6 +159,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
       'no',
     );
@@ -173,6 +177,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'React Developer',
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -181,6 +186,32 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       awaitingInput: 'templateChoice',
     });
     expect(response.templates).toHaveLength(1);
+  });
+
+  it('runs registered-match search when a name is typed in the candidate picker', async () => {
+    userService.searchCandidates.mockResolvedValueOnce([registeredAlice]);
+
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          position: 'React Developer',
+          candidateIds: registeredAlice.id,
+          candidateSearchQuery: '',
+          candidateChoice: 'Alice Johnson',
+        },
+      },
+      user,
+      'en',
+      'en',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      awaitingInput: 'confirmRegisteredCandidate',
+    });
+    expect(response.candidates).toEqual([registeredAlice]);
   });
 
   it('assigns a registered candidate when the picker id is chosen', async () => {
@@ -198,6 +229,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -214,6 +246,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       'Alice',
       'React Developer',
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -243,6 +276,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -278,6 +312,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -303,6 +338,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -324,6 +360,36 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     );
   });
 
+  it('redirects when the user chooses a localized create-my-own phrase', async () => {
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          candidateName: 'Alice',
+          candidateResolution: 'new',
+          position: 'React Developer',
+          templateIds: 'template-1',
+          templateChoice: 'свой',
+        },
+      },
+      user,
+      'en',
+      'ru',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      redirect: {
+        path: '/interviews/new',
+        query: {
+          candidateName: 'Alice',
+          position: 'React Developer',
+        },
+      },
+    });
+  });
+
   it('redirects when the user chooses create my own', async () => {
     const response = await service.continueCreateInterviewFlow(
       {
@@ -337,6 +403,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -371,6 +438,7 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
         },
       },
       user,
+      'en',
       'en',
       'session-1',
     );

@@ -14,6 +14,7 @@ describe('recruiter assistant confirmation messages', () => {
     expect(isConfirmationMessage('yes')).toBe(true);
     expect(isConfirmationMessage('confirm')).toBe(true);
     expect(isConfirmationMessage('да')).toBe(true);
+    expect(isConfirmationMessage('tak')).toBe(true);
   });
 
   it('does not treat prefixed or create phrasing as confirmation', () => {
@@ -35,6 +36,7 @@ describe('recruiter assistant confirmation messages', () => {
     expect(isCancellationMessage('no')).toBe(true);
     expect(isCancellationMessage('cancel')).toBe(true);
     expect(isCancellationMessage('never mind')).toBe(true);
+    expect(isCancellationMessage('nie')).toBe(true);
   });
 
   it('recognizes similar-question override UI cancellation labels', () => {
@@ -53,6 +55,12 @@ describe('recruiter assistant confirmation messages', () => {
     expect(isConversationResetMessage('no cancel creating the question')).toBe(
       false,
     );
+  });
+
+  it('recognizes localized cancellation replies', () => {
+    expect(isCancellationMessage('anuluj')).toBe(true);
+    expect(isCancellationMessage('отмена')).toBe(true);
+    expect(isCancellationMessage('nie')).toBe(true);
   });
 });
 

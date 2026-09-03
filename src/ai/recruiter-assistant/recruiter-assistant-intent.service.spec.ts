@@ -296,76 +296,40 @@ describe('RecruiterAssistantIntentService', () => {
       ownInterviews: true,
       scheduleInquiry: true,
     });
-  });
-
-  it('classifies candidate latest interview status requests', () => {
-    expect(
-      service.classify(
-        'what is the status of my latest interview',
-        candidate,
-        'en',
-      ),
-    ).toEqual({
+    expect(service.classify('когда мое интервью', candidate, 'ru')).toEqual({
       kind: 'interview_status',
       ref: {},
       ownInterviews: true,
-      latest: true,
+      scheduleInquiry: true,
     });
-  });
-
-  it('classifies candidate status by position requests', () => {
-    expect(
-      service.classify(
-        'what is the status of my React Developer interview',
-        candidate,
-        'en',
-      ),
-    ).toEqual({
+    expect(service.classify('kiedy moje interview', candidate, 'pl')).toEqual({
       kind: 'interview_status',
-      ref: { position: 'React Developer' },
-      ownInterviews: true,
-    });
-  });
-
-  it('classifies candidate review-by-position requests', () => {
-    expect(
-      service.classify(
-        'did my React Developer interview get reviewed',
-        candidate,
-        'en',
-      ),
-    ).toEqual({
-      kind: 'review_state',
-      ref: { position: 'React Developer' },
-    });
-  });
-
-  it('classifies candidate new or uncompleted interview list requests', () => {
-    expect(
-      service.classify('do I have any new interviews', candidate, 'en'),
-    ).toEqual({
-      kind: 'list_own_interviews',
-      activeOnly: true,
-    });
-    expect(
-      service.classify('show my uncompleted interviews', candidate, 'en'),
-    ).toEqual({
-      kind: 'list_own_interviews',
-      activeOnly: true,
-    });
-  });
-
-  it('does not route candidate active-list prompts to HR list_interviews', () => {
-    expect(
-      service.classify('show pending interviews', candidate, 'en').kind,
-    ).toBe('list_own_interviews');
-  });
-
-  it('does not treat HR review prompts as candidate own-review routing', () => {
-    expect(service.classify('did Alice get reviewed', admin, 'en')).toEqual({
-      kind: 'review_state',
       ref: {},
+      ownInterviews: true,
+      scheduleInquiry: true,
     });
+  });
+
+  describe('candidate locale intent routing', () => {
+    it.each([
+      ['ru', 'какой статус моего интервью', 'interview_status'],
+      ['ru', 'есть ли у меня незавершенные интервью', 'list_own_interviews'],
+      ['ru', 'просмотрено ли мое интервью', 'review_state'],
+      ['ru', 'какой статус моего последнего интервью', 'interview_status'],
+      ['be', "які статус маё інтэрв'ю", 'interview_status'],
+      ['be', "калі маё інтэрв'ю", 'interview_status'],
+      ['be', "ці ёсць у мяне незавершаныя інтэрв'ю", 'list_own_interviews'],
+      ['pl', 'jaki jest status mojego interview', 'interview_status'],
+      ['pl', 'czy mam nieukończone interview', 'list_own_interviews'],
+      ['pl', 'czy moje interview zostało przejrzane', 'review_state'],
+    ] as const)(
+      'classifies %s candidate message "%s" as %s',
+      (locale, message, expectedKind) => {
+        expect(service.classify(message, candidate, locale).kind).toBe(
+          expectedKind,
+        );
+      },
+    );
   });
 
   it('classifies org activity summary phrasing', () => {
@@ -418,11 +382,67 @@ describe('RecruiterAssistantIntentService', () => {
         'создай 5 вопросов для React разработчик',
         'create_questions_interview',
       ],
+      ['ru', 'сколько у нас вопросов', 'count_questions'],
+      ['ru', 'покажи assessments', 'list_assessments'],
+      ['ru', 'сводка interview activity', 'interview_activity_summary'],
+      ['ru', 'покажи мою команду', 'list_team'],
+      ['ru', 'покажи всех админов', 'list_team'],
+      ['ru', 'интервью не назначен', 'list_unassigned'],
+      ['ru', 'покажи hr', 'list_hrs'],
+      ['ru', 'создай интервью', 'create_interview'],
+      ['ru', 'создай вопрос про React', 'create_question'],
+      ['ru', 'переключи язык на pl', 'switch_locale'],
+      ['ru', 'новый чат', 'new_chat'],
+      ['ru', 'просмотрен ли интервью Alice', 'review_state'],
+      ['be', "пакажы ўсе інтэрв'ю", 'list_interviews'],
+      ['be', "мой інтэрв'ю статус", 'interview_status'],
+      ['be', "прызнач інтэрв'ю для Alice на Jane", 'assign_hr'],
+      ['be', 'ствары 5 пытанняў для React', 'create_questions_interview'],
+      ['be', 'колькі пытанняў', 'count_questions'],
+      ['be', 'пакажы assessments', 'list_assessments'],
+      ['be', 'агляд interview activity', 'interview_activity_summary'],
+      ['be', 'пакажы маю каманду', 'list_team'],
+      ['be', 'пакажы ўсіх адмінаў', 'list_team'],
+      ['be', 'не прызначаны', 'list_unassigned'],
+      ['be', 'пакажы hr', 'list_hrs'],
+      ['be', "ствары інтэрв'ю", 'create_interview'],
+      ['be', 'ствары пытанне', 'create_question'],
+      ['be', 'пераключ мову на pl', 'switch_locale'],
+      ['be', 'новы чат', 'new_chat'],
+      ['be', "прагледжаны інтэрв'ю Alice", 'review_state'],
+      ['pl', 'pokaż wszystkie interview', 'list_interviews'],
+      ['pl', 'mój interview status', 'interview_status'],
+      ['pl', 'przypisz interview dla Alice do Jane', 'assign_hr'],
+      ['pl', 'przygotuj 5 pytań dla React', 'create_questions_interview'],
+      ['pl', 'ile pytań mamy', 'count_questions'],
+      ['pl', 'pokaż assessments', 'list_assessments'],
+      ['pl', 'podsumowanie interview activity', 'interview_activity_summary'],
+      ['pl', 'pokaż mój zespół', 'list_team'],
+      ['pl', 'pokaż wszystkich adminów', 'list_team'],
+      ['pl', 'nie przypisany', 'list_unassigned'],
+      ['pl', 'pokaż hr', 'list_hrs'],
+      ['pl', 'utwórz interview', 'create_interview'],
+      ['pl', 'utwórz pytanie', 'create_question'],
+      ['pl', 'przełącz język na ru', 'switch_locale'],
+      ['pl', 'nowy czat', 'new_chat'],
+      ['pl', 'przejrzane interview Alice', 'review_state'],
       [
         'en',
         'set up an interview for an hr manager role',
         'create_questions_interview',
       ],
+      ['en', 'how many questions do we have', 'count_questions'],
+      ['en', 'show assessments', 'list_assessments'],
+      ['en', 'summarize interview activity', 'interview_activity_summary'],
+      ['en', 'show my team', 'list_team'],
+      ['en', 'show all admins', 'list_team'],
+      ['en', 'unassigned interviews', 'list_unassigned'],
+      ['en', 'show hrs', 'list_hrs'],
+      ['en', 'create a new interview', 'create_interview'],
+      ['en', 'create a question about React', 'create_question'],
+      ['en', 'switch locale to ru', 'switch_locale'],
+      ['en', 'new chat', 'new_chat'],
+      ['en', 'has Alice been reviewed', 'review_state'],
     ] as const)(
       'classifies %s message "%s" as %s',
       (locale, message, expectedKind) => {

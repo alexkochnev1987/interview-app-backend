@@ -98,6 +98,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
       { kind: 'assign_hr', interviewRef: {}, hrRef: {} },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -128,6 +129,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
         hrRef: {},
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -163,6 +165,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -187,6 +190,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -209,6 +213,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
         hrRef: { name: 'Jane Doe' },
       },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -238,6 +243,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
       },
       user,
       'en',
+      'en',
       'session-1',
     );
 
@@ -266,7 +272,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('lists all HR reviewers for admins', async () => {
-    const response = await service.listHrs(user, 'en');
+    const response = await service.listHrs(user, 'en', 'en');
 
     expect(userService.listAll).toHaveBeenCalledWith({
       role: 'hr',
@@ -281,7 +287,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
   });
 
   it('denies HR list for non-admins', async () => {
-    const response = await service.listHrs({ ...user, role: 'hr' }, 'en');
+    const response = await service.listHrs({ ...user, role: 'hr' }, 'en', 'en');
 
     expect(response).toMatchObject({
       status: 'denied',
@@ -301,6 +307,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
     const response = await service.prepareAssignHr(
       { kind: 'assign_hr', interviewRef: {}, hrRef: {} },
       user,
+      'en',
       'en',
       'session-1',
     );
@@ -328,6 +335,7 @@ describe('RecruiterAssistantToolsService assign HR flow', () => {
         hrRef: {},
       },
       user,
+      'en',
       'en',
       'session-1',
     );

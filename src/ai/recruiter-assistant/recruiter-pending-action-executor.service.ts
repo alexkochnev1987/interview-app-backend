@@ -12,6 +12,7 @@ import {
   RecruiterAssistantResponseDto,
   RecruiterAssistantSuggestedQuestionDto,
 } from './dto/recruiter-assistant.dto';
+import { assistantMessage as msg } from './recruiter-assistant-i18n';
 import { mergeCreatedQuestionSuggestions } from './recruiter-assistant-response';
 import { buildCreatedQuestionCard } from './recruiter-assistant-response-builders';
 import {
@@ -34,26 +35,28 @@ export class RecruiterPendingActionExecutorService {
     action: RecruiterAssistantPendingActionDto,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     if (action.type === 'assign_hr') {
-      return this.executeAssignHr(action, user);
+      return this.executeAssignHr(action, user, messageLocale);
     }
 
     if (action.type === 'create_single_question') {
-      return this.executeCreateSingleQuestion(action, user);
+      return this.executeCreateSingleQuestion(action, user, messageLocale);
     }
 
-    return this.executeCreate(action, user, locale);
+    return this.executeCreate(action, user, locale, messageLocale);
   }
 
   private async executeAssignHr(
     action: RecruiterAssistantAssignHrPendingActionDto,
     user: ActingUser,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canAssignHr(user)) {
       return {
         status: 'refused',
-        response: 'Only admins can assign HR reviewers.',
+        response: msg(messageLocale, 'denied.assignHr'),
         escalateTo: 'admin',
       };
     }
@@ -67,25 +70,28 @@ export class RecruiterPendingActionExecutorService {
     } catch {
       return {
         status: 'refused',
-        response:
-          'I could not assign that HR reviewer. Check the interview and reviewer ids and try again.',
+        response: msg(messageLocale, 'refused.assignHrFailed'),
       };
     }
 
     return {
       status: 'executed',
-      response: `Assigned ${action.interviewLabel} to ${action.assignedHrName}.`,
+      response: msg(messageLocale, 'executed.assignedHr', {
+        interviewLabel: action.interviewLabel,
+        hrName: action.assignedHrName,
+      }),
     };
   }
 
   private async executeCreateSingleQuestion(
     action: RecruiterAssistantCreateSingleQuestionPendingActionDto,
     user: ActingUser,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     if (!canCreateQuestions(user)) {
       return {
         status: 'refused',
-        response: 'You do not have permission to create questions.',
+        response: msg(messageLocale, 'denied.createQuestions'),
       };
     }
 
@@ -96,7 +102,9 @@ export class RecruiterPendingActionExecutorService {
 
       return {
         status: 'executed',
-        response: `Created question "${created.questionText}".`,
+        response: msg(messageLocale, 'executed.questionCreated', {
+          questionText: created.questionText,
+        }),
         createdQuestion: buildCreatedQuestionCard({
           id: created.id,
           questionText: created.questionText,
@@ -105,7 +113,7 @@ export class RecruiterPendingActionExecutorService {
     } catch {
       return {
         status: 'refused',
-        response: 'Question creation failed. Please try again.',
+        response: msg(messageLocale, 'refused.questionCreateFailed'),
       };
     }
   }
@@ -114,6 +122,7 @@ export class RecruiterPendingActionExecutorService {
     action: RecruiterAssistantCreatePendingActionDto,
     user: ActingUser,
     locale: Locale,
+    messageLocale: Locale,
   ): Promise<RecruiterAssistantResponseDto> {
     const interviewLocale = action.interviewLocale ?? locale;
     const createdQuestions: RecruiterAssistantSuggestedQuestionDto[] = [];
@@ -130,8 +139,10 @@ export class RecruiterPendingActionExecutorService {
         if (!canCreateQuestions(user)) {
           return {
             status: 'refused',
-            response:
-              'I cannot create the missing questions because your user does not have questions:create permission.',
+            response: msg(
+              messageLocale,
+              'refused.cannotCreateQuestionsPermission',
+            ),
             suggestedQuestions: action.questions,
           };
         }
@@ -155,8 +166,8 @@ export class RecruiterPendingActionExecutorService {
         status: 'refused',
         response:
           createdQuestionIds.length > 0
-            ? 'Question creation failed partway through. Any new questions from this attempt were rolled back; no interview was created.'
-            : 'Something went wrong while creating questions. No questions or interview were created; please start again.',
+            ? msg(messageLocale, 'refused.questionsFailedPartial')
+            : msg(messageLocale, 'refused.questionsFailed'),
         suggestedQuestions: action.questions,
       };
     }
@@ -166,8 +177,10 @@ export class RecruiterPendingActionExecutorService {
         status: 'executed',
         response:
           createdQuestions.length === 0
-            ? 'No new questions were needed. The suggested set is ready.'
-            : `Created ${createdQuestions.length} missing questions. Send me the candidate name when you want to create the interview.`,
+            ? msg(messageLocale, 'executed.questionsOnlyReady')
+            : msg(messageLocale, 'executed.questionsCreated', {
+                count: createdQuestions.length,
+              }),
         suggestedQuestions: mergeCreatedQuestionSuggestions(
           action.questions,
           createdQuestions,
@@ -180,10 +193,16 @@ export class RecruiterPendingActionExecutorService {
 
       return {
         status: 'refused',
-        response:
-          createdQuestionIds.length > 0
-            ? 'I cannot create the interview because your user does not have interviews:create permission. Any new questions from this attempt were rolled back.'
-            : 'I cannot create the interview because your user does not have interviews:create permission.',
+        response: msg(
+          messageLocale,
+          'refused.cannotCreateInterviewPermission',
+          {
+            rollbackNote:
+              createdQuestionIds.length > 0
+                ? ' Any new questions from this attempt were rolled back.'
+                : '',
+          },
+        ),
         suggestedQuestions: action.questions,
       };
     }
@@ -210,7 +229,10 @@ export class RecruiterPendingActionExecutorService {
 
       return {
         status: 'executed',
-        response: `Interview created for ${action.candidateName}. ${finalQuestionIds.length} question${finalQuestionIds.length === 1 ? '' : 's'} attached.`,
+        response: msg(messageLocale, 'executed.interviewCreated', {
+          candidateName: action.candidateName,
+          questionCount: finalQuestionIds.length,
+        }),
         createdInterview: {
           id: created.interview.id,
           candidateLink,
@@ -221,8 +243,7 @@ export class RecruiterPendingActionExecutorService {
 
       return {
         status: 'refused',
-        response:
-          'Interview creation failed. Any new questions from this attempt were rolled back; please start again.',
+        response: msg(messageLocale, 'refused.interviewCreateFailed'),
         suggestedQuestions: action.questions,
       };
     }
