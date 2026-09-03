@@ -360,6 +360,36 @@ describe('RecruiterAssistantToolsService create interview flow', () => {
     );
   });
 
+  it('redirects when the user chooses a localized create-my-own phrase', async () => {
+    const response = await service.continueCreateInterviewFlow(
+      {
+        flow: 'create_interview',
+        slots: {
+          candidateName: 'Alice',
+          candidateResolution: 'new',
+          position: 'React Developer',
+          templateIds: 'template-1',
+          templateChoice: 'свой',
+        },
+      },
+      user,
+      'en',
+      'ru',
+      'session-1',
+    );
+
+    expect(response).toMatchObject({
+      status: 'answered',
+      redirect: {
+        path: '/interviews/new',
+        query: {
+          candidateName: 'Alice',
+          position: 'React Developer',
+        },
+      },
+    });
+  });
+
   it('redirects when the user chooses create my own', async () => {
     const response = await service.continueCreateInterviewFlow(
       {

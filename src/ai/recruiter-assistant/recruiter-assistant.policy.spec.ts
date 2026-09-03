@@ -56,6 +56,12 @@ describe('recruiter assistant confirmation messages', () => {
       false,
     );
   });
+
+  it('recognizes localized cancellation replies', () => {
+    expect(isCancellationMessage('anuluj')).toBe(true);
+    expect(isCancellationMessage('отмена')).toBe(true);
+    expect(isCancellationMessage('nie')).toBe(true);
+  });
 });
 
 describe('role-aware assistant copy', () => {

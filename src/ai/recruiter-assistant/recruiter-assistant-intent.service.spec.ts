@@ -296,6 +296,40 @@ describe('RecruiterAssistantIntentService', () => {
       ownInterviews: true,
       scheduleInquiry: true,
     });
+    expect(service.classify('когда мое интервью', candidate, 'ru')).toEqual({
+      kind: 'interview_status',
+      ref: {},
+      ownInterviews: true,
+      scheduleInquiry: true,
+    });
+    expect(service.classify('kiedy moje interview', candidate, 'pl')).toEqual({
+      kind: 'interview_status',
+      ref: {},
+      ownInterviews: true,
+      scheduleInquiry: true,
+    });
+  });
+
+  describe('candidate locale intent routing', () => {
+    it.each([
+      ['ru', 'какой статус моего интервью', 'interview_status'],
+      ['ru', 'есть ли у меня незавершенные интервью', 'list_own_interviews'],
+      ['ru', 'просмотрено ли мое интервью', 'review_state'],
+      ['ru', 'какой статус моего последнего интервью', 'interview_status'],
+      ['be', "які статус маё інтэрв'ю", 'interview_status'],
+      ['be', "калі маё інтэрв'ю", 'interview_status'],
+      ['be', "ці ёсць у мяне незавершаныя інтэрв'ю", 'list_own_interviews'],
+      ['pl', 'jaki jest status mojego interview', 'interview_status'],
+      ['pl', 'czy mam nieukończone interview', 'list_own_interviews'],
+      ['pl', 'czy moje interview zostało przejrzane', 'review_state'],
+    ] as const)(
+      'classifies %s candidate message "%s" as %s',
+      (locale, message, expectedKind) => {
+        expect(service.classify(message, candidate, locale).kind).toBe(
+          expectedKind,
+        );
+      },
+    );
   });
 
   it('classifies org activity summary phrasing', () => {

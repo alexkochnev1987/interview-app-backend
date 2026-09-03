@@ -1,4 +1,5 @@
-import { NEW_CHAT_WELCOME_RESPONSE } from './recruiter-assistant.policy';
+import { assistantMessage } from './recruiter-assistant-i18n';
+import { newChatWelcomeResponse } from './recruiter-assistant.policy';
 import { RecruiterAssistantService } from './recruiter-assistant.service';
 import { ActingUser } from './recruiter-assistant.types';
 
@@ -46,7 +47,7 @@ describe('RecruiterAssistantService', () => {
     switchLocale: vi.fn(),
     startNewChat: vi.fn().mockReturnValue({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
     }),
   };
 
@@ -72,7 +73,7 @@ describe('RecruiterAssistantService', () => {
     conversationFlow.resumeActiveFlow.mockResolvedValue(null);
     tools.startNewChat.mockReturnValue({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
     });
   });
 
@@ -123,7 +124,7 @@ describe('RecruiterAssistantService', () => {
     );
     expect(response).toEqual({
       status: 'answered',
-      response: 'Cancelled. No changes were made.',
+      response: assistantMessage('en', 'cancelled'),
       sessionId: 'session-1',
       locale: 'en',
     });
@@ -200,7 +201,7 @@ describe('RecruiterAssistantService', () => {
     expect(conversationStore.issue).toHaveBeenCalledWith('user-1');
     expect(response).toEqual({
       status: 'answered',
-      response: NEW_CHAT_WELCOME_RESPONSE,
+      response: newChatWelcomeResponse(user, 'en'),
       sessionId: 'session-2',
       locale: 'en',
     });

@@ -88,12 +88,20 @@ export const MY_INTERVIEWS_PATTERNS = [
 export const CANDIDATE_SCHEDULE_PATTERNS = [
   /\bwhen is my interview\b/i,
   /\bwhere is my interview\b/i,
-  cyrillicLoosePattern('когда\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?интерв'),
-  cyrillicLoosePattern('калі\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?(?:інт|инт)'),
-  cyrillicLoosePattern('где\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?интерв'),
-  cyrillicLoosePattern('дзе\\s+(?:\\s+\\S+){0,4}(?:мой\\s+)?(?:інт|инт)'),
-  latinLoosePattern('kiedy\\s+(?:\\s+\\S+){0,4}(?:m[oó]j\\s+)?inter'),
-  latinLoosePattern('gdzie\\s+(?:\\s+\\S+){0,4}(?:m[oó]j\\s+)?inter'),
+  cyrillicLoosePattern('когда\\s+(?:(?:\\s+\\S+){0,4})?(?:мо[йёе]\\s+)?интерв'),
+  cyrillicLoosePattern(
+    'калі\\s+(?:(?:\\s+\\S+){0,4})?(?:ма[ёо]\\s+)?(?:інт|инт)',
+  ),
+  cyrillicLoosePattern('где\\s+(?:(?:\\s+\\S+){0,4})?(?:мо[йёе]\\s+)?интерв'),
+  cyrillicLoosePattern(
+    'дзе\\s+(?:(?:\\s+\\S+){0,4})?(?:ма[ёо]\\s+)?(?:інт|инт)',
+  ),
+  latinLoosePattern(
+    'kiedy\\s+(?:(?:\\s+\\S+){0,4})?(?:m[oó]j[aęe]?\\s+)?inter',
+  ),
+  latinLoosePattern(
+    'gdzie\\s+(?:(?:\\s+\\S+){0,4})?(?:m[oó]j[aęe]?\\s+)?inter',
+  ),
 ];
 
 export const CANDIDATE_OWN_STATUS_PATTERNS = [
@@ -108,7 +116,7 @@ export const CANDIDATE_OWN_STATUS_PATTERNS = [
   ),
   cyrillicLoosePattern('мой\\s+\\u0456\\u043D\\u0442'),
   latinLoosePattern('czy\\s+mam\\s+inter'),
-  latinLoosePattern('m[oó]j\\s+inter'),
+  latinLoosePattern('m[oó]j[aęe]?\\s+inter'),
 ];
 
 export const REVIEW_STATE_PATTERNS = [
@@ -425,7 +433,13 @@ export const CANDIDATE_LATEST_STATUS_PATTERNS = [
   /\b(?:status|state)\s+of\s+my\s+(?:latest|most recent|newest|last)\b.*\binterview\b/i,
   /\bmy\s+(?:latest|most recent|newest|last)\b.*\binterview\b.*\bstatus\b/i,
   cyrillicLoosePattern(
-    '(?:статус|как).{0,12}(?:моего\\s+)?(?:последн(?:его|ее|ий|ем)|самого\\s+нового)\\s+интерв',
+    '(?:статус|как).{0,12}(?:мо[йёе]\\s+)?(?:последн(?:его|ее|ий|ем)|самого\\s+нового)\\s+интерв',
+  ),
+  cyrillicLoosePattern(
+    '(?:статус|як).{0,12}(?:ма[ёо]\\s+)?(?:апошн|остатн).{0,8}(?:інт|инт)',
+  ),
+  latinLoosePattern(
+    '(?:status|jaki).{0,12}(?:m[oó]j[aęe]?\\s+)?(?:ostatni|najnowsz).{0,8}inter',
   ),
 ];
 
@@ -437,6 +451,12 @@ export const CANDIDATE_LIST_ACTIVE_PATTERNS = [
   cyrillicLoosePattern(
     '(?:есть\\s+ли\\s+у\\s+меня|покажи).{0,24}(?:новые|незаверш|не\\s+заверш|активн).{0,16}интерв',
   ),
+  cyrillicLoosePattern(
+    '(?:ці\\s+ёсць\\s+у\\s+мяне|пакажы).{0,24}(?:незаверш|не\\s+заверш|актыўн).{0,16}(?:інт|инт)',
+  ),
+  latinLoosePattern(
+    '(?:czy\\s+mam|poka[żz]).{0,24}(?:nieuko[nń]cz|niedoko[nń]cz|aktywn|otwart).{0,16}inter',
+  ),
 ];
 
 export const CANDIDATE_OWN_REVIEW_PATTERNS = [
@@ -444,8 +464,21 @@ export const CANDIDATE_OWN_REVIEW_PATTERNS = [
   /\bmy\b.*\binterview\b.*\b(?:been reviewed|get reviewed|reviewed)\b/i,
   /\b(?:been reviewed|review status|review state)\b.*\bmy\b.*\binterview\b/i,
   cyrillicLoosePattern(
-    '(?:мо(?:й|его|ем)|моя).{0,24}интерв.{0,24}(?:ревью|просмотрен|проверен)',
+    '(?:мо[йёея]|моя).{0,24}интерв.{0,24}(?:ревью|просмотрен|проверен)',
   ),
+  cyrillicLoosePattern(
+    '(?:просмотрен|ревью|проверен).{0,24}(?:мо[йёея]|моя).{0,24}интерв',
+  ),
+  cyrillicLoosePattern(
+    '(?:ма[ёо]|мой|моя).{0,24}(?:інт|инт).{0,24}(?:прагледжан|рэ\\u0456\\u0458\\u044E)',
+  ),
+  cyrillicLoosePattern(
+    '(?:прагледжан|рэ\\u0456\\u0458\\u044E).{0,24}(?:ма[ёо]|мой|моя).{0,24}(?:інт|инт)',
+  ),
+  latinLoosePattern(
+    'm[oó]j[aęe]?\\s+inter.{0,24}(?:przejrz|recenzj|zosta[łl]o\\s+przejrz)',
+  ),
+  latinLoosePattern('czy\\s+moje\\s+inter.{0,24}przejrz'),
 ];
 
 export function matchesCandidateLatestStatusIntent(message: string): boolean {
